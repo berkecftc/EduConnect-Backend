@@ -1,0 +1,9 @@
+spring:
+  application:
+    name: assignment-service
+  config:
+    import: optional:configserver:http://localhost:8888
+  cloud:
+    config:
+      enabled: true
+      fail-fast: false

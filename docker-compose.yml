@@ -1,0 +1,54 @@
+version: '3.8'
+
+services:
+  # PostgreSQL veritabanı servisi
+  postgres:
+    image: postgres:14
+    container_name: educonnect-postgres
+    environment:
+      POSTGRES_USER: eduadmin     # Veritabanı kullanıcı adınız
+      POSTGRES_PASSWORD: edu123  # Veritabanı şifreniz
+      POSTGRES_DB: educonnect
+    ports:
+      - "5432:5432" # Lokal makinenizdeki 5432 portunu container'ın 5432 portuna bağlar
+    volumes:
+      - postgres-data:/var/lib/postgresql/data # Verilerin yeniden başlatmalarda kaybolmamasını sağlar
+
+  # Redis cache ve oturum yönetimi servisi
+  redis:
+    image: redis:6.2-alpine
+    container_name: educonnect-redis
+    ports:
+      - "6379:6379" # Lokal makinenizdeki 6379 portunu container'ın 6379 portuna bağlar
+    volumes:
+      - redis-data:/data
+
+  # RabbitMQ mesaj kuyruğu servisi
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: educonnect-rabbitmq
+    ports:
+      - "5672:5672"   # Mikroservislerin bağlanacağı AMQP portu
+      - "15672:15672" # Yönetim arayüzü (http://localhost:15672)
+    environment:
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
+
+  minio:
+    image: minio/minio
+    container_name: educonnect-minio
+    ports:
+      - "9000:9000"   # API portu (Servislerinizin bağlanacağı port)
+      - "9001:9001"   # Web Konsolu portu (Yönetim arayüzü)
+    environment:
+      # Kendi güçlü kimlik bilgilerinizi belirleyin
+      MINIO_ROOT_USER: your_minio_user     # MinIO yönetim kullanıcı adı
+      MINIO_ROOT_PASSWORD: your_minio_password # MinIO yönetim şifresi
+    volumes:
+      - minio-data:/data # Resimlerin ve dosyaların kalıcı olarak saklanması için
+    command: server /data --console-address ":9001"
+
+volumes:
+  postgres-data:
+  redis-data:
+  minio-data:

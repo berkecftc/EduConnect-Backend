@@ -1,0 +1,13 @@
+spring:
+  application:
+    # Servisin Eureka'da ve Gateway'de görünecek adı
+    name: club-service
+  main:
+    web-application-type: servlet
+  config:
+    import: "configserver:http://localhost:8888" # Yeni Spring Cloud sürümü için
+  cloud:
+    config:
+      uri: http://localhost:8888
+      fail-fast: true
+

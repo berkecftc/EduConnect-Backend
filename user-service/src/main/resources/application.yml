@@ -1,0 +1,51 @@
+spring:
+  application:
+    name: user-service
+
+  config:
+    import: "configserver:"
+
+  cloud:
+    config:
+      uri: http://localhost:8888
+      fail-fast: true
+
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/educonnect}
+    username: ${SPRING_DATASOURCE_USERNAME:eduadmin}
+    password: ${SPRING_DATASOURCE_PASSWORD:edu123}
+    driver-class-name: org.postgresql.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+    properties:
+      hibernate:
+        default_schema: user_db
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        format_sql: true
+
+  rabbitmq:
+    host: ${SPRING_RABBITMQ_HOST:localhost}
+    port: ${SPRING_RABBITMQ_PORT:5672}
+    username: ${SPRING_RABBITMQ_USERNAME:guest}
+    password: ${SPRING_RABBITMQ_PASSWORD:guest}
+    virtual-host: ${SPRING_RABBITMQ_VHOST:/}
+
+# MinIO yapılandırması
+minio:
+  url: ${MINIO_URL:http://localhost:9000}
+  access-key: ${MINIO_ACCESS_KEY:your_minio_user}
+  secret-key: ${MINIO_SECRET_KEY:your_minio_password}
+  bucket:
+    name: ${MINIO_BUCKET_NAME:educonnect}
+
+logging:
+  level:
+    org.springframework.amqp: DEBUG
+    org.springframework.amqp.rabbit.listener: DEBUG
+
+user:
+  listener:
+    auto-start: true

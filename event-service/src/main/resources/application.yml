@@ -1,0 +1,11 @@
+spring:
+  application:
+    name: event-service # Eureka'daki adı
+  main:
+    web-application-type: servlet
+  config:
+    import: "configserver:"
+  cloud:
+    config:
+      uri: http://localhost:8888
+      fail-fast: true
