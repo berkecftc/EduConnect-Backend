@@ -35,6 +35,9 @@ public class Event {
     @Enumerated(EnumType.STRING)
     private EventStatus status = EventStatus.ACTIVE;
 
+    @Column(nullable = false)
+    private UUID createdByStudentId;
+
     // --- Getter & Setter (Lombok yoksa manuel ekleyin) ---
     public Event() {}
 
@@ -57,4 +60,12 @@ public class Event {
     public void setClubName(String clubName) { this.clubName = clubName; }
     public EventStatus getStatus() { return status; }
     public void setStatus(EventStatus status) { this.status = status; }
+    public UUID getCreatedByStudentId() {
+        return createdByStudentId;
+    }
+
+    public void setCreatedByStudentId(UUID createdByStudentId) {
+        this.createdByStudentId = createdByStudentId;
+    }
+
 }

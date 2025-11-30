@@ -1,10 +1,12 @@
 package com.educonnect.clubservice.controller;
 
+import com.educonnect.clubservice.Repository.ClubRepository;
 import com.educonnect.clubservice.dto.request.AddMemberRequest;
 import com.educonnect.clubservice.dto.request.SubmitClubRequest;
 import com.educonnect.clubservice.dto.request.UpdateMemberRoleRequest;
 import com.educonnect.clubservice.dto.response.ClubDetailsDTO;
 import com.educonnect.clubservice.dto.response.ClubSummaryDTO;
+import com.educonnect.clubservice.model.Club;
 import com.educonnect.clubservice.model.ClubMembership;
 import com.educonnect.clubservice.service.ClubService;
 import org.springframework.http.HttpStatus;
@@ -22,9 +24,13 @@ import java.util.UUID;
 public class ClubController {
 
     private final ClubService clubService;
+    private final ClubRepository clubRepository;
 
-    public ClubController(ClubService clubService) {
+    // --- MANUEL CONSTRUCTOR ---
+    // Lombok'un @RequiredArgsConstructor ile arka planda yaptığı iş budur
+    public ClubController(ClubService clubService, ClubRepository clubRepository) {
         this.clubService = clubService;
+        this.clubRepository = clubRepository;
     }
 
     // Tüm Kulüpleri Listele (Özet Bilgi)
@@ -168,5 +174,17 @@ public class ClubController {
         UUID studentId = UUID.fromString(userIdHeader);
         clubService.submitClubCreationRequest(request, studentId);
         return ResponseEntity.ok("Club creation request submitted. Pending admin approval.");
+    }
+
+    /**
+     * İsme göre kulüp arama (Event Service gibi diğer servisler kullanacak).
+     * Örn: GET /api/clubs/search?name=Yapay Zeka Kulübü
+     */
+    @GetMapping("/search")
+    public ResponseEntity<ClubSummaryDTO> getClubByName(@RequestParam String name) {
+        Club club = clubRepository.findByName(name)
+                .orElseThrow(() -> new RuntimeException("Club not found with name: " + name));
+
+        return ResponseEntity.ok(new ClubSummaryDTO(club.getId(), club.getName(), club.getLogoUrl()));
     }
 }

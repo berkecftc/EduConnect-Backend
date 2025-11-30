@@ -1,6 +1,7 @@
 package com.educonnect.eventservice.Repository;
 
 import com.educonnect.eventservice.model.Event;
+import com.educonnect.eventservice.model.EventStatus;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 import java.util.List;
@@ -13,4 +14,8 @@ public interface EventRepository extends JpaRepository<Event, UUID> {
 
     // Tarihe göre sıralı, yaklaşan etkinlikleri getir (Ana sayfa için)
     // (Basit versiyonu, detaylısı servis katmanında olacak)
+
+    // --- YENİ METOT ---
+    // Belirli bir durumdaki (örn: PENDING) etkinlikleri getir
+    List<Event> findByStatus(EventStatus status);
 }

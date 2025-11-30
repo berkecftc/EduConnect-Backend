@@ -1,6 +1,7 @@
 package com.educonnect.clubservice.controller;
 
 import com.educonnect.clubservice.dto.request.CreateClubRequest;
+import com.educonnect.clubservice.dto.request.UpdateClubRequest;
 import com.educonnect.clubservice.model.Club;
 import com.educonnect.clubservice.model.ClubCreationRequest;
 import com.educonnect.clubservice.service.ClubService;
@@ -77,6 +78,12 @@ public class ClubAdminController {
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<Club> approveClubRequest(@PathVariable UUID requestId) {
         return ResponseEntity.ok(clubService.approveClubCreationRequest(requestId));
+    }
+
+    @PutMapping("/{clubId}")
+    @PreAuthorize("hasRole('ADMIN')") // Veya kulüp başkanı
+    public ResponseEntity<Club> updateClub(@PathVariable UUID clubId, @RequestBody UpdateClubRequest request) {
+        return ResponseEntity.ok(clubService.updateClub(clubId, request));
     }
 
 

@@ -3,10 +3,8 @@ package com.educonnect.clubservice.service;
 import com.educonnect.clubservice.Repository.ClubCreationRequestRepository;
 import com.educonnect.clubservice.config.ClubRabbitMQConfig; // RabbitMQ yapılandırmamız
 import com.educonnect.clubservice.dto.message.AssignClubRoleMessage;
-import com.educonnect.clubservice.dto.request.AddMemberRequest;
-import com.educonnect.clubservice.dto.request.CreateClubRequest;
-import com.educonnect.clubservice.dto.request.SubmitClubRequest;
-import com.educonnect.clubservice.dto.request.UpdateMemberRoleRequest;
+import com.educonnect.clubservice.dto.message.ClubUpdateMessage;
+import com.educonnect.clubservice.dto.request.*;
 import com.educonnect.clubservice.dto.response.ClubDetailsDTO;
 import com.educonnect.clubservice.dto.response.ClubSummaryDTO;
 import com.educonnect.clubservice.dto.response.MemberDTO;
@@ -225,6 +223,37 @@ public class ClubService {
         rabbitTemplate.convertAndSend(ClubRabbitMQConfig.EXCHANGE_NAME, routingKey, clubId.toString());
 
         System.out.println("Club deleted and 'club.deleted' message sent for clubId: " + clubId);
+    }
+
+    /**
+     * Kulüp bilgilerini günceller ve değişikliği RabbitMQ ile yayınlar.
+     */
+    public Club updateClub(UUID clubId, UpdateClubRequest request) {
+        Club club = clubRepository.findById(clubId)
+                .orElseThrow(() -> new RuntimeException("Club not found"));
+
+        // 1. Bilgileri Güncelle
+        if (request.getName() != null) club.setName(request.getName());
+        if (request.getAbout() != null) club.setAbout(request.getAbout());
+        if (request.getAcademicAdvisorId() != null) club.setAcademicAdvisorId(request.getAcademicAdvisorId());
+
+        Club updatedClub = clubRepository.save(club);
+
+        // 2. RabbitMQ Mesajı Gönder (Sadece isim değiştiyse göndermek yeterli olabilir)
+        if (request.getName() != null) { // İsim değiştiyse event-service bilmeli
+            ClubUpdateMessage message = new ClubUpdateMessage(
+                    updatedClub.getId(),
+                    updatedClub.getName(),
+                    updatedClub.getLogoUrl()
+            );
+
+            String routingKey = "club.updated"; // YENİ ROUTING KEY
+            rabbitTemplate.convertAndSend(ClubRabbitMQConfig.EXCHANGE_NAME, routingKey, message);
+
+            System.out.println("Club updated message sent: " + updatedClub.getName());
+        }
+
+        return updatedClub;
     }
 
     // --- YENİ METOT: ÖĞRENCİNİN KULÜBE KATILMASI ---

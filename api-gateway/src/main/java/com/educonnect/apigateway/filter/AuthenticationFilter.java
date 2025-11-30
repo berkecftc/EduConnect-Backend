@@ -117,7 +117,15 @@ public class AuthenticationFilter extends AbstractGatewayFilterFactory<Authentic
         // Regex for /api/clubs/{uuid} (single club detail - public)
         boolean isSingleClubEndpoint = path.matches("^/api/clubs/[a-fA-F0-9\\-]{36}$");
 
-        return matchesPublicList || isClubListEndpoint || isSingleClubEndpoint;
+
+        // 1. Tüm etkinlikleri listeleme (GET /api/events)
+        boolean isEventListEndpoint = path.equals("/api/events");
+
+        // 2. Tek etkinlik detayı (GET /api/events/{uuid})
+        boolean isSingleEventEndpoint = path.matches("^/api/events/[a-fA-F0-9\\-]{36}$");
+
+        return matchesPublicList || isClubListEndpoint || isSingleClubEndpoint ||
+                isEventListEndpoint || isSingleEventEndpoint; // <-- Bunları return'e ekleyin
     }
 
     private Mono<Void> onError(ServerWebExchange exchange, String err, HttpStatus httpStatus) {
