@@ -16,6 +16,7 @@
         <module name="user-service" />
         <module name="eureka-server" />
         <module name="assignment-service" />
+        <module name="notification-service" />
       </profile>
     </annotationProcessing>
   </component>
@@ -30,6 +31,7 @@
       <module name="course-service" options="-parameters" />
       <module name="eureka-server" options="-parameters" />
       <module name="event-service" options="-parameters" />
+      <module name="notification-service" options="-parameters" />
       <module name="user-service" options="-parameters" />
     </option>
   </component>

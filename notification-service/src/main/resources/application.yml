@@ -1,0 +1,9 @@
+spring:
+  application:
+    name: notification-service
+  config:
+    import: "configserver:"
+  cloud:
+    config:
+      uri: http://localhost:8888
+      fail-fast: true
