@@ -21,6 +21,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.List;
 import java.util.UUID;
 
 @RestController
@@ -122,5 +123,11 @@ public class AuthController {
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("An unexpected error occurred.");
         }
+    }
+
+    // Toplu e-posta sorgulama (POST kullanıyoruz çünkü ID listesi uzun olabilir)
+    @PostMapping("/users/emails")
+    public ResponseEntity<List<String>> getEmailsByIds(@RequestBody List<UUID> userIds) {
+        return ResponseEntity.ok(authService.getEmailsByUserIds(userIds));
     }
 }

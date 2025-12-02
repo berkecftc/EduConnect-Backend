@@ -3,6 +3,8 @@ package com.educonnect.authservices.Repository;
 import com.educonnect.authservices.models.Role;
 import com.educonnect.authservices.models.User;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
@@ -17,4 +19,8 @@ public interface UserRepository extends JpaRepository<User, UUID> {
 
     // Pending kulüp görevlisi başvuruları
     List<User> findAllByRolesContaining(Role role);
+
+    // ...
+    @Query("SELECT u.email FROM User u WHERE u.id IN :ids")
+    List<String> findEmailsByIds(@Param("ids") List<UUID> ids);
 }

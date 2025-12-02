@@ -7,3 +7,7 @@ spring:
     config:
       uri: http://localhost:8888
       fail-fast: true
+
+  # Bu ayarlar Config Server'dan gelen ${...} yerlerini doldurur
+  MAIL_USERNAME: educonnect.workshop@gmail.com
+  MAIL_PASSWORD: uiii izps okje hnfw

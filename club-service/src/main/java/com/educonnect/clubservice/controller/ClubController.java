@@ -6,6 +6,7 @@ import com.educonnect.clubservice.dto.request.SubmitClubRequest;
 import com.educonnect.clubservice.dto.request.UpdateMemberRoleRequest;
 import com.educonnect.clubservice.dto.response.ClubDetailsDTO;
 import com.educonnect.clubservice.dto.response.ClubSummaryDTO;
+import com.educonnect.clubservice.dto.response.MemberDTO;
 import com.educonnect.clubservice.model.Club;
 import com.educonnect.clubservice.model.ClubMembership;
 import com.educonnect.clubservice.service.ClubService;
@@ -18,6 +19,7 @@ import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/clubs") // Public rota
@@ -186,5 +188,20 @@ public class ClubController {
                 .orElseThrow(() -> new RuntimeException("Club not found with name: " + name));
 
         return ResponseEntity.ok(new ClubSummaryDTO(club.getId(), club.getName(), club.getLogoUrl()));
+    }
+
+    /**
+     * Notification Service için: Bir kulübün tüm üyelerinin ID'lerini döner.
+     * (Sadece servisler arası iletişim için kullanılacağından güvenliği basit tutabiliriz veya internal yapabiliriz)
+     */
+    @GetMapping("/{clubId}/members/ids")
+    public ResponseEntity<List<UUID>> getClubMemberIds(@PathVariable UUID clubId) {
+        // ClubDetailsDTO'dan veya direkt repository'den çekebiliriz
+        // Repository'de 'findStudentIdsByClubId' gibi bir metot yoksa, stream ile çevirelim:
+        List<UUID> memberIds = clubService.getClubDetails(clubId).getMembers().stream()
+                .map(MemberDTO::getStudentId)
+                .collect(Collectors.toList());
+
+        return ResponseEntity.ok(memberIds);
     }
 }

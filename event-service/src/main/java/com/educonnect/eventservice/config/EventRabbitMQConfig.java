@@ -27,6 +27,9 @@ public class EventRabbitMQConfig {
     public static final String UPDATE_CLUB_QUEUE = "update-club-info-queue";
     public static final String ROUTING_KEY_CLUB_UPDATED = "club.updated";
 
+    // ... mevcut sabitler ...
+    public static final String ROUTING_KEY_EVENT_REGISTERED = "event.registered";
+
     @Bean
     public DirectExchange clubExchange() {
         return new DirectExchange(CLUB_EXCHANGE_NAME);

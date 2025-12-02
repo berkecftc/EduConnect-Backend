@@ -29,6 +29,7 @@
         <module>assignment-service</module>
         <module>event-service</module>
         <module>club-service</module>
+        <module>notification-service</module>
     </modules>
 
     <properties>

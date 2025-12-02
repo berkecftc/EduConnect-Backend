@@ -2,6 +2,7 @@ package com.educonnect.eventservice.service;
 
 import com.educonnect.eventservice.config.EventRabbitMQConfig;
 import com.educonnect.eventservice.dto.message.EventCreatedMessage;
+import com.educonnect.eventservice.dto.message.EventRegistrationMessage;
 import com.educonnect.eventservice.dto.request.CreateEventRequest;
 import com.educonnect.eventservice.model.Event;
 import com.educonnect.eventservice.model.EventStatus;
@@ -219,15 +220,41 @@ public class EventService {
             throw new IllegalStateException("Student is already registered for this event.");
         }
 
-        // 4. Kayıt oluştur
+        // 4. Kayıt nesnesini hazırla
         EventRegistration registration = new EventRegistration();
         registration.setEventId(eventId);
         registration.setStudentId(studentId);
-        // Basit bir QR içerik stringi (Frontend bunu QR resmine çevirecek)
         registration.setQrCode(UUID.randomUUID().toString());
 
-        return eventRegistrationRepository.save(registration);
+        // --- HATAYI ÇÖZEN KISIM BURASI ---
+        // Kaydetme işlemini yapıp sonucunu 'savedRegistration' değişkenine atıyoruz.
+        // Eskiden muhtemelen "return registrationRepository.save(registration);" şeklindeydi.
+        EventRegistration savedRegistration = eventRegistrationRepository.save(registration);
+        // ----------------------------------
+
+        // 5. RabbitMQ Mesajı Gönder (Artık savedRegistration değişkeni var!)
+        EventRegistrationMessage message = new EventRegistrationMessage(
+                studentId,
+                event.getTitle(),
+                event.getEventTime(),
+                event.getLocation(),
+                savedRegistration.getQrCode() // Burası hata veriyordu
+        );
+
+        rabbitTemplate.convertAndSend(
+                EventRabbitMQConfig.CLUB_EXCHANGE_NAME,
+                EventRabbitMQConfig.ROUTING_KEY_EVENT_REGISTERED,
+                message
+        );
+
+        System.out.println("Registration notification sent for student: " + studentId);
+
+        // 6. Kaydedilen nesneyi döndür
+        return savedRegistration;
     }
+
+
+
 
     /**
      * QR Kodu okutarak katılımı doğrular (Check-in).

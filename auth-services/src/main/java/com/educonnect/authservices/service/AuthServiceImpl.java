@@ -20,6 +20,7 @@ import org.springframework.stereotype.Service;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.Set;
 import java.util.UUID;
@@ -367,5 +368,9 @@ public class AuthServiceImpl {
         // Şifre değiştiğinde, bu kullanıcıya ait diğer tüm JWT token'ları
         // geçersiz kılmak için bir mekanizma (örn: 'passwordChangedAt' timestamp'i)
         // eklenebilir. Şimdilik bu adımı atlıyoruz.
+    }
+
+    public List<String> getEmailsByUserIds(List<UUID> userIds) {
+        return userRepository.findEmailsByIds(userIds);
     }
 }
