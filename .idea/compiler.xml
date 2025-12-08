@@ -16,14 +16,6 @@
         <module name="user-service" />
         <module name="eureka-server" />
         <module name="assignment-service" />
-      </profile>
-      <profile name="Annotation profile for EduConnect Parent POM" enabled="true">
-        <sourceOutputDir name="target/generated-sources/annotations" />
-        <sourceTestOutputDir name="target/generated-test-sources/test-annotations" />
-        <outputRelativeToContentRoot value="true" />
-        <processorPath useClasspath="false">
-          <entry name="$MAVEN_REPOSITORY$/org/projectlombok/lombok/1.18.32/lombok-1.18.32.jar" />
-        </processorPath>
         <module name="notification-service" />
       </profile>
     </annotationProcessing>
@@ -37,6 +29,7 @@
       <module name="club-service" options="-parameters" />
       <module name="config-server" options="-parameters" />
       <module name="course-service" options="-parameters" />
+      <module name="educonnect-parent" options="-parameters" />
       <module name="eureka-server" options="-parameters" />
       <module name="event-service" options="-parameters" />
       <module name="notification-service" options="-parameters" />
