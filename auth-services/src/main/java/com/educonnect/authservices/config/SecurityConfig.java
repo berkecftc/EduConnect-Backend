@@ -47,7 +47,7 @@ public class SecurityConfig {
                                          "/api/auth/users/emails",
                                          "/{clubId}/members/ids",
                                          "/api/auth/request/academician-account").permitAll()
-                        .requestMatchers("/api/admin/**").hasRole("ADMIN")
+                        .requestMatchers("/api/auth/admin/**").hasRole("ADMIN")
                         .anyRequest().authenticated()
                 )
                 // Oturum yönetimini STATELESS yapıyoruz

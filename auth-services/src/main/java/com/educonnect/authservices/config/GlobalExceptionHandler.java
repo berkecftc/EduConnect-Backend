@@ -42,6 +42,9 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(Exception.class)
     public ResponseEntity<Map<String, Object>> onGeneric(Exception ex, HttpServletRequest req) {
+        // Hatayı logla
+        System.err.println("🔥 GlobalExceptionHandler - Beklenmeyen Hata:");
+        ex.printStackTrace();
         return build(HttpStatus.INTERNAL_SERVER_ERROR, ex.getMessage(), req);
     }
 }

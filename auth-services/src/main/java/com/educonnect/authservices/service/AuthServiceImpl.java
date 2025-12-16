@@ -396,4 +396,41 @@ public class AuthServiceImpl {
 
         LOGGER.info("User profile update message sent for user: {}", user.getId());
     }
+
+    // ... Diğer metodlar ...
+
+    // 1. BEKLEYEN AKADEMİSYEN İSTEKLERİNİ LİSTELE
+    public List<AcademicianRegistrationRequest> getAllAcademicianRequests() {
+        return requestRepository.findAll();
+    }
+
+    // 2. AKADEMİSYEN İSTEĞİNİ REDDET
+    @Transactional
+    public void rejectAcademician(UUID userId) {
+        // Kullanıcıyı bul
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new NoSuchElementException("User not found"));
+
+        // İsteği bul
+        AcademicianRegistrationRequest req = requestRepository.findByUserId(userId)
+                .orElseThrow(() -> new NoSuchElementException("Request not found"));
+
+        // Rolünü PENDING durumundan çıkar (veya komple User'ı sil)
+        // YÖNTEM A: Sadece rolü sil (User kalır ama yetkisiz olur)
+        Set<Role> roles = user.getRoles();
+        if (roles.contains(Role.ROLE_PENDING_ACADEMICIAN)) {
+            roles.remove(Role.ROLE_PENDING_ACADEMICIAN);
+
+            // Eğer başka rolü yoksa (Örn: Sadece başvuru için açıldıysa) STUDENT yapabilirsin veya User'ı silebilirsin.
+            // Biz şimdilik rolü siliyoruz.
+            user.setRoles(roles);
+            userRepository.save(user);
+        }
+
+        // İstek tablosundan veriyi sil
+        requestRepository.delete(req);
+
+        // (Opsiyonel) Kullanıcıya "Reddedildiniz" maili atılabilir.
+        LOGGER.info("Akademisyen başvurusu reddedildi. UserID: {}", userId);
+    }
 }

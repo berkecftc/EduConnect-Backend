@@ -31,6 +31,15 @@ spring:
     default-schema: auth_db
     baseline-on-migrate: true
 
+  jpa:
+    hibernate:
+      ddl-auto: update
+    properties:
+      hibernate:
+        default_schema: auth_db
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+    show-sql: true
+
 logging:
   level:
     org.springframework.security: DEBUG
@@ -46,13 +55,6 @@ management:
     flyway:
       enabled: true
 
-  jpa:
-    hibernate:
-      ddl-auto: update
-    properties:
-      hibernate:
-        default_schema: auth_db
-        dialect: org.hibernate.dialect.PostgreSQLDialect
 
 jwt:
   secret: ${JWT_SECRET:Base64:jZwU5GubnUxm1GesQMzbti2lhVckdkLpww1Awn3h0ng=}

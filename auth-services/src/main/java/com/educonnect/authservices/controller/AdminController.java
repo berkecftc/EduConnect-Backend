@@ -1,6 +1,7 @@
 package com.educonnect.authservices.controller;
 
 import com.educonnect.authservices.Repository.UserRepository;
+import com.educonnect.authservices.models.AcademicianRegistrationRequest;
 import com.educonnect.authservices.models.Role;
 import com.educonnect.authservices.models.User;
 import com.educonnect.authservices.service.AuthServiceImpl;
@@ -15,7 +16,7 @@ import java.util.UUID;
 import java.util.stream.Collectors;
 
 @RestController
-@RequestMapping("/api/admin")
+@RequestMapping("/api/auth/admin")
 public class AdminController {
 
     @Autowired
@@ -24,13 +25,7 @@ public class AdminController {
     @Autowired
     private UserRepository userRepository;
 
-    // Sadece ROLE_ADMIN erişsin
-    @PreAuthorize("hasRole('ADMIN')")
-    @PostMapping("/approve/academician/{userId}")
-    public ResponseEntity<String> approveAcademician(@PathVariable UUID userId) {
-        authService.approveAcademician(userId);
-        return ResponseEntity.ok("Academician approved and profile creation initiated.");
-    }
+
 
     // Kulüp görevlisi talebini onayla
     @PreAuthorize("hasRole('ADMIN')")
@@ -52,15 +47,34 @@ public class AdminController {
     @PreAuthorize("hasRole('ADMIN')")
     @GetMapping("/pending/club-official")
     public ResponseEntity<List<Map<String, Object>>> listPendingClubOfficialRequests() {
-        List<User> users = userRepository.findAllByRolesContaining(Role.ROLE_PENDING_CLUB_OFFICIAL);
-        List<Map<String, Object>> result = users.stream()
-                .map(u -> Map.of(
-                        "id", u.getId(),
-                        "email", u.getEmail(),
-                        "roles", u.getRoles()
-                ))
-                .collect(Collectors.toList());
-        return ResponseEntity.ok(result);
+        try {
+            System.out.println("DEBUG: /pending/club-official endpoint'ine istek geldi");
+            List<User> users = userRepository.findAllByRolesContaining(Role.ROLE_PENDING_CLUB_OFFICIAL);
+            System.out.println("DEBUG: Bulunan kullanıcı sayısı: " + users.size());
+
+            List<Map<String, Object>> result = users.stream()
+                    .map(u -> {
+                        try {
+                            return Map.of(
+                                    "id", u.getId(),
+                                    "email", u.getEmail(),
+                                    "roles", u.getRoles().stream()
+                                            .map(Role::name)
+                                            .collect(Collectors.toSet())
+                            );
+                        } catch (Exception e) {
+                            System.err.println("Kullanıcı map'leme hatası: " + e.getMessage());
+                            e.printStackTrace();
+                            throw e;
+                        }
+                    })
+                    .collect(Collectors.toList());
+            return ResponseEntity.ok(result);
+        } catch (Exception e) {
+            System.err.println("🔥 /pending/club-official endpoint hatası:");
+            e.printStackTrace();
+            return ResponseEntity.internalServerError().body(null);
+        }
     }
 
     // Kullanıcıyı admin yap
@@ -77,5 +91,38 @@ public class AdminController {
     public ResponseEntity<String> revokeAdmin(@PathVariable UUID userId) {
         authService.revokeAdmin(userId);
         return ResponseEntity.ok("User admin role revoked.");
+    }
+
+    // --- AKADEMİSYEN İŞLEMLERİ ---
+
+    @GetMapping("/requests/academicians")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<?> getAcademicianRequests() {
+        try {
+            System.out.println("DEBUG: Controller'a girildi. Servis çağrılıyor...");
+            var result = authService.getAllAcademicianRequests();
+            System.out.println("DEBUG: Servisten veri geldi. Boyut: " + (result != null ? result.size() : "null"));
+            return ResponseEntity.ok(result);
+        } catch (Exception e) {
+            System.err.println("🔥🔥🔥 BEKLENMEYEN HATA DETAYI 🔥🔥🔥");
+            e.printStackTrace(); // <--- BU SATIR HATAYI GÖSTERİR
+            return ResponseEntity.internalServerError().body("Sunucu Hatası: " + e.getMessage());
+        }
+    }
+
+    // 2. Onayla
+    @PostMapping("/approve-academician/{userId}")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<String> approveAcademician(@PathVariable UUID userId) {
+        authService.approveAcademician(userId);
+        return ResponseEntity.ok("Akademisyen onaylandı.");
+    }
+
+    // 3. Reddet
+    @PostMapping("/reject-academician/{userId}")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<String> rejectAcademician(@PathVariable UUID userId) {
+        authService.rejectAcademician(userId);
+        return ResponseEntity.ok("Akademisyen başvurusu reddedildi.");
     }
 }
