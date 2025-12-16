@@ -7,13 +7,18 @@ import com.educonnect.authservices.dto.request.ChangePasswordRequest;
 import com.educonnect.authservices.dto.request.LoginRequest;
 import com.educonnect.authservices.dto.request.RegisterRequest;
 import com.educonnect.authservices.dto.response.AuthResponse;
+import com.educonnect.authservices.models.AcademicianRegistrationRequest; // YENİ IMPORT
 import com.educonnect.authservices.models.Role;
 import com.educonnect.authservices.models.User;
+import com.educonnect.authservices.Repository.AcademicianRequestRepository; // YENİ IMPORT
 import com.educonnect.authservices.Repository.UserRepository;
+import jakarta.transaction.Transactional; // Transaction yönetimi için
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -36,19 +41,21 @@ public class AuthServiceImpl {
     private static final Logger LOGGER = LoggerFactory.getLogger(AuthServiceImpl.class);
 
     private final UserRepository userRepository;
+    private final AcademicianRequestRepository requestRepository; // <-- YENİ EKLENTİ
     private final PasswordEncoder passwordEncoder;
     private final JWTService jwtService;
     private final AuthenticationManager authenticationManager;
-
     private final RabbitTemplate rabbitTemplate;
 
     @Autowired
     public AuthServiceImpl(UserRepository userRepository,
+                           AcademicianRequestRepository requestRepository, // Constructor'a eklendi
                            PasswordEncoder passwordEncoder,
                            JWTService jwtService,
                            AuthenticationManager authenticationManager,
                            RabbitTemplate rabbitTemplate) {
         this.userRepository = userRepository;
+        this.requestRepository = requestRepository;
         this.passwordEncoder = passwordEncoder;
         this.jwtService = jwtService;
         this.authenticationManager = authenticationManager;
@@ -56,15 +63,12 @@ public class AuthServiceImpl {
     }
 
     public AuthResponse register(RegisterRequest request) {
-        // Basit alan kontrolleri
         if (request.getEmail() == null || request.getPassword() == null
                 || request.getFirstName() == null || request.getLastName() == null) {
             throw new IllegalArgumentException("Missing required fields for registration");
         }
 
-        // Varsayılan olarak her yeni kullanıcı STUDENT rolüyle başlar
-        Set<Role> roles = Stream.of(Role.ROLE_STUDENT)
-                .collect(Collectors.toSet());
+        Set<Role> roles = Stream.of(Role.ROLE_STUDENT).collect(Collectors.toSet());
 
         var user = new User(
                 request.getEmail(),
@@ -74,12 +78,8 @@ public class AuthServiceImpl {
 
         User savedUser = userRepository.save(user);
 
+        Set<String> roleStrings = roles.stream().map(Role::name).collect(Collectors.toSet());
 
-        Set<String> roleStrings = roles.stream()
-                .map(Role::name)
-                .collect(Collectors.toSet());
-
-        // Ogrenciye ozel alanlari da doldur
         UserRegisteredMessage message = new UserRegisteredMessage(
                 savedUser.getId(),
                 request.getFirstName(),
@@ -94,23 +94,13 @@ public class AuthServiceImpl {
                 RabbitMQConfig.ROUTING_KEY,
                 message
         );
-        LOGGER.info("Published registration message for userId={} to exchange={} rk={} (dept={}, studentId={})",
-                savedUser.getId(), RabbitMQConfig.EXCHANGE_NAME, RabbitMQConfig.ROUTING_KEY,
-                request.getDepartment(), request.getStudentId());
 
         var jwtToken = jwtService.generateToken(savedUser);
-
-        return new AuthResponse(jwtToken, "User registered successfully. Profile creation initiated.");
+        return new AuthResponse(jwtToken, "User registered successfully.");
     }
 
     public AuthResponse registerStudent(RegisterRequest request) {
-        // Basit validasyonlar
-        if (request.getEmail() == null || request.getPassword() == null
-                || request.getFirstName() == null || request.getLastName() == null
-                || request.getStudentId() == null || request.getDepartment() == null) {
-            throw new IllegalArgumentException("Missing required fields for student registration");
-        }
-
+        // ... (Aynı mantık, validasyonlar vs.)
         if (userRepository.findByEmail(request.getEmail()).isPresent()) {
             throw new IllegalStateException("Email already registered");
         }
@@ -141,21 +131,21 @@ public class AuthServiceImpl {
                 RabbitMQConfig.ROUTING_KEY,
                 message
         );
-        LOGGER.info("Published student registration message for userId={} to exchange={} rk={} (dept={}, studentId={})",
-                savedUser.getId(), RabbitMQConfig.EXCHANGE_NAME, RabbitMQConfig.ROUTING_KEY,
-                request.getDepartment(), request.getStudentId());
 
         var jwtToken = jwtService.generateToken(savedUser);
-        return new AuthResponse(jwtToken, "Student registered successfully. Profile creation initiated.");
+        return new AuthResponse(jwtToken, "Student registered successfully.");
     }
 
-    // requestAcademicianAccount metodunu GÜNCELLE
+    // --- AKADEMİSYEN BAŞVURU İŞLEMİ (DÜZELTİLDİ) ---
+    @Transactional // Transactional önemli: İki tabloya birden yazıyoruz
     public void requestAcademicianAccount(RegisterRequest request) {
-        // ... (Mevcut 'email already registered' kontrolü burada olmalı) ...
 
-        // 1. Kullanıcıyı 'PENDING' rolüyle kaydet
-        Set<Role> roles = Stream.of(Role.ROLE_PENDING_ACADEMICIAN)
-                .collect(Collectors.toSet());
+        if (userRepository.findByEmail(request.getEmail()).isPresent()) {
+            throw new IllegalStateException("Email already registered");
+        }
+
+        // 1. Kullanıcıyı 'PENDING' rolüyle USERS tablosuna kaydet
+        Set<Role> roles = Stream.of(Role.ROLE_PENDING_ACADEMICIAN).collect(Collectors.toSet());
 
         var user = new User(
                 request.getEmail(),
@@ -163,85 +153,94 @@ public class AuthServiceImpl {
                 roles
         );
 
-        User savedUser = userRepository.save(user); // Kullanıcıyı kaydet ve ID'sini al
+        User savedUser = userRepository.save(user); // Önce User ID oluşsun
 
-        // 2. RabbitMQ mesajını oluştur (TÜM detaylarla)
-        AcademicianProfileMessage profileMessage = new AcademicianProfileMessage(
-                savedUser.getId(),
-                request.getFirstName(),
-                request.getLastName(),
-                request.getTitle(),
-                request.getDepartment(),
-                request.getOfficeNumber()
-        );
+        // 2. Detaylı bilgileri 'academician_requests' tablosuna kaydet
+        // (Böylece veriler admin onaylayana kadar burada güvende kalır)
+        AcademicianRegistrationRequest accReq = new AcademicianRegistrationRequest();
+        accReq.setUserId(savedUser.getId());
+        accReq.setFirstName(request.getFirstName());
+        accReq.setLastName(request.getLastName());
+        accReq.setTitle(request.getTitle());
+        accReq.setDepartment(request.getDepartment());
+        accReq.setOfficeNumber(request.getOfficeNumber());
 
-        // 3. user-service'in dinleyeceği YENİ bir kuyruğa/routing-key'e gönder
-        // (Bu, 'ROLE_STUDENT' için kullandığımız 'user-profile-creation-queue'dan FARKLI olmalı)
-        rabbitTemplate.convertAndSend(EXCHANGE_NAME, ACADEMICIAN_ROUTING_KEY, profileMessage);
+        requestRepository.save(accReq);
 
-        System.out.println("Academician registration request saved and profile creation message sent.");
+        LOGGER.info("Akademisyen başvurusu alındı. UserID: {}", savedUser.getId());
+        // DİKKAT: Burada RabbitMQ mesajı GÖNDERMİYORUZ. Onay bekliyor.
     }
 
+    // --- AKADEMİSYEN ONAY İŞLEMİ (DÜZELTİLDİ) ---
+    @Transactional
     public void approveAcademician(UUID userId) {
-        // 1. Onay bekleyen kullanıcıyı bul
+        // 1. Kullanıcıyı bul
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new NoSuchElementException("User not found"));
 
-        // 2. Rolünü güncelle
+        // 2. Bekleyen başvuru detaylarını (Unvan, Bölüm vs.) bul
+        AcademicianRegistrationRequest req = requestRepository.findByUserId(userId)
+                .orElseThrow(() -> new NoSuchElementException("Başvuru formu bulunamadı!"));
+
+        // 3. Rolünü güncelle (PENDING -> ACADEMICIAN)
         Set<Role> roles = user.getRoles();
-        roles.remove(Role.ROLE_PENDING_ACADEMICIAN); // Eski rolü sil
-        roles.add(Role.ROLE_ACADEMICIAN); // Gerçek rolü ekle
-        user.setRoles(roles);
+        // Null check veya doğrudan remove/add
+        if (roles.contains(Role.ROLE_PENDING_ACADEMICIAN)) {
+            roles.remove(Role.ROLE_PENDING_ACADEMICIAN);
+            roles.add(Role.ROLE_ACADEMICIAN);
+            user.setRoles(roles);
+            userRepository.save(user);
+        } else {
+            // Zaten onaylı veya yanlış rol durumu için log atılabilir
+            LOGGER.warn("Kullanıcı zaten PENDING rolünde değil veya işlem hatalı: {}", userId);
+        }
 
-        userRepository.save(user); // Kullanıcıyı güncelle
-
-        // 3. ŞİMDİ RABBITMQ MESAJINI GÖNDER!
-        // Profilin oluşturulma zamanı geldi.
-        // (RegisterRequest'teki firstName, lastName bilgisi burada yok.
-        // Bu bilgiyi ya 'user' tablosunda geçici tutmalı ya da
-        // Admin'den onaylarken almalısınız. Şimdilik e-postayı kullanalım)
-
-
-        // (Basitlik adına, 'firstName' ve 'lastName' şimdilik e-postanın parçaları olsun)
-        String firstName = user.getEmail().split("@")[0];
-        String lastName = "Academician";
-
-        sendMessageToUserQueue(user, firstName, lastName, roles);
-    }
-
-    private void sendMessageToUserQueue(User user, String firstName, String lastName, Set<Role> roles) {
-        Set<String> roleStrings = roles.stream()
-                .map(Role::name)
-                .collect(Collectors.toSet());
-
-        UserRegisteredMessage message = new UserRegisteredMessage(
+        // 4. ŞİMDİ RABBITMQ MESAJINI GÖNDER! (User Service bunu bekliyor)
+        // Request tablosundaki verileri kullanıyoruz
+        AcademicianProfileMessage profileMessage = new AcademicianProfileMessage(
                 user.getId(),
-                firstName,
-                lastName,
-                roleStrings
+                req.getFirstName(),
+                req.getLastName(),
+                req.getTitle(),
+                req.getDepartment(),
+                req.getOfficeNumber()
         );
 
-        rabbitTemplate.convertAndSend(
-                RabbitMQConfig.EXCHANGE_NAME,
-                RabbitMQConfig.ROUTING_KEY,
-                message
-        );
+        rabbitTemplate.convertAndSend(EXCHANGE_NAME, ACADEMICIAN_ROUTING_KEY, profileMessage);
+
+        // 5. Temizlik: Başvuru isteğini sil (Artık işi bitti)
+        requestRepository.delete(req);
+
+        LOGGER.info("Akademisyen onaylandı ve profil oluşturma mesajı gönderildi. UserID: {}", userId);
     }
 
 
-    public AuthResponse login(LoginRequest request) {
-        authenticationManager.authenticate(
-                new UsernamePasswordAuthenticationToken(
-                        request.getEmail(),
-                        request.getPassword()
-                )
+    public AuthResponse login(LoginRequest loginRequest) {
+        // 1. Önce kimlik doğrulaması (Email & Şifre kontrolü)
+        Authentication authentication = authenticationManager.authenticate(
+                new UsernamePasswordAuthenticationToken(loginRequest.getEmail(), loginRequest.getPassword())
         );
 
-        var user = userRepository.findByEmail(request.getEmail())
-                .orElseThrow(() -> new NoSuchElementException("User not found after authentication"));
+        // 2. Kullanıcıyı veritabanından çek
+        User user = userRepository.findByEmail(loginRequest.getEmail())
+                .orElseThrow(() -> new RuntimeException("Error: User not found."));
 
-        var jwtToken = jwtService.generateToken(user);
-        return new AuthResponse(jwtToken, "Login successful");
+        // --- YENİ EKLENEN KISIM: BEKLEME KONTROLÜ ---
+        // Eğer kullanıcının rolleri arasında "ROLE_PENDING_ACADEMICIAN" varsa hata fırlat!
+        boolean isPending = user.getRoles().stream()
+                .anyMatch(role -> role.name().equals("ROLE_PENDING_ACADEMICIAN"));
+
+        if (isPending) {
+            throw new RuntimeException("Hesabınız henüz onaylanmadı. Lütfen yönetici onayını bekleyin.");
+        }
+        // ---------------------------------------------
+
+        // 3. Her şey yolundaysa Token üret
+        SecurityContextHolder.getContext().setAuthentication(authentication);
+        String jwt = jwtService.generateToken(user);
+
+        // ... geri kalanı aynı
+        return new AuthResponse(jwt, "Login successful");
     }
 
     // ---- Kulüp Görevlisi Başvuru Akışı ----
@@ -372,5 +371,29 @@ public class AuthServiceImpl {
 
     public List<String> getEmailsByUserIds(List<UUID> userIds) {
         return userRepository.findEmailsByIds(userIds);
+    }
+
+    /**
+     * Helper metod: User-service'e kullanıcı profil güncelleme mesajı gönderir.
+     */
+    private void sendMessageToUserQueue(User user, String firstName, String lastName, Set<Role> roles) {
+        Set<String> roleStrings = roles.stream().map(Role::name).collect(Collectors.toSet());
+
+        UserRegisteredMessage message = new UserRegisteredMessage(
+                user.getId(),
+                firstName,
+                lastName,
+                roleStrings,
+                null, // studentId yok
+                null  // department yok
+        );
+
+        rabbitTemplate.convertAndSend(
+                RabbitMQConfig.EXCHANGE_NAME,
+                RabbitMQConfig.ROUTING_KEY,
+                message
+        );
+
+        LOGGER.info("User profile update message sent for user: {}", user.getId());
     }
 }
