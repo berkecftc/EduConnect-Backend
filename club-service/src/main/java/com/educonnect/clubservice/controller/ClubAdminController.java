@@ -80,6 +80,13 @@ public class ClubAdminController {
         return ResponseEntity.ok(clubService.approveClubCreationRequest(requestId));
     }
 
+    @PostMapping("/requests/{requestId}/reject")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<String> rejectClubRequest(@PathVariable UUID requestId) {
+        clubService.rejectClubCreationRequest(requestId); // Servisteki metodu çağır
+        return ResponseEntity.ok("Club creation request rejected.");
+    }
+
     @PutMapping("/{clubId}")
     @PreAuthorize("hasRole('ADMIN')") // Veya kulüp başkanı
     public ResponseEntity<Club> updateClub(@PathVariable UUID clubId, @RequestBody UpdateClubRequest request) {

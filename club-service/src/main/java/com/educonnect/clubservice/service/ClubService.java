@@ -425,4 +425,18 @@ public class ClubService {
     public List<ClubCreationRequest> getPendingClubRequests() {
         return requestRepository.findByStatus("PENDING");
     }
+
+    /// İsteği reddetme metodu
+    public void rejectClubCreationRequest(UUID requestId) {
+        ClubCreationRequest request = requestRepository.findById(requestId)
+                .orElseThrow(() -> new RuntimeException("İstek bulunamadı"));
+
+        // YÖNTEM 1: Durumu REJECTED yapıp saklamak (Tavsiye edilen)
+        // Eğer Status enum'ında REJECTED yoksa eklemen gerekir.
+        // request.setStatus(RequestStatus.REJECTED);
+        // requestRepository.save(request);
+
+        // YÖNTEM 2: Direkt Silmek (Daha basit)
+        requestRepository.delete(request);
+    }
 }
