@@ -125,4 +125,19 @@ public class AdminController {
         authService.rejectAcademician(userId);
         return ResponseEntity.ok("Akademisyen başvurusu reddedildi.");
     }
+
+    // --- KULLANICI YÖNETİMİ ---
+
+    @GetMapping("/users")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<?> getAllUsers() {
+        return ResponseEntity.ok(authService.getAllUsers());
+    }
+
+    @DeleteMapping("/users/{userId}")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<String> deleteUser(@PathVariable UUID userId) {
+        authService.deleteUser(userId);
+        return ResponseEntity.ok("Kullanıcı başarıyla silindi.");
+    }
 }

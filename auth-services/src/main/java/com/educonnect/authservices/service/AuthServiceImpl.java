@@ -433,4 +433,25 @@ public class AuthServiceImpl {
         // (Opsiyonel) Kullanıcıya "Reddedildiniz" maili atılabilir.
         LOGGER.info("Akademisyen başvurusu reddedildi. UserID: {}", userId);
     }
+
+    // 1. TÜM KULLANICILARI GETİR
+    public List<com.educonnect.authservices.dto.response.UserSummaryDto> getAllUsers() {
+        return userRepository.findAll().stream()
+                .map(user -> new com.educonnect.authservices.dto.response.UserSummaryDto(
+                        user.getId(),
+                        user.getEmail(),
+                        user.getRoles().stream().map(Enum::name).collect(Collectors.toSet())
+                ))
+                .collect(Collectors.toList());
+    }
+
+    // 2. KULLANICIYI SİL (Yasaklama/Banlama)
+    @Transactional
+    public void deleteUser(UUID userId) {
+        if (!userRepository.existsById(userId)) {
+            throw new NoSuchElementException("Kullanıcı bulunamadı");
+        }
+        // TODO: İleride bu kullanıcıya bağlı verileri (User Service) temizlemek için RabbitMQ mesajı atılabilir.
+        userRepository.deleteById(userId);
+    }
 }
