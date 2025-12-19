@@ -5,6 +5,7 @@ import io.minio.MakeBucketArgs;
 import io.minio.MinioClient;
 import io.minio.PutObjectArgs;
 import io.minio.http.Method;
+import io.minio.SetBucketPolicyArgs;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
@@ -20,6 +21,9 @@ public class MinioService {
     @Value("${minio.bucket.name}")
     private String bucketName;
 
+    // 👇 EKLENDİ: URL'i sınıf içinde tutmamız lazım
+    private String minioUrl;
+
     // MinioClient'ı yapılandırma ayarlarıyla başlat
     public MinioService(@Value("${minio.url}") String url,
                         @Value("${minio.access-key}") String accessKey,
@@ -31,6 +35,7 @@ public class MinioService {
                     .credentials(accessKey, secretKey)
                     .build();
             this.bucketName = bucketName;
+            this.minioUrl = url; // 👇 EKLENDİ: URL değişkenini kaydettik
 
             // Bucket'ın var olup olmadığını kontrol et ve yoksa oluştur
             ensureBucketExists();
@@ -50,6 +55,7 @@ public class MinioService {
                             .build()
             );
 
+            // Eğer bucket yoksa oluştur
             if (!exists) {
                 minioClient.makeBucket(
                         MakeBucketArgs.builder()
@@ -58,48 +64,70 @@ public class MinioService {
                 );
                 System.out.println("MinIO bucket oluşturuldu: " + bucketName);
             }
+
+            // 🔥 DEĞİŞİKLİK BURADA 🔥
+            // "if (!exists)" bloğunun DIŞINA çıktık.
+            // Bucket eskiden oluşmuş olsa bile, her başlatmada "Public" ayarını zorla yapıştırıyoruz.
+
+            String policyJson = String.format(
+                    "{\n" +
+                            "    \"Version\": \"2012-10-17\",\n" +
+                            "    \"Statement\": [\n" +
+                            "        {\n" +
+                            "            \"Effect\": \"Allow\",\n" +
+                            "            \"Principal\": {\"AWS\": [\"*\"]},\n" +
+                            "            \"Action\": [\"s3:GetObject\"],\n" +
+                            "            \"Resource\": [\"arn:aws:s3:::%s/*\"]\n" +
+                            "        }\n" +
+                            "    ]\n" +
+                            "}", bucketName);
+
+            minioClient.setBucketPolicy(
+                    SetBucketPolicyArgs.builder()
+                            .bucket(bucketName)
+                            .config(policyJson)
+                            .build()
+            );
+
+            System.out.println("Bucket politikası güncellendi (Public Read): " + bucketName);
+
         } catch (Exception e) {
             throw new RuntimeException("Error checking/creating MinIO bucket: " + e.getMessage(), e);
         }
     }
 
     /**
-     * Dosyayı MinIO'ya yükler ve dosyanın adını döner.
+     * Dosyayı MinIO'ya yükler ve TAM URL döner.
      */
     public String uploadFile(MultipartFile file, UUID userId) {
         try {
-            // Dosya adını benzersiz yap (örn: 123e4567-e89b-12d3-a456-426614174000.png)
             String fileExtension = getFileExtension(file.getOriginalFilename());
             String objectName = "profiles/" + userId.toString() + fileExtension;
 
             minioClient.putObject(
                     PutObjectArgs.builder()
                             .bucket(bucketName)
-                            .object(objectName) // Dosyanın bucket içindeki adı ve yolu
+                            .object(objectName)
                             .stream(file.getInputStream(), file.getSize(), -1)
                             .contentType(file.getContentType())
                             .build()
             );
 
-            return objectName; // Sadece dosya adını (yolunu) döner
+            // 👇 DEĞİŞTİRİLDİ: Artık tam link dönüyor
+            return minioUrl + "/" + bucketName + "/" + objectName;
         } catch (Exception e) {
             throw new RuntimeException("Error uploading file to MinIO: " + e.getMessage(), e);
         }
     }
 
     /**
-     * Dosyayı belirtilen klasöre (folder) ve verilen nameBase ile (ör: logos/clubId.png) yükler.
-     * Club logoları gibi farklı kategoriler için esneklik sağlar.
-     *
-     * @param file     Yüklenecek dosya
-     * @param folder   Kök klasör (örn: "logos", "profiles") - slash içermez
-     * @param nameBase Dosya adı baz değeri (örn: kulüp UUID'si)
-     * @return MinIO içindeki tam object name (örn: logos/abc-123.png)
+     * Dosyayı belirtilen klasöre yükler ve TAM URL döner.
+     * (Logolar için burası kullanılıyor)
      */
     public String uploadFile(MultipartFile file, String folder, String nameBase) {
         try {
             String fileExtension = getFileExtension(file.getOriginalFilename());
-            // folder veya nameBase null gelirse varsayılanları uygula
+
             String safeFolder = (folder == null || folder.isBlank()) ? "misc" : folder.replaceAll("^/+|/+$", "");
             String safeNameBase = (nameBase == null || nameBase.isBlank()) ? UUID.randomUUID().toString() : nameBase;
             String objectName = safeFolder + "/" + safeNameBase + fileExtension;
@@ -112,22 +140,24 @@ public class MinioService {
                             .contentType(file.getContentType())
                             .build()
             );
-            return objectName;
+
+            // 👇 DEĞİŞTİRİLDİ: Artık tam link dönüyor
+            // Örnek Çıktı: http://localhost:9000/educonnect-bucket/logos/abc-123.png
+            return minioUrl + "/" + bucketName + "/" + objectName;
+
         } catch (Exception e) {
             throw new RuntimeException("Error uploading file to MinIO (custom folder): " + e.getMessage(), e);
         }
     }
 
     /**
-     * Bir nesne adı için geçici, okunabilir bir URL oluşturur.
-     * (Not: Bu, bucket'ınız public değilse gereklidir)
+     * Presigned URL (Süreli Erişim) - Gerekirse kullanılır
      */
     public String getFileUrl(String objectName) {
         if (objectName == null || objectName.isEmpty()) {
             return null;
         }
         try {
-            // 7 gün geçerli bir URL oluştur (veya daha kısa)
             return minioClient.getPresignedObjectUrl(
                     io.minio.GetPresignedObjectUrlArgs.builder()
                             .method(Method.GET)
@@ -141,10 +171,9 @@ public class MinioService {
         }
     }
 
-    // Basit bir dosya uzantısı bulucu
     private String getFileExtension(String filename) {
         if (filename == null || !filename.contains(".")) {
-            return ".jpg"; // Varsayılan
+            return ".jpg";
         }
         return filename.substring(filename.lastIndexOf("."));
     }

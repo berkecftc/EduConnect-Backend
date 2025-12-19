@@ -5,6 +5,7 @@ import com.educonnect.clubservice.config.ClubRabbitMQConfig; // RabbitMQ yapıla
 import com.educonnect.clubservice.dto.message.AssignClubRoleMessage;
 import com.educonnect.clubservice.dto.message.ClubUpdateMessage;
 import com.educonnect.clubservice.dto.request.*;
+import com.educonnect.clubservice.dto.response.ClubAdminSummaryDto;
 import com.educonnect.clubservice.dto.response.ClubDetailsDTO;
 import com.educonnect.clubservice.dto.response.ClubSummaryDTO;
 import com.educonnect.clubservice.dto.response.MemberDTO;
@@ -354,6 +355,41 @@ public class ClubService {
         return objectName;
     }
 
+    @Transactional
+    public String updateClubLogoByAdmin(UUID clubId, MultipartFile file) {
+        System.out.println("DEBUG: Logo güncelleme başladı. ClubID: " + clubId);
+
+        Club club = clubRepository.findById(clubId)
+                .orElseThrow(() -> new RuntimeException("Kulüp bulunamadı"));
+
+        System.out.println("DEBUG: Kulüp bulundu. Mevcut Logo URL: " + club.getLogoUrl());
+
+        // Eski logoyu silme işlemini ŞİMDİLİK YAPMIYORUZ.
+        // Çünkü eski URL bozuksa veya MinIO'da yoksa kod burada patlar ve işlem durur.
+        // String oldLogoUrl = club.getLogoUrl();
+
+        try {
+            // 1. Yeni dosyayı yükle
+            System.out.println("DEBUG: MinIO'ya yükleme başlıyor...");
+            String newLogoUrl = minioService.uploadFile(file, "logos", clubId.toString());
+            System.out.println("DEBUG: MinIO Yükleme Başarılı. Yeni URL: " + newLogoUrl);
+
+            // 2. Yeni URL'i Set et
+            club.setLogoUrl(newLogoUrl);
+
+            // 3. Kaydet
+            clubRepository.saveAndFlush(club); // save() yerine saveAndFlush() kullanıyoruz ki hatayı hemen görelim
+            System.out.println("DEBUG: Veritabanı güncellendi.");
+
+            return newLogoUrl;
+
+        } catch (Exception e) {
+            System.err.println("🔥🔥🔥 LOGO GÜNCELLEME HATASI 🔥🔥🔥");
+            e.printStackTrace();
+            throw new RuntimeException("Logo güncellenemedi: " + e.getMessage());
+        }
+    }
+
     // --- YENİ YARDIMCI METOT (Güvenlik için) ---
     private void checkClubOfficialAuthorization(UUID clubId, UUID studentId) {
         // Önce SecurityContext'ten ADMIN rolü var mı bak. Varsa direkt izin ver.
@@ -438,5 +474,77 @@ public class ClubService {
 
         // YÖNTEM 2: Direkt Silmek (Daha basit)
         requestRepository.delete(request);
+    }
+
+    // 1. ADMIN İÇİN TÜM AKTİF KULÜPLERİ GETİR
+    public List<ClubAdminSummaryDto> getAllClubsForAdmin() {
+        List<Club> clubs = clubRepository.findAll();
+
+        return clubs.stream().map(club -> {
+            // Başkanı Bul (Rolü CLUB_OFFICIAL olan)
+            List<ClubMembership> memberships = membershipRepository.findByClubId(club.getId());
+
+            UUID presidentId = memberships.stream()
+                    .filter(m -> m.getClubRole() == ClubRole.ROLE_CLUB_OFFICIAL)
+                    .findFirst()
+                    .map(ClubMembership::getStudentId)
+                    .orElse(null);
+
+            // TODO: presidentId ile user-service'e istek atarak ismi çek
+            String presidentName = presidentId != null ? presidentId.toString() : "Atanmamış";
+
+            return new ClubAdminSummaryDto(
+                    club.getId(),
+                    club.getName(),
+                    club.getLogoUrl(),
+                    presidentName,
+                    memberships.size()
+            );
+        }).collect(Collectors.toList());
+    }
+
+    // 2. YÖNETİM KURULUNU GETİR (Sadece yetkililer)
+    public List<MemberDTO> getClubBoardMembers(UUID clubId) {
+        // Kulübün var olup olmadığını kontrol et
+        if (!clubRepository.existsById(clubId)) {
+            throw new RuntimeException("Kulüp bulunamadı");
+        }
+
+        List<ClubMembership> memberships = membershipRepository.findByClubId(clubId);
+
+        return memberships.stream()
+                .filter(m -> m.getClubRole() == ClubRole.ROLE_CLUB_OFFICIAL ||
+                           m.getClubRole() == ClubRole.ROLE_VICE_PRESIDENT ||
+                           m.getClubRole() == ClubRole.ROLE_BOARD_MEMBER)
+                .map(m -> new MemberDTO(m.getStudentId(), m.getClubRole()))
+                .collect(Collectors.toList());
+    }
+
+    // 3. BAŞKANI DEĞİŞTİR
+    @Transactional
+    public void changeClubPresident(UUID clubId, UUID newPresidentId) {
+        // Kulübün var olup olmadığını kontrol et
+        if (!clubRepository.existsById(clubId)) {
+            throw new RuntimeException("Kulüp bulunamadı");
+        }
+
+        List<ClubMembership> memberships = membershipRepository.findByClubId(clubId);
+
+        // Eski başkanları (yetkilileri) bul ve üyeye düşür
+        memberships.stream()
+                .filter(m -> m.getClubRole() == ClubRole.ROLE_CLUB_OFFICIAL)
+                .forEach(m -> {
+                    m.setClubRole(ClubRole.ROLE_MEMBER);
+                    membershipRepository.save(m);
+                });
+
+        // Yeni başkanı bul ve yetkili yap
+        ClubMembership newPrez = memberships.stream()
+                .filter(m -> m.getStudentId().equals(newPresidentId))
+                .findFirst()
+                .orElseThrow(() -> new RuntimeException("Bu öğrenci kulübe üye değil!"));
+
+        newPrez.setClubRole(ClubRole.ROLE_CLUB_OFFICIAL);
+        membershipRepository.save(newPrez);
     }
 }

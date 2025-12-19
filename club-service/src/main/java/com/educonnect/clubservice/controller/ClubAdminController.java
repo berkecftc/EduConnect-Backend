@@ -2,6 +2,8 @@ package com.educonnect.clubservice.controller;
 
 import com.educonnect.clubservice.dto.request.CreateClubRequest;
 import com.educonnect.clubservice.dto.request.UpdateClubRequest;
+import com.educonnect.clubservice.dto.response.ClubAdminSummaryDto;
+import com.educonnect.clubservice.dto.response.MemberDTO;
 import com.educonnect.clubservice.model.Club;
 import com.educonnect.clubservice.model.ClubCreationRequest;
 import com.educonnect.clubservice.service.ClubService;
@@ -12,6 +14,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 import java.util.UUID;
@@ -91,6 +94,48 @@ public class ClubAdminController {
     @PreAuthorize("hasRole('ADMIN')") // Veya kulüp başkanı
     public ResponseEntity<Club> updateClub(@PathVariable UUID clubId, @RequestBody UpdateClubRequest request) {
         return ResponseEntity.ok(clubService.updateClub(clubId, request));
+    }
+
+    // Aktif Kulüpleri Listele
+    @GetMapping("/active")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<List<ClubAdminSummaryDto>> getAllActiveClubs() {
+        return ResponseEntity.ok(clubService.getAllClubsForAdmin());
+    }
+
+    // Yönetim Kurulunu Gör
+    @GetMapping("/{clubId}/board")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<List<MemberDTO>> getBoardMembers(@PathVariable UUID clubId) {
+        return ResponseEntity.ok(clubService.getClubBoardMembers(clubId));
+    }
+
+    // Başkanı Değiştir
+    @PutMapping("/{clubId}/change-president")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<String> changePresident(@PathVariable UUID clubId, @RequestParam UUID newPresidentId) {
+        clubService.changeClubPresident(clubId, newPresidentId);
+        return ResponseEntity.ok("Kulüp başkanı başarıyla değiştirildi.");
+    }
+
+    // MinIO Logo Yükleme Endpointi
+    @PostMapping(value = "/{clubId}/logo", consumes = "multipart/form-data")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<String> updateClubLogo(
+            @PathVariable UUID clubId,
+            @RequestParam("file") MultipartFile file) {
+
+        // Dosya boş mu kontrolü
+        if (file.isEmpty()) {
+            return ResponseEntity.badRequest().body("Dosya seçilmedi.");
+        }
+
+        try {
+            String newLogoUrl = clubService.updateClubLogoByAdmin(clubId, file);
+            return ResponseEntity.ok(newLogoUrl); // Yeni MinIO URL'ini dönüyoruz
+        } catch (Exception e) {
+            return ResponseEntity.internalServerError().body("Logo yüklenirken hata: " + e.getMessage());
+        }
     }
 
 
