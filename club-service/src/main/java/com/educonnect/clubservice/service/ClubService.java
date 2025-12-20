@@ -1,6 +1,7 @@
 package com.educonnect.clubservice.service;
 
 import com.educonnect.clubservice.Repository.ClubCreationRequestRepository;
+import com.educonnect.clubservice.client.UserClient;
 import com.educonnect.clubservice.config.ClubRabbitMQConfig; // RabbitMQ yapılandırmamız
 import com.educonnect.clubservice.dto.message.AssignClubRoleMessage;
 import com.educonnect.clubservice.dto.message.ClubUpdateMessage;
@@ -9,6 +10,7 @@ import com.educonnect.clubservice.dto.response.ClubAdminSummaryDto;
 import com.educonnect.clubservice.dto.response.ClubDetailsDTO;
 import com.educonnect.clubservice.dto.response.ClubSummaryDTO;
 import com.educonnect.clubservice.dto.response.MemberDTO;
+import com.educonnect.clubservice.dto.response.UserSummary;
 import com.educonnect.clubservice.model.Club;
 import com.educonnect.clubservice.model.ClubCreationRequest;
 import com.educonnect.clubservice.model.ClubMembership;
@@ -42,17 +44,20 @@ public class ClubService {
     private final RabbitTemplate rabbitTemplate; // RabbitMQ ile konuşmak için
     private final MinioService minioService;
     private final ClubCreationRequestRepository requestRepository; // Kulüp talepleri
+    private final UserClient userClient;
 
     public ClubService(ClubRepository clubRepository,
                        ClubMembershipRepository membershipRepository,
                        RabbitTemplate rabbitTemplate,
                        MinioService minioService,
-                       ClubCreationRequestRepository requestRepository) {
+                       ClubCreationRequestRepository requestRepository,
+                       UserClient userClient) {
         this.clubRepository = clubRepository;
         this.membershipRepository = membershipRepository;
         this.rabbitTemplate = rabbitTemplate;
         this.minioService = minioService;
         this.requestRepository = requestRepository;
+        this.userClient = userClient;
     }
 
     /**
@@ -384,8 +389,7 @@ public class ClubService {
             return newLogoUrl;
 
         } catch (Exception e) {
-            System.err.println("🔥🔥🔥 LOGO GÜNCELLEME HATASI 🔥🔥🔥");
-            e.printStackTrace();
+            log.error("🔥🔥🔥 LOGO GÜNCELLEME HATASI 🔥🔥🔥", e);
             throw new RuntimeException("Logo güncellenemedi: " + e.getMessage());
         }
     }
@@ -503,9 +507,8 @@ public class ClubService {
         }).collect(Collectors.toList());
     }
 
-    // 2. YÖNETİM KURULUNU GETİR (Sadece yetkililer)
+    // 2. YÖNETİM KURULUNU GETİR (GÜNCELLENDİ)
     public List<MemberDTO> getClubBoardMembers(UUID clubId) {
-        // Kulübün var olup olmadığını kontrol et
         if (!clubRepository.existsById(clubId)) {
             throw new RuntimeException("Kulüp bulunamadı");
         }
@@ -513,10 +516,37 @@ public class ClubService {
         List<ClubMembership> memberships = membershipRepository.findByClubId(clubId);
 
         return memberships.stream()
-                .filter(m -> m.getClubRole() == ClubRole.ROLE_CLUB_OFFICIAL ||
-                           m.getClubRole() == ClubRole.ROLE_VICE_PRESIDENT ||
-                           m.getClubRole() == ClubRole.ROLE_BOARD_MEMBER)
-                .map(m -> new MemberDTO(m.getStudentId(), m.getClubRole()))
+                // 👇 FİLTRE BURADA GÜNCELLENDİ:
+                // Sadece Başkan ve Yetkilileri değil, "BOARD" (Yönetim Kurulu) üyelerini de dahil et.
+                .filter(m -> {
+                    String r = m.getClubRole().toString();
+                    return r.contains("OFFICIAL") ||
+                            r.contains("PRESIDENT") ||
+                            r.contains("BOARD") ||   // <-- EKLENDİ (Yönetim Kurulu)
+                            r.contains("ADMIN");     // <-- EKLENDİ (Varsa adminler)
+                })
+                .map(m -> {
+                    // 1. User Service'ten ismi çek
+                    String fName = "Bilinmiyor";
+                    String lName = "User";
+                    try {
+                        UserSummary user = userClient.getUserById(m.getStudentId());
+                        if (user != null) {
+                            fName = user.getFirstName();
+                            lName = user.getLastName();
+                        }
+                    } catch (Exception e) {
+                        System.err.println("User Service hatası: " + e.getMessage());
+                    }
+
+                    // 2. DTO oluştur
+                    return new MemberDTO(
+                            m.getStudentId(),
+                            fName,
+                            lName,
+                            m.getClubRole().toString() // Rolü string olarak gönderiyoruz
+                    );
+                })
                 .collect(Collectors.toList());
     }
 

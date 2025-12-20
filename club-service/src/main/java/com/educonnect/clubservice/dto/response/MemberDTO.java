@@ -1,29 +1,42 @@
 package com.educonnect.clubservice.dto.response;
 
-import com.educonnect.clubservice.model.ClubRole; // Model paketinizdeki Enum'u import edin
+import com.educonnect.clubservice.model.ClubRole;
+
 import java.util.UUID;
 
 public class MemberDTO {
 
     private UUID studentId;
-    private ClubRole clubRole; // Örn: ROLE_CLUB_OFFICIAL, ROLE_MEMBER
+    private String firstName;
+    private String lastName;
+    // 👇 DÜZELTME: İsmi 'clubRole' değil 'role' yaptık ve tipini String yaptık.
+    // Böylece frontend 'member.role' dediğinde bunu bulabilecek.
+    private String role;
 
-    // V2 (Gelecek Geliştirmesi): user-service'e istek atılarak doldurulabilir
-    // private String firstName;
-    // private String lastName;
-    // private String profileImageUrl;
+    // Boş Constructor
+    public MemberDTO(UUID studentId, ClubRole clubRole) {}
 
-    // JSON dönüşümü için boş constructor
-    public MemberDTO() {}
-
-    public MemberDTO(UUID studentId, ClubRole clubRole) {
+    // Ana Constructor (Service'de kullandığımız)
+    public MemberDTO(UUID studentId, String firstName, String lastName, String role) {
         this.studentId = studentId;
-        this.clubRole = clubRole;
+        this.firstName = firstName;
+        this.lastName = lastName;
+        this.role = role;
     }
 
-    // --- Getter ve Setter metotları ---
+    // --- Getter ve Setter ---
+
     public UUID getStudentId() { return studentId; }
     public void setStudentId(UUID studentId) { this.studentId = studentId; }
-    public ClubRole getClubRole() { return clubRole; }
-    public void setClubRole(ClubRole clubRole) { this.clubRole = clubRole; }
+
+    public String getFirstName() { return firstName; }
+    public void setFirstName(String firstName) { this.firstName = firstName; }
+
+    public String getLastName() { return lastName; }
+    public void setLastName(String lastName) { this.lastName = lastName; }
+
+    // 👇 ÖNEMLİ OLAN GETTER BU
+    // Frontend JSON'da "role" anahtarını aradığı için metodun adı getRole olmalı.
+    public String getRole() { return role; }
+    public void setRole(String role) { this.role = role; }
 }
