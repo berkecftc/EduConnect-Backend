@@ -1,9 +1,12 @@
 spring:
   application:
-    name: course-service
+    name: course-service  # Config Server bu isme göre course-service.yml dosyasını arar
+
   config:
-    import: optional:configserver:http://localhost:8888
-  cloud:
-    config:
-      enabled: true
-      fail-fast: false
+    # Config Server'a bağlanma ayarı
+    import: "optional:configserver:http://localhost:8888/"
+
+# Eğer Config Server kapalıysa veya hata verirse uygulamanın çökmemesi için (Opsiyonel)
+cloud:
+  config:
+    fail-fast: false
