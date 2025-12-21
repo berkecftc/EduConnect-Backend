@@ -27,6 +27,13 @@ public class EventController {
         return ResponseEntity.ok(eventService.getAllActiveEvents());
     }
 
+    // 👇 ADMİN İÇİN ÖZEL ENDPOINT
+    // Bu endpoint Bekleyen, Onaylanan, Reddedilen, Geçmiş... HEPSİNİ getirir.
+    @GetMapping("/admin/all")
+    public ResponseEntity<List<Event>> getAllEventsForAdmin() {
+        return ResponseEntity.ok(eventService.getAllEventsForAdmin());
+    }
+
     /**
      * Tek bir etkinliğin detaylarını getirir.
      */

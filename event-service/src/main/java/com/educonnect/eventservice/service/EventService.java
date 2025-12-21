@@ -275,4 +275,10 @@ public class EventService {
 
         return true; // Giriş başarılı
     }
+
+    // Admin Paneli için filtresiz, tüm veriyi (Silinenler hariç her şeyi) getirir
+    public List<Event> getAllEventsForAdmin() {
+        // findAll() JPA'nın standart metodudur, tüm tabloyu getirir.
+        return eventRepository.findAll();
+    }
 }

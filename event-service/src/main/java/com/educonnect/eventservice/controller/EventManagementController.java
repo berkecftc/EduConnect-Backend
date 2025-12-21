@@ -81,5 +81,7 @@ public class EventManagementController {
         }
     }
 
+
+
     // Etkinlik İptal Etme (DELETE) de buraya eklenebilir
 }
