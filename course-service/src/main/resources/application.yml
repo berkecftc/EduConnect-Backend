@@ -1,12 +1,13 @@
 spring:
   application:
-    name: course-service  # Config Server bu isme göre course-service.yml dosyasını arar
-
+    # Servisin Eureka'da ve Gateway'de görünecek adı
+    name: course-service
+  main:
+    web-application-type: servlet
   config:
-    # Config Server'a bağlanma ayarı
-    import: "optional:configserver:http://localhost:8888/"
+    import: "configserver:http://localhost:8888" # Yeni Spring Cloud sürümü için
+  cloud:
+    config:
+      uri: http://localhost:8888
+      fail-fast: true
 
-# Eğer Config Server kapalıysa veya hata verirse uygulamanın çökmemesi için (Opsiyonel)
-cloud:
-  config:
-    fail-fast: false
