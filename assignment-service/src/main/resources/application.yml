@@ -1,9 +1,13 @@
 spring:
   application:
+    # Servisin Eureka'da ve Gateway'de görünecek adı
     name: assignment-service
+  main:
+    web-application-type: servlet
   config:
-    import: optional:configserver:http://localhost:8888
+    import: "configserver:http://localhost:8888" # Yeni Spring Cloud sürümü için
   cloud:
     config:
-      enabled: true
-      fail-fast: false
+      uri: http://localhost:8888
+      fail-fast: true
+
