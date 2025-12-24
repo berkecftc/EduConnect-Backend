@@ -1,6 +1,7 @@
 package com.educonnect.authservices.listener;
 
 import com.educonnect.authservices.dto.message.AssignClubRoleMessage;
+import com.educonnect.authservices.dto.message.RevokeClubRoleMessage;
 import com.educonnect.authservices.models.Role;
 import com.educonnect.authservices.models.User;
 import com.educonnect.authservices.Repository.UserRepository;
@@ -67,6 +68,50 @@ public class ClubRoleAssignmentListener {
         } catch (Exception e) {
             log.error("Failed to assign role: {}", e.getMessage(), e);
             // İsterseniz burada dead letter queue'ya yönlendirebilirsiniz
+            throw e; // RabbitMQ retry mekanizması için
+        }
+    }
+
+    @RabbitListener(queues = "user-role-revoke-queue")
+    @Transactional
+    public void handleRoleRevoke(RevokeClubRoleMessage message) {
+        log.info("Received role revoke message: userId={}, role={}, clubId={}",
+                message.getUserId(), message.getClubRole(), message.getClubId());
+
+        try {
+            // Kullanıcıyı bul
+            User user = userRepository.findById(message.getUserId())
+                    .orElseThrow(() -> new RuntimeException("User not found with id: " + message.getUserId()));
+
+            // Rolü enum'a çevir
+            Role roleToRemove;
+            try {
+                roleToRemove = Role.valueOf(message.getClubRole());
+            } catch (IllegalArgumentException e) {
+                log.error("Invalid role: {}", message.getClubRole());
+                return;
+            }
+
+            // Kullanıcının mevcut rolleri
+            Set<Role> roles = user.getRoles();
+            if (roles == null || roles.isEmpty()) {
+                log.warn("User {} has no roles to revoke", message.getUserId());
+                return;
+            }
+
+            // Rolü kaldır
+            boolean removed = roles.remove(roleToRemove);
+
+            if (removed) {
+                user.setRoles(roles);
+                userRepository.save(user);
+                log.info("Successfully removed role {} from user {}", roleToRemove, message.getUserId());
+            } else {
+                log.info("User {} does not have role {}", message.getUserId(), roleToRemove);
+            }
+
+        } catch (Exception e) {
+            log.error("Failed to revoke role: {}", e.getMessage(), e);
             throw e; // RabbitMQ retry mekanizması için
         }
     }

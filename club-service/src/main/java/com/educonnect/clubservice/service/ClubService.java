@@ -5,6 +5,7 @@ import com.educonnect.clubservice.client.UserClient;
 import com.educonnect.clubservice.config.ClubRabbitMQConfig; // RabbitMQ yapılandırmamız
 import com.educonnect.clubservice.dto.message.AssignClubRoleMessage;
 import com.educonnect.clubservice.dto.message.ClubUpdateMessage;
+import com.educonnect.clubservice.dto.message.RevokeClubRoleMessage;
 import com.educonnect.clubservice.dto.request.*;
 import com.educonnect.clubservice.dto.response.ClubAdminSummaryDto;
 import com.educonnect.clubservice.dto.response.ClubDetailsDTO;
@@ -90,6 +91,8 @@ public class ClubService {
                 request.getClubPresidentId(),
                 ClubRole.ROLE_CLUB_OFFICIAL // Başkan rolü (enum'da bu isimde)
         );
+        presidentMembership.setActive(true);
+        presidentMembership.setTermStartDate(java.time.LocalDateTime.now());
         membershipRepository.save(presidentMembership);
 
         // 5. RabbitMQ ile auth-service'e mesaj gönder: Başkana ROLE_CLUB_OFFICIAL rolü ata
@@ -560,21 +563,125 @@ public class ClubService {
 
         List<ClubMembership> memberships = membershipRepository.findByClubId(clubId);
 
-        // Eski başkanları (yetkilileri) bul ve üyeye düşür
-        memberships.stream()
-                .filter(m -> m.getClubRole() == ClubRole.ROLE_CLUB_OFFICIAL)
-                .forEach(m -> {
-                    m.setClubRole(ClubRole.ROLE_MEMBER);
-                    membershipRepository.save(m);
-                });
+        // Eski aktif başkanları bul ve pasife çek
+        List<ClubMembership> oldPresidents = memberships.stream()
+                .filter(m -> m.getClubRole() == ClubRole.ROLE_CLUB_OFFICIAL && m.isActive())
+                .toList();
 
-        // Yeni başkanı bul ve yetkili yap
+        for (ClubMembership oldPresident : oldPresidents) {
+            log.info("Processing old president: studentId={}, clubRole={}, isActive={}",
+                    oldPresident.getStudentId(), oldPresident.getClubRole(), oldPresident.isActive());
+
+            // Eski başkanı pasife çek
+            oldPresident.setActive(false);
+            oldPresident.setTermEndDate(java.time.LocalDateTime.now());
+            oldPresident.setClubRole(ClubRole.ROLE_MEMBER); // Rolü üye yap
+            membershipRepository.save(oldPresident);
+
+            log.info("Updated old president to ROLE_MEMBER: studentId={}", oldPresident.getStudentId());
+
+            // RabbitMQ ile auth-service'e rol kaldırma mesajı gönder
+            try {
+                RevokeClubRoleMessage revokeMessage = new RevokeClubRoleMessage(
+                        oldPresident.getStudentId(),
+                        "ROLE_CLUB_OFFICIAL",
+                        clubId
+                );
+
+                log.info("Sending role revoke message to RabbitMQ: userId={}, role={}, clubId={}",
+                        oldPresident.getStudentId(), "ROLE_CLUB_OFFICIAL", clubId);
+
+                rabbitTemplate.convertAndSend(
+                        ClubRabbitMQConfig.EXCHANGE_NAME,
+                        "user.role.revoke",
+                        revokeMessage
+                );
+
+                log.info("Successfully sent role revoke message for user {} from club {}",
+                        oldPresident.getStudentId(), clubId);
+            } catch (Exception e) {
+                log.error("Failed to send role revoke message for user {}: {}",
+                        oldPresident.getStudentId(), e.getMessage(), e);
+            }
+        }
+
+        // Yeni başkanı bul veya oluştur
         ClubMembership newPrez = memberships.stream()
                 .filter(m -> m.getStudentId().equals(newPresidentId))
                 .findFirst()
                 .orElseThrow(() -> new RuntimeException("Bu öğrenci kulübe üye değil!"));
 
+        // Yeni başkanı aktif yap
         newPrez.setClubRole(ClubRole.ROLE_CLUB_OFFICIAL);
+        newPrez.setActive(true);
+        newPrez.setTermStartDate(java.time.LocalDateTime.now());
+        newPrez.setTermEndDate(null); // Henüz bitiş tarihi yok
         membershipRepository.save(newPrez);
+
+        // RabbitMQ ile auth-service'e rol atama mesajı gönder
+        try {
+            AssignClubRoleMessage assignMessage = new AssignClubRoleMessage(
+                    newPresidentId,
+                    "ROLE_CLUB_OFFICIAL",
+                    clubId
+            );
+
+            rabbitTemplate.convertAndSend(
+                    ClubRabbitMQConfig.EXCHANGE_NAME,
+                    "user.role.assign",
+                    assignMessage
+            );
+
+            log.info("Sent role assignment message for user {} to become ROLE_CLUB_OFFICIAL of club {}",
+                    newPresidentId, clubId);
+        } catch (Exception e) {
+            log.error("Failed to send role assignment message: {}", e.getMessage(), e);
+        }
+    }
+
+    // 4. GEÇMİŞ BAŞKANLARI GÖRÜNTÜLE
+    @Transactional(readOnly = true)
+    public List<MemberDTO> getPastPresidents(UUID clubId) {
+        // Kulübün var olup olmadığını kontrol et
+        if (!clubRepository.existsById(clubId)) {
+            throw new RuntimeException("Kulüp bulunamadı");
+        }
+
+        // Pasif olan ve ROLE_MEMBER'a dönüştürülmüş eski başkanları getir
+        // changeClubPresident'te başkan ROLE_MEMBER yapılıyor ve isActive=false
+        List<ClubMembership> pastPresidents = membershipRepository.findByClubId(clubId)
+                .stream()
+                .filter(m -> !m.isActive() && m.getTermEndDate() != null) // Pasif ve bitiş tarihi olan
+                .sorted((a, b) -> b.getTermStartDate().compareTo(a.getTermStartDate())) // En yeniden eskiye
+                .toList();
+
+        // DTO'ya dönüştür
+        return pastPresidents.stream()
+                .map(m -> {
+                    // User Service'ten ismi çek
+                    String fName = "Bilinmiyor";
+                    String lName = "User";
+                    try {
+                        UserSummary user = userClient.getUserById(m.getStudentId());
+                        if (user != null) {
+                            fName = user.getFirstName();
+                            lName = user.getLastName();
+                        }
+                    } catch (Exception e) {
+                        log.error("User Service hatası: {}", e.getMessage());
+                    }
+
+                    // DTO oluştur (tarih bilgisiyle birlikte)
+                    return new MemberDTO(
+                            m.getStudentId(),
+                            fName,
+                            lName,
+                            "Geçmiş Başkan", // Eski başkan olduğunu belirt
+                            m.isActive(),
+                            m.getTermStartDate(),
+                            m.getTermEndDate()
+                    );
+                })
+                .collect(Collectors.toList());
     }
 }

@@ -1,6 +1,7 @@
 package com.educonnect.clubservice.model;
 
 import jakarta.persistence.*;
+import java.time.LocalDateTime;
 import java.util.UUID;
 
 @Entity
@@ -22,6 +23,15 @@ public class ClubMembership {
     @Column(name = "club_role", nullable = false)
     private ClubRole clubRole; // Kulüp içindeki görevi (Başkan, Üye, vb.)
 
+    @Column(name = "is_active", nullable = false)
+    private boolean isActive = true; // Aktif üyelik durumu
+
+    @Column(name = "term_start_date")
+    private LocalDateTime termStartDate; // Göreve başlama tarihi (özellikle başkanlar için)
+
+    @Column(name = "term_end_date")
+    private LocalDateTime termEndDate; // Görev bitiş tarihi (pasif başkanlar için)
+
     // JPA için no-args constructor
     public ClubMembership() {}
 
@@ -30,6 +40,7 @@ public class ClubMembership {
         this.clubId = clubId;
         this.studentId = studentId;
         this.clubRole = clubRole;
+        this.isActive = true; // Varsayılan olarak aktif
     }
 
     // --- Getter/Setter ---
@@ -41,4 +52,10 @@ public class ClubMembership {
     public void setStudentId(UUID studentId) { this.studentId = studentId; }
     public ClubRole getClubRole() { return clubRole; }
     public void setClubRole(ClubRole clubRole) { this.clubRole = clubRole; }
+    public boolean isActive() { return isActive; }
+    public void setActive(boolean active) { isActive = active; }
+    public LocalDateTime getTermStartDate() { return termStartDate; }
+    public void setTermStartDate(LocalDateTime termStartDate) { this.termStartDate = termStartDate; }
+    public LocalDateTime getTermEndDate() { return termEndDate; }
+    public void setTermEndDate(LocalDateTime termEndDate) { this.termEndDate = termEndDate; }
 }

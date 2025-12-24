@@ -118,6 +118,13 @@ public class ClubAdminController {
         return ResponseEntity.ok("Kulüp başkanı başarıyla değiştirildi.");
     }
 
+    // Geçmiş Başkanları Görüntüle
+    @GetMapping("/{clubId}/past-presidents")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<List<MemberDTO>> getPastPresidents(@PathVariable UUID clubId) {
+        return ResponseEntity.ok(clubService.getPastPresidents(clubId));
+    }
+
     // MinIO Logo Yükleme Endpointi
     @PostMapping(value = "/{clubId}/logo", consumes = "multipart/form-data")
     @PreAuthorize("hasRole('ADMIN')")
