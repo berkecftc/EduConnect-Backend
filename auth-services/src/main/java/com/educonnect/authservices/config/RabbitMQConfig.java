@@ -41,6 +41,10 @@ public class RabbitMQConfig {
     public static final String ROLE_REVOKE_QUEUE = "user-role-revoke-queue";
     public static final String ROLE_REVOKE_ROUTING_KEY = "user.role.revoke";
 
+    // Kullanıcı silme için queue ve routing key
+    public static final String USER_DELETE_QUEUE = "user-delete-queue";
+    public static final String USER_DELETE_ROUTING_KEY = "user.delete";
+
     @Bean
     public DirectExchange userExchange() {
         return new DirectExchange(EXCHANGE_NAME);
@@ -66,6 +70,11 @@ public class RabbitMQConfig {
         return new Queue(ACADEMICIAN_QUEUE_NAME);
     }
 
+    @Bean
+    public Queue userDeleteQueue() {
+        return new Queue(USER_DELETE_QUEUE);
+    }
+
     // Exchange ile Queue'yu routing key aracılığıyla birbirine bağlar.
     @Bean
     public Binding binding(Queue userProfileCreationQueue, DirectExchange userExchange) {
@@ -85,6 +94,11 @@ public class RabbitMQConfig {
     @Bean
     public Binding academicianBinding(Queue academicianProfileCreationQueue, DirectExchange userExchange) {
         return BindingBuilder.bind(academicianProfileCreationQueue).to(userExchange).with(ACADEMICIAN_ROUTING_KEY);
+    }
+
+    @Bean
+    public Binding userDeleteBinding(Queue userDeleteQueue, DirectExchange userExchange) {
+        return BindingBuilder.bind(userDeleteQueue).to(userExchange).with(USER_DELETE_ROUTING_KEY);
     }
 
     @Bean

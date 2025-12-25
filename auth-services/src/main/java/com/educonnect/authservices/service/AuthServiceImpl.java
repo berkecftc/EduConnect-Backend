@@ -2,6 +2,7 @@ package com.educonnect.authservices.service;
 
 import com.educonnect.authservices.config.RabbitMQConfig;
 import com.educonnect.authservices.dto.message.AcademicianProfileMessage;
+import com.educonnect.authservices.dto.message.UserDeletedMessage;
 import com.educonnect.authservices.dto.message.UserRegisteredMessage;
 import com.educonnect.authservices.dto.request.ChangePasswordRequest;
 import com.educonnect.authservices.dto.request.LoginRequest;
@@ -448,10 +449,37 @@ public class AuthServiceImpl {
     // 2. KULLANICIYI SİL (Yasaklama/Banlama)
     @Transactional
     public void deleteUser(UUID userId) {
-        if (!userRepository.existsById(userId)) {
-            throw new NoSuchElementException("Kullanıcı bulunamadı");
+        User user = userRepository.findById(userId)
+            .orElseThrow(() -> new NoSuchElementException("Kullanıcı bulunamadı"));
+
+        // Kullanıcının rolüne göre mesaj tipini belirle
+        String userType = "UNKNOWN";
+        if (user.getRoles().contains(Role.ROLE_STUDENT)) {
+            userType = "STUDENT";
+        } else if (user.getRoles().contains(Role.ROLE_ACADEMICIAN)) {
+            userType = "ACADEMICIAN";
         }
-        // TODO: İleride bu kullanıcıya bağlı verileri (User Service) temizlemek için RabbitMQ mesajı atılabilir.
+
+        // User Service'e silme mesajı gönder (arşivleme için)
+        UserDeletedMessage message = new UserDeletedMessage(
+            userId,
+            userType,
+            "Admin tarafından silindi"
+        );
+
+        try {
+            rabbitTemplate.convertAndSend(
+                RabbitMQConfig.EXCHANGE_NAME,
+                RabbitMQConfig.USER_DELETE_ROUTING_KEY,
+                message
+            );
+            LOGGER.info("User deletion message sent to queue. UserID: {}, Type: {}", userId, userType);
+        } catch (Exception e) {
+            LOGGER.error("Failed to send user deletion message for UserID: {}. Error: {}", userId, e.getMessage());
+        }
+
+        // Auth DB'den kullanıcıyı sil
         userRepository.deleteById(userId);
+        LOGGER.info("User deleted from auth_db. UserID: {}", userId);
     }
 }

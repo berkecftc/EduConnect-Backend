@@ -1,12 +1,16 @@
 package com.educonnect.userservice.controller;
 
+import com.educonnect.userservice.dto.response.ArchivedAcademicianDTO;
+import com.educonnect.userservice.dto.response.ArchivedStudentDTO;
 import com.educonnect.userservice.dto.response.UserProfileResponse;
 import com.educonnect.userservice.service.ProfileService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.util.List;
 import java.util.UUID;
 
 @RestController
@@ -55,6 +59,70 @@ public class ProfileController {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body("Unexpected error: " + e.getMessage());
         }
+    }
+
+    /**
+     * Admin tarafından öğrenciyi siler (arşivler).
+     * Sadece ADMIN rolü erişebilir.
+     */
+    @DeleteMapping("/students/{userId}")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<String> deleteStudent(
+            @PathVariable UUID userId,
+            @RequestParam(required = false) String reason) {
+        try {
+            profileService.archiveStudent(userId, reason);
+            return ResponseEntity.ok("Öğrenci başarıyla arşivlendi ve aktif tablodan kaldırıldı.");
+        } catch (RuntimeException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body("Error: " + e.getMessage());
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body("Unexpected error: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Admin tarafından akademisyeni siler (arşivler).
+     * Sadece ADMIN rolü erişebilir.
+     */
+    @DeleteMapping("/academicians/{userId}")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<String> deleteAcademician(
+            @PathVariable UUID userId,
+            @RequestParam(required = false) String reason) {
+        try {
+            profileService.archiveAcademician(userId, reason);
+            return ResponseEntity.ok("Akademisyen başarıyla arşivlendi ve aktif tablodan kaldırıldı.");
+        } catch (RuntimeException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body("Error: " + e.getMessage());
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body("Unexpected error: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Arşivlenmiş öğrencileri listeler.
+     * Sadece ADMIN rolü erişebilir.
+     */
+    @GetMapping("/students/archived")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<List<ArchivedStudentDTO>> getAllArchivedStudents() {
+        List<ArchivedStudentDTO> archivedStudents = profileService.getAllArchivedStudents();
+        return ResponseEntity.ok(archivedStudents);
+    }
+
+    /**
+     * Arşivlenmiş akademisyenleri listeler.
+     * Sadece ADMIN rolü erişebilir.
+     */
+    @GetMapping("/academicians/archived")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<List<ArchivedAcademicianDTO>> getAllArchivedAcademicians() {
+        List<ArchivedAcademicianDTO> archivedAcademicians = profileService.getAllArchivedAcademicians();
+        return ResponseEntity.ok(archivedAcademicians);
     }
 
 }

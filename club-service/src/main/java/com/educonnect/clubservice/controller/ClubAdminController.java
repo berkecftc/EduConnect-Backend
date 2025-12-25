@@ -2,6 +2,7 @@ package com.educonnect.clubservice.controller;
 
 import com.educonnect.clubservice.dto.request.CreateClubRequest;
 import com.educonnect.clubservice.dto.request.UpdateClubRequest;
+import com.educonnect.clubservice.dto.response.ArchivedClubDTO;
 import com.educonnect.clubservice.dto.response.ClubAdminSummaryDto;
 import com.educonnect.clubservice.dto.response.MemberDTO;
 import com.educonnect.clubservice.model.Club;
@@ -53,22 +54,25 @@ public class ClubAdminController {
                 .body(createdClub);
     }
 
-    // Kulüp Silme (ve Event Service'e bildirme)
+    // Kulüp Kapatma/Arşivleme (Soft Delete)
     @DeleteMapping("/{clubId}")
-    @PreAuthorize("hasRole('ADMIN')") // Sadece Admin rolü
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<String> deleteClub(
             @PathVariable UUID clubId,
+            @RequestParam(required = false) String reason,
             @RequestHeader(value = "X-Authenticated-User-Id", required = false) String userId) {
 
-        log.info("Deleting club: {}, requested by userId: {}", clubId, userId);
+        log.info("Archiving club: {}, requested by admin: {}, reason: {}",
+            clubId, userId, reason);
 
-        clubService.deleteClub(clubId);
+        UUID adminId = userId != null ? UUID.fromString(userId) : null;
+        clubService.deleteClub(clubId, reason, adminId);
 
-        log.info("Club deleted successfully: {}", clubId);
+        log.info("Club archived successfully: {}", clubId);
 
         return ResponseEntity
                 .status(HttpStatus.OK)
-                .body("Club deleted successfully.");
+                .body("Kulüp başarıyla arşivlendi ve aktif listeden kaldırıldı.");
     }
 
     @GetMapping("/requests")
@@ -143,6 +147,16 @@ public class ClubAdminController {
         } catch (Exception e) {
             return ResponseEntity.internalServerError().body("Logo yüklenirken hata: " + e.getMessage());
         }
+    }
+
+    // Arşivlenmiş Kulüpleri Listele
+    @GetMapping("/archived")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<List<ArchivedClubDTO>> getAllArchivedClubs() {
+        log.info("Fetching all archived clubs");
+        List<ArchivedClubDTO> archivedClubs = clubService.getAllArchivedClubs();
+        log.info("Found {} archived clubs", archivedClubs.size());
+        return ResponseEntity.ok(archivedClubs);
     }
 
 

@@ -7,15 +7,18 @@ import com.educonnect.clubservice.dto.message.AssignClubRoleMessage;
 import com.educonnect.clubservice.dto.message.ClubUpdateMessage;
 import com.educonnect.clubservice.dto.message.RevokeClubRoleMessage;
 import com.educonnect.clubservice.dto.request.*;
+import com.educonnect.clubservice.dto.response.ArchivedClubDTO;
 import com.educonnect.clubservice.dto.response.ClubAdminSummaryDto;
 import com.educonnect.clubservice.dto.response.ClubDetailsDTO;
 import com.educonnect.clubservice.dto.response.ClubSummaryDTO;
 import com.educonnect.clubservice.dto.response.MemberDTO;
 import com.educonnect.clubservice.dto.response.UserSummary;
+import com.educonnect.clubservice.model.ArchivedClub;
 import com.educonnect.clubservice.model.Club;
 import com.educonnect.clubservice.model.ClubCreationRequest;
 import com.educonnect.clubservice.model.ClubMembership;
 import com.educonnect.clubservice.model.ClubRole;
+import com.educonnect.clubservice.Repository.ArchivedClubRepository;
 import com.educonnect.clubservice.Repository.ClubMembershipRepository;
 import com.educonnect.clubservice.Repository.ClubRepository;
 import org.slf4j.Logger;
@@ -27,6 +30,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -46,19 +50,22 @@ public class ClubService {
     private final MinioService minioService;
     private final ClubCreationRequestRepository requestRepository; // Kulüp talepleri
     private final UserClient userClient;
+    private final ArchivedClubRepository archivedClubRepository;
 
     public ClubService(ClubRepository clubRepository,
                        ClubMembershipRepository membershipRepository,
                        RabbitTemplate rabbitTemplate,
                        MinioService minioService,
                        ClubCreationRequestRepository requestRepository,
-                       UserClient userClient) {
+                       UserClient userClient,
+                       ArchivedClubRepository archivedClubRepository) {
         this.clubRepository = clubRepository;
         this.membershipRepository = membershipRepository;
         this.rabbitTemplate = rabbitTemplate;
         this.minioService = minioService;
         this.requestRepository = requestRepository;
         this.userClient = userClient;
+        this.archivedClubRepository = archivedClubRepository;
     }
 
     /**
@@ -211,27 +218,78 @@ public class ClubService {
     }
 
     /**
-     * Bir kulübü siler ve event-service'e RabbitMQ üzerinden haber verir.
+     * Bir kulübü arşivleyerek kapatır (Soft Delete).
+     * Admin kullanıcı tarafından yapılmalıdır.
+     *
+     * @param clubId Kapatılacak kulübün ID'si
+     * @param reason Kapanış nedeni (opsiyonel)
+     * @param adminId İşlemi yapan admin kullanıcının ID'si
      */
-    public void deleteClub(UUID clubId) {
-        // TODO: Bu işlemi yapan kullanıcının 'ROLE_ADMIN' olduğunu kontrol et.
-
+    @Transactional
+    public void deleteClub(UUID clubId, String reason, UUID adminId) {
         Club club = clubRepository.findById(clubId)
                 .orElseThrow(() -> new RuntimeException("Club not found with id: " + clubId));
 
-        // 1. Önce kulübün tüm üyeliklerini sil (Veritabanı bütünlüğü için)
+        log.info("Archiving club: {} (ID: {}), reason: {}, by admin: {}",
+            club.getName(), clubId, reason, adminId);
+
+        // 1. Arşiv kaydı oluştur
+        ArchivedClub archivedClub = new ArchivedClub(
+            club.getId(),
+            club.getName(),
+            club.getAbout(),
+            club.getLogoUrl(),
+            club.getAcademicAdvisorId(),
+            LocalDateTime.now(),
+            reason != null ? reason : "Admin tarafından kapatıldı",
+            adminId
+        );
+
+        // 2. Arşive kaydet
+        archivedClubRepository.save(archivedClub);
+        log.info("Club archived successfully: {}", club.getName());
+
+        // 3. Kulübün tüm üyeliklerini sil
         List<ClubMembership> members = membershipRepository.findByClubId(clubId);
         membershipRepository.deleteAll(members);
+        log.info("Deleted {} memberships for club: {}", members.size(), club.getName());
 
-        // 2. Kulübün kendisini sil
+        // 4. Aktif tablodan kulübü sil
         clubRepository.delete(club);
+        log.info("Club removed from active table: {}", club.getName());
 
-        // 3. RabbitMQ ile event-service'e haber ver (konuştuğumuz gibi)
-        // "Bu kulübün etkinliklerini iptal et"
-        String routingKey = "club.deleted"; // (event-service bu anahtarı dinleyecek)
-        rabbitTemplate.convertAndSend(ClubRabbitMQConfig.EXCHANGE_NAME, routingKey, clubId.toString());
+        // 5. RabbitMQ ile event-service'e haber ver
+        // Bu kulübün etkinliklerinin iptal edilmesi için
+        try {
+            ClubUpdateMessage message = new ClubUpdateMessage(
+                clubId,
+                "CLUB_DELETED",
+                club.getName()
+            );
 
-        System.out.println("Club deleted and 'club.deleted' message sent for clubId: " + clubId);
+            String routingKey = "club.deleted";
+            rabbitTemplate.convertAndSend(
+                ClubRabbitMQConfig.EXCHANGE_NAME,
+                routingKey,
+                message
+            );
+
+            log.info("Club deletion message sent to event-service for club: {}", clubId);
+        } catch (Exception e) {
+            log.error("Failed to send club deletion message: {}", e.getMessage(), e);
+            // Mesaj gönderilemese bile kulüp arşivlendi, bu bir hata değil
+        }
+    }
+
+    /**
+     * Backward compatibility için eski metod imzası.
+     * Yeni kod bu metodu kullanmamalı.
+     *
+     * @deprecated Use {@link #deleteClub(UUID, String, UUID)} instead
+     */
+    @Deprecated
+    public void deleteClub(UUID clubId) {
+        deleteClub(clubId, "Neden belirtilmedi", null);
     }
 
     /**
@@ -682,6 +740,30 @@ public class ClubService {
                             m.getTermEndDate()
                     );
                 })
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * Tüm arşivlenmiş kulüpleri listeler.
+     * Sadece Admin kullanıcılar erişebilir.
+     * @return Arşivlenmiş kulüplerin DTO listesi
+     */
+    @Transactional(readOnly = true)
+    public List<ArchivedClubDTO> getAllArchivedClubs() {
+        List<ArchivedClub> archivedClubs = archivedClubRepository.findAllByOrderByDeletedAtDesc();
+
+        return archivedClubs.stream()
+                .map(club -> new ArchivedClubDTO(
+                        club.getArchiveId(),
+                        club.getOriginalId(),
+                        club.getName(),
+                        club.getAbout(),
+                        club.getLogoUrl(),
+                        club.getAcademicAdvisorId(),
+                        club.getDeletedAt(),
+                        club.getDeletionReason(),
+                        club.getDeletedByAdminId()
+                ))
                 .collect(Collectors.toList());
     }
 }

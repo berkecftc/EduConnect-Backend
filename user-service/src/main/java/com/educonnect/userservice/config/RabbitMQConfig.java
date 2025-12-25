@@ -27,6 +27,10 @@ public class RabbitMQConfig {
     public static final String ACADEMICIAN_QUEUE_NAME = "academician-profile-create-queue";
     public static final String ACADEMICIAN_ROUTING_KEY = "profile.academician.create";
 
+    // User delete queue/routing key
+    public static final String USER_DELETE_QUEUE = "user-delete-queue";
+    public static final String USER_DELETE_ROUTING_KEY = "user.delete";
+
     @Value("${user.listener.auto-start:true}")
     private boolean listenerAutoStart;
 
@@ -43,6 +47,10 @@ public class RabbitMQConfig {
         idClassMapping.put(
                 "com.educonnect.authservices.dto.message.AcademicianProfileMessage",
                 com.educonnect.userservice.dto.message.AcademicianProfileMessage.class
+        );
+        idClassMapping.put(
+                "com.educonnect.authservices.dto.message.UserDeletedMessage",
+                com.educonnect.userservice.dto.message.UserDeletedMessage.class
         );
         classMapper.setIdClassMapping(idClassMapping);
         converter.setClassMapper(classMapper);
@@ -65,6 +73,11 @@ public class RabbitMQConfig {
     }
 
     @Bean
+    public Queue userDeleteQueue() {
+        return new Queue(USER_DELETE_QUEUE);
+    }
+
+    @Bean
     public Binding binding(Queue userProfileCreationQueue, DirectExchange userExchange) {
         return BindingBuilder.bind(userProfileCreationQueue).to(userExchange).with(ROUTING_KEY);
     }
@@ -72,6 +85,11 @@ public class RabbitMQConfig {
     @Bean
     public Binding academicianBinding(Queue academicianProfileCreationQueue, DirectExchange userExchange) {
         return BindingBuilder.bind(academicianProfileCreationQueue).to(userExchange).with(ACADEMICIAN_ROUTING_KEY);
+    }
+
+    @Bean
+    public Binding userDeleteBinding(Queue userDeleteQueue, DirectExchange userExchange) {
+        return BindingBuilder.bind(userDeleteQueue).to(userExchange).with(USER_DELETE_ROUTING_KEY);
     }
 
     @Bean
