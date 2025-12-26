@@ -9,6 +9,7 @@ import com.educonnect.authservices.dto.request.LoginRequest;
 import com.educonnect.authservices.dto.request.RegisterRequest;
 import com.educonnect.authservices.dto.response.AuthResponse;
 import com.educonnect.authservices.models.AcademicianRegistrationRequest; // YENİ IMPORT
+import com.educonnect.authservices.models.RefreshToken;
 import com.educonnect.authservices.models.Role;
 import com.educonnect.authservices.models.User;
 import com.educonnect.authservices.Repository.AcademicianRequestRepository; // YENİ IMPORT
@@ -47,6 +48,7 @@ public class AuthServiceImpl {
     private final JWTService jwtService;
     private final AuthenticationManager authenticationManager;
     private final RabbitTemplate rabbitTemplate;
+    private final RefreshTokenService refreshTokenService;
 
     @Autowired
     public AuthServiceImpl(UserRepository userRepository,
@@ -54,13 +56,15 @@ public class AuthServiceImpl {
                            PasswordEncoder passwordEncoder,
                            JWTService jwtService,
                            AuthenticationManager authenticationManager,
-                           RabbitTemplate rabbitTemplate) {
+                           RabbitTemplate rabbitTemplate,
+                           RefreshTokenService refreshTokenService) {
         this.userRepository = userRepository;
         this.requestRepository = requestRepository;
         this.passwordEncoder = passwordEncoder;
         this.jwtService = jwtService;
         this.authenticationManager = authenticationManager;
         this.rabbitTemplate = rabbitTemplate;
+        this.refreshTokenService = refreshTokenService;
     }
 
     public AuthResponse register(RegisterRequest request) {
@@ -97,7 +101,17 @@ public class AuthServiceImpl {
         );
 
         var jwtToken = jwtService.generateToken(savedUser);
-        return new AuthResponse(jwtToken, "User registered successfully.");
+        var refreshToken = refreshTokenService.createRefreshToken(savedUser.getId());
+        Set<String> userRoles = savedUser.getRoles().stream()
+                .sorted((r1, r2) -> {
+                    if (r1.name().equals("ROLE_ADMIN")) return -1;
+                    if (r2.name().equals("ROLE_ADMIN")) return 1;
+                    return r1.name().compareTo(r2.name());
+                })
+                .map(Role::name)
+                .collect(Collectors.toCollection(java.util.LinkedHashSet::new));
+        return new AuthResponse(jwtToken, refreshToken.getToken(), "User registered successfully.",
+                savedUser.getId().toString(), savedUser.getEmail(), userRoles);
     }
 
     public AuthResponse registerStudent(RegisterRequest request) {
@@ -134,7 +148,17 @@ public class AuthServiceImpl {
         );
 
         var jwtToken = jwtService.generateToken(savedUser);
-        return new AuthResponse(jwtToken, "Student registered successfully.");
+        var refreshToken = refreshTokenService.createRefreshToken(savedUser.getId());
+        Set<String> userRoles = savedUser.getRoles().stream()
+                .sorted((r1, r2) -> {
+                    if (r1.name().equals("ROLE_ADMIN")) return -1;
+                    if (r2.name().equals("ROLE_ADMIN")) return 1;
+                    return r1.name().compareTo(r2.name());
+                })
+                .map(Role::name)
+                .collect(Collectors.toCollection(java.util.LinkedHashSet::new));
+        return new AuthResponse(jwtToken, refreshToken.getToken(), "Student registered successfully.",
+                savedUser.getId().toString(), savedUser.getEmail(), userRoles);
     }
 
     // --- AKADEMİSYEN BAŞVURU İŞLEMİ (DÜZELTİLDİ) ---
@@ -240,8 +264,22 @@ public class AuthServiceImpl {
         SecurityContextHolder.getContext().setAuthentication(authentication);
         String jwt = jwtService.generateToken(user);
 
-        // ... geri kalanı aynı
-        return new AuthResponse(jwt, "Login successful");
+        // Refresh token oluştur
+        var refreshToken = refreshTokenService.createRefreshToken(user.getId());
+
+        // Tüm rolleri al ve ROLE_ADMIN'i önce koy
+        Set<String> roles = user.getRoles().stream()
+                .sorted((r1, r2) -> {
+                    // ROLE_ADMIN önce gelsin
+                    if (r1.name().equals("ROLE_ADMIN")) return -1;
+                    if (r2.name().equals("ROLE_ADMIN")) return 1;
+                    return r1.name().compareTo(r2.name());
+                })
+                .map(Role::name)
+                .collect(Collectors.toCollection(java.util.LinkedHashSet::new));
+
+        return new AuthResponse(jwt, refreshToken.getToken(), "Login successful",
+                user.getId().toString(), user.getEmail(), roles);
     }
 
     // ---- Kulüp Görevlisi Başvuru Akışı ----
@@ -313,12 +351,13 @@ public class AuthServiceImpl {
     public void promoteToAdmin(UUID userId) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new NoSuchElementException("User not found"));
-        Set<Role> roles = user.getRoles();
-        if (!roles.contains(Role.ROLE_ADMIN)) {
-            roles.add(Role.ROLE_ADMIN);
-            user.setRoles(roles);
-            userRepository.save(user);
-        }
+
+        // Admin rolü sadece tek başına olmalı - diğer rolleri temizle
+        Set<Role> roles = Stream.of(Role.ROLE_ADMIN).collect(Collectors.toSet());
+        user.setRoles(roles);
+        userRepository.save(user);
+
+        LOGGER.info("User promoted to ADMIN (all other roles removed). UserID: {}", userId);
     }
 
     public void revokeAdmin(UUID userId) {
@@ -327,6 +366,11 @@ public class AuthServiceImpl {
         Set<Role> roles = user.getRoles();
         if (roles.contains(Role.ROLE_ADMIN)) {
             roles.remove(Role.ROLE_ADMIN);
+            // Admin rolü kaldırılınca kullanıcının hiç rolü kalmazsa STUDENT yap
+            if (roles.isEmpty()) {
+                roles.add(Role.ROLE_STUDENT);
+                LOGGER.info("Admin role revoked, user set to ROLE_STUDENT. UserID: {}", userId);
+            }
             user.setRoles(roles);
             userRepository.save(user);
         }
@@ -372,6 +416,34 @@ public class AuthServiceImpl {
 
     public List<String> getEmailsByUserIds(List<UUID> userIds) {
         return userRepository.findEmailsByIds(userIds);
+    }
+
+    /**
+     * Refresh token ile yeni access token oluşturur
+     */
+    public AuthResponse refreshAccessToken(String refreshTokenStr) {
+        RefreshToken refreshToken = refreshTokenService.findByToken(refreshTokenStr);
+        refreshTokenService.verifyExpiration(refreshToken);
+
+        User user = userRepository.findById(refreshToken.getUserId())
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        String newAccessToken = jwtService.generateToken(user);
+        Set<String> roles = user.getRoles().stream()
+                .map(Role::name)
+                .collect(Collectors.toSet());
+
+        return new AuthResponse(newAccessToken, refreshTokenStr, "Token refreshed successfully",
+                user.getId().toString(), user.getEmail(), roles);
+    }
+
+    /**
+     * Logout - refresh token'ı siler
+     */
+    @Transactional
+    public void logout(String refreshToken) {
+        refreshTokenService.deleteByToken(refreshToken);
+        LOGGER.info("User logged out, refresh token deleted");
     }
 
     /**

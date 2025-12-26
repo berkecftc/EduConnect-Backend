@@ -30,6 +30,8 @@ public class AuthenticationFilter extends AbstractGatewayFilterFactory<Authentic
     private final List<String> publicEndpoints = List.of(
             "/api/auth/register",
             "/api/auth/login",
+            "/api/auth/refresh",
+            "/api/auth/logout",
             "/api/auth/request/academician-account"
             // Note: /api/clubs (list) and /api/clubs/{id} (detail) are handled by regex in isPublicEndpoint()
     );

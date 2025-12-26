@@ -14,11 +14,11 @@ import org.springframework.stereotype.Service;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
-import java.time.Duration;
 import java.util.Base64;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.UUID;
 import java.util.function.Function;
 
 @Service
@@ -29,11 +29,18 @@ public class JWTService {
     @Value("${jwt.secret}")
     private String JWT_SECRET;
 
-    @Value("${jwt.expiration-ms}")
-    private long JWT_EXPIRATION;
+    @Value("${jwt.access-token-expiration-ms:900000}") // Default: 15 dakika
+    private long ACCESS_TOKEN_EXPIRATION;
+
+    @Value("${jwt.refresh-token-expiration-ms:604800000}") // Default: 7 gün
+    private long REFRESH_TOKEN_EXPIRATION;
 
     public String extractUsername(String token) {
         return extractClaim(token, Claims::getSubject);
+    }
+
+    public String extractUserId(String token) {
+        return extractClaim(token, claims -> claims.get("userId", String.class));
     }
 
     public String generateToken(UserDetails userDetails) {
@@ -42,13 +49,31 @@ public class JWTService {
         if (userDetails instanceof com.educonnect.authservices.models.User user) {
             claims.put("userId", user.getId().toString());
             // Birden fazla role olabilir, comma-separated string olarak ekle
+            // ROLE_ADMIN varsa önce onu koy, yoksa doğal sıralama
             String rolesString = user.getRoles().stream()
+                    .sorted((r1, r2) -> {
+                        // ROLE_ADMIN önce gelsin
+                        if (r1.name().equals("ROLE_ADMIN")) return -1;
+                        if (r2.name().equals("ROLE_ADMIN")) return 1;
+                        return r1.name().compareTo(r2.name());
+                    })
                     .map(Enum::name)
                     .reduce((a, b) -> a + "," + b)
                     .orElse("");
-            claims.put("roles", rolesString); // Örn: "ADMIN,STUDENT"
+            claims.put("roles", rolesString); // Örn: "ROLE_ADMIN,ROLE_STUDENT"
         }
         return generateToken(claims, userDetails);
+    }
+
+    /**
+     * Refresh token oluşturur (basit UUID tabanlı)
+     */
+    public String generateRefreshToken() {
+        return UUID.randomUUID().toString();
+    }
+
+    public long getRefreshTokenExpirationMs() {
+        return REFRESH_TOKEN_EXPIRATION;
     }
 
     public boolean isTokenValid(String token, UserDetails userDetails) {
@@ -94,7 +119,7 @@ public class JWTService {
                 .claims(extraClaims)
                 .subject(userDetails.getUsername())
                 .issuedAt(new Date(System.currentTimeMillis()))
-                .expiration(new Date(System.currentTimeMillis() + JWT_EXPIRATION))
+                .expiration(new Date(System.currentTimeMillis() + ACCESS_TOKEN_EXPIRATION))
                 .signWith(getSignInKey(), Jwts.SIG.HS256)
                 .compact();
     }

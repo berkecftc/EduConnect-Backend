@@ -44,6 +44,8 @@ public class SecurityConfig {
                         .requestMatchers("/api/auth/register",
                                          "/api/auth/register/student",
                                          "/api/auth/login",
+                                         "/api/auth/refresh",
+                                         "/api/auth/logout",
                                          "/api/auth/users/emails",
                                          "/{clubId}/members/ids",
                                          "/api/auth/request/academician-account").permitAll()
