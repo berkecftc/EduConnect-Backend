@@ -7,6 +7,7 @@ import com.educonnect.clubservice.dto.request.UpdateMemberRoleRequest;
 import com.educonnect.clubservice.dto.response.ClubDetailsDTO;
 import com.educonnect.clubservice.dto.response.ClubSummaryDTO;
 import com.educonnect.clubservice.dto.response.MemberDTO;
+import com.educonnect.clubservice.dto.response.MyClubMembershipDTO;
 import com.educonnect.clubservice.model.Club;
 import com.educonnect.clubservice.model.ClubMembership;
 import com.educonnect.clubservice.service.ClubService;
@@ -203,5 +204,14 @@ public class ClubController {
                 .collect(Collectors.toList());
 
         return ResponseEntity.ok(memberIds);
+    }
+
+    // ÖĞRENCİNİN KULÜP ÜYELİKLERİNİ GETİR
+    @GetMapping("/my-memberships")
+    public ResponseEntity<List<MyClubMembershipDTO>> getMyMemberships(
+            @RequestHeader("X-Authenticated-User-Id") String studentIdHeader
+    ) {
+        UUID studentId = UUID.fromString(studentIdHeader);
+        return ResponseEntity.ok(clubService.getStudentClubMemberships(studentId));
     }
 }

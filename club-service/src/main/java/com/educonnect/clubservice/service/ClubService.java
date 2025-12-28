@@ -12,6 +12,7 @@ import com.educonnect.clubservice.dto.response.ClubAdminSummaryDto;
 import com.educonnect.clubservice.dto.response.ClubDetailsDTO;
 import com.educonnect.clubservice.dto.response.ClubSummaryDTO;
 import com.educonnect.clubservice.dto.response.MemberDTO;
+import com.educonnect.clubservice.dto.response.MyClubMembershipDTO;
 import com.educonnect.clubservice.dto.response.UserSummary;
 import com.educonnect.clubservice.model.ArchivedClub;
 import com.educonnect.clubservice.model.Club;
@@ -24,6 +25,8 @@ import com.educonnect.clubservice.Repository.ClubRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -329,6 +332,7 @@ public class ClubService {
      * @param clubId Katılmak istenen kulübün ID'si
      * @param studentId Katılmak isteyen öğrencinin ID'si (Token'dan alınacak)
      */
+    @CacheEvict(value = "studentClubMemberships", key = "#studentId")
     public void joinClub(UUID clubId, UUID studentId) {
 
         // 1. Kulübün var olup olmadığını kontrol et
@@ -765,5 +769,28 @@ public class ClubService {
                         club.getDeletedByAdminId()
                 ))
                 .collect(Collectors.toList());
+    }
+
+    // --- YENİ METOT: ÖĞRENCİNİN KULÜP ÜYELİKLERİNİ GETİR ---
+    /**
+     * Öğrencinin üye olduğu tüm kulüpleri getirir (aktif üyelikler)
+     */
+    @Cacheable(value = "studentClubMemberships", key = "#studentId")
+    public List<MyClubMembershipDTO> getStudentClubMemberships(UUID studentId) {
+        List<ClubMembership> memberships = membershipRepository.findByStudentId(studentId);
+
+        return memberships.stream().map(membership -> {
+            Club club = clubRepository.findById(membership.getClubId()).orElse(null);
+            if (club == null) return null;
+
+            MyClubMembershipDTO dto = new MyClubMembershipDTO();
+            dto.setClubId(club.getId());
+            dto.setClubName(club.getName());
+            dto.setLogoUrl(club.getLogoUrl());
+            dto.setClubRole(membership.getClubRole());
+            dto.setActive(membership.isActive());
+            dto.setTermStartDate(membership.getTermStartDate());
+            return dto;
+        }).filter(dto -> dto != null).collect(Collectors.toList());
     }
 }

@@ -1,8 +1,8 @@
 package com.educonnect.courseservice.controller;
 
-import com.educonnect.courseservice.dto.CourseRequest;
-import com.educonnect.courseservice.dto.CourseResponse;
+import com.educonnect.courseservice.dto.*;
 import com.educonnect.courseservice.service.CourseService;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
@@ -39,5 +39,54 @@ public class CourseController {
     public ResponseEntity<Void> delete(@PathVariable UUID id) {
         courseService.deleteCourse(id);
         return ResponseEntity.noContent().build();
+    }
+
+    // ÖĞRENCİYİ KURSA KAYDET (Akademisyen)
+    @PostMapping("/{courseId}/enroll-student")
+    public ResponseEntity<String> enrollStudent(
+            @PathVariable UUID courseId,
+            @RequestBody EnrollStudentRequest request,
+            @RequestHeader("X-Authenticated-User-Id") String instructorIdHeader
+    ) {
+        try {
+            UUID instructorId = UUID.fromString(instructorIdHeader);
+            courseService.enrollStudent(courseId, request.getStudentId(), instructorId);
+            return ResponseEntity.ok("Öğrenci başarıyla kursa kaydedildi");
+        } catch (RuntimeException e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
+        }
+    }
+
+    // ÖĞRENCİNİN KAYITLI OLDUĞU KURSLARI GETİR
+    @GetMapping("/my-courses")
+    public ResponseEntity<List<EnrolledCourseDTO>> getMyCourses(
+            @RequestHeader("X-Authenticated-User-Id") String studentIdHeader
+    ) {
+        UUID studentId = UUID.fromString(studentIdHeader);
+        return ResponseEntity.ok(courseService.getStudentCourses(studentId));
+    }
+
+    // ÖĞRENCİ KURSTAN ÇIK
+    @DeleteMapping("/{courseId}/withdraw")
+    public ResponseEntity<String> withdrawFromCourse(
+            @PathVariable UUID courseId,
+            @RequestHeader("X-Authenticated-User-Id") String studentIdHeader
+    ) {
+        try {
+            UUID studentId = UUID.fromString(studentIdHeader);
+            courseService.withdrawStudent(courseId, studentId);
+            return ResponseEntity.ok("Kurstan başarıyla çıkıldı");
+        } catch (RuntimeException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
+        }
+    }
+
+    // AKADEMİSYENİN DERSLERİNİ GETİR (Öğrenci sayılarıyla)
+    @GetMapping("/instructor/me/courses")
+    public ResponseEntity<List<InstructorCourseDTO>> getMyInstructorCourses(
+            @RequestHeader("X-Authenticated-User-Id") String instructorIdHeader
+    ) {
+        UUID instructorId = UUID.fromString(instructorIdHeader);
+        return ResponseEntity.ok(courseService.getInstructorCourses(instructorId));
     }
 }

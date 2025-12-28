@@ -44,7 +44,11 @@ public class SecurityConfig {
                         .anyRequest().authenticated()
                 )
                 // Gateway'den gelen header'ları okuyup Security context'ine ekle
-                .addFilterBefore(gatewayAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
+                .addFilterBefore(gatewayAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
+
+                // Form login ve HTTP Basic'i devre dışı bırak (API Gateway üzerinden JWT kullanıyoruz)
+                .formLogin(form -> form.disable())
+                .httpBasic(basic -> basic.disable());
 
 
         return http.build();

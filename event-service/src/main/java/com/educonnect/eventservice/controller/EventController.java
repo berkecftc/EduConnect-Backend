@@ -1,12 +1,11 @@
 package com.educonnect.eventservice.controller;
 
+import com.educonnect.eventservice.dto.MyEventRegistrationDTO;
 import com.educonnect.eventservice.model.Event;
 import com.educonnect.eventservice.model.EventRegistration;
 import com.educonnect.eventservice.service.EventService;
-import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -14,10 +13,13 @@ import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/events") // Public/Öğrenci rotası
-@RequiredArgsConstructor
 public class EventController {
 
     private final EventService eventService;
+
+    public EventController(EventService eventService) {
+        this.eventService = eventService;
+    }
 
     /**
      * Aktif tüm etkinlikleri listeler.
@@ -46,7 +48,6 @@ public class EventController {
      * Öğrenci: Etkinliğe Kayıt Ol (Bilet Al).
      */
     @PostMapping("/{eventId}/register")
-    @PreAuthorize("hasRole('STUDENT')") // Sadece öğrenciler kaydolabilir
     public ResponseEntity<?> registerForEvent(
             @PathVariable UUID eventId,
             @RequestHeader("X-Authenticated-User-Id") String userIdHeader
@@ -65,4 +66,16 @@ public class EventController {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Registration failed.");
         }
     }
+
+    /**
+     * Öğrenci: Kayıtlı Olduğu Tüm Etkinlikleri Getir
+     */
+    @GetMapping("/my-registrations")
+    public ResponseEntity<List<MyEventRegistrationDTO>> getMyRegistrations(
+            @RequestHeader("X-Authenticated-User-Id") String studentIdHeader
+    ) {
+        UUID studentId = UUID.fromString(studentIdHeader);
+        return ResponseEntity.ok(eventService.getStudentEventRegistrations(studentId));
+    }
 }
+

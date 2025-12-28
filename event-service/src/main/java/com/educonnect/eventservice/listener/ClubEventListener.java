@@ -3,17 +3,19 @@ package com.educonnect.eventservice.listener;
 import com.educonnect.eventservice.config.EventRabbitMQConfig;
 import com.educonnect.eventservice.dto.message.ClubUpdateMessage;
 import com.educonnect.eventservice.service.EventService;
-import lombok.RequiredArgsConstructor;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
 import org.springframework.stereotype.Component;
 
 import java.util.UUID;
 
 @Component
-@RequiredArgsConstructor
 public class ClubEventListener {
 
     private final EventService eventService;
+
+    public ClubEventListener(EventService eventService) {
+        this.eventService = eventService;
+    }
 
     @RabbitListener(queues = EventRabbitMQConfig.DELETE_EVENTS_QUEUE)
     public void handleClubDeleted(String clubIdString) {

@@ -57,7 +57,11 @@ public class SecurityConfig {
                         .sessionCreationPolicy(SessionCreationPolicy.STATELESS)
                 )
                 // Kimlik doğrulama sağlayıcımızı ekliyoruz.
-                .authenticationProvider(authenticationProvider());
+                .authenticationProvider(authenticationProvider())
+
+                // Form login ve HTTP Basic'i devre dışı bırak
+                .formLogin(form -> form.disable())
+                .httpBasic(basic -> basic.disable());
 
         // JWT doğrulama filtresini UsernamePasswordAuthenticationFilter'dan önce ekle
         http.addFilterBefore(new JwtAuthenticationFilter(jwtService, userDetailsService()),

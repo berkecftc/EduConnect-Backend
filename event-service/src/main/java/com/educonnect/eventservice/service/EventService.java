@@ -3,14 +3,16 @@ package com.educonnect.eventservice.service;
 import com.educonnect.eventservice.config.EventRabbitMQConfig;
 import com.educonnect.eventservice.dto.message.EventCreatedMessage;
 import com.educonnect.eventservice.dto.message.EventRegistrationMessage;
+import com.educonnect.eventservice.dto.MyEventRegistrationDTO;
 import com.educonnect.eventservice.dto.request.CreateEventRequest;
 import com.educonnect.eventservice.model.Event;
 import com.educonnect.eventservice.model.EventStatus;
 import com.educonnect.eventservice.Repository.EventRepository;
 import com.educonnect.eventservice.model.EventRegistration;
 import com.educonnect.eventservice.Repository.EventRegistrationRepository;
-import lombok.RequiredArgsConstructor;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.client.RestTemplate;
@@ -19,9 +21,9 @@ import org.springframework.web.multipart.MultipartFile;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Service
-@RequiredArgsConstructor
 @Transactional
 public class EventService {
 
@@ -30,6 +32,18 @@ public class EventService {
     private final RabbitTemplate rabbitTemplate;
     private final EventRegistrationRepository eventRegistrationRepository;
     private final RestTemplate restTemplate;
+
+    public EventService(EventRepository eventRepository,
+                       MinioService minioService,
+                       RabbitTemplate rabbitTemplate,
+                       EventRegistrationRepository eventRegistrationRepository,
+                       RestTemplate restTemplate) {
+        this.eventRepository = eventRepository;
+        this.minioService = minioService;
+        this.rabbitTemplate = rabbitTemplate;
+        this.eventRegistrationRepository = eventRegistrationRepository;
+        this.restTemplate = restTemplate;
+    }
 
     /**
      * Yeni bir etkinlik oluşturur ve afişini yükler.
@@ -206,6 +220,7 @@ public class EventService {
     /**
      * Öğrenciyi etkinliğe kaydeder ve benzersiz bir QR bilet oluşturur.
      */
+    @CacheEvict(value = "studentEventRegistrations", key = "#studentId")
     public EventRegistration registerForEvent(UUID eventId, UUID studentId) {
         // 1. Etkinlik var mı?
         Event event = getEventDetails(eventId);
@@ -281,4 +296,29 @@ public class EventService {
         // findAll() JPA'nın standart metodudur, tüm tabloyu getirir.
         return eventRepository.findAll();
     }
+
+    /**
+     * Öğrencinin kayıtlı olduğu tüm etkinlikleri getirir (Cache'li)
+     */
+    @Cacheable(value = "studentEventRegistrations", key = "#studentId")
+    public List<MyEventRegistrationDTO> getStudentEventRegistrations(UUID studentId) {
+        List<EventRegistration> registrations = eventRegistrationRepository.findByStudentId(studentId);
+
+        return registrations.stream().map(registration -> {
+            Event event = eventRepository.findById(registration.getEventId()).orElse(null);
+            if (event == null) return null;
+
+            MyEventRegistrationDTO dto = new MyEventRegistrationDTO();
+            dto.setEventId(event.getId());
+            dto.setEventTitle(event.getTitle());
+            dto.setEventDescription(event.getDescription());
+            dto.setEventDate(event.getEventTime());
+            dto.setEventLocation(event.getLocation());
+            dto.setQrCode(registration.getQrCode());
+            dto.setRegistrationTime(registration.getRegistrationTime());
+            dto.setAttended(registration.isAttended());
+            return dto;
+        }).filter(dto -> dto != null).collect(Collectors.toList());
+    }
 }
+

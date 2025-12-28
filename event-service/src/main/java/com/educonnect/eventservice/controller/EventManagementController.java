@@ -3,7 +3,6 @@ package com.educonnect.eventservice.controller;
 import com.educonnect.eventservice.dto.request.CreateEventRequest;
 import com.educonnect.eventservice.model.Event;
 import com.educonnect.eventservice.service.EventService;
-import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -16,10 +15,13 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/events/manage") // Yönetim rotası
-@RequiredArgsConstructor
 public class EventManagementController {
 
     private final EventService eventService;
+
+    public EventManagementController(EventService eventService) {
+        this.eventService = eventService;
+    }
 
     /**
      * Yeni Etkinlik Oluşturma (Resimli).

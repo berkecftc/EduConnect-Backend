@@ -1,7 +1,6 @@
 package com.educonnect.eventservice.config;
 
 import com.educonnect.eventservice.filter.GatewayAuthenticationFilter; // YENİ FİLTRE
-import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
@@ -15,11 +14,13 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 @Configuration
 @EnableWebSecurity
 @EnableMethodSecurity
-@RequiredArgsConstructor
 public class SecurityConfig {
 
-    // Eskisini silin, bunu ekleyin
     private final GatewayAuthenticationFilter gatewayAuthenticationFilter;
+
+    public SecurityConfig(GatewayAuthenticationFilter gatewayAuthenticationFilter) {
+        this.gatewayAuthenticationFilter = gatewayAuthenticationFilter;
+    }
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
@@ -33,7 +34,11 @@ public class SecurityConfig {
                         .anyRequest().authenticated()
                 )
                 // YENİ FİLTREYİ EKLE
-                .addFilterBefore(gatewayAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
+                .addFilterBefore(gatewayAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
+
+                // Form login ve HTTP Basic'i devre dışı bırak (API Gateway üzerinden JWT kullanıyoruz)
+                .formLogin(form -> form.disable())
+                .httpBasic(basic -> basic.disable());
 
         return http.build();
     }

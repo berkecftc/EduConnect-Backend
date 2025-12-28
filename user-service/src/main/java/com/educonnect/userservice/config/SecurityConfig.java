@@ -30,7 +30,11 @@ public class SecurityConfig {
                 .anyRequest().permitAll() // API Gateway zaten authentication kontrolü yapıyor
             )
             // Header-based authentication filter'ı ekle
-            .addFilterBefore(headerAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
+            .addFilterBefore(headerAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
+
+            // Form login ve HTTP Basic'i devre dışı bırak
+            .formLogin(form -> form.disable())
+            .httpBasic(basic -> basic.disable());
 
         return http.build();
     }
