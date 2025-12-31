@@ -12,17 +12,19 @@ public class AcademicianProfileMessage implements Serializable {
     private String title;
     private String department;
     private String officeNumber;
+    private String idCardImageUrl; // Akademisyen kimlik kartı fotoğrafı URL'si
 
     // JSON dönüşümü için boş constructor
     public AcademicianProfileMessage() {}
 
-    public AcademicianProfileMessage(UUID userId, String firstName, String lastName, String title, String department, String officeNumber) {
+    public AcademicianProfileMessage(UUID userId, String firstName, String lastName, String title, String department, String officeNumber, String idCardImageUrl) {
         this.userId = userId;
         this.firstName = firstName;
         this.lastName = lastName;
         this.title = title;
         this.department = department;
         this.officeNumber = officeNumber;
+        this.idCardImageUrl = idCardImageUrl;
     }
 
     public String getFirstName() { return firstName; }
@@ -37,4 +39,6 @@ public class AcademicianProfileMessage implements Serializable {
     public void setOfficeNumber(String officeNumber) { this.officeNumber = officeNumber; }
     public UUID getUserId() { return userId; }
     public void setUserId(UUID userId) { this.userId = userId; }
+    public String getIdCardImageUrl() { return idCardImageUrl; }
+    public void setIdCardImageUrl(String idCardImageUrl) { this.idCardImageUrl = idCardImageUrl; }
 }

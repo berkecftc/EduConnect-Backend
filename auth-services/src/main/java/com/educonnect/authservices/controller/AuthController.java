@@ -19,7 +19,10 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
+import org.springframework.http.MediaType;
 
 import java.util.List;
 import java.util.Map;
@@ -61,12 +64,13 @@ public class AuthController {
     }
 
     // --- YENİ ENDPOINT: Akademisyen Başvurusu ---
-    @PostMapping("/request/academician-account")
+    @PostMapping(value = "/request/academician-account", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<String> requestAcademicianAccount(
-            @RequestBody RegisterRequest request
+            @RequestPart("request") RegisterRequest request,
+            @RequestPart("idCardImage") MultipartFile idCardImage
     ) {
-        // Servis katmanında bu isteği işleyeceğiz
-        authService.requestAcademicianAccount(request);
+        // Servis katmanında bu isteği işleyeceğiz (kimlik kartı fotoğrafı ile birlikte)
+        authService.requestAcademicianAccount(request, idCardImage);
         return ResponseEntity.ok("Academician account request received. Pending admin approval.");
     }
 

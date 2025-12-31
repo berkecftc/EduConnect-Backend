@@ -34,6 +34,8 @@ import java.util.UUID;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import org.springframework.web.multipart.MultipartFile;
+
 import static com.educonnect.authservices.config.RabbitMQConfig.ACADEMICIAN_ROUTING_KEY;
 import static com.educonnect.authservices.config.RabbitMQConfig.EXCHANGE_NAME;
 
@@ -49,6 +51,7 @@ public class AuthServiceImpl {
     private final AuthenticationManager authenticationManager;
     private final RabbitTemplate rabbitTemplate;
     private final RefreshTokenService refreshTokenService;
+    private final MinioService minioService; // Akademisyen kimlik kartı yüklemesi için
 
     @Autowired
     public AuthServiceImpl(UserRepository userRepository,
@@ -57,7 +60,8 @@ public class AuthServiceImpl {
                            JWTService jwtService,
                            AuthenticationManager authenticationManager,
                            RabbitTemplate rabbitTemplate,
-                           RefreshTokenService refreshTokenService) {
+                           RefreshTokenService refreshTokenService,
+                           MinioService minioService) {
         this.userRepository = userRepository;
         this.requestRepository = requestRepository;
         this.passwordEncoder = passwordEncoder;
@@ -65,6 +69,7 @@ public class AuthServiceImpl {
         this.authenticationManager = authenticationManager;
         this.rabbitTemplate = rabbitTemplate;
         this.refreshTokenService = refreshTokenService;
+        this.minioService = minioService;
     }
 
     public AuthResponse register(RegisterRequest request) {
@@ -163,10 +168,15 @@ public class AuthServiceImpl {
 
     // --- AKADEMİSYEN BAŞVURU İŞLEMİ (DÜZELTİLDİ) ---
     @Transactional // Transactional önemli: İki tabloya birden yazıyoruz
-    public void requestAcademicianAccount(RegisterRequest request) {
+    public void requestAcademicianAccount(RegisterRequest request, MultipartFile idCardImage) {
 
         if (userRepository.findByEmail(request.getEmail()).isPresent()) {
             throw new IllegalStateException("Email already registered");
+        }
+
+        // Kimlik kartı fotoğrafı zorunlu
+        if (idCardImage == null || idCardImage.isEmpty()) {
+            throw new IllegalArgumentException("Akademisyen kimlik kartı fotoğrafı zorunludur");
         }
 
         // 1. Kullanıcıyı 'PENDING' rolüyle USERS tablosuna kaydet
@@ -180,7 +190,11 @@ public class AuthServiceImpl {
 
         User savedUser = userRepository.save(user); // Önce User ID oluşsun
 
-        // 2. Detaylı bilgileri 'academician_requests' tablosuna kaydet
+        // 2. Kimlik kartı fotoğrafını MinIO'ya yükle
+        String idCardImageUrl = minioService.uploadIdCardImage(idCardImage, savedUser.getId());
+        LOGGER.info("Akademisyen kimlik kartı yüklendi: {}", idCardImageUrl);
+
+        // 3. Detaylı bilgileri 'academician_requests' tablosuna kaydet
         // (Böylece veriler admin onaylayana kadar burada güvende kalır)
         AcademicianRegistrationRequest accReq = new AcademicianRegistrationRequest();
         accReq.setUserId(savedUser.getId());
@@ -189,6 +203,7 @@ public class AuthServiceImpl {
         accReq.setTitle(request.getTitle());
         accReq.setDepartment(request.getDepartment());
         accReq.setOfficeNumber(request.getOfficeNumber());
+        accReq.setIdCardImageUrl(idCardImageUrl); // Kimlik kartı URL'sini kaydet
 
         requestRepository.save(accReq);
 
@@ -228,7 +243,8 @@ public class AuthServiceImpl {
                 req.getLastName(),
                 req.getTitle(),
                 req.getDepartment(),
-                req.getOfficeNumber()
+                req.getOfficeNumber(),
+                req.getIdCardImageUrl() // Kimlik kartı fotoğrafı URL'si
         );
 
         rabbitTemplate.convertAndSend(EXCHANGE_NAME, ACADEMICIAN_ROUTING_KEY, profileMessage);

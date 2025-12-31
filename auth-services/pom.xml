@@ -91,6 +91,12 @@
             <artifactId>flyway-database-postgresql</artifactId>
             <version>10.10.0</version>
         </dependency>
+
+        <!-- MinIO Client for file storage -->
+        <dependency>
+            <groupId>io.minio</groupId>
+            <artifactId>minio</artifactId>
+        </dependency>
     </dependencies>
 
     <build>

@@ -30,6 +30,9 @@ public class AcademicianRegistrationRequest {
     @Column(name = "office_number")
     private String officeNumber; // Formda varsa
 
+    @Column(name = "id_card_image_url")
+    private String idCardImageUrl; // Akademisyen kimlik kartı fotoğrafı URL'si (MinIO'da)
+
     // İstersen başvuru tarihi
     // private LocalDateTime createdAt;
 
@@ -88,5 +91,13 @@ public class AcademicianRegistrationRequest {
 
     public void setOfficeNumber(String officeNumber) {
         this.officeNumber = officeNumber;
+    }
+
+    public String getIdCardImageUrl() {
+        return idCardImageUrl;
+    }
+
+    public void setIdCardImageUrl(String idCardImageUrl) {
+        this.idCardImageUrl = idCardImageUrl;
     }
 }

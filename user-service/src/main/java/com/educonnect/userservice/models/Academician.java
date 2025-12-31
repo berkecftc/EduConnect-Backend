@@ -24,6 +24,8 @@ public class Academician {
 
     private String profileImageUrl; // MinIO'da saklanan profil resminin URL'si
 
+    private String idCardImageUrl; // Akademisyen kimlik kartı fotoğrafı URL'si (MinIO'da)
+
 
     public Academician() {
     }
@@ -90,5 +92,13 @@ public class Academician {
 
     public void setProfileImageUrl(String profileImageUrl) {
         this.profileImageUrl = profileImageUrl;
+    }
+
+    public String getIdCardImageUrl() {
+        return idCardImageUrl;
+    }
+
+    public void setIdCardImageUrl(String idCardImageUrl) {
+        this.idCardImageUrl = idCardImageUrl;
     }
 }

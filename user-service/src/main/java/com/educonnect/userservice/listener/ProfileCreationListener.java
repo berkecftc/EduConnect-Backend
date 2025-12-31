@@ -81,6 +81,7 @@ public class ProfileCreationListener {
             newAcademician.setTitle(message.getTitle());
             newAcademician.setDepartment(message.getDepartment());
             newAcademician.setOfficeNumber(message.getOfficeNumber());
+            newAcademician.setIdCardImageUrl(message.getIdCardImageUrl()); // Kimlik kartı fotoğrafı URL'si
             // newAcademician.setActive(false); // (Opsiyonel: Aktivasyon için)
 
             academicianRepository.save(newAcademician);
