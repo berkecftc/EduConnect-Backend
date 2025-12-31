@@ -109,6 +109,46 @@ public class MinioService {
     }
 
     /**
+     * MinIO'dan kimlik kartı fotoğrafını siler.
+     * @param imageUrl Silinecek fotoğrafın tam URL'si
+     */
+    public void deleteIdCardImage(String imageUrl) {
+        if (imageUrl == null || imageUrl.isEmpty()) {
+            return;
+        }
+        try {
+            // URL'den object name'i çıkar: http://localhost:9000/bucket/id-cards/uuid.jpg -> id-cards/uuid.jpg
+            String objectName = extractObjectName(imageUrl);
+            if (objectName != null) {
+                minioClient.removeObject(
+                        RemoveObjectArgs.builder()
+                                .bucket(bucketName)
+                                .object(objectName)
+                                .build()
+                );
+                System.out.println("Auth Service: Kimlik kartı fotoğrafı silindi -> " + objectName);
+            }
+        } catch (Exception e) {
+            System.err.println("Error deleting ID card image from MinIO: " + e.getMessage());
+            // Silme hatası kritik değil, işlemi durdurmuyoruz
+        }
+    }
+
+    /**
+     * URL'den object name'i çıkarır.
+     */
+    private String extractObjectName(String imageUrl) {
+        if (imageUrl == null) return null;
+        // URL formatı: http://localhost:9000/bucket-name/id-cards/uuid.jpg
+        String bucketPath = "/" + bucketName + "/";
+        int bucketIndex = imageUrl.indexOf(bucketPath);
+        if (bucketIndex > 0) {
+            return imageUrl.substring(bucketIndex + bucketPath.length());
+        }
+        return null;
+    }
+
+    /**
      * Dosya uzantısını alır.
      */
     private String getFileExtension(String filename) {

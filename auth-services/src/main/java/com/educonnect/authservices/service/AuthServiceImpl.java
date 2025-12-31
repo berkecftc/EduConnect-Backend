@@ -504,23 +504,25 @@ public class AuthServiceImpl {
         AcademicianRegistrationRequest req = requestRepository.findByUserId(userId)
                 .orElseThrow(() -> new NoSuchElementException("Request not found"));
 
-        // Rolünü PENDING durumundan çıkar (veya komple User'ı sil)
-        // YÖNTEM A: Sadece rolü sil (User kalır ama yetkisiz olur)
+        // Kullanıcının sadece PENDING_ACADEMICIAN rolü olduğunu doğrula
         Set<Role> roles = user.getRoles();
-        if (roles.contains(Role.ROLE_PENDING_ACADEMICIAN)) {
-            roles.remove(Role.ROLE_PENDING_ACADEMICIAN);
-
-            // Eğer başka rolü yoksa (Örn: Sadece başvuru için açıldıysa) STUDENT yapabilirsin veya User'ı silebilirsin.
-            // Biz şimdilik rolü siliyoruz.
-            user.setRoles(roles);
-            userRepository.save(user);
+        if (!roles.contains(Role.ROLE_PENDING_ACADEMICIAN)) {
+            throw new IllegalStateException("User does not have a pending academician request");
         }
 
-        // İstek tablosundan veriyi sil
+        // 1. MinIO'dan kimlik kartı fotoğrafını sil
+        if (req.getIdCardImageUrl() != null) {
+            minioService.deleteIdCardImage(req.getIdCardImageUrl());
+        }
+
+        // 2. İstek tablosundan veriyi sil
         requestRepository.delete(req);
 
-        // (Opsiyonel) Kullanıcıya "Reddedildiniz" maili atılabilir.
-        LOGGER.info("Akademisyen başvurusu reddedildi. UserID: {}", userId);
+        // 3. Kullanıcıyı users tablosundan tamamen sil
+        // (Sadece başvuru için oluşturulduğundan, reddedilince silinmeli)
+        userRepository.delete(user);
+
+        LOGGER.info("Akademisyen başvurusu reddedildi ve kullanıcı silindi. UserID: {}", userId);
     }
 
     // 1. TÜM KULLANICILARI GETİR
