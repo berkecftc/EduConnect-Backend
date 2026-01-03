@@ -18,4 +18,11 @@ public interface EventRepository extends JpaRepository<Event, UUID> {
     // --- YENİ METOT ---
     // Belirli bir durumdaki (örn: PENDING) etkinlikleri getir
     List<Event> findByStatus(EventStatus status);
+
+    // --- CLUB OFFICIAL DASHBOARD İÇİN ---
+    // Kulüp yetkilisinin oluşturduğu etkinlikleri getir
+    List<Event> findByCreatedByStudentId(UUID creatorId);
+
+    // Bir kulübe ait ve belirli durumdaki etkinlikleri getir
+    List<Event> findByClubIdAndStatus(UUID clubId, EventStatus status);
 }

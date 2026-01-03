@@ -1,22 +1,29 @@
 package com.educonnect.eventservice.service;
 
+import com.educonnect.eventservice.client.UserClient;
 import com.educonnect.eventservice.config.EventRabbitMQConfig;
 import com.educonnect.eventservice.dto.message.EventCreatedMessage;
 import com.educonnect.eventservice.dto.message.EventRegistrationMessage;
 import com.educonnect.eventservice.dto.MyEventRegistrationDTO;
 import com.educonnect.eventservice.dto.request.CreateEventRequest;
+import com.educonnect.eventservice.dto.response.EventRegistrantDTO;
+import com.educonnect.eventservice.dto.response.UserSummary;
 import com.educonnect.eventservice.model.Event;
 import com.educonnect.eventservice.model.EventStatus;
 import com.educonnect.eventservice.Repository.EventRepository;
 import com.educonnect.eventservice.model.EventRegistration;
 import com.educonnect.eventservice.Repository.EventRegistrationRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.multipart.MultipartFile;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
 import java.util.Map;
@@ -27,22 +34,27 @@ import java.util.stream.Collectors;
 @Transactional
 public class EventService {
 
+    private static final Logger log = LoggerFactory.getLogger(EventService.class);
+
     private final EventRepository eventRepository;
     private final MinioService minioService;
     private final RabbitTemplate rabbitTemplate;
     private final EventRegistrationRepository eventRegistrationRepository;
     private final RestTemplate restTemplate;
+    private final UserClient userClient;
 
     public EventService(EventRepository eventRepository,
                        MinioService minioService,
                        RabbitTemplate rabbitTemplate,
                        EventRegistrationRepository eventRegistrationRepository,
-                       RestTemplate restTemplate) {
+                       RestTemplate restTemplate,
+                       UserClient userClient) {
         this.eventRepository = eventRepository;
         this.minioService = minioService;
         this.rabbitTemplate = rabbitTemplate;
         this.eventRegistrationRepository = eventRegistrationRepository;
         this.restTemplate = restTemplate;
+        this.userClient = userClient;
     }
 
     /**
@@ -220,7 +232,7 @@ public class EventService {
     /**
      * Öğrenciyi etkinliğe kaydeder ve benzersiz bir QR bilet oluşturur.
      */
-    @CacheEvict(value = "studentEventRegistrations", key = "#studentId")
+    @CacheEvict(value = {"studentEventRegistrations", "eventRegistrants"}, key = "#studentId", allEntries = false)
     public EventRegistration registerForEvent(UUID eventId, UUID studentId) {
         // 1. Etkinlik var mı?
         Event event = getEventDetails(eventId);
@@ -320,5 +332,132 @@ public class EventService {
             return dto;
         }).filter(dto -> dto != null).collect(Collectors.toList());
     }
-}
 
+    // ==================== CLUB OFFICIAL DASHBOARD METHODS ====================
+
+    /**
+     * Kulüp yetkilisinin oluşturduğu tüm etkinlikleri getirir (Cache'li).
+     * @param creatorId Etkinliği oluşturan kulüp yetkilisinin ID'si
+     * @return Oluşturulan etkinliklerin listesi
+     */
+    @Cacheable(value = "clubOfficialCreatedEvents", key = "#creatorId")
+    public List<Event> getEventsCreatedByUser(UUID creatorId) {
+        return eventRepository.findByCreatedByStudentId(creatorId);
+    }
+
+    /**
+     * Bir etkinliğe kayıtlı tüm kullanıcıları user-service'den isim/email bilgisiyle birlikte getirir.
+     * Yetki kontrolü yapar: Sadece etkinliği oluşturan kişi, ilgili kulübün yetkilisi veya ADMIN erişebilir.
+     *
+     * @param eventId Etkinlik ID'si
+     * @param requesterId İstek yapan kullanıcının ID'si
+     * @param isAdmin İstek yapan kullanıcı admin mi?
+     * @return Kayıtlı kullanıcıların zenginleştirilmiş listesi
+     */
+    @Cacheable(value = "eventRegistrants", key = "#eventId")
+    public List<EventRegistrantDTO> getEventRegistrantsWithUserInfo(UUID eventId, UUID requesterId, boolean isAdmin) {
+        // 1. Etkinliği bul
+        Event event = eventRepository.findById(eventId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Event not found"));
+
+        // 2. Yetki kontrolü (Admin değilse)
+        if (!isAdmin) {
+            checkEventAccessPermission(event, requesterId);
+        }
+
+        // 3. Etkinliğe kayıtlı tüm kullanıcıları getir
+        List<EventRegistration> registrations = eventRegistrationRepository.findByEventId(eventId);
+
+        // 4. Her kayıt için user-service'den bilgi çek ve DTO'ya dönüştür
+        return registrations.stream().map(registration -> {
+            EventRegistrantDTO dto = new EventRegistrantDTO();
+            dto.setStudentId(registration.getStudentId());
+            dto.setRegistrationTime(registration.getRegistrationTime());
+            dto.setAttended(registration.isAttended());
+            dto.setQrCode(registration.getQrCode());
+
+            // User-service'den kullanıcı bilgilerini çek (graceful fallback ile)
+            try {
+                UserSummary user = userClient.getUserById(registration.getStudentId());
+                if (user != null) {
+                    dto.setFirstName(user.getFirstName());
+                    dto.setLastName(user.getLastName());
+                    dto.setEmail(user.getEmail());
+                    dto.setDepartment(user.getDepartment());
+                }
+            } catch (Exception e) {
+                log.warn("User-service'den kullanıcı bilgisi alınamadı (ID: {}): {}",
+                        registration.getStudentId(), e.getMessage());
+                // Fallback değerler
+                dto.setFirstName("Bilinmiyor");
+                dto.setLastName("");
+                dto.setEmail("N/A");
+                dto.setDepartment("N/A");
+            }
+
+            return dto;
+        }).collect(Collectors.toList());
+    }
+
+    /**
+     * Etkinliğe erişim yetkisi kontrolü.
+     * Sadece etkinliği oluşturan kişi veya etkinliğin ait olduğu kulübün yetkilisi erişebilir.
+     *
+     * @param event Etkinlik
+     * @param requesterId İstek yapan kullanıcının ID'si
+     * @throws ResponseStatusException Yetki yoksa 403 FORBIDDEN
+     */
+    private void checkEventAccessPermission(Event event, UUID requesterId) {
+        // Etkinliği oluşturan kişi mi?
+        if (event.getCreatedByStudentId().equals(requesterId)) {
+            return; // Erişim izni var
+        }
+
+        // Kulüp yetkilisi mi? (Club-service'e çağrı yaparak kontrol)
+        // Not: Bu kontrol için club-service'e REST çağrısı yapıyoruz
+        try {
+            String clubServiceUrl = "http://CLUB-SERVICE/api/clubs/" + event.getClubId() + "/board-members";
+            List<Map<String, Object>> boardMembers = restTemplate.getForObject(clubServiceUrl, List.class);
+
+            if (boardMembers != null) {
+                boolean isBoardMember = boardMembers.stream()
+                        .anyMatch(member -> {
+                            Object studentIdObj = member.get("studentId");
+                            if (studentIdObj != null) {
+                                UUID memberId = UUID.fromString(studentIdObj.toString());
+                                return memberId.equals(requesterId);
+                            }
+                            return false;
+                        });
+
+                if (isBoardMember) {
+                    return; // Erişim izni var
+                }
+            }
+        } catch (Exception e) {
+            log.error("Club-service'den yönetim kurulu bilgisi alınamadı: {}", e.getMessage());
+            // Hata durumunda güvenli tarafta kal ve reddet
+        }
+
+        throw new ResponseStatusException(HttpStatus.FORBIDDEN,
+                "Bu etkinliğin kayıtlarını görüntüleme yetkiniz yok");
+    }
+
+    /**
+     * Bir kulübün etkinliklerini getirir (Kulüp yetkilisi dashboard için).
+     * @param clubId Kulüp ID'si
+     * @return Kulübün etkinlikleri
+     */
+    @Cacheable(value = "clubEvents", key = "#clubId")
+    public List<Event> getEventsByClubId(UUID clubId) {
+        return eventRepository.findByClubId(clubId);
+    }
+
+    /**
+     * Etkinlik kayıtları cache'ini temizler (yeni kayıt olduğunda çağrılır).
+     */
+    @CacheEvict(value = "eventRegistrants", key = "#eventId")
+    public void evictEventRegistrantsCache(UUID eventId) {
+        log.info("Evicted eventRegistrants cache for event: {}", eventId);
+    }
+}

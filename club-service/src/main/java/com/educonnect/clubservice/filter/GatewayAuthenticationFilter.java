@@ -28,9 +28,14 @@ public class GatewayAuthenticationFilter extends OncePerRequestFilter {
                                     HttpServletResponse response,
                                     FilterChain filterChain) throws ServletException, IOException {
 
+        String path = request.getRequestURI();
+        log.info("GatewayAuthenticationFilter processing request: {} {}", request.getMethod(), path);
+
         String userEmail = request.getHeader("X-Authenticated-User-Email");
         String userId = request.getHeader("X-Authenticated-User-Id");
         String userRoles = request.getHeader("X-Authenticated-User-Roles");
+
+        log.info("Headers received - Email: {}, UserId: {}, Roles: {}", userEmail, userId, userRoles);
 
         if (userEmail != null && userRoles != null) {
             log.debug("Processing authentication from Gateway: email={}, userId={}, roles={}",
@@ -44,6 +49,8 @@ public class GatewayAuthenticationFilter extends OncePerRequestFilter {
                     .map(SimpleGrantedAuthority::new)
                     .toList();
 
+            log.info("Authorities created: {}", authorities);
+
             UsernamePasswordAuthenticationToken authentication =
                 new UsernamePasswordAuthenticationToken(
                     userEmail,
@@ -52,7 +59,9 @@ public class GatewayAuthenticationFilter extends OncePerRequestFilter {
                 );
 
             SecurityContextHolder.getContext().setAuthentication(authentication);
-            log.debug("Authentication set in SecurityContext with authorities: {}", authorities);
+            log.info("SecurityContext set with authentication for user: {}", userEmail);
+        } else {
+            log.warn("No authentication headers found for request: {} {}", request.getMethod(), path);
         }
 
         filterChain.doFilter(request, response);

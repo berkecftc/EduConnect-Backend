@@ -28,9 +28,22 @@ public class SecurityConfig {
                 .csrf(csrf -> csrf.disable())
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers(HttpMethod.GET, "/api/events/**").permitAll()
+                        // Dashboard endpoints - authentication required (bu kurallar önce gelmeli!)
+                        .requestMatchers(HttpMethod.GET, "/api/events/my-registrations").authenticated()
+
+                        // Club Official/Admin management endpoints (POST, GET, etc.)
+                        .requestMatchers(HttpMethod.POST, "/api/events/manage").hasAnyRole("ADMIN", "CLUB_OFFICIAL")
+                        .requestMatchers(HttpMethod.GET, "/api/events/manage/**").hasAnyRole("ADMIN", "CLUB_OFFICIAL")
                         .requestMatchers("/api/events/manage/**").hasAnyRole("ADMIN", "CLUB_OFFICIAL")
+
+
+                        // Event registration requires authentication
                         .requestMatchers("/api/events/*/register").authenticated()
+
+                        // Public GET endpoints (etkinlik listeleme/detay)
+                        .requestMatchers(HttpMethod.GET, "/api/events").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/events/{eventId}").permitAll()
+
                         .anyRequest().authenticated()
                 )
                 // YENİ FİLTREYİ EKLE

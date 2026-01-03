@@ -32,8 +32,16 @@ public class SecurityConfig {
                         .sessionCreationPolicy(SessionCreationPolicy.STATELESS)) // JWT kullandığımız için
 
                 .authorizeHttpRequests(auth -> auth
-                        // Public endpoints
-                        .requestMatchers(HttpMethod.GET, "/api/clubs/**").permitAll()
+                        // Dashboard endpoints - authentication required (bu kurallar önce gelmeli!)
+                        .requestMatchers(HttpMethod.GET, "/api/clubs/my-memberships").authenticated()
+                        .requestMatchers(HttpMethod.GET, "/api/clubs/my-managed-clubs").hasAnyRole("ADMIN", "CLUB_OFFICIAL")
+
+                        // Public GET endpoints (genel kulüp listeleme/detay)
+                        .requestMatchers(HttpMethod.GET, "/api/clubs").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/clubs/{clubId}").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/clubs/{clubId}/board-members").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/clubs/{clubId}/members/ids").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/clubs/search").permitAll()
 
                         // Admin endpoints (requires ADMIN role via @PreAuthorize)
                         .requestMatchers("/api/admin/clubs/**").authenticated()

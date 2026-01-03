@@ -26,10 +26,15 @@ public class GatewayAuthenticationFilter extends OncePerRequestFilter {
                                     HttpServletResponse response,
                                     FilterChain filterChain) throws ServletException, IOException {
 
+        String path = request.getRequestURI();
+        log.info("GatewayAuthenticationFilter processing request: {} {}", request.getMethod(), path);
+
         // Gateway'in eklediği başlıkları oku
         String userEmail = request.getHeader("X-Authenticated-User-Email");
         String userId = request.getHeader("X-Authenticated-User-Id");
         String userRoles = request.getHeader("X-Authenticated-User-Roles");
+
+        log.info("Headers received - Email: {}, UserId: {}, Roles: {}", userEmail, userId, userRoles);
 
         // Eğer başlıklar varsa (Gateway'den geçmişse), içeri al
         if (userEmail != null && userRoles != null) {
@@ -43,6 +48,8 @@ public class GatewayAuthenticationFilter extends OncePerRequestFilter {
                     .map(SimpleGrantedAuthority::new)
                     .toList();
 
+            log.info("Authorities created: {}", authorities);
+
             // Spring Security Context'ini doldur
             UsernamePasswordAuthenticationToken authentication =
                     new UsernamePasswordAuthenticationToken(
@@ -52,6 +59,9 @@ public class GatewayAuthenticationFilter extends OncePerRequestFilter {
                     );
 
             SecurityContextHolder.getContext().setAuthentication(authentication);
+            log.info("SecurityContext set with authentication for user: {}", userEmail);
+        } else {
+            log.warn("No authentication headers found for request: {} {}", request.getMethod(), path);
         }
 
         filterChain.doFilter(request, response);

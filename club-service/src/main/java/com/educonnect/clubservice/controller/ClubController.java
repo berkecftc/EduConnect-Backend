@@ -214,4 +214,32 @@ public class ClubController {
         UUID studentId = UUID.fromString(studentIdHeader);
         return ResponseEntity.ok(clubService.getStudentClubMemberships(studentId));
     }
+
+    // ==================== CLUB OFFICIAL DASHBOARD ENDPOINTS ====================
+
+    /**
+     * Bir kulübün yönetim kurulunu getirir.
+     * Başkan, Başkan Yardımcısı, Yönetim Kurulu Üyeleri bilgilerini döner.
+     * User-service'den isim bilgisi ile zenginleştirilmiş.
+     */
+    @GetMapping("/{clubId}/board-members")
+    public ResponseEntity<List<MemberDTO>> getClubBoardMembers(@PathVariable UUID clubId) {
+        List<MemberDTO> boardMembers = clubService.getClubBoardMembers(clubId);
+        return ResponseEntity.ok(boardMembers);
+    }
+
+    /**
+     * Kulüp yetkilisinin yönetim kurulunda olduğu tüm kulüpleri getirir.
+     * ROLE_CLUB_OFFICIAL, ROLE_VICE_PRESIDENT veya ROLE_BOARD_MEMBER rolüne sahip olduğu kulüpler.
+     * Cache: 5 dakika TTL
+     */
+    @GetMapping("/my-managed-clubs")
+    @PreAuthorize("hasAnyRole('ADMIN', 'CLUB_OFFICIAL')")
+    public ResponseEntity<List<MyClubMembershipDTO>> getMyManagedClubs(
+            @RequestHeader("X-Authenticated-User-Id") String userIdHeader
+    ) {
+        UUID userId = UUID.fromString(userIdHeader);
+        List<MyClubMembershipDTO> managedClubs = clubService.getManagedClubs(userId);
+        return ResponseEntity.ok(managedClubs);
+    }
 }

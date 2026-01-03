@@ -793,4 +793,46 @@ public class ClubService {
             return dto;
         }).filter(dto -> dto != null).collect(Collectors.toList());
     }
+
+    // ==================== CLUB OFFICIAL DASHBOARD METHODS ====================
+
+    /**
+     * Kulüp yetkilisinin yönetim kurulunda olduğu tüm kulüpleri getirir.
+     * ROLE_CLUB_OFFICIAL, ROLE_VICE_PRESIDENT veya ROLE_BOARD_MEMBER rolüne sahip olduğu kulüpler.
+     *
+     * @param userId Kulüp yetkilisinin ID'si
+     * @return Yönetici olduğu kulüplerin listesi
+     */
+    @Cacheable(value = "managedClubs", key = "#userId")
+    public List<MyClubMembershipDTO> getManagedClubs(UUID userId) {
+        List<ClubMembership> memberships = membershipRepository.findByStudentId(userId);
+
+        return memberships.stream()
+                // Sadece yönetim kurulu rollerini filtrele
+                .filter(membership -> {
+                    ClubRole role = membership.getClubRole();
+                    return role == ClubRole.ROLE_CLUB_OFFICIAL ||
+                           role == ClubRole.ROLE_VICE_PRESIDENT ||
+                           role == ClubRole.ROLE_BOARD_MEMBER ||
+                           role == ClubRole.ROLE_SECRETARY ||
+                           role == ClubRole.ROLE_TREASURER;
+                })
+                // Sadece aktif üyelikleri al
+                .filter(ClubMembership::isActive)
+                .map(membership -> {
+                    Club club = clubRepository.findById(membership.getClubId()).orElse(null);
+                    if (club == null) return null;
+
+                    MyClubMembershipDTO dto = new MyClubMembershipDTO();
+                    dto.setClubId(club.getId());
+                    dto.setClubName(club.getName());
+                    dto.setLogoUrl(club.getLogoUrl());
+                    dto.setClubRole(membership.getClubRole());
+                    dto.setActive(membership.isActive());
+                    dto.setTermStartDate(membership.getTermStartDate());
+                    return dto;
+                })
+                .filter(dto -> dto != null)
+                .collect(Collectors.toList());
+    }
 }
