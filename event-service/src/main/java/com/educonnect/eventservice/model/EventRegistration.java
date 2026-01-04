@@ -19,6 +19,12 @@ public class EventRegistration {
     @Column(nullable = false)
     private UUID studentId;
 
+    @Column(name = "student_email")
+    private String studentEmail; // Öğrencinin e-posta adresi
+
+    @Column(name = "student_number")
+    private String studentNumber; // Öğrenci numarası
+
     @Column(nullable = false, unique = true)
     private String qrCode; // QR Kod içeriği (Benzersiz bir string)
 
@@ -36,6 +42,10 @@ public class EventRegistration {
     public void setEventId(UUID eventId) { this.eventId = eventId; }
     public UUID getStudentId() { return studentId; }
     public void setStudentId(UUID studentId) { this.studentId = studentId; }
+    public String getStudentEmail() { return studentEmail; }
+    public void setStudentEmail(String studentEmail) { this.studentEmail = studentEmail; }
+    public String getStudentNumber() { return studentNumber; }
+    public void setStudentNumber(String studentNumber) { this.studentNumber = studentNumber; }
     public String getQrCode() { return qrCode; }
     public void setQrCode(String qrCode) { this.qrCode = qrCode; }
     public LocalDateTime getRegistrationTime() { return registrationTime; }

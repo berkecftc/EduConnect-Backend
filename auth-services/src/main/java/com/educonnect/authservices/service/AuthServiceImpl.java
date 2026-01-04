@@ -94,6 +94,7 @@ public class AuthServiceImpl {
                 savedUser.getId(),
                 request.getFirstName(),
                 request.getLastName(),
+                savedUser.getEmail(),
                 roleStrings,
                 request.getStudentId(),
                 request.getDepartment()
@@ -141,6 +142,7 @@ public class AuthServiceImpl {
                 savedUser.getId(),
                 request.getFirstName(),
                 request.getLastName(),
+                savedUser.getEmail(),
                 roleStrings,
                 request.getStudentId(),
                 request.getDepartment()
@@ -472,6 +474,7 @@ public class AuthServiceImpl {
                 user.getId(),
                 firstName,
                 lastName,
+                user.getEmail(),
                 roleStrings,
                 null, // studentId yok
                 null  // department yok

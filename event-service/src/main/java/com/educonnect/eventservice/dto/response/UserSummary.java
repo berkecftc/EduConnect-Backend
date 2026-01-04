@@ -11,15 +11,17 @@ public class UserSummary {
     private String lastName;
     private String email;
     private String department;
+    private String studentNumber; // Öğrenci numarası
 
     public UserSummary() {}
 
-    public UserSummary(UUID id, String firstName, String lastName, String email, String department) {
+    public UserSummary(UUID id, String firstName, String lastName, String email, String department, String studentNumber) {
         this.id = id;
         this.firstName = firstName;
         this.lastName = lastName;
         this.email = email;
         this.department = department;
+        this.studentNumber = studentNumber;
     }
 
     // Getters and Setters
@@ -37,4 +39,7 @@ public class UserSummary {
 
     public String getDepartment() { return department; }
     public void setDepartment(String department) { this.department = department; }
+
+    public String getStudentNumber() { return studentNumber; }
+    public void setStudentNumber(String studentNumber) { this.studentNumber = studentNumber; }
 }

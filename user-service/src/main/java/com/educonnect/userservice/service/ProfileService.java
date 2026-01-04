@@ -239,6 +239,7 @@ public class ProfileService {
         dto.setId(student.getId());
         dto.setFirstName(student.getFirstName());
         dto.setLastName(student.getLastName());
+        dto.setEmail(student.getEmail());
         dto.setProfileImageUrl(student.getProfileImageUrl());
         dto.setDepartment(student.getDepartment());
         dto.setStudentNumber(student.getStudentNumber());

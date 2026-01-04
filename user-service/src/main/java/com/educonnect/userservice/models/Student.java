@@ -16,6 +16,9 @@ public class Student {
     @Column(nullable = false)
     private String lastName;
 
+    @Column(unique = true)
+    private String email; // Öğrencinin e-posta adresi
+
     @Column(name = "student_number", unique = true)
     private String studentNumber;
 
@@ -58,6 +61,14 @@ public class Student {
 
     public void setLastName(String lastName) {
         this.lastName = lastName;
+    }
+
+    public String getEmail() {
+        return email;
+    }
+
+    public void setEmail(String email) {
+        this.email = email;
     }
 
     public String getStudentNumber() {

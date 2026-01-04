@@ -8,6 +8,7 @@ public class UserProfileResponse implements Serializable{
     private UUID id;
     private String firstName;
     private String lastName;
+    private String email; // Kullanıcının e-posta adresi
     private String profileImageUrl;
     private String role; // "Student" veya "Academician"
 
@@ -23,6 +24,8 @@ public class UserProfileResponse implements Serializable{
     public void setFirstName(String firstName) { this.firstName = firstName; }
     public String getLastName() { return lastName; }
     public void setLastName(String lastName) { this.lastName = lastName; }
+    public String getEmail() { return email; }
+    public void setEmail(String email) { this.email = email; }
     public String getProfileImageUrl() { return profileImageUrl; }
     public void setProfileImageUrl(String profileImageUrl) { this.profileImageUrl = profileImageUrl; }
     public String getRole() { return role; }

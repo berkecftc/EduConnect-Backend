@@ -82,12 +82,26 @@ public class EventManagementController {
 
     /**
      * QR Kod Doğrulama (Kapıdaki görevli kullanır).
+     * QR kodu query param (?qrCode=xxx) veya JSON body ({"qrCode": "xxx"}) olarak gönderilebilir.
      */
     @PostMapping("/verify-qr")
     @PreAuthorize("hasAnyRole('ADMIN', 'CLUB_OFFICIAL')")
-    public ResponseEntity<String> verifyTicket(@RequestParam String qrCode) {
+    public ResponseEntity<String> verifyTicket(
+            @RequestParam(required = false) String qrCode,
+            @RequestBody(required = false) java.util.Map<String, String> body
+    ) {
+        // QR kodu önce query param'dan, yoksa body'den al
+        String code = qrCode;
+        if (code == null && body != null) {
+            code = body.get("qrCode");
+        }
+
+        if (code == null || code.isBlank()) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("QR code is required.");
+        }
+
         try {
-            boolean verified = eventService.verifyTicket(qrCode);
+            boolean verified = eventService.verifyTicket(code);
             if (verified) {
                 return ResponseEntity.ok("ACCESS GRANTED: Ticket verified successfully.");
             } else {

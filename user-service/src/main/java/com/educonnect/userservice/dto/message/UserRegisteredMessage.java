@@ -9,6 +9,7 @@ public class UserRegisteredMessage implements Serializable {
     private UUID userId;
     private String firstName;
     private String lastName;
+    private String email; // Kullanıcının e-posta adresi
     private Set<String> roles;
     // Ogrenciye ozel ek alanlar
     private String studentNumber;
@@ -22,6 +23,8 @@ public class UserRegisteredMessage implements Serializable {
     public void setFirstName(String firstName) { this.firstName = firstName; }
     public String getLastName() { return lastName; }
     public void setLastName(String lastName) { this.lastName = lastName; }
+    public String getEmail() { return email; }
+    public void setEmail(String email) { this.email = email; }
     public Set<String> getRoles() { return roles; }
     public void setRoles(Set<String> roles) { this.roles = roles; }
     public String getStudentNumber() { return studentNumber; }

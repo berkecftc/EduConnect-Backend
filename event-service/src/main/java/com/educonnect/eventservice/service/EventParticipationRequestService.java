@@ -132,14 +132,29 @@ public class EventParticipationRequestService {
         request.setProcessedBy(approverId);
         participationRequestRepository.save(request);
 
-        // 6. Etkinlik kaydı oluştur (QR kod ile)
+        // 6. Öğrenci bilgilerini user-service'den al
+        String studentEmail = null;
+        String studentNumber = null;
+        try {
+            UserSummary user = userClient.getUserById(request.getStudentId());
+            if (user != null) {
+                studentEmail = user.getEmail();
+                studentNumber = user.getStudentNumber();
+            }
+        } catch (Exception e) {
+            log.warn("Öğrenci bilgileri alınamadı: {}", e.getMessage());
+        }
+
+        // 7. Etkinlik kaydı oluştur (QR kod ile)
         EventRegistration registration = new EventRegistration();
         registration.setEventId(request.getEventId());
         registration.setStudentId(request.getStudentId());
+        registration.setStudentEmail(studentEmail);
+        registration.setStudentNumber(studentNumber);
         registration.setQrCode(UUID.randomUUID().toString());
         EventRegistration savedRegistration = eventRegistrationRepository.save(registration);
 
-        // 7. RabbitMQ ile bildirim gönder (mail için)
+        // 8. RabbitMQ ile bildirim gönder (mail için)
         EventRegistrationMessage message = new EventRegistrationMessage(
                 request.getStudentId(),
                 event.getTitle(),

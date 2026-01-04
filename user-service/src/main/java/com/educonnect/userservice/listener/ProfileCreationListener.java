@@ -47,6 +47,7 @@ public class ProfileCreationListener {
                 newStudent.setId(message.getUserId());
                 newStudent.setFirstName(firstName);
                 newStudent.setLastName(lastName);
+                newStudent.setEmail(message.getEmail()); // Email'i kaydet
                 // Ek alanlar
                 newStudent.setStudentNumber(message.getStudentNumber());
                 newStudent.setDepartment(message.getDepartment());
