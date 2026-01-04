@@ -59,8 +59,14 @@ public class EventService {
 
     /**
      * Yeni bir etkinlik oluşturur ve afişini yükler.
+     * Afiş (posterFile) zorunludur.
      */
-    public Event createEvent(CreateEventRequest request, MultipartFile imageFile, UUID creatorId) {
+    public Event createEvent(CreateEventRequest request, MultipartFile posterFile, UUID creatorId) {
+        // Afiş zorunlu kontrolü
+        if (posterFile == null || posterFile.isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Etkinlik afişi zorunludur.");
+        }
+
         // 1. KULÜP ID'SİNİ BUL (Servisler Arası Çağrı)
         // "http://SERVİS-ADI/yol" formatını kullanıyoruz
         String clubServiceUrl = "http://CLUB-SERVICE/api/clubs/search?name=" + request.getClubName();
@@ -94,13 +100,13 @@ public class EventService {
         // 2. Önce veritabanına kaydet (ID oluşsun diye)
         Event savedEvent = eventRepository.save(event);
 
-        // 3. Resmi MinIO'ya yükle (events/event-id.jpg)
-        if (imageFile != null && !imageFile.isEmpty()) {
-            String objectName = minioService.uploadFile(imageFile, "events", savedEvent.getId().toString());
-            savedEvent.setImageUrl(objectName);
-            eventRepository.save(savedEvent); // URL ile tekrar güncelle
-        }
-
+        // 3. Afişi MinIO'ya yükle (events/event-id.jpg) - Afiş zorunludur
+        log.info("Uploading poster for event: {}", savedEvent.getId());
+        String objectName = minioService.uploadFile(posterFile, "events", savedEvent.getId().toString());
+        log.info("Poster uploaded successfully. URL: {}", objectName);
+        savedEvent.setImageUrl(objectName);
+        savedEvent = eventRepository.save(savedEvent); // URL ile tekrar güncelle ve sonucu al
+        log.info("Event saved with imageUrl: {}", savedEvent.getImageUrl());
 
         return savedEvent;
     }

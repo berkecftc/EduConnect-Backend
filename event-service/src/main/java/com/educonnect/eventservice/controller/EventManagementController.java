@@ -35,13 +35,25 @@ public class EventManagementController {
     @PreAuthorize("hasAnyRole('ADMIN', 'CLUB_OFFICIAL')")
     public ResponseEntity<Event> createEvent(
             @RequestPart("data") CreateEventRequest request, // JSON verisi
-            @RequestPart(value = "image", required = false) MultipartFile image, // Resim dosyası
+            @RequestPart(value = "poster") MultipartFile poster, // Afiş dosyası (zorunlu)
             @RequestHeader("X-Authenticated-User-Id") String userIdHeader
     ) {
         UUID creatorId = UUID.fromString(userIdHeader);
+
+        // Afiş dosyası boş olamaz
+        if (poster == null || poster.isEmpty()) {
+            return ResponseEntity.badRequest().build();
+        }
+
+        // Dosya türü kontrolü - sadece resim dosyaları kabul edilir
+        String contentType = poster.getContentType();
+        if (contentType == null || !contentType.startsWith("image/")) {
+            return ResponseEntity.badRequest().build();
+        }
+
         // TODO: (Güvenlik) creatorId'nin, request.getClubId() kulübünün yetkilisi olup olmadığı kontrol edilebilir.
 
-        Event createdEvent = eventService.createEvent(request, image, creatorId);
+        Event createdEvent = eventService.createEvent(request, poster, creatorId);
         return ResponseEntity.status(HttpStatus.CREATED).body(createdEvent);
     }
 
