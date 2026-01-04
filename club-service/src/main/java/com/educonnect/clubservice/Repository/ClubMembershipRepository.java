@@ -21,6 +21,12 @@ public interface ClubMembershipRepository extends JpaRepository<ClubMembership, 
     // Bir öğrencinin belirli bir kulüpteki rolünü bul
     Optional<ClubMembership> findByClubIdAndStudentId(UUID clubId, UUID studentId);
 
+    // Bir öğrencinin belirli bir kulüpte üye olup olmadığını kontrol et
+    boolean existsByClubIdAndStudentId(UUID clubId, UUID studentId);
+
+    // Bir öğrencinin belirli bir kulüpte aktif üye olup olmadığını kontrol et
+    boolean existsByClubIdAndStudentIdAndIsActive(UUID clubId, UUID studentId, boolean isActive);
+
     // Bir kulübün başkanını bulmak için (veya belirli bir roldekileri)
     List<ClubMembership> findByClubIdAndClubRole(UUID clubId, ClubRole role);
 

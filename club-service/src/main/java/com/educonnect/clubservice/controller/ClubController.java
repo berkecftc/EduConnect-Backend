@@ -229,6 +229,20 @@ public class ClubController {
     }
 
     /**
+     * Öğrencinin kulüp üyesi olup olmadığını kontrol eder.
+     * Event-service gibi diğer servisler tarafından kullanılır.
+     * GET /api/clubs/{clubId}/is-member/{studentId}
+     */
+    @GetMapping("/{clubId}/is-member/{studentId}")
+    public ResponseEntity<Boolean> isStudentMemberOfClub(
+            @PathVariable UUID clubId,
+            @PathVariable UUID studentId
+    ) {
+        boolean isMember = clubService.isStudentMemberOfClub(clubId, studentId);
+        return ResponseEntity.ok(isMember);
+    }
+
+    /**
      * Kulüp yetkilisinin yönetim kurulunda olduğu tüm kulüpleri getirir.
      * ROLE_CLUB_OFFICIAL, ROLE_VICE_PRESIDENT veya ROLE_BOARD_MEMBER rolüne sahip olduğu kulüpler.
      * Cache: 5 dakika TTL

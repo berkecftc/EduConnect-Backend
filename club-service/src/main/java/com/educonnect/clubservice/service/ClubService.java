@@ -874,4 +874,17 @@ public class ClubService {
                 .filter(dto -> dto != null)
                 .collect(Collectors.toList());
     }
+
+    /**
+     * Öğrencinin belirli bir kulübün aktif üyesi olup olmadığını kontrol eder.
+     * Event-service gibi diğer servisler tarafından çağrılır.
+     *
+     * @param clubId Kulüp ID'si
+     * @param studentId Öğrenci ID'si
+     * @return true: Aktif üye, false: Üye değil veya pasif
+     */
+    public boolean isStudentMemberOfClub(UUID clubId, UUID studentId) {
+        // Aktif üyelik kontrolü
+        return membershipRepository.existsByClubIdAndStudentIdAndIsActive(clubId, studentId, true);
+    }
 }

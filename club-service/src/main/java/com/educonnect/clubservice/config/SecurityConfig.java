@@ -41,6 +41,7 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/api/clubs/{clubId}").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/clubs/{clubId}/board-members").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/clubs/{clubId}/members/ids").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/clubs/{clubId}/is-member/{studentId}").permitAll() // Servisler arası iletişim
                         .requestMatchers(HttpMethod.GET, "/api/clubs/search").permitAll()
 
                         // Admin endpoints (requires ADMIN role via @PreAuthorize)

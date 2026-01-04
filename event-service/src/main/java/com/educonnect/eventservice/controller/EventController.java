@@ -77,5 +77,19 @@ public class EventController {
         UUID studentId = UUID.fromString(studentIdHeader);
         return ResponseEntity.ok(eventService.getStudentEventRegistrations(studentId));
     }
+
+    /**
+     * Bir kulübün aktif etkinliklerini getirir.
+     * Öğrenciler üye oldukları kulübün etkinliklerini görmek için kullanır.
+     */
+    @GetMapping("/club/{clubId}")
+    public ResponseEntity<List<Event>> getClubEvents(@PathVariable UUID clubId) {
+        List<Event> events = eventService.getEventsByClubId(clubId);
+        // Sadece aktif etkinlikleri filtrele (öğrenciler için)
+        List<Event> activeEvents = events.stream()
+                .filter(e -> e.getStatus() == com.educonnect.eventservice.model.EventStatus.ACTIVE)
+                .toList();
+        return ResponseEntity.ok(activeEvents);
+    }
 }
 

@@ -30,6 +30,17 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         // Dashboard endpoints - authentication required (bu kurallar önce gelmeli!)
                         .requestMatchers(HttpMethod.GET, "/api/events/my-registrations").authenticated()
+                        .requestMatchers(HttpMethod.GET, "/api/events/my-participation-requests").authenticated()
+
+                        // Club events for students (authenticated)
+                        .requestMatchers(HttpMethod.GET, "/api/events/club/**").authenticated()
+
+                        // Participation request endpoints (authenticated)
+                        .requestMatchers(HttpMethod.POST, "/api/events/*/participation-request").authenticated()
+                        .requestMatchers(HttpMethod.GET, "/api/events/*/participation-requests/**").authenticated()
+                        .requestMatchers(HttpMethod.POST, "/api/events/participation-requests/*/approve").hasAnyRole("ADMIN", "CLUB_OFFICIAL")
+                        .requestMatchers(HttpMethod.POST, "/api/events/participation-requests/*/reject").hasAnyRole("ADMIN", "CLUB_OFFICIAL")
+                        .requestMatchers(HttpMethod.GET, "/api/events/official/pending-requests").hasAnyRole("ADMIN", "CLUB_OFFICIAL")
 
                         // Club Official/Admin management endpoints (POST, GET, etc.)
                         .requestMatchers(HttpMethod.POST, "/api/events/manage").hasAnyRole("ADMIN", "CLUB_OFFICIAL")
