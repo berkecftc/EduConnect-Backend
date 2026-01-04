@@ -10,6 +10,9 @@ public class ClubDetailsDTO {
     private String about;
     private String logoUrl;
     private UUID academicAdvisorId;
+    private String advisorName; // Danışman hoca ismi
+    private String advisorTitle; // Danışman hoca unvanı
+    private Long memberCount; // Toplam üye sayısı
     private List<MemberDTO> members; // Entity yerine DTO listesi
 
     // JSON dönüşümü için boş constructor
@@ -26,6 +29,12 @@ public class ClubDetailsDTO {
     public void setLogoUrl(String logoUrl) { this.logoUrl = logoUrl; }
     public UUID getAcademicAdvisorId() { return academicAdvisorId; }
     public void setAcademicAdvisorId(UUID academicAdvisorId) { this.academicAdvisorId = academicAdvisorId; }
+    public String getAdvisorName() { return advisorName; }
+    public void setAdvisorName(String advisorName) { this.advisorName = advisorName; }
+    public String getAdvisorTitle() { return advisorTitle; }
+    public void setAdvisorTitle(String advisorTitle) { this.advisorTitle = advisorTitle; }
+    public Long getMemberCount() { return memberCount; }
+    public void setMemberCount(Long memberCount) { this.memberCount = memberCount; }
     public List<MemberDTO> getMembers() { return members; }
     public void setMembers(List<MemberDTO> members) { this.members = members; }
 }

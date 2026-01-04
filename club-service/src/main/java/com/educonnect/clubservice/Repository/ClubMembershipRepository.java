@@ -29,4 +29,10 @@ public interface ClubMembershipRepository extends JpaRepository<ClubMembership, 
 
     // Bir kulübün geçmiş başkanlarını tarih sırasıyla getirmek için
     List<ClubMembership> findByClubIdAndClubRoleAndIsActiveOrderByTermStartDateDesc(UUID clubId, ClubRole role, boolean isActive);
+
+    // Bir kulübün toplam üye sayısını getir
+    long countByClubId(UUID clubId);
+
+    // Bir kulübün aktif üye sayısını getir
+    long countByClubIdAndIsActive(UUID clubId, boolean isActive);
 }

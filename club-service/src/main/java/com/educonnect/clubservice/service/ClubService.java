@@ -140,13 +140,34 @@ public class ClubService {
         // 1. Tüm kulüp Entity'lerini veritabanından çek
         List<Club> clubs = clubRepository.findAll();
 
-        // 2. Entity listesini DTO listesine dönüştür
+        // 2. Entity listesini DTO listesine dönüştür (üye sayısı ve danışman bilgisi dahil)
         return clubs.stream()
-                .map(club -> new ClubSummaryDTO(
-                        club.getId(),
-                        club.getName(),
-                        club.getLogoUrl()
-                ))
+                .map(club -> {
+                    // Üye sayısını al
+                    long memberCount = membershipRepository.countByClubId(club.getId());
+
+                    // Danışman hoca bilgisini al
+                    String advisorName = null;
+                    try {
+                        if (club.getAcademicAdvisorId() != null) {
+                            var advisor = userClient.getAcademicianById(club.getAcademicAdvisorId());
+                            if (advisor != null) {
+                                advisorName = advisor.getFullName();
+                            }
+                        }
+                    } catch (Exception e) {
+                        log.warn("Could not fetch advisor info for club {}: {}", club.getId(), e.getMessage());
+                    }
+
+                    return new ClubSummaryDTO(
+                            club.getId(),
+                            club.getName(),
+                            club.getLogoUrl(),
+                            memberCount,
+                            advisorName,
+                            club.getAcademicAdvisorId()
+                    );
+                })
                 .collect(Collectors.toList());
     }
 
@@ -171,16 +192,34 @@ public class ClubService {
                 ))
                 .collect(Collectors.toList());
 
-        // TODO: (Gelecek Geliştirmesi) memberDTOs listesindeki studentId'leri kullanarak
-        // user-service'e bir API isteği atıp, üye adlarını ve resimlerini de bu DTO'ya ekle.
+        // 4. Üye sayısını al
+        long memberCount = membershipRepository.countByClubId(clubId);
 
-        // 4. Tüm bilgileri ana 'ClubDetailsDTO' içinde birleştir
+        // 5. Danışman hoca bilgisini al
+        String advisorName = null;
+        String advisorTitle = null;
+        try {
+            if (club.getAcademicAdvisorId() != null) {
+                var advisor = userClient.getAcademicianById(club.getAcademicAdvisorId());
+                if (advisor != null) {
+                    advisorName = advisor.getFullName();
+                    advisorTitle = advisor.getTitle();
+                }
+            }
+        } catch (Exception e) {
+            log.warn("Could not fetch advisor info for club {}: {}", clubId, e.getMessage());
+        }
+
+        // 6. Tüm bilgileri ana 'ClubDetailsDTO' içinde birleştir
         ClubDetailsDTO detailsDTO = new ClubDetailsDTO();
         detailsDTO.setId(club.getId());
         detailsDTO.setName(club.getName());
         detailsDTO.setAbout(club.getAbout());
         detailsDTO.setLogoUrl(club.getLogoUrl());
         detailsDTO.setAcademicAdvisorId(club.getAcademicAdvisorId());
+        detailsDTO.setAdvisorName(advisorName);
+        detailsDTO.setAdvisorTitle(advisorTitle);
+        detailsDTO.setMemberCount(memberCount);
         detailsDTO.setMembers(memberDTOs); // Üye listesini DTO olarak ekle
 
         return detailsDTO;
