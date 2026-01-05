@@ -39,13 +39,13 @@ public class EventNotificationListener {
         UUID clubId = message.getClubId();
         String eventTime = message.getEventTime().toString();
 
-        log.info("Handling event notification for: {}", eventTitle);
+        log.info("📢 Handling event notification for: {} | Club: {} | ClubId: {}", eventTitle, clubName, clubId);
 
         try {
             // 1. ADIM: club-service'ten üye ID'lerini çek
             String clubServiceUrl = "http://CLUB-SERVICE/api/clubs/" + clubId + "/members/ids";
+            log.info("🔍 Fetching member IDs from: {}", clubServiceUrl);
 
-            // Güvenli liste çekimi
             ResponseEntity<List<UUID>> memberIdsResponse = restTemplate.exchange(
                     clubServiceUrl,
                     HttpMethod.GET,
@@ -54,16 +54,18 @@ public class EventNotificationListener {
             );
             List<UUID> memberIds = memberIdsResponse.getBody();
 
+            log.info("👥 Member IDs received: {}", memberIds);
+
             if (memberIds == null || memberIds.isEmpty()) {
-                log.info("No members found for club {}. Skipping emails.", clubName);
+                log.warn("⚠️ No members found for club '{}' (ID: {}). Skipping emails.", clubName, clubId);
                 return;
             }
 
             // 2. ADIM: auth-services'ten bu ID'lerin e-postalarını çek
             String authServiceUrl = "http://AUTH-SERVICES/api/auth/users/emails";
+            log.info("🔍 Fetching emails from auth-services for {} member(s)", memberIds.size());
 
             HttpEntity<List<UUID>> request = new HttpEntity<>(memberIds);
-            // Güvenli liste çekimi
             ResponseEntity<List<String>> emailsResponse = restTemplate.exchange(
                     authServiceUrl,
                     HttpMethod.POST,
@@ -72,19 +74,23 @@ public class EventNotificationListener {
             );
             List<String> emails = emailsResponse.getBody();
 
+            log.info("📧 Emails received: {}", emails);
+
             // 3. ADIM: Herkese mail gönder
-            if (emails != null) {
+            if (emails != null && !emails.isEmpty()) {
                 for (String email : emails) {
                     String subject = "Yeni Etkinlik: " + eventTitle;
                     String body = String.format("Merhaba,\n\n%s kulübü '%s' etkinliğini duyurdu!\nZaman: %s\n\nKaçırma!", clubName, eventTitle, eventTime);
 
                     emailService.sendSimpleEmail(email, subject, body);
                 }
-                log.info("Sent notifications to {} members.", emails.size());
+                log.info("✅ Sent notifications to {} members.", emails.size());
+            } else {
+                log.warn("⚠️ No emails found for the member IDs. Check auth-services.");
             }
 
         } catch (Exception e) {
-            log.error("Failed to send notifications: {}", e.getMessage());
+            log.error("❌ Failed to send notifications: {}", e.getMessage(), e);
         }
     }
 }

@@ -18,7 +18,10 @@ public class MemberDTO {
     private LocalDateTime termEndDate; // Görev bitiş tarihi
 
     // Boş Constructor
-    public MemberDTO(UUID studentId, ClubRole clubRole) {}
+    public MemberDTO(UUID studentId, ClubRole clubRole) {
+        this.studentId = studentId;
+        this.role = clubRole != null ? clubRole.name() : null;
+    }
 
     // Ana Constructor (Service'de kullandığımız)
     public MemberDTO(UUID studentId, String firstName, String lastName, String role) {

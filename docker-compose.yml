@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   # PostgreSQL veritabanı servisi
   postgres:
@@ -13,6 +11,8 @@ services:
       - "5432:5432" # Lokal makinenizdeki 5432 portunu container'ın 5432 portuna bağlar
     volumes:
       - postgres-data:/var/lib/postgresql/data # Verilerin yeniden başlatmalarda kaybolmamasını sağlar
+    networks:
+      - educonnect-network
 
   # Redis cache ve oturum yönetimi servisi
   redis:
@@ -22,6 +22,8 @@ services:
       - "6379:6379" # Lokal makinenizdeki 6379 portunu container'ın 6379 portuna bağlar
     volumes:
       - redis-data:/data
+    networks:
+      - educonnect-network
 
   # RabbitMQ mesaj kuyruğu servisi
   rabbitmq:
@@ -33,6 +35,8 @@ services:
     environment:
       RABBITMQ_DEFAULT_USER: guest
       RABBITMQ_DEFAULT_PASS: guest
+    networks:
+      - educonnect-network
 
   minio:
     image: minio/minio
@@ -47,6 +51,27 @@ services:
     volumes:
       - minio-data:/data # Resimlerin ve dosyaların kalıcı olarak saklanması için
     command: server /data --console-address ":9001"
+    networks:
+      - educonnect-network
+
+  # Mailpit - Development için fake mail server
+  mailpit:
+    image: axllent/mailpit
+    container_name: educonnect-mailpit
+    restart: always
+    ports:
+      - "8025:8025"  # Web UI (http://localhost:8025)
+      - "1025:1025"  # SMTP (Java uygulaması buraya istek atacak)
+    environment:
+      MP_MAX_MESSAGES: 5000
+      MP_SMTP_AUTH_ACCEPT_ANY: 1
+      MP_SMTP_AUTH_ALLOW_INSECURE: 1
+    networks:
+      - educonnect-network
+
+networks:
+   educonnect-network:
+    driver: bridge
 
 volumes:
   postgres-data:
