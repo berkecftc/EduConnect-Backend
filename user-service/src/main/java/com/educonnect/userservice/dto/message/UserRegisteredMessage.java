@@ -14,6 +14,7 @@ public class UserRegisteredMessage implements Serializable {
     // Ogrenciye ozel ek alanlar
     private String studentNumber;
     private String department;
+    private String studentDocumentUrl; // Öğrenci belgesi URL'si (MinIO'da)
 
     public UserRegisteredMessage() {}
 
@@ -31,4 +32,6 @@ public class UserRegisteredMessage implements Serializable {
     public void setStudentNumber(String studentNumber) { this.studentNumber = studentNumber; }
     public String getDepartment() { return department; }
     public void setDepartment(String department) { this.department = department; }
+    public String getStudentDocumentUrl() { return studentDocumentUrl; }
+    public void setStudentDocumentUrl(String studentDocumentUrl) { this.studentDocumentUrl = studentDocumentUrl; }
 }

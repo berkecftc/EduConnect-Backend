@@ -1,52 +1,43 @@
-package com.educonnect.userservice.models;
+package com.educonnect.authservices.models;
 
 import jakarta.persistence.*;
-import java.util.UUID;
 
 @Entity
-@Table(name = "students", schema= "user_db")
-public class Student {
+@Table(name = "student_requests", schema = "auth_db")
+@SuppressWarnings("JpaDataSourceORMInspection")
+public class StudentRegistrationRequest {
 
     @Id
-    private UUID id;
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
 
-    @Column(nullable = false)
+    @Column(name = "first_name")
     private String firstName;
 
-    @Column(nullable = false)
+    @Column(name = "last_name")
     private String lastName;
 
-    @Column(unique = true)
-    private String email; // Öğrencinin e-posta adresi
+    @Column(name = "email", unique = true)
+    private String email;
 
-    @Column(name = "student_number", unique = true)
+    @Column(name = "password")
+    private String password; // Hashlenmiş şifre (onay anına kadar saklanacak)
+
+    @Column(name = "student_number")
     private String studentNumber;
 
     @Column(name = "department")
     private String department;
 
-    private String profileImageUrl; // MinIO'da saklanan profil resminin URL'si
-
     @Column(name = "student_document_url")
-    private String studentDocumentUrl; // MinIO'da saklanan öğrenci belgesinin URL'si
+    private String studentDocumentUrl; // Öğrenci belgesi URL'si (MinIO'da)
 
-
-    public Student() {
-    }
-
-    public Student(UUID id, String firstName, String lastName, String studentNumber) {
-        this.id = id;
-        this.firstName = firstName;
-        this.lastName = lastName;
-        this.studentNumber = studentNumber;
-    }
-
-
-    public UUID getId() {
+    // Getter ve Setter metodları
+    public Long getId() {
         return id;
     }
 
-    public void setId(UUID id) {
+    public void setId(Long id) {
         this.id = id;
     }
 
@@ -74,6 +65,14 @@ public class Student {
         this.email = email;
     }
 
+    public String getPassword() {
+        return password;
+    }
+
+    public void setPassword(String password) {
+        this.password = password;
+    }
+
     public String getStudentNumber() {
         return studentNumber;
     }
@@ -90,14 +89,6 @@ public class Student {
         this.department = department;
     }
 
-    public String getProfileImageUrl() {
-        return profileImageUrl;
-    }
-
-    public void setProfileImageUrl(String profileImageUrl) {
-        this.profileImageUrl = profileImageUrl;
-    }
-
     public String getStudentDocumentUrl() {
         return studentDocumentUrl;
     }
@@ -106,3 +97,4 @@ public class Student {
         this.studentDocumentUrl = studentDocumentUrl;
     }
 }
+

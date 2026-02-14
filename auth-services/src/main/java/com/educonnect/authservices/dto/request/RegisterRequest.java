@@ -14,7 +14,7 @@ public class RegisterRequest {
     @JsonAlias({"last_name", "lastName"})
     private String lastName;
     @JsonProperty("student_id")
-    @JsonAlias({"student_id", "studentNumber", "studentId"})
+    @JsonAlias({"student_id", "studentNumber", "studentId", "student_number"})
     private String studentId;
     private String department;
 

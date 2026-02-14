@@ -49,10 +49,14 @@ public class AuthController {
         return ResponseEntity.ok(authService.register(request));
     }
 
-    // Student kaydı için özel endpoint
-    @PostMapping("/register/student")
-    public ResponseEntity<AuthResponse> registerStudent(@RequestBody RegisterRequest request) {
-        return ResponseEntity.ok(authService.registerStudent(request));
+    // --- YENİ ENDPOINT: Öğrenci Başvurusu (Belge ile) ---
+    @PostMapping(value = "/request/student-account", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<String> requestStudentAccount(
+            @RequestPart("request") RegisterRequest request,
+            @RequestPart("studentDocument") MultipartFile studentDocument
+    ) {
+        authService.requestStudentAccount(request, studentDocument);
+        return ResponseEntity.ok("Student account request received. Pending admin approval.");
     }
 
     @PostMapping("/login")

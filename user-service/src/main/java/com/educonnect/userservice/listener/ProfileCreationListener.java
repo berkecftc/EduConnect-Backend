@@ -51,6 +51,7 @@ public class ProfileCreationListener {
                 // Ek alanlar
                 newStudent.setStudentNumber(message.getStudentNumber());
                 newStudent.setDepartment(message.getDepartment());
+                newStudent.setStudentDocumentUrl(message.getStudentDocumentUrl()); // Öğrenci belgesi URL'si
 
                 studentRepository.save(newStudent);
                 LOGGER.info("Student profile created successfully for user ID: {} | dept: {} | studentNo: {}",

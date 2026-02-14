@@ -42,13 +42,13 @@ public class SecurityConfig {
                 .csrf(csrf -> csrf.disable())
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/api/auth/register",
-                                         "/api/auth/register/student",
                                          "/api/auth/login",
                                          "/api/auth/refresh",
                                          "/api/auth/logout",
                                          "/api/auth/users/emails",
                                          "/{clubId}/members/ids",
-                                         "/api/auth/request/academician-account").permitAll()
+                                         "/api/auth/request/academician-account",
+                                         "/api/auth/request/student-account").permitAll()
                         .requestMatchers("/api/auth/admin/**").hasRole("ADMIN")
                         .anyRequest().authenticated()
                 )

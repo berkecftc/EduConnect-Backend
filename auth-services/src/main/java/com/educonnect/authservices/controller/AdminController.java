@@ -126,6 +126,40 @@ public class AdminController {
         return ResponseEntity.ok("Akademisyen başvurusu reddedildi.");
     }
 
+    // --- ÖĞRENCİ İŞLEMLERİ ---
+
+    // 1. Bekleyen öğrenci başvurularını listele
+    @GetMapping("/requests/students")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<?> getStudentRequests() {
+        try {
+            System.out.println("DEBUG: /requests/students endpoint'ine istek geldi");
+            var result = authService.getAllStudentRequests();
+            System.out.println("DEBUG: Servisten veri geldi. Boyut: " + (result != null ? result.size() : "null"));
+            return ResponseEntity.ok(result);
+        } catch (Exception e) {
+            System.err.println("🔥🔥🔥 BEKLENMEYEN HATA DETAYI 🔥🔥🔥");
+            e.printStackTrace();
+            return ResponseEntity.internalServerError().body("Sunucu Hatası: " + e.getMessage());
+        }
+    }
+
+    // 2. Öğrenci başvurusunu onayla (requestId ile)
+    @PostMapping("/approve-student/{requestId}")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<String> approveStudent(@PathVariable Long requestId) {
+        authService.approveStudent(requestId);
+        return ResponseEntity.ok("Öğrenci onaylandı.");
+    }
+
+    // 3. Öğrenci başvurusunu reddet (requestId ile)
+    @PostMapping("/reject-student/{requestId}")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<String> rejectStudent(@PathVariable Long requestId) {
+        authService.rejectStudent(requestId);
+        return ResponseEntity.ok("Öğrenci başvurusu reddedildi.");
+    }
+
     // --- KULLANICI YÖNETİMİ ---
 
     @GetMapping("/users")

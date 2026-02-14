@@ -158,5 +158,54 @@ public class MinioService {
         int dotIndex = filename.lastIndexOf(".");
         return dotIndex > 0 ? filename.substring(dotIndex) : ".jpg";
     }
+
+    /**
+     * Öğrenci belgesini MinIO'ya yükler ve TAM URL döner.
+     */
+    public String uploadStudentDocument(MultipartFile file, UUID userId) {
+        try {
+            String fileExtension = getFileExtension(file.getOriginalFilename());
+            String objectName = "student-documents/" + userId.toString() + fileExtension;
+
+            minioClient.putObject(
+                    PutObjectArgs.builder()
+                            .bucket(bucketName)
+                            .object(objectName)
+                            .stream(file.getInputStream(), file.getSize(), -1)
+                            .contentType(file.getContentType())
+                            .build()
+            );
+
+            // Tam URL döner: http://localhost:9000/bucket/student-documents/uuid.pdf
+            return minioUrl + "/" + bucketName + "/" + objectName;
+
+        } catch (Exception e) {
+            throw new RuntimeException("Error uploading student document to MinIO: " + e.getMessage(), e);
+        }
+    }
+
+    /**
+     * MinIO'dan öğrenci belgesini siler.
+     * @param documentUrl Silinecek belgenin tam URL'si
+     */
+    public void deleteStudentDocument(String documentUrl) {
+        if (documentUrl == null || documentUrl.isEmpty()) {
+            return;
+        }
+        try {
+            String objectName = extractObjectName(documentUrl);
+            if (objectName != null) {
+                minioClient.removeObject(
+                        RemoveObjectArgs.builder()
+                                .bucket(bucketName)
+                                .object(objectName)
+                                .build()
+                );
+                System.out.println("Auth Service: Öğrenci belgesi silindi -> " + objectName);
+            }
+        } catch (Exception e) {
+            System.err.println("Error deleting student document from MinIO: " + e.getMessage());
+        }
+    }
 }
 

@@ -15,6 +15,7 @@ public class UserRegisteredMessage implements Serializable {
     // Opsiyonel: Öğrenci profili için ekstra alanlar
     private String studentNumber; // JSON tarafında student_id ile eşlenecek
     private String department;
+    private String studentDocumentUrl; // Öğrenci belgesi URL'si (MinIO'da)
 
 
     public UserRegisteredMessage() {}
@@ -38,6 +39,19 @@ public class UserRegisteredMessage implements Serializable {
         this.department = department;
     }
 
+    // Tüm alanları içeren kurucu (studentDocumentUrl dahil)
+    public UserRegisteredMessage(UUID userId, String firstName, String lastName, String email, Set<String> roles,
+                                 String studentNumber, String department, String studentDocumentUrl) {
+        this.userId = userId;
+        this.firstName = firstName;
+        this.lastName = lastName;
+        this.email = email;
+        this.roles = roles;
+        this.studentNumber = studentNumber;
+        this.department = department;
+        this.studentDocumentUrl = studentDocumentUrl;
+    }
+
 
     public UUID getUserId() { return userId; }
     public void setUserId(UUID userId) { this.userId = userId; }
@@ -53,4 +67,6 @@ public class UserRegisteredMessage implements Serializable {
     public void setStudentNumber(String studentNumber) { this.studentNumber = studentNumber; }
     public String getDepartment() { return department; }
     public void setDepartment(String department) { this.department = department; }
+    public String getStudentDocumentUrl() { return studentDocumentUrl; }
+    public void setStudentDocumentUrl(String studentDocumentUrl) { this.studentDocumentUrl = studentDocumentUrl; }
 }

@@ -9,10 +9,12 @@ import com.educonnect.authservices.dto.request.LoginRequest;
 import com.educonnect.authservices.dto.request.RegisterRequest;
 import com.educonnect.authservices.dto.response.AuthResponse;
 import com.educonnect.authservices.models.AcademicianRegistrationRequest; // YENİ IMPORT
+import com.educonnect.authservices.models.StudentRegistrationRequest; // ÖĞRENCİ BAŞVURU
 import com.educonnect.authservices.models.RefreshToken;
 import com.educonnect.authservices.models.Role;
 import com.educonnect.authservices.models.User;
 import com.educonnect.authservices.Repository.AcademicianRequestRepository; // YENİ IMPORT
+import com.educonnect.authservices.Repository.StudentRequestRepository; // ÖĞRENCİ REPOSITORY
 import com.educonnect.authservices.Repository.UserRepository;
 import jakarta.transaction.Transactional; // Transaction yönetimi için
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
@@ -46,6 +48,7 @@ public class AuthServiceImpl {
 
     private final UserRepository userRepository;
     private final AcademicianRequestRepository requestRepository; // <-- YENİ EKLENTİ
+    private final StudentRequestRepository studentRequestRepository; // <-- ÖĞRENCİ BAŞVURU
     private final PasswordEncoder passwordEncoder;
     private final JWTService jwtService;
     private final AuthenticationManager authenticationManager;
@@ -56,6 +59,7 @@ public class AuthServiceImpl {
     @Autowired
     public AuthServiceImpl(UserRepository userRepository,
                            AcademicianRequestRepository requestRepository, // Constructor'a eklendi
+                           StudentRequestRepository studentRequestRepository, // Öğrenci repository
                            PasswordEncoder passwordEncoder,
                            JWTService jwtService,
                            AuthenticationManager authenticationManager,
@@ -64,6 +68,7 @@ public class AuthServiceImpl {
                            MinioService minioService) {
         this.userRepository = userRepository;
         this.requestRepository = requestRepository;
+        this.studentRequestRepository = studentRequestRepository;
         this.passwordEncoder = passwordEncoder;
         this.jwtService = jwtService;
         this.authenticationManager = authenticationManager;
@@ -120,32 +125,78 @@ public class AuthServiceImpl {
                 savedUser.getId().toString(), savedUser.getEmail(), userRoles);
     }
 
-    public AuthResponse registerStudent(RegisterRequest request) {
-        // ... (Aynı mantık, validasyonlar vs.)
+    // --- ÖĞRENCİ BAŞVURU İŞLEMİ ---
+    @Transactional
+    public void requestStudentAccount(RegisterRequest request, MultipartFile studentDocument) {
+
+        // Email kontrolü - hem users hem de student_requests tablosunda kontrol et
         if (userRepository.findByEmail(request.getEmail()).isPresent()) {
             throw new IllegalStateException("Email already registered");
         }
+        if (studentRequestRepository.findByEmail(request.getEmail()).isPresent()) {
+            throw new IllegalStateException("Bu email ile zaten bir başvuru mevcut");
+        }
 
+        // Öğrenci belgesi zorunlu
+        if (studentDocument == null || studentDocument.isEmpty()) {
+            throw new IllegalArgumentException("Öğrenci belgesi zorunludur");
+        }
+
+        // 1. Öğrenci belgesini MinIO'ya yükle (geçici UUID ile)
+        UUID tempId = UUID.randomUUID();
+        String studentDocumentUrl = minioService.uploadStudentDocument(studentDocument, tempId);
+        LOGGER.info("Öğrenci belgesi yüklendi: {}", studentDocumentUrl);
+
+        // 2. Tüm bilgileri 'student_requests' tablosuna kaydet (users tablosuna KAYIT YAPILMIYOR!)
+        StudentRegistrationRequest stuReq = new StudentRegistrationRequest();
+        stuReq.setFirstName(request.getFirstName());
+        stuReq.setLastName(request.getLastName());
+        stuReq.setEmail(request.getEmail());
+        stuReq.setPassword(passwordEncoder.encode(request.getPassword())); // Hashlenmiş şifre
+        stuReq.setStudentNumber(request.getStudentId());
+        stuReq.setDepartment(request.getDepartment());
+        stuReq.setStudentDocumentUrl(studentDocumentUrl);
+
+        // DEBUG LOG
+        LOGGER.info("DEBUG - Student Request Data: firstName={}, lastName={}, email={}, studentId={}, department={}",
+                request.getFirstName(), request.getLastName(), request.getEmail(),
+                request.getStudentId(), request.getDepartment());
+
+        studentRequestRepository.save(stuReq);
+
+        LOGGER.info("Öğrenci başvurusu alındı. Email: {} - Admin onayı bekleniyor.", request.getEmail());
+    }
+
+    // --- ÖĞRENCİ ONAY İŞLEMİ ---
+    @Transactional
+    public void approveStudent(Long requestId) {
+        // 1. Bekleyen başvuru detaylarını bul
+        StudentRegistrationRequest req = studentRequestRepository.findById(requestId)
+                .orElseThrow(() -> new NoSuchElementException("Öğrenci başvuru formu bulunamadı!"));
+
+        // 2. Kullanıcıyı USERS tablosuna kaydet (ŞİMDİ kaydediyoruz!)
         Set<Role> roles = Stream.of(Role.ROLE_STUDENT).collect(Collectors.toSet());
 
         var user = new User(
-                request.getEmail(),
-                passwordEncoder.encode(request.getPassword()),
+                req.getEmail(),
+                req.getPassword(), // Zaten hashlenmiş şifre
                 roles
         );
 
         User savedUser = userRepository.save(user);
 
-        Set<String> roleStrings = roles.stream().map(Role::name).collect(Collectors.toSet());
+        // 3. RabbitMQ mesajını gönder (User Service profil oluşturacak)
+        Set<String> roleStrings = Stream.of(Role.ROLE_STUDENT.name()).collect(Collectors.toSet());
 
         UserRegisteredMessage message = new UserRegisteredMessage(
                 savedUser.getId(),
-                request.getFirstName(),
-                request.getLastName(),
-                savedUser.getEmail(),
+                req.getFirstName(),
+                req.getLastName(),
+                req.getEmail(),
                 roleStrings,
-                request.getStudentId(),
-                request.getDepartment()
+                req.getStudentNumber(),
+                req.getDepartment(),
+                req.getStudentDocumentUrl()
         );
 
         rabbitTemplate.convertAndSend(
@@ -154,18 +205,31 @@ public class AuthServiceImpl {
                 message
         );
 
-        var jwtToken = jwtService.generateToken(savedUser);
-        var refreshToken = refreshTokenService.createRefreshToken(savedUser.getId());
-        Set<String> userRoles = savedUser.getRoles().stream()
-                .sorted((r1, r2) -> {
-                    if (r1.name().equals("ROLE_ADMIN")) return -1;
-                    if (r2.name().equals("ROLE_ADMIN")) return 1;
-                    return r1.name().compareTo(r2.name());
-                })
-                .map(Role::name)
-                .collect(Collectors.toCollection(java.util.LinkedHashSet::new));
-        return new AuthResponse(jwtToken, refreshToken.getToken(), "Student registered successfully.",
-                savedUser.getId().toString(), savedUser.getEmail(), userRoles);
+        // 4. Temizlik: Başvuru isteğini sil
+        studentRequestRepository.delete(req);
+
+        LOGGER.info("Öğrenci onaylandı ve profil oluşturma mesajı gönderildi. UserID: {}", savedUser.getId());
+    }
+
+    // --- ÖĞRENCİ RED İŞLEMİ ---
+    @Transactional
+    public void rejectStudent(Long requestId) {
+        // 1. Bekleyen başvuru detaylarını bul
+        StudentRegistrationRequest req = studentRequestRepository.findById(requestId)
+                .orElseThrow(() -> new NoSuchElementException("Öğrenci başvuru formu bulunamadı!"));
+
+        // 2. MinIO'dan belgeyi sil
+        minioService.deleteStudentDocument(req.getStudentDocumentUrl());
+
+        // 3. Başvuru kaydını sil (users tablosunda kayıt yok, silmeye gerek yok)
+        studentRequestRepository.delete(req);
+
+        LOGGER.info("Öğrenci başvurusu reddedildi. Email: {}", req.getEmail());
+    }
+
+    // --- TÜM ÖĞRENCİ BAŞVURULARINI LİSTELE ---
+    public List<StudentRegistrationRequest> getAllStudentRequests() {
+        return studentRequestRepository.findAll();
     }
 
     // --- AKADEMİSYEN BAŞVURU İŞLEMİ (DÜZELTİLDİ) ---
@@ -268,12 +332,13 @@ public class AuthServiceImpl {
         User user = userRepository.findByEmail(loginRequest.getEmail())
                 .orElseThrow(() -> new RuntimeException("Error: User not found."));
 
-        // --- YENİ EKLENEN KISIM: BEKLEME KONTROLÜ ---
+        // --- BEKLEME KONTROLÜ ---
         // Eğer kullanıcının rolleri arasında "ROLE_PENDING_ACADEMICIAN" varsa hata fırlat!
-        boolean isPending = user.getRoles().stream()
+        // NOT: ROLE_PENDING_STUDENT artık users tablosunda olmayacak, sadece student_requests tablosunda
+        boolean isPendingAcademician = user.getRoles().stream()
                 .anyMatch(role -> role.name().equals("ROLE_PENDING_ACADEMICIAN"));
 
-        if (isPending) {
+        if (isPendingAcademician) {
             throw new RuntimeException("Hesabınız henüz onaylanmadı. Lütfen yönetici onayını bekleyin.");
         }
         // ---------------------------------------------
