@@ -121,8 +121,10 @@ public class AdminController {
     // 3. Reddet
     @PostMapping("/reject-academician/{userId}")
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<String> rejectAcademician(@PathVariable UUID userId) {
-        authService.rejectAcademician(userId);
+    public ResponseEntity<String> rejectAcademician(
+            @PathVariable UUID userId,
+            @RequestParam(value = "reason", required = false) String reason) {
+        authService.rejectAcademician(userId, reason);
         return ResponseEntity.ok("Akademisyen başvurusu reddedildi.");
     }
 
@@ -155,8 +157,10 @@ public class AdminController {
     // 3. Öğrenci başvurusunu reddet (requestId ile)
     @PostMapping("/reject-student/{requestId}")
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<String> rejectStudent(@PathVariable Long requestId) {
-        authService.rejectStudent(requestId);
+    public ResponseEntity<String> rejectStudent(
+            @PathVariable Long requestId,
+            @RequestParam(value = "reason", required = false) String reason) {
+        authService.rejectStudent(requestId, reason);
         return ResponseEntity.ok("Öğrenci başvurusu reddedildi.");
     }
 

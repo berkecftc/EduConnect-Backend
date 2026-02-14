@@ -45,6 +45,10 @@ public class RabbitMQConfig {
     public static final String USER_DELETE_QUEUE = "user-delete-queue";
     public static final String USER_DELETE_ROUTING_KEY = "user.delete";
 
+    // Kullanıcı hesap durumu bildirimi için queue ve routing key (onay/red e-postası)
+    public static final String USER_ACCOUNT_STATUS_QUEUE = "user-account-status-queue";
+    public static final String USER_ACCOUNT_STATUS_ROUTING_KEY = "user.account.status";
+
     @Bean
     public DirectExchange userExchange() {
         return new DirectExchange(EXCHANGE_NAME);
@@ -75,6 +79,11 @@ public class RabbitMQConfig {
         return new Queue(USER_DELETE_QUEUE);
     }
 
+    @Bean
+    public Queue userAccountStatusQueue() {
+        return new Queue(USER_ACCOUNT_STATUS_QUEUE);
+    }
+
     // Exchange ile Queue'yu routing key aracılığıyla birbirine bağlar.
     @Bean
     public Binding binding(Queue userProfileCreationQueue, DirectExchange userExchange) {
@@ -99,6 +108,11 @@ public class RabbitMQConfig {
     @Bean
     public Binding userDeleteBinding(Queue userDeleteQueue, DirectExchange userExchange) {
         return BindingBuilder.bind(userDeleteQueue).to(userExchange).with(USER_DELETE_ROUTING_KEY);
+    }
+
+    @Bean
+    public Binding userAccountStatusBinding(Queue userAccountStatusQueue, DirectExchange userExchange) {
+        return BindingBuilder.bind(userAccountStatusQueue).to(userExchange).with(USER_ACCOUNT_STATUS_ROUTING_KEY);
     }
 
     @Bean

@@ -2,6 +2,7 @@ package com.educonnect.authservices.service;
 
 import com.educonnect.authservices.config.RabbitMQConfig;
 import com.educonnect.authservices.dto.message.AcademicianProfileMessage;
+import com.educonnect.authservices.dto.message.UserAccountStatusMessage;
 import com.educonnect.authservices.dto.message.UserDeletedMessage;
 import com.educonnect.authservices.dto.message.UserRegisteredMessage;
 import com.educonnect.authservices.dto.request.ChangePasswordRequest;
@@ -205,7 +206,22 @@ public class AuthServiceImpl {
                 message
         );
 
-        // 4. Temizlik: Başvuru isteğini sil
+        // 5. E-posta bildirimi gönder (onay)
+        UserAccountStatusMessage statusMessage = new UserAccountStatusMessage(
+                req.getEmail(),
+                req.getFirstName(),
+                req.getLastName(),
+                "APPROVED",
+                "STUDENT",
+                null
+        );
+        rabbitTemplate.convertAndSend(
+                RabbitMQConfig.EXCHANGE_NAME,
+                RabbitMQConfig.USER_ACCOUNT_STATUS_ROUTING_KEY,
+                statusMessage
+        );
+
+        // 6. Temizlik: Başvuru isteğini sil
         studentRequestRepository.delete(req);
 
         LOGGER.info("Öğrenci onaylandı ve profil oluşturma mesajı gönderildi. UserID: {}", savedUser.getId());
@@ -213,15 +229,32 @@ public class AuthServiceImpl {
 
     // --- ÖĞRENCİ RED İŞLEMİ ---
     @Transactional
-    public void rejectStudent(Long requestId) {
+    public void rejectStudent(Long requestId, String rejectionReason) {
         // 1. Bekleyen başvuru detaylarını bul
         StudentRegistrationRequest req = studentRequestRepository.findById(requestId)
                 .orElseThrow(() -> new NoSuchElementException("Öğrenci başvuru formu bulunamadı!"));
 
-        // 2. MinIO'dan belgeyi sil
+        // 2. E-posta bildirimi gönder (red) - Silmeden önce bilgileri al
+        UserAccountStatusMessage statusMessage = new UserAccountStatusMessage(
+                req.getEmail(),
+                req.getFirstName(),
+                req.getLastName(),
+                "REJECTED",
+                "STUDENT",
+                rejectionReason
+        );
+        rabbitTemplate.convertAndSend(
+                RabbitMQConfig.EXCHANGE_NAME,
+                RabbitMQConfig.USER_ACCOUNT_STATUS_ROUTING_KEY,
+                statusMessage
+        );
+        LOGGER.info("Öğrenci red bildirimi RabbitMQ'ya gönderildi. Email: {}, RoutingKey: {}",
+                req.getEmail(), RabbitMQConfig.USER_ACCOUNT_STATUS_ROUTING_KEY);
+
+        // 3. MinIO'dan belgeyi sil
         minioService.deleteStudentDocument(req.getStudentDocumentUrl());
 
-        // 3. Başvuru kaydını sil (users tablosunda kayıt yok, silmeye gerek yok)
+        // 4. Başvuru kaydını sil (users tablosunda kayıt yok, silmeye gerek yok)
         studentRequestRepository.delete(req);
 
         LOGGER.info("Öğrenci başvurusu reddedildi. Email: {}", req.getEmail());
@@ -315,7 +348,22 @@ public class AuthServiceImpl {
 
         rabbitTemplate.convertAndSend(EXCHANGE_NAME, ACADEMICIAN_ROUTING_KEY, profileMessage);
 
-        // 5. Temizlik: Başvuru isteğini sil (Artık işi bitti)
+        // 5. E-posta bildirimi gönder (onay)
+        UserAccountStatusMessage statusMessage = new UserAccountStatusMessage(
+                user.getEmail(),
+                req.getFirstName(),
+                req.getLastName(),
+                "APPROVED",
+                "ACADEMICIAN",
+                null
+        );
+        rabbitTemplate.convertAndSend(
+                RabbitMQConfig.EXCHANGE_NAME,
+                RabbitMQConfig.USER_ACCOUNT_STATUS_ROUTING_KEY,
+                statusMessage
+        );
+
+        // 6. Temizlik: Başvuru isteğini sil (Artık işi bitti)
         requestRepository.delete(req);
 
         LOGGER.info("Akademisyen onaylandı ve profil oluşturma mesajı gönderildi. UserID: {}", userId);
@@ -563,7 +611,7 @@ public class AuthServiceImpl {
 
     // 2. AKADEMİSYEN İSTEĞİNİ REDDET
     @Transactional
-    public void rejectAcademician(UUID userId) {
+    public void rejectAcademician(UUID userId, String rejectionReason) {
         // Kullanıcıyı bul
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new NoSuchElementException("User not found"));
@@ -578,15 +626,32 @@ public class AuthServiceImpl {
             throw new IllegalStateException("User does not have a pending academician request");
         }
 
-        // 1. MinIO'dan kimlik kartı fotoğrafını sil
+        // 1. E-posta bildirimi gönder (red) - Silmeden önce bilgileri al
+        UserAccountStatusMessage statusMessage = new UserAccountStatusMessage(
+                user.getEmail(),
+                req.getFirstName(),
+                req.getLastName(),
+                "REJECTED",
+                "ACADEMICIAN",
+                rejectionReason
+        );
+        rabbitTemplate.convertAndSend(
+                RabbitMQConfig.EXCHANGE_NAME,
+                RabbitMQConfig.USER_ACCOUNT_STATUS_ROUTING_KEY,
+                statusMessage
+        );
+        LOGGER.info("Akademisyen red bildirimi RabbitMQ'ya gönderildi. Email: {}, RoutingKey: {}",
+                user.getEmail(), RabbitMQConfig.USER_ACCOUNT_STATUS_ROUTING_KEY);
+
+        // 2. MinIO'dan kimlik kartı fotoğrafını sil
         if (req.getIdCardImageUrl() != null) {
             minioService.deleteIdCardImage(req.getIdCardImageUrl());
         }
 
-        // 2. İstek tablosundan veriyi sil
+        // 3. İstek tablosundan veriyi sil
         requestRepository.delete(req);
 
-        // 3. Kullanıcıyı users tablosundan tamamen sil
+        // 4. Kullanıcıyı users tablosundan tamamen sil
         // (Sadece başvuru için oluşturulduğundan, reddedilince silinmeli)
         userRepository.delete(user);
 

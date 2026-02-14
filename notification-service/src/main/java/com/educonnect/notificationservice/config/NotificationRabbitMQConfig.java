@@ -3,6 +3,7 @@ package com.educonnect.notificationservice.config;
 import org.springframework.amqp.core.*;
 import org.springframework.amqp.support.converter.Jackson2JsonMessageConverter;
 import org.springframework.amqp.support.converter.MessageConverter;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
@@ -12,10 +13,15 @@ public class NotificationRabbitMQConfig {
     // --- DİNLENECEK EXCHANGE İSİMLERİ (Diğer servislerle aynı olmalı) ---
     public static final String CLUB_EXCHANGE_NAME = "club-exchange"; // Event service bunu kullanıyor
     public static final String USER_PROFILE_EXCHANGE = "user-profile-exchange"; // Auth service bunu kullanıyor
+    public static final String USER_EXCHANGE_NAME = "user-exchange"; // Auth service user-exchange
 
     // --- BU SERVİSİN KENDİ KUYRUKLARI ---
     public static final String NOTIFICATION_EVENT_QUEUE = "notification-event-created-queue";
     // (İleride şifre değişimi vb. için başka kuyruklar eklenebilir)
+
+    // --- KULLANICI HESAP DURUMU BİLDİRİMİ ---
+    public static final String USER_ACCOUNT_STATUS_QUEUE = "user-account-status-queue";
+    public static final String USER_ACCOUNT_STATUS_ROUTING_KEY = "user.account.status";
 
     // --- ROUTING KEY'LER ---
     public static final String ROUTING_KEY_EVENT_CREATED = "event.created";
@@ -56,5 +62,23 @@ public class NotificationRabbitMQConfig {
     @Bean
     public MessageConverter jsonMessageConverter() {
         return new Jackson2JsonMessageConverter();
+    }
+
+    // --- USER EXCHANGE TANIMLARI ---
+    @Bean
+    public DirectExchange userExchange() {
+        return new DirectExchange(USER_EXCHANGE_NAME);
+    }
+
+    @Bean
+    public Queue userAccountStatusQueue() {
+        return new Queue(USER_ACCOUNT_STATUS_QUEUE);
+    }
+
+    @Bean
+    public Binding bindingUserAccountStatus(
+            @Qualifier("userAccountStatusQueue") Queue userAccountStatusQueue,
+            @Qualifier("userExchange") DirectExchange userExchange) {
+        return BindingBuilder.bind(userAccountStatusQueue).to(userExchange).with(USER_ACCOUNT_STATUS_ROUTING_KEY);
     }
 }
