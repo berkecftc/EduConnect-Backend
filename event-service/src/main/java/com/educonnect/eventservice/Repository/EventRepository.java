@@ -25,4 +25,11 @@ public interface EventRepository extends JpaRepository<Event, UUID> {
 
     // Bir kulübe ait ve belirli durumdaki etkinlikleri getir
     List<Event> findByClubIdAndStatus(UUID clubId, EventStatus status);
+
+    // --- AKADEMİSYEN İÇİN ---
+    // Birden fazla kulübe ait ve belirli durumdaki etkinlikleri getir
+    List<Event> findByClubIdInAndStatus(List<UUID> clubIds, EventStatus status);
+
+    // Birden fazla kulübe ait tüm etkinlikleri getir
+    List<Event> findByClubIdIn(List<UUID> clubIds);
 }

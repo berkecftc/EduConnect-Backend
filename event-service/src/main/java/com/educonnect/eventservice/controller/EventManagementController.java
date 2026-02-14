@@ -57,26 +57,37 @@ public class EventManagementController {
         return ResponseEntity.status(HttpStatus.CREATED).body(createdEvent);
     }
 
-    // --- YENİ: Bekleyen Etkinlikleri Listele ---
+    // --- Bekleyen Etkinlikleri Listele (Danışman Akademisyen İçin) ---
     @GetMapping("/pending")
-    @PreAuthorize("hasRole('ADMIN')") // Sadece Admin görebilir
-    public ResponseEntity<List<Event>> getPendingEvents() {
-        return ResponseEntity.ok(eventService.getPendingEvents());
+    @PreAuthorize("hasRole('ACADEMICIAN')") // Sadece Akademisyen görebilir
+    public ResponseEntity<List<Event>> getPendingEvents(
+            @RequestHeader("X-Authenticated-User-Id") String userIdHeader
+    ) {
+        UUID advisorId = UUID.fromString(userIdHeader);
+        return ResponseEntity.ok(eventService.getPendingEventsForAdvisor(advisorId));
     }
 
-    // --- YENİ: Etkinliği Onayla ---
+    // --- Etkinliği Onayla (Danışman Akademisyen İçin) ---
     @PostMapping("/{eventId}/approve")
-    @PreAuthorize("hasRole('ADMIN')") // Sadece Admin onaylayabilir
-    public ResponseEntity<Event> approveEvent(@PathVariable UUID eventId) {
-        Event approvedEvent = eventService.approveEvent(eventId);
+    @PreAuthorize("hasRole('ACADEMICIAN')") // Sadece Akademisyen onaylayabilir
+    public ResponseEntity<Event> approveEvent(
+            @PathVariable UUID eventId,
+            @RequestHeader("X-Authenticated-User-Id") String userIdHeader
+    ) {
+        UUID approverId = UUID.fromString(userIdHeader);
+        Event approvedEvent = eventService.approveEvent(eventId, approverId);
         return ResponseEntity.ok(approvedEvent);
     }
 
-    // --- YENİ: Etkinliği Reddet ---
+    // --- Etkinliği Reddet (Danışman Akademisyen İçin) ---
     @PostMapping("/{eventId}/reject")
-    @PreAuthorize("hasRole('ADMIN')") // Sadece Admin reddedebilir
-    public ResponseEntity<Event> rejectEvent(@PathVariable UUID eventId) {
-        Event rejectedEvent = eventService.rejectEvent(eventId);
+    @PreAuthorize("hasRole('ACADEMICIAN')") // Sadece Akademisyen reddedebilir
+    public ResponseEntity<Event> rejectEvent(
+            @PathVariable UUID eventId,
+            @RequestHeader("X-Authenticated-User-Id") String userIdHeader
+    ) {
+        UUID rejectorId = UUID.fromString(userIdHeader);
+        Event rejectedEvent = eventService.rejectEvent(eventId, rejectorId);
         return ResponseEntity.ok(rejectedEvent);
     }
 

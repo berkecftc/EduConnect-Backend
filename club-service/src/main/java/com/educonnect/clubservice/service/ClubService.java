@@ -887,4 +887,33 @@ public class ClubService {
         // Aktif üyelik kontrolü
         return membershipRepository.existsByClubIdAndStudentIdAndIsActive(clubId, studentId, true);
     }
+
+    /**
+     * Bir kulübün danışman akademisyen ID'sini döndürür.
+     * Event-service tarafından etkinlik onayı için kullanılır.
+     *
+     * @param clubId Kulüp ID'si
+     * @return Danışman akademisyen ID'si
+     */
+    @Transactional(readOnly = true)
+    public UUID getClubAdvisorId(UUID clubId) {
+        Club club = clubRepository.findById(clubId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Kulüp bulunamadı: " + clubId));
+        return club.getAcademicAdvisorId();
+    }
+
+    /**
+     * Bir danışman akademisyenin sorumlu olduğu kulüplerin ID listesini döndürür.
+     * Event-service tarafından bekleyen etkinlikleri listelemek için kullanılır.
+     *
+     * @param advisorId Danışman akademisyen ID'si
+     * @return Kulüp ID listesi
+     */
+    @Transactional(readOnly = true)
+    public List<UUID> getClubIdsByAdvisorId(UUID advisorId) {
+        List<Club> clubs = clubRepository.findByAcademicAdvisorId(advisorId);
+        return clubs.stream()
+                .map(Club::getId)
+                .collect(Collectors.toList());
+    }
 }

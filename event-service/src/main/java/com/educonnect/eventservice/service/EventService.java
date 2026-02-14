@@ -1,5 +1,6 @@
 package com.educonnect.eventservice.service;
 
+import com.educonnect.eventservice.client.ClubClient;
 import com.educonnect.eventservice.client.UserClient;
 import com.educonnect.eventservice.config.EventRabbitMQConfig;
 import com.educonnect.eventservice.dto.message.EventCreatedMessage;
@@ -42,19 +43,22 @@ public class EventService {
     private final EventRegistrationRepository eventRegistrationRepository;
     private final RestTemplate restTemplate;
     private final UserClient userClient;
+    private final ClubClient clubClient;
 
     public EventService(EventRepository eventRepository,
                        MinioService minioService,
                        RabbitTemplate rabbitTemplate,
                        EventRegistrationRepository eventRegistrationRepository,
                        RestTemplate restTemplate,
-                       UserClient userClient) {
+                       UserClient userClient,
+                       ClubClient clubClient) {
         this.eventRepository = eventRepository;
         this.minioService = minioService;
         this.rabbitTemplate = rabbitTemplate;
         this.eventRegistrationRepository = eventRegistrationRepository;
         this.restTemplate = restTemplate;
         this.userClient = userClient;
+        this.clubClient = clubClient;
     }
 
     /**
@@ -112,29 +116,68 @@ public class EventService {
     }
 
     /**
-     * 2. YENİ METOT: Bekleyen Etkinlikleri Listele (Admin İçin)
+     * Danışman Akademisyenin Tüm Etkinliklerini Listele
+     * Akademisyenin danışmanı olduğu kulüplerin tüm etkinliklerini getirir (tüm durumlar dahil).
+     *
+     * @param advisorId Danışman akademisyen ID'si
+     * @return Tüm etkinlik listesi
      */
-    public List<Event> getPendingEvents() {
-        return eventRepository.findByStatus(EventStatus.PENDING);
+    public List<Event> getAllEventsForAdvisor(UUID advisorId) {
+        // 1. Akademisyenin danışmanı olduğu kulüpleri al
+        List<UUID> clubIds = clubClient.getClubIdsByAdvisorId(advisorId);
+
+        if (clubIds == null || clubIds.isEmpty()) {
+            return List.of(); // Hiçbir kulübün danışmanı değilse boş liste dön
+        }
+
+        // 2. Bu kulüplere ait tüm etkinlikleri getir
+        return eventRepository.findByClubIdIn(clubIds);
     }
 
     /**
-     * 3. YENİ METOT: Etkinliği Onayla (Admin İçin)
-     * RabbitMQ mesajı ARTIK BURADA gönderiliyor.
+     * Bekleyen Etkinlikleri Listele (Danışman Akademisyen İçin)
+     * Sadece akademisyenin danışmanı olduğu kulüplerin bekleyen etkinliklerini getirir.
+     *
+     * @param advisorId Danışman akademisyen ID'si
+     * @return Bekleyen etkinlik listesi
      */
-    public Event approveEvent(UUID eventId) {
+    public List<Event> getPendingEventsForAdvisor(UUID advisorId) {
+        // 1. Akademisyenin danışmanı olduğu kulüpleri al
+        List<UUID> clubIds = clubClient.getClubIdsByAdvisorId(advisorId);
+
+        if (clubIds == null || clubIds.isEmpty()) {
+            return List.of(); // Hiçbir kulübün danışmanı değilse boş liste dön
+        }
+
+        // 2. Bu kulüplere ait bekleyen etkinlikleri getir
+        return eventRepository.findByClubIdInAndStatus(clubIds, EventStatus.PENDING);
+    }
+
+    /**
+     * Etkinliği Onayla (Danışman Akademisyen İçin)
+     * Sadece etkinliğin bağlı olduğu kulübün danışmanı onaylayabilir.
+     * RabbitMQ mesajı onay sonrası gönderilir.
+     *
+     * @param eventId Etkinlik ID'si
+     * @param approverId Onaylayan akademisyen ID'si
+     * @return Onaylanan etkinlik
+     */
+    public Event approveEvent(UUID eventId, UUID approverId) {
         Event event = eventRepository.findById(eventId)
-                .orElseThrow(() -> new RuntimeException("Event not found"));
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Etkinlik bulunamadı."));
 
         if (event.getStatus() != EventStatus.PENDING) {
-            throw new IllegalStateException("Event is not in pending status.");
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Etkinlik bekleyen durumda değil.");
         }
+
+        // Yetki kontrolü: Onaylayan kişi bu kulübün danışmanı mı?
+        validateAdvisorAuthorization(event.getClubId(), approverId);
 
         // Durumu ACTIVE yap
         event.setStatus(EventStatus.ACTIVE);
         Event savedEvent = eventRepository.save(event);
 
-        // --- RABBITMQ MESAJI (createEvent'ten buraya taşındı) ---
+        // --- RABBITMQ MESAJI ---
         // Artık etkinlik yayında olduğu için bildirimi şimdi yapıyoruz.
         EventCreatedMessage message = new EventCreatedMessage(
                 savedEvent.getId(),
@@ -152,29 +195,54 @@ public class EventService {
                 message
         );
 
-        System.out.println("Event approved and notification message sent: " + savedEvent.getTitle());
-        // -------------------------------------------------------
+        log.info("Etkinlik onaylandı ve bildirim gönderildi: {} (Onaylayan: {})", savedEvent.getTitle(), approverId);
 
         return savedEvent;
     }
 
     /**
-     * 4. YENİ METOT: Etkinliği Reddet (Admin İçin)
+     * Etkinliği Reddet (Danışman Akademisyen İçin)
+     * Sadece etkinliğin bağlı olduğu kulübün danışmanı reddedebilir.
+     *
+     * @param eventId Etkinlik ID'si
+     * @param rejectorId Reddeden akademisyen ID'si
+     * @return Reddedilen etkinlik
      */
-    public Event rejectEvent(UUID eventId) {
+    public Event rejectEvent(UUID eventId, UUID rejectorId) {
         Event event = eventRepository.findById(eventId)
-                .orElseThrow(() -> new RuntimeException("Event not found"));
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Etkinlik bulunamadı."));
 
-        // Sadece PENDING olanlar reddedilebilir (veya mantığınıza göre değişebilir)
+        // Sadece PENDING olanlar reddedilebilir
         if (event.getStatus() != EventStatus.PENDING) {
-            throw new IllegalStateException("Only pending events can be rejected.");
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Sadece bekleyen etkinlikler reddedilebilir.");
         }
 
+        // Yetki kontrolü: Reddeden kişi bu kulübün danışmanı mı?
+        validateAdvisorAuthorization(event.getClubId(), rejectorId);
+
         event.setStatus(EventStatus.REJECTED);
-        // İsterseniz resmi silebilirsiniz:
-        // if (event.getImageUrl() != null) minioService.deleteFile(event.getImageUrl());
+        log.info("Etkinlik reddedildi: {} (Reddeden: {})", event.getTitle(), rejectorId);
 
         return eventRepository.save(event);
+    }
+
+    /**
+     * Danışman yetki kontrolü.
+     * Verilen kişinin, verilen kulübün danışmanı olup olmadığını kontrol eder.
+     *
+     * @param clubId Kulüp ID'si
+     * @param userId Kontrol edilecek kullanıcı ID'si
+     * @throws ResponseStatusException Kullanıcı danışman değilse
+     */
+    private void validateAdvisorAuthorization(UUID clubId, UUID userId) {
+        UUID actualAdvisorId = clubClient.getClubAdvisorId(clubId);
+
+        if (actualAdvisorId == null || !actualAdvisorId.equals(userId)) {
+            throw new ResponseStatusException(
+                    HttpStatus.FORBIDDEN,
+                    "Bu etkinliği onaylama/reddetme yetkiniz yok. Sadece ilgili kulübün danışmanı bu işlemi yapabilir."
+            );
+        }
     }
 
     /**

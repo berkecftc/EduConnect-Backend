@@ -256,4 +256,24 @@ public class ClubController {
         List<MyClubMembershipDTO> managedClubs = clubService.getManagedClubs(userId);
         return ResponseEntity.ok(managedClubs);
     }
+
+    /**
+     * Bir kulübün danışman akademisyen ID'sini döndürür.
+     * Event-service tarafından etkinlik onayı için kullanılır (Feign Client).
+     */
+    @GetMapping("/{clubId}/advisor-id")
+    public ResponseEntity<UUID> getClubAdvisorId(@PathVariable UUID clubId) {
+        UUID advisorId = clubService.getClubAdvisorId(clubId);
+        return ResponseEntity.ok(advisorId);
+    }
+
+    /**
+     * Bir danışman akademisyenin sorumlu olduğu kulüplerin ID listesini döndürür.
+     * Event-service tarafından bekleyen etkinlikleri listelemek için kullanılır (Feign Client).
+     */
+    @GetMapping("/by-advisor/{advisorId}/ids")
+    public ResponseEntity<List<UUID>> getClubIdsByAdvisor(@PathVariable UUID advisorId) {
+        List<UUID> clubIds = clubService.getClubIdsByAdvisorId(advisorId);
+        return ResponseEntity.ok(clubIds);
+    }
 }

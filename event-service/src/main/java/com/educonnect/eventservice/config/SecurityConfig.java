@@ -28,7 +28,12 @@ public class SecurityConfig {
                 .csrf(csrf -> csrf.disable())
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
-                        // Dashboard endpoints - authentication required (bu kurallar önce gelmeli!)
+                        // ===== ACADEMICIAN (Advisor) endpoints - EN ÖNCE! =====
+                        .requestMatchers(HttpMethod.GET, "/api/events/advisor/**").hasRole("ACADEMICIAN")
+                        .requestMatchers(HttpMethod.POST, "/api/events/advisor/**").hasRole("ACADEMICIAN")
+                        .requestMatchers("/api/events/advisor/**").hasRole("ACADEMICIAN")
+
+                        // Dashboard endpoints - authentication required
                         .requestMatchers(HttpMethod.GET, "/api/events/my-registrations").authenticated()
                         .requestMatchers(HttpMethod.GET, "/api/events/my-participation-requests").authenticated()
 
@@ -42,11 +47,13 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.POST, "/api/events/participation-requests/*/reject").hasAnyRole("ADMIN", "CLUB_OFFICIAL")
                         .requestMatchers(HttpMethod.GET, "/api/events/official/pending-requests").hasAnyRole("ADMIN", "CLUB_OFFICIAL")
 
-                        // Club Official/Admin management endpoints (POST, GET, etc.)
+                        // Club Official/Admin management endpoints
                         .requestMatchers(HttpMethod.POST, "/api/events/manage").hasAnyRole("ADMIN", "CLUB_OFFICIAL")
-                        .requestMatchers(HttpMethod.GET, "/api/events/manage/**").hasAnyRole("ADMIN", "CLUB_OFFICIAL")
-                        .requestMatchers("/api/events/manage/**").hasAnyRole("ADMIN", "CLUB_OFFICIAL")
-
+                        .requestMatchers(HttpMethod.GET, "/api/events/manage/pending").hasRole("ACADEMICIAN")
+                        .requestMatchers(HttpMethod.POST, "/api/events/manage/*/approve").hasRole("ACADEMICIAN")
+                        .requestMatchers(HttpMethod.POST, "/api/events/manage/*/reject").hasRole("ACADEMICIAN")
+                        .requestMatchers(HttpMethod.GET, "/api/events/manage/**").hasAnyRole("ADMIN", "CLUB_OFFICIAL", "ACADEMICIAN")
+                        .requestMatchers("/api/events/manage/**").hasAnyRole("ADMIN", "CLUB_OFFICIAL", "ACADEMICIAN")
 
                         // Event registration requires authentication
                         .requestMatchers("/api/events/*/register").authenticated()

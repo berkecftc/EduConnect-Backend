@@ -36,6 +36,10 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/api/clubs/my-memberships").authenticated()
                         .requestMatchers(HttpMethod.GET, "/api/clubs/my-managed-clubs").hasAnyRole("ADMIN", "CLUB_OFFICIAL")
 
+                        // Servisler arası iletişim için public endpoints (Feign Client)
+                        .requestMatchers(HttpMethod.GET, "/api/clubs/by-advisor/*/ids").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/clubs/*/advisor-id").permitAll()
+
                         // Public GET endpoints (genel kulüp listeleme/detay)
                         .requestMatchers(HttpMethod.GET, "/api/clubs").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/clubs/{clubId}").permitAll()
