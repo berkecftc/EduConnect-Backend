@@ -233,6 +233,21 @@ public class ProfileService {
                 .collect(Collectors.toList());
     }
 
+    /**
+     * Öğrenci numarasına göre öğrenci profili getirir.
+     * @param studentNumber Öğrenci numarası
+     * @return Öğrenci profil bilgileri
+     * @throws RuntimeException Öğrenci bulunamazsa
+     */
+    @Cacheable(value = "userProfileByStudentNumber", key = "#studentNumber")
+    public UserProfileResponse getStudentByStudentNumber(String studentNumber) {
+        Student student = studentRepository.findByStudentNumber(studentNumber)
+                .orElseThrow(() -> new RuntimeException(
+                        "Bu öğrenci numarasına sahip kullanıcı bulunamadı: " + studentNumber));
+
+        return mapToResponse(student);
+    }
+
 
     private UserProfileResponse mapToResponse(Student student) {
         UserProfileResponse dto = new UserProfileResponse();

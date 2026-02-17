@@ -32,6 +32,23 @@ public class ProfileController {
         return ResponseEntity.ok(profile);
     }
 
+    /**
+     * Öğrenci numarasına göre öğrenci profil bilgilerini getirir.
+     * Club-service gibi diğer servisler tarafından kullanılır.
+     * @param studentNumber Öğrenci numarası
+     * @return Öğrenci profil bilgileri
+     */
+    @GetMapping("/by-student-number/{studentNumber}")
+    public ResponseEntity<UserProfileResponse> getProfileByStudentNumber(
+            @PathVariable String studentNumber) {
+        try {
+            UserProfileResponse profile = profileService.getStudentByStudentNumber(studentNumber);
+            return ResponseEntity.ok(profile);
+        } catch (RuntimeException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(null);
+        }
+    }
+
     // --- YENİ ENDPOINT: Profil Resmi Yükleme ---
     // Bu endpoint, giriş yapmış kullanıcının KENDİ resmini yüklemesi içindir.
     @PostMapping(value = "/me/profile-picture", consumes = "multipart/form-data")

@@ -52,8 +52,8 @@ public class ClubRoleChangeController {
             @RequestHeader("X-Authenticated-User-Id") String userIdHeader) {
 
         UUID requesterId = UUID.fromString(userIdHeader);
-        log.info("Creating role change request: clubId={}, requesterId={}, targetStudent={}, requestedRole={}",
-                clubId, requesterId, request.getStudentId(), request.getRequestedRole());
+        log.info("Creating role change request: clubId={}, requesterId={}, targetStudentId={}, targetStudentNumber={}, requestedRole={}",
+                clubId, requesterId, request.getStudentId(), request.getStudentNumber(), request.getRequestedRole());
 
         RoleChangeRequestDTO response = roleChangeRequestService.createRoleChangeRequest(clubId, request, requesterId);
         return ResponseEntity.status(HttpStatus.CREATED).body(response);

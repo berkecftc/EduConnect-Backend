@@ -1,7 +1,7 @@
 package com.educonnect.clubservice.client;
 
 import com.educonnect.clubservice.dto.response.AcademicianSummary;
-import com.educonnect.clubservice.dto.response.UserSummary; // Birazdan oluşturacağız
+import com.educonnect.clubservice.dto.response.UserSummary;
 import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -19,4 +19,12 @@ public interface UserClient {
     // Akademisyen bilgisi al (danışman hoca için)
     @GetMapping("/profile/{userId}")
     AcademicianSummary getAcademicianById(@PathVariable("userId") UUID userId);
+
+    /**
+     * Öğrenci numarasına göre öğrenci bilgisi getirir.
+     * @param studentNumber Öğrenci numarası
+     * @return Öğrenci özet bilgileri
+     */
+    @GetMapping("/by-student-number/{studentNumber}")
+    UserSummary getUserByStudentNumber(@PathVariable("studentNumber") String studentNumber);
 }

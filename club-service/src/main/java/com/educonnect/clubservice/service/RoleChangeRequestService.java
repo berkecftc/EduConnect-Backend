@@ -13,6 +13,7 @@ import com.educonnect.clubservice.dto.request.RejectRoleChangeRequestDTO;
 import com.educonnect.clubservice.dto.response.RoleChangeRequestDTO;
 import com.educonnect.clubservice.dto.response.UserSummary;
 import com.educonnect.clubservice.model.*;
+import feign.FeignException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
@@ -60,17 +61,20 @@ public class RoleChangeRequestService {
 
     /**
      * Görev değişikliği talebi oluşturur.
+     * Hybrid DTO desteği: studentId VEYA studentNumber kullanılabilir.
      * Validasyonlar:
-     * 1. Talep edilen pozisyon şu anda boş olmalı
-     * 2. Başkanlık talebi ise, öğrenci başka bir kulüpte başkan olmamalı
-     * 3. Aynı pozisyon için bekleyen başka talep olmamalı
+     * 1. En az bir öğrenci tanımlayıcısı (studentId veya studentNumber) zorunlu
+     * 2. Talep edilen pozisyon şu anda boş olmalı
+     * 3. Başkanlık talebi ise, öğrenci başka bir kulüpte başkan olmamalı
+     * 4. Aynı pozisyon için bekleyen başka talep olmamalı
      */
     public RoleChangeRequestDTO createRoleChangeRequest(UUID clubId, CreateRoleChangeRequestDTO dto, UUID requesterId) {
         // 1. Kulüp var mı kontrol et
         Club club = clubRepository.findById(clubId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Kulüp bulunamadı"));
 
-        UUID studentId = UUID.fromString(dto.getStudentId());
+        // 2. Öğrenci ID'sini çözümle (hybrid DTO desteği)
+        UUID studentId = resolveStudentId(dto);
         ClubRole requestedRole = dto.getRequestedRole();
 
         // 2. Talebi oluşturan kişi yetkili mi kontrol et
@@ -581,6 +585,93 @@ public class RoleChangeRequestService {
             case ROLE_BOARD_MEMBER -> "Yönetim Kurulu Üyesi";
             case ROLE_MEMBER -> "Üye";
         };
+    }
+
+    /**
+     * Hybrid DTO'dan öğrenci UUID'sini çözümler.
+     * Öncelik sırası: studentId > studentNumber
+     *
+     * @param dto CreateRoleChangeRequestDTO
+     * @return Çözümlenen öğrenci UUID'si
+     * @throws ResponseStatusException Öğrenci tanımlayıcısı yoksa veya geçersizse
+     */
+    private UUID resolveStudentId(CreateRoleChangeRequestDTO dto) {
+        // 1. En az bir tanımlayıcı zorunlu
+        if (!dto.hasStudentIdentifier()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "Öğrenci ID veya öğrenci numarası zorunludur.");
+        }
+
+        // 2. studentId varsa öncelikli olarak kullan
+        if (dto.hasStudentId()) {
+            try {
+                return UUID.fromString(dto.getStudentId().trim());
+            } catch (IllegalArgumentException e) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                        "Geçersiz öğrenci ID formatı: " + dto.getStudentId());
+            }
+        }
+
+        // 3. studentNumber varsa user-service'den UUID'yi çözümle
+        if (dto.hasStudentNumber()) {
+            return resolveStudentIdByStudentNumber(dto.getStudentNumber().trim());
+        }
+
+        // Bu noktaya ulaşılmamalı, güvenlik için exception fırlat
+        throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                "Öğrenci ID veya öğrenci numarası zorunludur.");
+    }
+
+    /**
+     * Öğrenci numarasından UUID'yi çözümler.
+     * User-service'e Feign çağrısı yapar.
+     *
+     * @param studentNumber Öğrenci numarası
+     * @return Öğrenci UUID'si
+     * @throws ResponseStatusException Öğrenci bulunamazsa veya servis hatası varsa
+     */
+    private UUID resolveStudentIdByStudentNumber(String studentNumber) {
+        // Öğrenci numarası format kontrolü (opsiyonel - gerekirse açılabilir)
+        if (studentNumber == null || studentNumber.trim().isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "Geçersiz öğrenci numarası formatı.");
+        }
+
+        try {
+            log.info("Resolving student ID by student number: {}", studentNumber);
+            UserSummary userSummary = userClient.getUserByStudentNumber(studentNumber);
+
+            if (userSummary == null || userSummary.getId() == null) {
+                throw new ResponseStatusException(HttpStatus.NOT_FOUND,
+                        "Bu öğrenci numarasına sahip kullanıcı bulunamadı: " + studentNumber);
+            }
+
+            log.info("Student ID resolved: studentNumber={}, studentId={}",
+                    studentNumber, userSummary.getId());
+            return userSummary.getId();
+
+        } catch (FeignException.NotFound e) {
+            log.warn("Student not found by student number: {}", studentNumber);
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND,
+                    "Bu öğrenci numarasına sahip kullanıcı bulunamadı: " + studentNumber);
+        } catch (FeignException.ServiceUnavailable e) {
+            log.error("User service unavailable while resolving student number: {}", studentNumber, e);
+            throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE,
+                    "Kullanıcı servisi şu anda kullanılamıyor. Lütfen daha sonra tekrar deneyin.");
+        } catch (FeignException e) {
+            log.error("Feign error while resolving student number: {}, status: {}",
+                    studentNumber, e.status(), e);
+            if (e.status() == 404) {
+                throw new ResponseStatusException(HttpStatus.NOT_FOUND,
+                        "Bu öğrenci numarasına sahip kullanıcı bulunamadı: " + studentNumber);
+            }
+            throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE,
+                    "Kullanıcı servisi şu anda kullanılamıyor. Lütfen daha sonra tekrar deneyin.");
+        } catch (Exception e) {
+            log.error("Unexpected error while resolving student number: {}", studentNumber, e);
+            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR,
+                    "Öğrenci bilgisi alınırken beklenmeyen bir hata oluştu.");
+        }
     }
 
     /**
