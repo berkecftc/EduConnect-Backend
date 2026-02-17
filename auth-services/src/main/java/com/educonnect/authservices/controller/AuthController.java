@@ -1,8 +1,10 @@
 package com.educonnect.authservices.controller;
 
 import com.educonnect.authservices.dto.request.ChangePasswordRequest;
+import com.educonnect.authservices.dto.request.ForgotPasswordRequest;
 import com.educonnect.authservices.dto.request.LoginRequest;
 import com.educonnect.authservices.dto.request.RegisterRequest;
+import com.educonnect.authservices.dto.request.ResetPasswordRequest;
 import com.educonnect.authservices.dto.response.AuthResponse;
 import com.educonnect.authservices.service.AuthServiceImpl;
 import com.educonnect.authservices.Repository.UserRepository;
@@ -26,6 +28,7 @@ import org.springframework.http.MediaType;
 
 import java.util.List;
 import java.util.Map;
+import java.util.NoSuchElementException;
 import java.util.UUID;
 
 @RestController
@@ -174,5 +177,41 @@ public class AuthController {
     @PostMapping("/users/emails")
     public ResponseEntity<List<String>> getEmailsByIds(@RequestBody List<UUID> userIds) {
         return ResponseEntity.ok(authService.getEmailsByUserIds(userIds));
+    }
+
+    // --- YENİ ENDPOINT: ŞİFREMİ UNUTTUM ---
+    /**
+     * Kullanıcı şifresini unuttuğunda e-posta ile şifre sıfırlama linki gönderir.
+     */
+    @PostMapping("/forgot-password")
+    public ResponseEntity<String> forgotPassword(@RequestBody ForgotPasswordRequest request) {
+        try {
+            authService.forgotPassword(request);
+            return ResponseEntity.ok("Şifre sıfırlama linki e-posta adresinize gönderildi.");
+        } catch (NoSuchElementException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body("Şifre sıfırlama işlemi sırasında bir hata oluştu.");
+        }
+    }
+
+    // --- YENİ ENDPOINT: ŞİFRE SIFIRLAMA ---
+    /**
+     * Token ile şifre sıfırlama işlemini gerçekleştirir.
+     */
+    @PostMapping("/reset-password")
+    public ResponseEntity<String> resetPassword(@RequestBody ResetPasswordRequest request) {
+        try {
+            authService.resetPassword(request);
+            return ResponseEntity.ok("Şifreniz başarıyla sıfırlandı. Artık yeni şifrenizle giriş yapabilirsiniz.");
+        } catch (NoSuchElementException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
+        } catch (IllegalStateException | IllegalArgumentException e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body("Şifre sıfırlama işlemi sırasında bir hata oluştu.");
+        }
     }
 }

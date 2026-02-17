@@ -32,6 +32,8 @@ public class AuthenticationFilter extends AbstractGatewayFilterFactory<Authentic
             "/api/auth/login",
             "/api/auth/refresh",
             "/api/auth/logout",
+            "/api/auth/forgot-password",
+            "/api/auth/reset-password",
             "/api/auth/request/academician-account",
             "/api/auth/request/student-account"
             // Note: /api/clubs (list) and /api/clubs/{id} (detail) are handled by regex in isPublicEndpoint()

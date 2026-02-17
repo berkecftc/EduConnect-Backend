@@ -33,8 +33,16 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
             throws ServletException, IOException {
         String path = request.getRequestURI();
-        // Sadece belirli auth endpoint'leri serbest: token aramadan geç
-        if (path.equals("/api/auth/register") || path.equals("/api/auth/login")) {
+        // Public endpoint'ler: token aramadan geç
+        if (path.equals("/api/auth/register") ||
+            path.equals("/api/auth/login") ||
+            path.equals("/api/auth/refresh") ||
+            path.equals("/api/auth/logout") ||
+            path.equals("/api/auth/forgot-password") ||
+            path.equals("/api/auth/reset-password") ||
+            path.equals("/api/auth/request/academician-account") ||
+            path.equals("/api/auth/request/student-account") ||
+            path.equals("/api/auth/users/emails")) {
             filterChain.doFilter(request, response);
             return;
         }

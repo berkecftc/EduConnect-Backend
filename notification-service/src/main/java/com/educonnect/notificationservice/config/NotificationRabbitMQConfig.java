@@ -23,6 +23,10 @@ public class NotificationRabbitMQConfig {
     public static final String USER_ACCOUNT_STATUS_QUEUE = "user-account-status-queue";
     public static final String USER_ACCOUNT_STATUS_ROUTING_KEY = "user.account.status";
 
+    // --- ŞİFRE SIFIRLAMA BİLDİRİMİ ---
+    public static final String PASSWORD_RESET_QUEUE = "password-reset-queue";
+    public static final String PASSWORD_RESET_ROUTING_KEY = "user.password.reset";
+
     // --- ROUTING KEY'LER ---
     public static final String ROUTING_KEY_EVENT_CREATED = "event.created";
 
@@ -76,9 +80,21 @@ public class NotificationRabbitMQConfig {
     }
 
     @Bean
+    public Queue passwordResetQueue() {
+        return new Queue(PASSWORD_RESET_QUEUE);
+    }
+
+    @Bean
     public Binding bindingUserAccountStatus(
             @Qualifier("userAccountStatusQueue") Queue userAccountStatusQueue,
             @Qualifier("userExchange") DirectExchange userExchange) {
         return BindingBuilder.bind(userAccountStatusQueue).to(userExchange).with(USER_ACCOUNT_STATUS_ROUTING_KEY);
+    }
+
+    @Bean
+    public Binding bindingPasswordReset(
+            @Qualifier("passwordResetQueue") Queue passwordResetQueue,
+            @Qualifier("userExchange") DirectExchange userExchange) {
+        return BindingBuilder.bind(passwordResetQueue).to(userExchange).with(PASSWORD_RESET_ROUTING_KEY);
     }
 }

@@ -49,6 +49,10 @@ public class RabbitMQConfig {
     public static final String USER_ACCOUNT_STATUS_QUEUE = "user-account-status-queue";
     public static final String USER_ACCOUNT_STATUS_ROUTING_KEY = "user.account.status";
 
+    // Şifre sıfırlama için queue ve routing key
+    public static final String PASSWORD_RESET_QUEUE = "password-reset-queue";
+    public static final String PASSWORD_RESET_ROUTING_KEY = "user.password.reset";
+
     @Bean
     public DirectExchange userExchange() {
         return new DirectExchange(EXCHANGE_NAME);
@@ -84,6 +88,11 @@ public class RabbitMQConfig {
         return new Queue(USER_ACCOUNT_STATUS_QUEUE);
     }
 
+    @Bean
+    public Queue passwordResetQueue() {
+        return new Queue(PASSWORD_RESET_QUEUE);
+    }
+
     // Exchange ile Queue'yu routing key aracılığıyla birbirine bağlar.
     @Bean
     public Binding binding(Queue userProfileCreationQueue, DirectExchange userExchange) {
@@ -113,6 +122,11 @@ public class RabbitMQConfig {
     @Bean
     public Binding userAccountStatusBinding(Queue userAccountStatusQueue, DirectExchange userExchange) {
         return BindingBuilder.bind(userAccountStatusQueue).to(userExchange).with(USER_ACCOUNT_STATUS_ROUTING_KEY);
+    }
+
+    @Bean
+    public Binding passwordResetBinding(Queue passwordResetQueue, DirectExchange userExchange) {
+        return BindingBuilder.bind(passwordResetQueue).to(userExchange).with(PASSWORD_RESET_ROUTING_KEY);
     }
 
     @Bean

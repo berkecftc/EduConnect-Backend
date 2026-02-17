@@ -2,19 +2,24 @@ package com.educonnect.authservices.service;
 
 import com.educonnect.authservices.config.RabbitMQConfig;
 import com.educonnect.authservices.dto.message.AcademicianProfileMessage;
+import com.educonnect.authservices.dto.message.PasswordResetMessage;
 import com.educonnect.authservices.dto.message.UserAccountStatusMessage;
 import com.educonnect.authservices.dto.message.UserDeletedMessage;
 import com.educonnect.authservices.dto.message.UserRegisteredMessage;
 import com.educonnect.authservices.dto.request.ChangePasswordRequest;
+import com.educonnect.authservices.dto.request.ForgotPasswordRequest;
 import com.educonnect.authservices.dto.request.LoginRequest;
 import com.educonnect.authservices.dto.request.RegisterRequest;
+import com.educonnect.authservices.dto.request.ResetPasswordRequest;
 import com.educonnect.authservices.dto.response.AuthResponse;
 import com.educonnect.authservices.models.AcademicianRegistrationRequest; // YENİ IMPORT
+import com.educonnect.authservices.models.PasswordResetToken;
 import com.educonnect.authservices.models.StudentRegistrationRequest; // ÖĞRENCİ BAŞVURU
 import com.educonnect.authservices.models.RefreshToken;
 import com.educonnect.authservices.models.Role;
 import com.educonnect.authservices.models.User;
 import com.educonnect.authservices.Repository.AcademicianRequestRepository; // YENİ IMPORT
+import com.educonnect.authservices.Repository.PasswordResetTokenRepository;
 import com.educonnect.authservices.Repository.StudentRequestRepository; // ÖĞRENCİ REPOSITORY
 import com.educonnect.authservices.Repository.UserRepository;
 import jakarta.transaction.Transactional; // Transaction yönetimi için
@@ -50,6 +55,7 @@ public class AuthServiceImpl {
     private final UserRepository userRepository;
     private final AcademicianRequestRepository requestRepository; // <-- YENİ EKLENTİ
     private final StudentRequestRepository studentRequestRepository; // <-- ÖĞRENCİ BAŞVURU
+    private final PasswordResetTokenRepository passwordResetTokenRepository;
     private final PasswordEncoder passwordEncoder;
     private final JWTService jwtService;
     private final AuthenticationManager authenticationManager;
@@ -61,6 +67,7 @@ public class AuthServiceImpl {
     public AuthServiceImpl(UserRepository userRepository,
                            AcademicianRequestRepository requestRepository, // Constructor'a eklendi
                            StudentRequestRepository studentRequestRepository, // Öğrenci repository
+                           PasswordResetTokenRepository passwordResetTokenRepository,
                            PasswordEncoder passwordEncoder,
                            JWTService jwtService,
                            AuthenticationManager authenticationManager,
@@ -70,6 +77,7 @@ public class AuthServiceImpl {
         this.userRepository = userRepository;
         this.requestRepository = requestRepository;
         this.studentRequestRepository = studentRequestRepository;
+        this.passwordResetTokenRepository = passwordResetTokenRepository;
         this.passwordEncoder = passwordEncoder;
         this.jwtService = jwtService;
         this.authenticationManager = authenticationManager;
@@ -704,5 +712,95 @@ public class AuthServiceImpl {
         // Auth DB'den kullanıcıyı sil
         userRepository.deleteById(userId);
         LOGGER.info("User deleted from auth_db. UserID: {}", userId);
+    }
+
+    // --- ŞİFREMİ UNUTTUM İŞLEMİ ---
+    @Transactional
+    public void forgotPassword(ForgotPasswordRequest request) {
+        String email = request.getEmail();
+
+        // 1. Kullanıcıyı bul
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new NoSuchElementException("Bu email adresi ile kayıtlı kullanıcı bulunamadı."));
+
+        // 2. Önceki tokenları temizle
+        passwordResetTokenRepository.deleteByUserId(user.getId());
+
+        // 3. Yeni token oluştur (UUID benzersiz token)
+        String token = UUID.randomUUID().toString();
+
+        // 4. Token'ı 15 dakika geçerli olacak şekilde kaydet
+        PasswordResetToken resetToken = new PasswordResetToken(
+                token,
+                user.getId(),
+                java.time.Instant.now().plusSeconds(15 * 60) // 15 dakika
+        );
+        passwordResetTokenRepository.save(resetToken);
+
+        // 5. Şifre sıfırlama linkini oluştur (Frontend URL - daha sonra yapılandırılabilir)
+        String resetLink = "http://localhost:5173/reset-password?token=" + token;
+
+        // 6. RabbitMQ ile notification-service'e mesaj gönder
+        PasswordResetMessage message = new PasswordResetMessage(
+                user.getEmail(),
+                null, // firstName - user-service'ten alınabilir, şimdilik null
+                null, // lastName - user-service'ten alınabilir, şimdilik null
+                token,
+                resetLink
+        );
+
+        rabbitTemplate.convertAndSend(
+                RabbitMQConfig.EXCHANGE_NAME,
+                RabbitMQConfig.PASSWORD_RESET_ROUTING_KEY,
+                message
+        );
+
+        LOGGER.info("Şifre sıfırlama e-postası gönderildi. Email: {}", email);
+    }
+
+    // --- ŞİFRE SIFIRLAMA İŞLEMİ ---
+    @Transactional
+    public void resetPassword(ResetPasswordRequest request) {
+        String token = request.getToken();
+        String newPassword = request.getNewPassword();
+        String confirmPassword = request.getConfirmPassword();
+
+        // 1. Token validasyonu
+        if (token == null || token.isBlank()) {
+            throw new IllegalArgumentException("Token gereklidir.");
+        }
+
+        // 2. Şifre eşleşme kontrolü
+        if (!newPassword.equals(confirmPassword)) {
+            throw new IllegalStateException("Şifreler eşleşmiyor.");
+        }
+
+        // 3. Şifre uzunluk kontrolü
+        if (newPassword.length() < 6) {
+            throw new IllegalArgumentException("Şifre en az 6 karakter olmalıdır.");
+        }
+
+        // 4. Token'ı bul
+        PasswordResetToken resetToken = passwordResetTokenRepository.findByToken(token)
+                .orElseThrow(() -> new NoSuchElementException("Geçersiz veya süresi dolmuş token."));
+
+        // 5. Token süre kontrolü
+        if (resetToken.isExpired()) {
+            passwordResetTokenRepository.delete(resetToken);
+            throw new IllegalStateException("Token süresi dolmuş. Lütfen yeni bir şifre sıfırlama talebi oluşturun.");
+        }
+
+        // 6. Kullanıcıyı bul
+        User user = userRepository.findById(resetToken.getUserId())
+                .orElseThrow(() -> new NoSuchElementException("Kullanıcı bulunamadı."));
+
+        // 7. Şifreyi güncelle
+        user.setPassword(passwordEncoder.encode(newPassword));
+        userRepository.save(user);
+
+        // 8. Kullanılan token'ı sil
+        passwordResetTokenRepository.delete(resetToken);
+
+        LOGGER.info("Şifre başarıyla sıfırlandı. UserID: {}", user.getId());
     }
 }
