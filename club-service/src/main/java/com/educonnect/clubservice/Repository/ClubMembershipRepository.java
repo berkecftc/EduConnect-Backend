@@ -41,4 +41,11 @@ public interface ClubMembershipRepository extends JpaRepository<ClubMembership, 
 
     // Bir kulübün aktif üye sayısını getir
     long countByClubIdAndIsActive(UUID clubId, boolean isActive);
+
+    // Bir öğrencinin herhangi bir kulüpte belirli bir rolde aktif olup olmadığını kontrol et
+    // (Tek başkanlık kuralı için kullanılır)
+    boolean existsByStudentIdAndClubRoleAndIsActive(UUID studentId, ClubRole role, boolean isActive);
+
+    // Bir öğrencinin belirli bir rolde aktif olduğu üyeliği getir
+    List<ClubMembership> findByStudentIdAndClubRoleAndIsActive(UUID studentId, ClubRole role, boolean isActive);
 }

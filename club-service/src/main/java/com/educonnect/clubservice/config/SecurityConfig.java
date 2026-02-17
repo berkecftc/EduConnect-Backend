@@ -48,6 +48,18 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/api/clubs/{clubId}/is-member/{studentId}").permitAll() // Servisler arası iletişim
                         .requestMatchers(HttpMethod.GET, "/api/clubs/search").permitAll()
 
+                        // Akademisyen (Danışman) endpoints - görev değişikliği onay/red
+                        .requestMatchers(HttpMethod.GET, "/api/academician/role-change-requests").hasRole("ACADEMICIAN")
+                        .requestMatchers(HttpMethod.PUT, "/api/academician/role-change-requests/*/approve").hasRole("ACADEMICIAN")
+                        .requestMatchers(HttpMethod.PUT, "/api/academician/role-change-requests/*/reject").hasRole("ACADEMICIAN")
+                        .requestMatchers(HttpMethod.GET, "/api/academician/clubs/*/role-change-requests/count").hasRole("ACADEMICIAN")
+                        .requestMatchers("/api/academician/**").hasRole("ACADEMICIAN")
+
+                        // Kulüp görev değişikliği talepleri - authenticated kullanıcılar (rol kontrolü @PreAuthorize ile)
+                        .requestMatchers(HttpMethod.POST, "/api/clubs/*/role-change-requests").hasAnyRole("CLUB_OFFICIAL", "ADMIN")
+                        .requestMatchers(HttpMethod.GET, "/api/clubs/*/role-change-requests").hasAnyRole("CLUB_OFFICIAL", "ADMIN")
+                        .requestMatchers(HttpMethod.DELETE, "/api/clubs/*/members/*/role").hasAnyRole("CLUB_OFFICIAL", "ADMIN")
+
                         // Admin endpoints (requires ADMIN role via @PreAuthorize)
                         .requestMatchers("/api/admin/clubs/**").authenticated()
 

@@ -248,15 +248,18 @@ public class ClubService {
     /**
      * Bir üyenin kulüpteki rolünü günceller (Kulüp Yetkilisi yapar).
      * (UpdateMemberRoleRequest DTO'sunu kullanır)
+     *
+     * @deprecated Bu metot artık kullanılmamalıdır. Görev değişiklikleri danışman onayına tabidir.
+     *             Bunun yerine RoleChangeRequestService.createRoleChangeRequest() kullanın.
+     *             Görevden alma için RoleChangeRequestService.revokeRole() kullanın.
      */
+    @Deprecated
     public ClubMembership updateMemberRole(UUID clubId, UUID studentId, UpdateMemberRoleRequest request) {
-
-        ClubMembership membership = membershipRepository.findByClubIdAndStudentId(clubId, studentId)
-                .orElseThrow(() -> new RuntimeException("Membership not found for this user and club"));
-
-        membership.setClubRole(request.getNewClubRole());
-
-        return membershipRepository.save(membership);
+        throw new UnsupportedOperationException(
+                "Bu metot artık kullanılmamaktadır. Görev değişiklikleri danışman onayına tabidir. " +
+                "Görev atamak için /api/clubs/{clubId}/role-change-requests endpoint'ini, " +
+                "görevden almak için /api/clubs/{clubId}/members/{studentId}/role DELETE endpoint'ini kullanın."
+        );
     }
 
     /**
@@ -655,89 +658,19 @@ public class ClubService {
     }
 
     // 3. BAŞKANI DEĞİŞTİR
+    /**
+     * @deprecated Bu metot artık kullanılmamalıdır. Başkan değişiklikleri danışman onayına tabidir.
+     *             Önce mevcut başkanı RoleChangeRequestService.revokeRole() ile görevden alın,
+     *             sonra RoleChangeRequestService.createRoleChangeRequest() ile yeni başkan talebi oluşturun.
+     */
+    @Deprecated
     @Transactional
     public void changeClubPresident(UUID clubId, UUID newPresidentId) {
-        // Kulübün var olup olmadığını kontrol et
-        if (!clubRepository.existsById(clubId)) {
-            throw new RuntimeException("Kulüp bulunamadı");
-        }
-
-        List<ClubMembership> memberships = membershipRepository.findByClubId(clubId);
-
-        // Eski aktif başkanları bul ve pasife çek
-        List<ClubMembership> oldPresidents = memberships.stream()
-                .filter(m -> m.getClubRole() == ClubRole.ROLE_CLUB_OFFICIAL && m.isActive())
-                .toList();
-
-        for (ClubMembership oldPresident : oldPresidents) {
-            log.info("Processing old president: studentId={}, clubRole={}, isActive={}",
-                    oldPresident.getStudentId(), oldPresident.getClubRole(), oldPresident.isActive());
-
-            // Eski başkanı pasife çek
-            oldPresident.setActive(false);
-            oldPresident.setTermEndDate(java.time.LocalDateTime.now());
-            oldPresident.setClubRole(ClubRole.ROLE_MEMBER); // Rolü üye yap
-            membershipRepository.save(oldPresident);
-
-            log.info("Updated old president to ROLE_MEMBER: studentId={}", oldPresident.getStudentId());
-
-            // RabbitMQ ile auth-service'e rol kaldırma mesajı gönder
-            try {
-                RevokeClubRoleMessage revokeMessage = new RevokeClubRoleMessage(
-                        oldPresident.getStudentId(),
-                        "ROLE_CLUB_OFFICIAL",
-                        clubId
-                );
-
-                log.info("Sending role revoke message to RabbitMQ: userId={}, role={}, clubId={}",
-                        oldPresident.getStudentId(), "ROLE_CLUB_OFFICIAL", clubId);
-
-                rabbitTemplate.convertAndSend(
-                        ClubRabbitMQConfig.EXCHANGE_NAME,
-                        "user.role.revoke",
-                        revokeMessage
-                );
-
-                log.info("Successfully sent role revoke message for user {} from club {}",
-                        oldPresident.getStudentId(), clubId);
-            } catch (Exception e) {
-                log.error("Failed to send role revoke message for user {}: {}",
-                        oldPresident.getStudentId(), e.getMessage(), e);
-            }
-        }
-
-        // Yeni başkanı bul veya oluştur
-        ClubMembership newPrez = memberships.stream()
-                .filter(m -> m.getStudentId().equals(newPresidentId))
-                .findFirst()
-                .orElseThrow(() -> new RuntimeException("Bu öğrenci kulübe üye değil!"));
-
-        // Yeni başkanı aktif yap
-        newPrez.setClubRole(ClubRole.ROLE_CLUB_OFFICIAL);
-        newPrez.setActive(true);
-        newPrez.setTermStartDate(java.time.LocalDateTime.now());
-        newPrez.setTermEndDate(null); // Henüz bitiş tarihi yok
-        membershipRepository.save(newPrez);
-
-        // RabbitMQ ile auth-service'e rol atama mesajı gönder
-        try {
-            AssignClubRoleMessage assignMessage = new AssignClubRoleMessage(
-                    newPresidentId,
-                    "ROLE_CLUB_OFFICIAL",
-                    clubId
-            );
-
-            rabbitTemplate.convertAndSend(
-                    ClubRabbitMQConfig.EXCHANGE_NAME,
-                    "user.role.assign",
-                    assignMessage
-            );
-
-            log.info("Sent role assignment message for user {} to become ROLE_CLUB_OFFICIAL of club {}",
-                    newPresidentId, clubId);
-        } catch (Exception e) {
-            log.error("Failed to send role assignment message: {}", e.getMessage(), e);
-        }
+        throw new UnsupportedOperationException(
+                "Bu metot artık kullanılmamaktadır. Başkan değişiklikleri danışman onayına tabidir. " +
+                "Önce mevcut başkanı görevden almak için /api/clubs/{clubId}/members/{studentId}/role DELETE endpoint'ini, " +
+                "ardından yeni başkan atamak için /api/clubs/{clubId}/role-change-requests POST endpoint'ini kullanın."
+        );
     }
 
     // 4. GEÇMİŞ BAŞKANLARI GÖRÜNTÜLE

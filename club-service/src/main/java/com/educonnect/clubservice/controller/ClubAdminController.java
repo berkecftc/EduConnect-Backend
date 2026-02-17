@@ -114,12 +114,20 @@ public class ClubAdminController {
         return ResponseEntity.ok(clubService.getClubBoardMembers(clubId));
     }
 
-    // Başkanı Değiştir
+    /**
+     * Başkanı Değiştir
+     * @deprecated Bu endpoint artık kullanılmamalıdır. Başkan değişiklikleri danışman onayına tabidir.
+     *             Önce mevcut başkanı görevden almak için DELETE /api/clubs/{clubId}/members/{studentId}/role,
+     *             ardından yeni başkan atamak için POST /api/clubs/{clubId}/role-change-requests kullanın.
+     */
+    @Deprecated
     @PutMapping("/{clubId}/change-president")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<String> changePresident(@PathVariable UUID clubId, @RequestParam UUID newPresidentId) {
-        clubService.changeClubPresident(clubId, newPresidentId);
-        return ResponseEntity.ok("Kulüp başkanı başarıyla değiştirildi.");
+        return ResponseEntity.status(HttpStatus.GONE)
+                .body("Bu endpoint artık kullanılmamaktadır. Başkan değişiklikleri danışman onayına tabidir. " +
+                        "Önce mevcut başkanı görevden almak için DELETE /api/clubs/{clubId}/members/{studentId}/role, " +
+                        "ardından yeni başkan atamak için POST /api/clubs/{clubId}/role-change-requests kullanın.");
     }
 
     // Geçmiş Başkanları Görüntüle

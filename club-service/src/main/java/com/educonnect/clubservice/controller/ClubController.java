@@ -97,22 +97,23 @@ public class ClubController {
     /**
      * Kulüp Yetkilisi: Mevcut üyenin rolünü günceller.
      * (UpdateMemberRoleRequest DTO'sunu kullanır)
+     *
+     * @deprecated Bu endpoint artık kullanılmamalıdır. Görev değişiklikleri danışman onayına tabidir.
+     *             Görev atamak için POST /api/clubs/{clubId}/role-change-requests,
+     *             Görevden almak için DELETE /api/clubs/{clubId}/members/{studentId}/role kullanın.
      */
+    @Deprecated
     @PutMapping("/{clubId}/members/{studentId}")
     @PreAuthorize("hasAnyRole('ADMIN', 'CLUB_OFFICIAL')") // Sadece Admin veya Kulüp Yetkilisi
-    public ResponseEntity<ClubMembership> updateMemberRole(
+    public ResponseEntity<String> updateMemberRole(
             @PathVariable UUID clubId,
             @PathVariable UUID studentId,
             @RequestBody UpdateMemberRoleRequest request
     ) {
-        // TODO: (İleri Seviye) İstek atan kullanıcının yetki kontrolü
-
-        try {
-            ClubMembership updatedMember = clubService.updateMemberRole(clubId, studentId, request);
-            return ResponseEntity.ok(updatedMember);
-        } catch (RuntimeException e) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(null); // Üyelik bulunamadı
-        }
+        return ResponseEntity.status(HttpStatus.GONE)
+                .body("Bu endpoint artık kullanılmamaktadır. Görev değişiklikleri danışman onayına tabidir. " +
+                        "Görev atamak için POST /api/clubs/{clubId}/role-change-requests, " +
+                        "Görevden almak için DELETE /api/clubs/{clubId}/members/{studentId}/role kullanın.");
     }
 
     // --- Öğrencinin kulüpten ayrılması ---
