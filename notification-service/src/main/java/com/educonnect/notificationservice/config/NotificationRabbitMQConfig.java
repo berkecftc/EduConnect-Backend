@@ -14,10 +14,14 @@ public class NotificationRabbitMQConfig {
     public static final String CLUB_EXCHANGE_NAME = "club-exchange"; // Event service bunu kullanıyor
     public static final String USER_PROFILE_EXCHANGE = "user-profile-exchange"; // Auth service bunu kullanıyor
     public static final String USER_EXCHANGE_NAME = "user-exchange"; // Auth service user-exchange
+    public static final String COURSE_EXCHANGE_NAME = "course.exchange"; // Course service bunu kullanıyor
 
     // --- BU SERVİSİN KENDİ KUYRUKLARI ---
     public static final String NOTIFICATION_EVENT_QUEUE = "notification-event-created-queue";
-    // (İleride şifre değişimi vb. için başka kuyruklar eklenebilir)
+
+    // --- DERS DUYURU VE ÖDEV BİLDİRİM KUYRUKLARI ---
+    public static final String COURSE_ANNOUNCEMENT_QUEUE = "notification-course-announcement-queue";
+    public static final String COURSE_ASSIGNMENT_QUEUE = "notification-course-assignment-queue";
 
     // --- KULLANICI HESAP DURUMU BİLDİRİMİ ---
     public static final String USER_ACCOUNT_STATUS_QUEUE = "user-account-status-queue";
@@ -29,6 +33,8 @@ public class NotificationRabbitMQConfig {
 
     // --- ROUTING KEY'LER ---
     public static final String ROUTING_KEY_EVENT_CREATED = "event.created";
+    public static final String ROUTING_KEY_COURSE_ANNOUNCEMENT = "course.announcement.created";
+    public static final String ROUTING_KEY_COURSE_ASSIGNMENT = "course.assignment.created";
 
     public static final String NOTIFICATION_REGISTRATION_QUEUE = "notification-registration-queue";
     public static final String ROUTING_KEY_EVENT_REGISTERED = "event.registered";
@@ -49,17 +55,46 @@ public class NotificationRabbitMQConfig {
         return new Queue(NOTIFICATION_EVENT_QUEUE);
     }
 
-    // 2. Exchange'i Tanımla (Eğer diğer servis henüz oluşturmadıysa diye garanti olsun)
+    // 2. Exchange'i Tanımla
     @Bean
     public DirectExchange clubExchange() {
         return new DirectExchange(CLUB_EXCHANGE_NAME);
     }
 
     // 3. Bağlama (Binding)
-    // "club-exchange"e "event.created" anahtarıyla gelen mesajları "notification-event-queue"ya at.
     @Bean
     public Binding bindingEventCreated(Queue notificationEventQueue, DirectExchange clubExchange) {
         return BindingBuilder.bind(notificationEventQueue).to(clubExchange).with(ROUTING_KEY_EVENT_CREATED);
+    }
+
+    // --- COURSE EXCHANGE TANIMLARI ---
+    @Bean
+    public TopicExchange courseExchange() {
+        return new TopicExchange(COURSE_EXCHANGE_NAME);
+    }
+
+    @Bean
+    public Queue courseAnnouncementQueue() {
+        return new Queue(COURSE_ANNOUNCEMENT_QUEUE, true);
+    }
+
+    @Bean
+    public Queue courseAssignmentQueue() {
+        return new Queue(COURSE_ASSIGNMENT_QUEUE, true);
+    }
+
+    @Bean
+    public Binding bindingCourseAnnouncement(
+            @Qualifier("courseAnnouncementQueue") Queue courseAnnouncementQueue,
+            @Qualifier("courseExchange") TopicExchange courseExchange) {
+        return BindingBuilder.bind(courseAnnouncementQueue).to(courseExchange).with(ROUTING_KEY_COURSE_ANNOUNCEMENT);
+    }
+
+    @Bean
+    public Binding bindingCourseAssignment(
+            @Qualifier("courseAssignmentQueue") Queue courseAssignmentQueue,
+            @Qualifier("courseExchange") TopicExchange courseExchange) {
+        return BindingBuilder.bind(courseAssignmentQueue).to(courseExchange).with(ROUTING_KEY_COURSE_ASSIGNMENT);
     }
 
     // JSON Dönüştürücü

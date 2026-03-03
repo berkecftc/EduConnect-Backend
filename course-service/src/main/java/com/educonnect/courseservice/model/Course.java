@@ -24,6 +24,9 @@ public class Course {
     private String semester;
 
     @Column(nullable = false)
+    private int capacity; // Dersin alabileceği maksimum öğrenci sayısı
+
+    @Column(nullable = false)
     private UUID instructorId;
 
     @Column(name = "image_url")
@@ -44,6 +47,8 @@ public class Course {
     public void setCredit(int credit) { this.credit = credit; }
     public String getSemester() { return semester; }
     public void setSemester(String semester) { this.semester = semester; }
+    public int getCapacity() { return capacity; }
+    public void setCapacity(int capacity) { this.capacity = capacity; }
     public UUID getInstructorId() { return instructorId; }
     public void setInstructorId(UUID instructorId) { this.instructorId = instructorId; }
     public String getImageUrl() { return imageUrl; }

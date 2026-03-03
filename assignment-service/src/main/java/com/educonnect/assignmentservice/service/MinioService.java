@@ -34,4 +34,42 @@ public class MinioService {
             throw new RuntimeException("Dosya yüklenemedi: " + e.getMessage());
         }
     }
+
+    /**
+     * MinIO'dan dosya indirir.
+     */
+    public InputStream downloadFile(String fileUrl) {
+        try {
+            String objectName = extractObjectName(fileUrl);
+            return minioClient.getObject(GetObjectArgs.builder()
+                    .bucket(bucketName)
+                    .object(objectName)
+                    .build());
+        } catch (Exception e) {
+            throw new RuntimeException("Dosya indirilemedi: " + e.getMessage());
+        }
+    }
+
+    /**
+     * URL'den dosya adını (object name) çıkarır.
+     */
+    public String extractObjectName(String fileUrl) {
+        String prefix = "http://localhost:9000/" + bucketName + "/";
+        if (fileUrl.startsWith(prefix)) {
+            return fileUrl.substring(prefix.length());
+        }
+        return fileUrl;
+    }
+
+    /**
+     * URL'den orijinal dosya adını çıkarır (UUID prefix'i kaldırarak).
+     */
+    public String extractOriginalFileName(String fileUrl) {
+        String objectName = extractObjectName(fileUrl);
+        int underscoreIndex = objectName.indexOf('_');
+        if (underscoreIndex > 0 && underscoreIndex < objectName.length() - 1) {
+            return objectName.substring(underscoreIndex + 1);
+        }
+        return objectName;
+    }
 }

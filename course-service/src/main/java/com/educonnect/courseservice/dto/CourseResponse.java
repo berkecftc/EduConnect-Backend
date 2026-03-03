@@ -12,6 +12,8 @@ public class CourseResponse {
 
     private UUID instructorId;
     private String instructorName;
+    private int capacity;
+    private long enrolledStudentCount;
 
     // Getter & Setter
     public UUID getId() { return id; }
@@ -32,4 +34,8 @@ public class CourseResponse {
     public void setInstructorId(UUID instructorId) { this.instructorId = instructorId; }
     public String getInstructorName() { return instructorName; }
     public void setInstructorName(String instructorName) { this.instructorName = instructorName; }
+    public int getCapacity() { return capacity; }
+    public void setCapacity(int capacity) { this.capacity = capacity; }
+    public long getEnrolledStudentCount() { return enrolledStudentCount; }
+    public void setEnrolledStudentCount(long enrolledStudentCount) { this.enrolledStudentCount = enrolledStudentCount; }
 }

@@ -11,6 +11,8 @@ public class RabbitMQConfig {
     public static final String COURSE_EXCHANGE = "course.exchange";
     public static final String ROUTING_KEY_CREATED = "course.created";
     public static final String ROUTING_KEY_DELETED = "course.deleted";
+    public static final String ROUTING_KEY_ANNOUNCEMENT = "course.announcement.created";
+    public static final String ROUTING_KEY_ASSIGNMENT_CREATED = "course.assignment.created";
 
     @Bean
     public TopicExchange courseExchange() {

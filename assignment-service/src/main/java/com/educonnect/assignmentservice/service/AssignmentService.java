@@ -2,16 +2,25 @@ package com.educonnect.assignmentservice.service;
 
 import com.educonnect.assignmentservice.client.CourseClient;
 import com.educonnect.assignmentservice.dto.*;
+import com.educonnect.assignmentservice.event.AssignmentNotificationEvent;
 import com.educonnect.assignmentservice.model.Assignment;
 import com.educonnect.assignmentservice.model.AssignmentSubmission;
+import com.educonnect.assignmentservice.publisher.AssignmentProducer;
 import com.educonnect.assignmentservice.repository.AssignmentRepository;
 import com.educonnect.assignmentservice.repository.SubmissionRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
+import org.springframework.core.io.InputStreamResource;
+import org.springframework.core.io.Resource;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
+
+import java.io.InputStream;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -19,22 +28,29 @@ import java.util.stream.Collectors;
 @Service
 public class AssignmentService {
 
+    private static final Logger log = LoggerFactory.getLogger(AssignmentService.class);
+
     private final AssignmentRepository assignmentRepository;
     private final SubmissionRepository submissionRepository;
     private final MinioService minioService;
     private final CourseClient courseClient;
+    private final AssignmentProducer assignmentProducer;
 
-    public AssignmentService(AssignmentRepository repo, SubmissionRepository subRepo, MinioService minio, CourseClient client) {
+    public AssignmentService(AssignmentRepository repo, SubmissionRepository subRepo,
+                             MinioService minio, CourseClient client,
+                             AssignmentProducer producer) {
         this.assignmentRepository = repo;
         this.submissionRepository = subRepo;
         this.minioService = minio;
         this.courseClient = client;
+        this.assignmentProducer = producer;
     }
 
     public AssignmentResponse createAssignment(AssignmentRequest request, MultipartFile file) {
         // 1. Önce böyle bir ders var mı diye Course Service'e sor
+        Map<String, Object> courseData;
         try {
-            courseClient.getCourseById(request.getCourseId());
+            courseData = courseClient.getCourseById(request.getCourseId());
         } catch (Exception e) {
             throw new RuntimeException("Ders bulunamadı! Geçersiz Course ID.");
         }
@@ -54,7 +70,45 @@ public class AssignmentService {
         assignment.setFileUrl(fileUrl);
 
         Assignment saved = assignmentRepository.save(assignment);
+
+        // 4. Kayıtlı öğrencilere bildirim gönder
+        sendAssignmentNotification(request.getCourseId(), courseData, saved);
+
         return mapToResponse(saved);
+    }
+
+    /**
+     * Ödev oluşturulduğunda kayıtlı öğrencilere RabbitMQ ile bildirim gönderir.
+     */
+    private void sendAssignmentNotification(UUID courseId, Map<String, Object> courseData, Assignment assignment) {
+        try {
+            // Course-service'ten kayıtlı öğrenci ID'lerini çek
+            List<UUID> enrolledStudentIds = courseClient.getEnrolledStudentIds(courseId);
+
+            if (enrolledStudentIds == null || enrolledStudentIds.isEmpty()) {
+                log.info("📭 Derste kayıtlı öğrenci yok, ödev bildirimi gönderilmedi.");
+                return;
+            }
+
+            String courseTitle = courseData.get("title") != null ? courseData.get("title").toString() : "Bilinmeyen Ders";
+            String courseCode = courseData.get("code") != null ? courseData.get("code").toString() : "";
+
+            AssignmentNotificationEvent event = new AssignmentNotificationEvent(
+                    courseId,
+                    courseTitle,
+                    courseCode,
+                    "ASSIGNMENT",
+                    assignment.getTitle(),
+                    assignment.getDescription(),
+                    enrolledStudentIds
+            );
+
+            assignmentProducer.sendAssignmentCreatedNotification(event);
+            log.info("📤 Ödev bildirimi gönderildi: {} öğrenciye -> {} ({})",
+                    enrolledStudentIds.size(), assignment.getTitle(), courseTitle);
+        } catch (Exception e) {
+            log.error("❌ Ödev bildirimi gönderilemedi: {}", e.getMessage());
+        }
     }
 
     public List<AssignmentResponse> getAssignmentsByCourse(UUID courseId) {
@@ -198,5 +252,15 @@ public class AssignmentService {
         dto.setStudentName("Student-" + submission.getStudentId().toString().substring(0, 8));
 
         return dto;
+    }
+
+    // DOSYA İNDİRME
+    public Resource downloadFile(String fileUrl) {
+        InputStream inputStream = minioService.downloadFile(fileUrl);
+        return new InputStreamResource(inputStream);
+    }
+
+    public String getOriginalFileName(String fileUrl) {
+        return minioService.extractOriginalFileName(fileUrl);
     }
 }

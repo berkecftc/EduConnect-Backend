@@ -18,6 +18,9 @@ public class RabbitMQConfig {
     // Hangi mesajları yakalayacağız? (Silinme olayları)
     public static final String ROUTING_KEY_DELETED = "course.deleted";
 
+    // Ödev oluşturulduğunda bildirim göndermek için
+    public static final String ROUTING_KEY_ASSIGNMENT_CREATED = "course.assignment.created";
+
     // 1. Exchange Tanımla (Eğer Course Service oluşturmadıysa biz oluşturalım)
     @Bean
     public TopicExchange courseExchange() {

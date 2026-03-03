@@ -11,6 +11,8 @@ public class InstructorCourseDTO {
     private String semester;
     private String imageUrl;
     private long enrolledStudentCount;
+    private int capacity;
+    private long pendingApplicationCount;
 
     public InstructorCourseDTO() {}
 
@@ -38,5 +40,11 @@ public class InstructorCourseDTO {
 
     public long getEnrolledStudentCount() { return enrolledStudentCount; }
     public void setEnrolledStudentCount(long enrolledStudentCount) { this.enrolledStudentCount = enrolledStudentCount; }
+
+    public int getCapacity() { return capacity; }
+    public void setCapacity(int capacity) { this.capacity = capacity; }
+
+    public long getPendingApplicationCount() { return pendingApplicationCount; }
+    public void setPendingApplicationCount(long pendingApplicationCount) { this.pendingApplicationCount = pendingApplicationCount; }
 }
 

@@ -3,7 +3,10 @@ package com.educonnect.assignmentservice.controller;
 import com.educonnect.assignmentservice.dto.*;
 import com.educonnect.assignmentservice.model.AssignmentSubmission;
 import com.educonnect.assignmentservice.service.AssignmentService;
+import org.springframework.core.io.Resource;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
@@ -88,5 +91,21 @@ public class AssignmentController {
     ) {
         UUID studentId = UUID.fromString(studentIdHeader);
         return ResponseEntity.ok(assignmentService.getStudentAssignments(studentId));
+    }
+
+    // DOSYA İNDİRME (Ödev dökümanı veya teslim dosyası)
+    @GetMapping("/files/download")
+    public ResponseEntity<Resource> downloadFile(@RequestParam("url") String fileUrl) {
+        try {
+            Resource resource = assignmentService.downloadFile(fileUrl);
+            String fileName = assignmentService.getOriginalFileName(fileUrl);
+
+            return ResponseEntity.ok()
+                    .contentType(MediaType.APPLICATION_OCTET_STREAM)
+                    .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + fileName + "\"")
+                    .body(resource);
+        } catch (RuntimeException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+        }
     }
 }
