@@ -30,6 +30,7 @@
         <module>event-service</module>
         <module>club-service</module>
         <module>notification-service</module>
+        <module>post-service</module>
     </modules>
 
     <properties>

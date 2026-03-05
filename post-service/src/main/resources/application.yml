@@ -1,0 +1,66 @@
+spring:
+  application:
+    name: post-service
+  main:
+    web-application-type: servlet
+  config:
+    import: "optional:configserver:http://localhost:8888"
+  cloud:
+    config:
+      uri: http://localhost:8888
+      fail-fast: true
+
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/educonnect}
+    username: ${SPRING_DATASOURCE_USERNAME:eduadmin}
+    password: ${SPRING_DATASOURCE_PASSWORD:edu123}
+    driver-class-name: org.postgresql.Driver
+
+  rabbitmq:
+    host: ${SPRING_RABBITMQ_HOST:localhost}
+    port: ${SPRING_RABBITMQ_PORT:5672}
+    username: ${SPRING_RABBITMQ_USERNAME:guest}
+    password: ${SPRING_RABBITMQ_PASSWORD:guest}
+
+  flyway:
+    enabled: true
+    schemas: post_db
+    default-schema: post_db
+    create-schemas: true
+    baseline-on-migrate: true
+    clean-on-validation-error: true
+    out-of-order: true
+
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        default_schema: post_db
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+    show-sql: true
+
+server:
+  port: ${SERVER_PORT:8086}
+
+eureka:
+  client:
+    service-url:
+      defaultZone: http://localhost:8761/eureka/
+
+logging:
+  level:
+    com.educonnect.postservice: DEBUG
+    org.springframework.amqp: DEBUG
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,flyway
+  endpoint:
+    flyway:
+      enabled: true
+
+
+
