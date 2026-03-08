@@ -24,6 +24,12 @@ public class GlobalExceptionHandler {
         return buildResponse(HttpStatus.NOT_FOUND, ex.getMessage());
     }
 
+    @ExceptionHandler(CommentNotFoundException.class)
+    public ResponseEntity<Map<String, Object>> handleCommentNotFound(CommentNotFoundException ex) {
+        log.warn("Yorum bulunamadı: {}", ex.getMessage());
+        return buildResponse(HttpStatus.NOT_FOUND, ex.getMessage());
+    }
+
     @ExceptionHandler(UnauthorizedPostAccessException.class)
     public ResponseEntity<Map<String, Object>> handleUnauthorizedAccess(UnauthorizedPostAccessException ex) {
         log.warn("Yetkisiz erişim: {}", ex.getMessage());

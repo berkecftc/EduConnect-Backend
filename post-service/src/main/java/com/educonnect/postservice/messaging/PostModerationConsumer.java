@@ -5,6 +5,7 @@ import com.educonnect.postservice.event.PostModerationEvent;
 import com.educonnect.postservice.model.Post;
 import com.educonnect.postservice.model.PostStatus;
 import com.educonnect.postservice.repository.PostRepository;
+import com.educonnect.postservice.util.BlacklistProvider;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
@@ -12,7 +13,6 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Optional;
-import java.util.Set;
 
 /**
  * RabbitMQ'dan PostModerationEvent'leri tüketen ve içerik moderasyonu yapan consumer.
@@ -43,19 +43,12 @@ public class PostModerationConsumer {
 
     private static final Logger log = LoggerFactory.getLogger(PostModerationConsumer.class);
 
-    /**
-     * Kötü kelime blacklist'i (mock).
-     * Gerçek uygulamada bu bir DB tablosu, harici API veya AI servisi olabilir.
-     */
-    private static final Set<String> BLACKLIST = Set.of(
-            "küfür", "hakaret", "spam", "reklam", "argo",
-            "nefret", "şiddet", "taciz", "dolandırıcılık"
-    );
-
     private final PostRepository postRepository;
+    private final BlacklistProvider blacklistProvider;
 
-    public PostModerationConsumer(PostRepository postRepository) {
+    public PostModerationConsumer(PostRepository postRepository, BlacklistProvider blacklistProvider) {
         this.postRepository = postRepository;
+        this.blacklistProvider = blacklistProvider;
     }
 
     @RabbitListener(queues = RabbitMQConfig.POST_MODERATION_QUEUE)
@@ -81,8 +74,8 @@ public class PostModerationConsumer {
         }
 
         // ═══ MODERASYON MANTIGI (MOCK) ═══
-        String combinedText = (event.getTitle() + " " + event.getContent()).toLowerCase();
-        boolean containsBadWord = BLACKLIST.stream().anyMatch(combinedText::contains);
+        String combinedText = event.getTitle() + " " + event.getContent();
+        boolean containsBadWord = blacklistProvider.containsBadWord(combinedText);
 
         if (containsBadWord) {
             post.setStatus(PostStatus.REJECTED);

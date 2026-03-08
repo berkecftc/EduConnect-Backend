@@ -9,12 +9,18 @@ import com.educonnect.postservice.event.PostModerationEvent;
 import com.educonnect.postservice.exception.PostNotFoundException;
 import com.educonnect.postservice.exception.UnauthorizedPostAccessException;
 import com.educonnect.postservice.messaging.PostEventPublisher;
+import com.educonnect.postservice.model.CommentStatus;
 import com.educonnect.postservice.model.Post;
+import com.educonnect.postservice.model.PostBookmark;
 import com.educonnect.postservice.model.PostStatus;
+import com.educonnect.postservice.repository.CommentRepository;
+import com.educonnect.postservice.repository.PostBookmarkRepository;
+import com.educonnect.postservice.repository.PostLikeRepository;
 import com.educonnect.postservice.repository.PostRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -50,11 +56,22 @@ public class PostService {
     private final PostRepository postRepository;
     private final PostEventPublisher eventPublisher;
     private final UserClient userClient;
+    private final PostLikeRepository postLikeRepository;
+    private final PostBookmarkRepository postBookmarkRepository;
+    private final CommentRepository commentRepository;
 
-    public PostService(PostRepository postRepository, PostEventPublisher eventPublisher, UserClient userClient) {
+    public PostService(PostRepository postRepository,
+                       PostEventPublisher eventPublisher,
+                       UserClient userClient,
+                       PostLikeRepository postLikeRepository,
+                       PostBookmarkRepository postBookmarkRepository,
+                       CommentRepository commentRepository) {
         this.postRepository = postRepository;
         this.eventPublisher = eventPublisher;
         this.userClient = userClient;
+        this.postLikeRepository = postLikeRepository;
+        this.postBookmarkRepository = postBookmarkRepository;
+        this.commentRepository = commentRepository;
     }
 
     /**
@@ -106,7 +123,7 @@ public class PostService {
         publishModerationEvent(savedPost);
 
         UserSummaryDto user = fetchUserSafely(authorId);
-        return mapToResponseWithUser(savedPost, user);
+        return mapToResponseWithUser(savedPost, user, authorId);
     }
 
     /**
@@ -131,7 +148,7 @@ public class PostService {
         publishModerationEvent(updatedPost);
 
         UserSummaryDto user = fetchUserSafely(authorId);
-        return mapToResponseWithUser(updatedPost, user);
+        return mapToResponseWithUser(updatedPost, user, authorId);
     }
 
     /**
@@ -158,7 +175,7 @@ public class PostService {
      * - Bu sayede aynı yazar birden fazla post yazmışsa tekrar çağrı yapılmaz.
      */
     @Transactional(readOnly = true)
-    public Page<PostResponse> getPublishedPosts(Pageable pageable) {
+    public Page<PostResponse> getPublishedPosts(Pageable pageable, UUID currentUserId) {
         Page<Post> postPage = postRepository.findByStatus(PostStatus.PUBLISHED, pageable);
 
         // Sayfadaki benzersiz authorId'leri topla ve batch olarak user bilgilerini çek
@@ -174,17 +191,55 @@ public class PostService {
                         (existing, replacement) -> existing
                 ));
 
-        return postPage.map(post -> mapToResponseWithUser(post, userCache.get(post.getAuthorId())));
+        return postPage.map(post -> mapToResponseWithUser(post, userCache.get(post.getAuthorId()), currentUserId));
+    }
+
+    /**
+     * Kullanıcının kaydettiği (bookmark) postları sayfalayarak döndürür.
+     */
+    @Transactional(readOnly = true)
+    public Page<PostResponse> getSavedPosts(UUID currentUserId, Pageable pageable) {
+        Page<PostBookmark> bookmarkPage = postBookmarkRepository.findByUserIdOrderByCreatedAtDesc(currentUserId, pageable);
+
+        List<UUID> postIds = bookmarkPage.getContent().stream()
+                .map(PostBookmark::getPostId)
+                .toList();
+
+        Map<UUID, Post> postMap = postRepository.findAllById(postIds).stream()
+                .filter(post -> post.getStatus() == PostStatus.PUBLISHED)
+                .collect(Collectors.toMap(Post::getId, Function.identity()));
+
+        List<UUID> uniqueAuthorIds = postMap.values().stream()
+                .map(Post::getAuthorId)
+                .distinct()
+                .toList();
+
+        Map<UUID, UserSummaryDto> userCache = uniqueAuthorIds.stream()
+                .collect(Collectors.toMap(
+                        Function.identity(),
+                        this::fetchUserSafely,
+                        (existing, replacement) -> existing
+                ));
+
+        List<PostResponse> responses = bookmarkPage.getContent().stream()
+                .filter(bookmark -> postMap.containsKey(bookmark.getPostId()))
+                .map(bookmark -> {
+                    Post post = postMap.get(bookmark.getPostId());
+                    return mapToResponseWithUser(post, userCache.get(post.getAuthorId()), currentUserId);
+                })
+                .toList();
+
+        return new PageImpl<>(responses, pageable, bookmarkPage.getTotalElements());
     }
 
     /**
      * Tek bir post'u ID'sine göre getirir.
      */
     @Transactional(readOnly = true)
-    public PostResponse getPostById(UUID postId) {
+    public PostResponse getPostById(UUID postId, UUID currentUserId) {
         Post post = findPostOrThrow(postId);
         UserSummaryDto user = fetchUserSafely(post.getAuthorId());
-        return mapToResponseWithUser(post, user);
+        return mapToResponseWithUser(post, user, currentUserId);
     }
 
     // ═══════════════════════════════════════════════
@@ -218,7 +273,7 @@ public class PostService {
         eventPublisher.publishModerationEvent(event);
     }
 
-    private PostResponse mapToResponseWithUser(Post post, UserSummaryDto user) {
+    private PostResponse mapToResponseWithUser(Post post, UserSummaryDto user, UUID currentUserId) {
         String authorName = null;
         String authorDepartment = null;
 
@@ -226,6 +281,11 @@ public class PostService {
             authorName = user.getFirstName() + " " + user.getLastName();
             authorDepartment = user.getDepartment();
         }
+
+        long likeCount = postLikeRepository.countByPostId(post.getId());
+        long commentCount = commentRepository.countByPostIdAndStatus(post.getId(), CommentStatus.PUBLISHED);
+        boolean liked = currentUserId != null && postLikeRepository.existsByPostIdAndUserId(post.getId(), currentUserId);
+        boolean bookmarked = currentUserId != null && postBookmarkRepository.existsByPostIdAndUserId(post.getId(), currentUserId);
 
         return new PostResponse(
                 post.getId(),
@@ -236,6 +296,10 @@ public class PostService {
                 post.getAuthorId(),
                 authorName,
                 authorDepartment,
+                likeCount,
+                commentCount,
+                liked,
+                bookmarked,
                 post.getCreatedAt(),
                 post.getUpdatedAt()
         );

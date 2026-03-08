@@ -81,12 +81,30 @@ public class PostController {
      */
     @GetMapping
     public ResponseEntity<Page<PostResponse>> getPublishedPosts(
+            @RequestHeader("X-Authenticated-User-Id") String authenticatedUserId,
             @RequestHeader("X-Authenticated-User-Roles") String roles,
             @PageableDefault(size = 10, sort = "createdAt", direction = org.springframework.data.domain.Sort.Direction.DESC)
             Pageable pageable
     ) {
         postService.validatePostAccess(roles);
-        return ResponseEntity.ok(postService.getPublishedPosts(pageable));
+        UUID currentUserId = UUID.fromString(authenticatedUserId);
+        return ResponseEntity.ok(postService.getPublishedPosts(pageable, currentUserId));
+    }
+
+    /**
+     * Kullanıcının kaydettiği (bookmark) postları sayfalayarak listeler.
+     * Sadece ROLE_STUDENT ve ROLE_CLUB_OFFICIAL rolleri erişebilir.
+     */
+    @GetMapping("/saved")
+    public ResponseEntity<Page<PostResponse>> getSavedPosts(
+            @RequestHeader("X-Authenticated-User-Id") String authenticatedUserId,
+            @RequestHeader("X-Authenticated-User-Roles") String roles,
+            @PageableDefault(size = 10, sort = "createdAt", direction = org.springframework.data.domain.Sort.Direction.DESC)
+            Pageable pageable
+    ) {
+        postService.validatePostAccess(roles);
+        UUID currentUserId = UUID.fromString(authenticatedUserId);
+        return ResponseEntity.ok(postService.getSavedPosts(currentUserId, pageable));
     }
 
     /**
@@ -96,10 +114,12 @@ public class PostController {
     @GetMapping("/{postId}")
     public ResponseEntity<PostResponse> getPostById(
             @PathVariable UUID postId,
+            @RequestHeader("X-Authenticated-User-Id") String authenticatedUserId,
             @RequestHeader("X-Authenticated-User-Roles") String roles
     ) {
         postService.validatePostAccess(roles);
-        return ResponseEntity.ok(postService.getPostById(postId));
+        UUID currentUserId = UUID.fromString(authenticatedUserId);
+        return ResponseEntity.ok(postService.getPostById(postId, currentUserId));
     }
 }
 

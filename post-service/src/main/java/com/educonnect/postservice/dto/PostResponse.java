@@ -15,6 +15,10 @@ public record PostResponse(
         UUID authorId,
         String authorName,
         String authorDepartment,
+        long likeCount,
+        long commentCount,
+        boolean liked,
+        boolean bookmarked,
         LocalDateTime createdAt,
         LocalDateTime updatedAt
 ) {}
