@@ -67,7 +67,7 @@ public class AssignmentService {
         assignment.setDescription(request.getDescription());
         assignment.setDueDate(request.getDueDate());
         assignment.setCourseId(request.getCourseId());
-        assignment.setFileUrl(fileUrl);
+        assignment.setFileUrl(minioService.normalizeToFullUrl(fileUrl));
 
         Assignment saved = assignmentRepository.save(assignment);
 
@@ -143,14 +143,19 @@ public class AssignmentService {
         if (existingSubmission.isPresent()) {
             // Mevcut teslimi güncelle
             AssignmentSubmission submission = existingSubmission.get();
-            submission.setSubmissionFileUrl(fileUrl);
+            submission.setSubmissionFileUrl(minioService.normalizeToFullUrl(fileUrl));
             submission.setSubmittedAt(LocalDateTime.now());
             submission.setLate(isLate);
             // Not ve feedback'i sıfırlama (akademisyen yeniden notlandıracak)
             return submissionRepository.save(submission);
         } else {
             // Yeni teslim oluştur
-            AssignmentSubmission submission = new AssignmentSubmission(assignmentId, studentId, fileUrl, isLate);
+            AssignmentSubmission submission = new AssignmentSubmission(
+                    assignmentId,
+                    studentId,
+                    minioService.normalizeToFullUrl(fileUrl),
+                    isLate
+            );
             return submissionRepository.save(submission);
         }
     }
@@ -202,6 +207,8 @@ public class AssignmentService {
         List<Assignment> allAssignments = assignmentRepository.findAll();
 
         return allAssignments.stream().map(assignment -> {
+            normalizeAssignmentFileUrlIfNeeded(assignment);
+
             MyAssignmentDTO dto = new MyAssignmentDTO();
             dto.setId(assignment.getId());
             dto.setTitle(assignment.getTitle());
@@ -215,6 +222,8 @@ public class AssignmentService {
                     .filter(sub -> sub.getAssignmentId().equals(assignment.getId()))
                     .findFirst()
                     .ifPresent(submission -> {
+                        normalizeSubmissionFileUrlIfNeeded(submission);
+
                         MySubmissionDTO subDto = new MySubmissionDTO();
                         subDto.setSubmissionId(submission.getId());
                         subDto.setSubmittedAt(submission.getSubmittedAt());
@@ -229,6 +238,8 @@ public class AssignmentService {
     }
 
     private AssignmentResponse mapToResponse(Assignment a) {
+        normalizeAssignmentFileUrlIfNeeded(a);
+
         AssignmentResponse res = new AssignmentResponse();
         res.setId(a.getId());
         res.setTitle(a.getTitle());
@@ -240,6 +251,8 @@ public class AssignmentService {
     }
 
     private SubmissionSummaryDTO mapToSubmissionSummary(AssignmentSubmission submission) {
+        normalizeSubmissionFileUrlIfNeeded(submission);
+
         SubmissionSummaryDTO dto = new SubmissionSummaryDTO();
         dto.setSubmissionId(submission.getId());
         dto.setStudentId(submission.getStudentId());
@@ -252,6 +265,26 @@ public class AssignmentService {
         dto.setStudentName("Student-" + submission.getStudentId().toString().substring(0, 8));
 
         return dto;
+    }
+
+    private void normalizeAssignmentFileUrlIfNeeded(Assignment assignment) {
+        String currentUrl = assignment.getFileUrl();
+        String normalizedUrl = minioService.normalizeToFullUrl(currentUrl);
+
+        if (normalizedUrl != null && !normalizedUrl.equals(currentUrl)) {
+            assignment.setFileUrl(normalizedUrl);
+            assignmentRepository.save(assignment);
+        }
+    }
+
+    private void normalizeSubmissionFileUrlIfNeeded(AssignmentSubmission submission) {
+        String currentUrl = submission.getSubmissionFileUrl();
+        String normalizedUrl = minioService.normalizeToFullUrl(currentUrl);
+
+        if (normalizedUrl != null && !normalizedUrl.equals(currentUrl)) {
+            submission.setSubmissionFileUrl(normalizedUrl);
+            submissionRepository.save(submission);
+        }
     }
 
     // DOSYA İNDİRME
