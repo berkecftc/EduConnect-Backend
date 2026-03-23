@@ -19,3 +19,10 @@ spring:
       password: ${REDIS_PASSWORD:}
       timeout: 60000
 
+# Logging Configuration
+logging:
+  level:
+    root: INFO
+    com.educonnect.assignmentservice: DEBUG
+    org.springframework.cloud.openfeign: DEBUG
+

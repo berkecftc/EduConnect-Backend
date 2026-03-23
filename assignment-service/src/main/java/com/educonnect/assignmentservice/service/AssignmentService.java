@@ -1,6 +1,7 @@
 package com.educonnect.assignmentservice.service;
 
 import com.educonnect.assignmentservice.client.CourseClient;
+import com.educonnect.assignmentservice.client.UserClient;
 import com.educonnect.assignmentservice.dto.*;
 import com.educonnect.assignmentservice.event.AssignmentNotificationEvent;
 import com.educonnect.assignmentservice.model.Assignment;
@@ -34,15 +35,17 @@ public class AssignmentService {
     private final SubmissionRepository submissionRepository;
     private final MinioService minioService;
     private final CourseClient courseClient;
+    private final UserClient userClient;
     private final AssignmentProducer assignmentProducer;
 
     public AssignmentService(AssignmentRepository repo, SubmissionRepository subRepo,
-                             MinioService minio, CourseClient client,
+                             MinioService minio, CourseClient client, UserClient userClient,
                              AssignmentProducer producer) {
         this.assignmentRepository = repo;
         this.submissionRepository = subRepo;
         this.minioService = minio;
         this.courseClient = client;
+        this.userClient = userClient;
         this.assignmentProducer = producer;
     }
 
@@ -261,8 +264,32 @@ public class AssignmentService {
         dto.setGrade(submission.getGrade());
         dto.setLate(submission.isLate());
 
-        // Student name'i user-service'den çekilebilir (opsiyonel)
-        dto.setStudentName("Student-" + submission.getStudentId().toString().substring(0, 8));
+        // Öğrenci bilgisini user-service'den çek
+        try {
+            log.info("📞 Fetching student info from user-service for studentId: {}", submission.getStudentId());
+            UserClient.UserProfileDTO userProfile = userClient.getUserProfile(submission.getStudentId());
+            log.info("📦 UserProfileDTO object: {}", userProfile);
+            
+            if (userProfile != null) {
+                log.info("FirstName: {}, LastName: {}, StudentNumber: {}", 
+                        userProfile.getFirstName(), userProfile.getLastName(), userProfile.getStudentNumber());
+                
+                String fullName = userProfile.getFirstName() + " " + userProfile.getLastName();
+                String studentNumber = userProfile.getStudentNumber();
+                
+                log.info("✅ Setting studentName: {}, studentNumber: {}", fullName, studentNumber);
+                dto.setStudentName(fullName);
+                dto.setStudentNumber(studentNumber);
+            } else {
+                log.warn("⚠️ Student profile is null for studentId: {}", submission.getStudentId());
+                dto.setStudentName("Bilinmeyen Öğrenci");
+                dto.setStudentNumber("N/A");
+            }
+        } catch (Exception e) {
+            log.error("❌ Öğrenci bilgisi çekilemedi (ID: {}): {}", submission.getStudentId(), e.getMessage(), e);
+            dto.setStudentName("Bilinmeyen Öğrenci");
+            dto.setStudentNumber("N/A");
+        }
 
         return dto;
     }
