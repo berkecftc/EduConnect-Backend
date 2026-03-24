@@ -26,9 +26,19 @@ public class RabbitMQConfig {
     public static final String POST_MODERATION_QUEUE = "post.moderation.queue";
     public static final String POST_MODERATION_ROUTING_KEY = "post.moderation.pending";
 
+    public static final String GAMIFICATION_EXCHANGE = "gamification.exchange";
+    public static final String ROUTING_KEY_GAMIFICATION_POST_PUBLISHED = "gamification.post.published";
+    public static final String ROUTING_KEY_GAMIFICATION_ANSWER_ACCEPTED = "gamification.answer.accepted";
+    public static final String ROUTING_KEY_GAMIFICATION_REPORT_RESOLVED = "gamification.report.resolved";
+
     @Bean
     public TopicExchange postModerationExchange() {
         return new TopicExchange(POST_MODERATION_EXCHANGE);
+    }
+
+    @Bean
+    public TopicExchange gamificationExchange() {
+        return new TopicExchange(GAMIFICATION_EXCHANGE);
     }
 
     @Bean

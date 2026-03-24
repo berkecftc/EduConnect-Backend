@@ -1,0 +1,13 @@
+com/educonnect/gamificationservice/dto/event/GamificationEventKeys.class
+com/educonnect/gamificationservice/service/GamificationService.class
+com/educonnect/gamificationservice/config/RabbitMQConfig.class
+com/educonnect/gamificationservice/GamificationServiceApplication.class
+com/educonnect/gamificationservice/model/ActionType.class
+com/educonnect/gamificationservice/repository/PointHistoryRepository.class
+com/educonnect/gamificationservice/repository/UserReputationRepository.class
+com/educonnect/gamificationservice/service/GamificationService$1.class
+com/educonnect/gamificationservice/scheduler/GamificationScheduler.class
+com/educonnect/gamificationservice/dto/event/GamificationEvent.class
+com/educonnect/gamificationservice/model/UserReputation.class
+com/educonnect/gamificationservice/listener/GamificationEventListener.class
+com/educonnect/gamificationservice/model/PointHistory.class

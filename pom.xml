@@ -31,6 +31,7 @@
         <module>club-service</module>
         <module>notification-service</module>
         <module>post-service</module>
+        <module>gamification-service</module>
     </modules>
 
     <properties>

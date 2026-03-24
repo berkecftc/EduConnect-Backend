@@ -6,6 +6,7 @@ import org.springframework.amqp.core.Binding;
 import org.springframework.amqp.core.BindingBuilder;
 import org.springframework.amqp.core.DirectExchange;
 import org.springframework.amqp.core.Queue;
+import org.springframework.amqp.core.TopicExchange;
 import org.springframework.amqp.rabbit.connection.ConnectionFactory;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.amqp.support.converter.Jackson2JsonMessageConverter;
@@ -53,9 +54,17 @@ public class RabbitMQConfig {
     public static final String PASSWORD_RESET_QUEUE = "password-reset-queue";
     public static final String PASSWORD_RESET_ROUTING_KEY = "user.password.reset";
 
+    public static final String GAMIFICATION_EXCHANGE = "gamification.exchange";
+    public static final String GAMIFICATION_USER_LOGIN_ROUTING_KEY = "gamification.user.login";
+
     @Bean
     public DirectExchange userExchange() {
         return new DirectExchange(EXCHANGE_NAME);
+    }
+
+    @Bean
+    public TopicExchange gamificationExchange() {
+        return new TopicExchange(GAMIFICATION_EXCHANGE);
     }
 
     @Bean

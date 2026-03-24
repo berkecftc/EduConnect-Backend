@@ -27,6 +27,11 @@ public class AdditionalRoutesConfig {
                         .path("/api/academician/**")
                         .filters(f -> f.filter(authenticationFilter.apply(new AuthenticationFilter.Config())))
                         .uri("lb://club-service"))
+                // Gamification endpoint'leri -> gamification-service
+                .route("gamification-routes", r -> r
+                        .path("/api/gamification/**")
+                        .filters(f -> f.filter(authenticationFilter.apply(new AuthenticationFilter.Config())))
+                        .uri("lb://gamification-service"))
                 .build();
     }
 }

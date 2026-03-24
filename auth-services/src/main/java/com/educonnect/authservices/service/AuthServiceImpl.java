@@ -2,6 +2,8 @@ package com.educonnect.authservices.service;
 
 import com.educonnect.authservices.config.RabbitMQConfig;
 import com.educonnect.authservices.dto.message.AcademicianProfileMessage;
+import com.educonnect.authservices.dto.message.GamificationActionType;
+import com.educonnect.authservices.dto.message.GamificationEventMessage;
 import com.educonnect.authservices.dto.message.PasswordResetMessage;
 import com.educonnect.authservices.dto.message.UserAccountStatusMessage;
 import com.educonnect.authservices.dto.message.UserDeletedMessage;
@@ -36,6 +38,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.List;
+import java.time.LocalDate;
+import java.time.OffsetDateTime;
+import java.time.ZoneId;
 import java.util.NoSuchElementException;
 import java.util.Set;
 import java.util.UUID;
@@ -416,6 +421,20 @@ public class AuthServiceImpl {
                 })
                 .map(Role::name)
                 .collect(Collectors.toCollection(java.util.LinkedHashSet::new));
+
+        LocalDate istanbulToday = LocalDate.now(ZoneId.of("Europe/Istanbul"));
+        String referenceId = "LOGIN:" + istanbulToday + ":" + user.getId();
+        GamificationEventMessage gamificationEvent = new GamificationEventMessage(
+                user.getId(),
+                GamificationActionType.DAILY_LOGIN,
+                referenceId,
+                OffsetDateTime.now(ZoneId.of("Europe/Istanbul"))
+        );
+        rabbitTemplate.convertAndSend(
+                RabbitMQConfig.GAMIFICATION_EXCHANGE,
+                RabbitMQConfig.GAMIFICATION_USER_LOGIN_ROUTING_KEY,
+                gamificationEvent
+        );
 
         return new AuthResponse(jwt, refreshToken.getToken(), "Login successful",
                 user.getId().toString(), user.getEmail(), roles);

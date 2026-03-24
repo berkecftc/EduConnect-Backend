@@ -12,10 +12,12 @@ com/educonnect/postservice/messaging/PostModerationConsumer.class
 com/educonnect/postservice/event/PostModerationEvent.class
 com/educonnect/postservice/model/CommentStatus.class
 com/educonnect/postservice/exception/PostNotFoundException.class
+com/educonnect/postservice/event/ActionType.class
 com/educonnect/postservice/dto/PostResponse.class
 com/educonnect/postservice/dto/CreatePostRequest.class
 com/educonnect/postservice/dto/CommentResponse.class
 com/educonnect/postservice/exception/UnauthorizedPostAccessException.class
+com/educonnect/postservice/event/GamificationEvent.class
 com/educonnect/postservice/exception/GlobalExceptionHandler.class
 com/educonnect/postservice/dto/UserSummaryDto.class
 com/educonnect/postservice/repository/PostRepository.class

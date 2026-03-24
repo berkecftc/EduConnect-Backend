@@ -1,7 +1,10 @@
 package com.educonnect.postservice.messaging;
 
 import com.educonnect.postservice.config.RabbitMQConfig;
+import com.educonnect.postservice.event.ActionType;
+import com.educonnect.postservice.event.GamificationEvent;
 import com.educonnect.postservice.event.PostModerationEvent;
+import com.educonnect.postservice.model.PostCategory;
 import com.educonnect.postservice.model.Post;
 import com.educonnect.postservice.model.PostStatus;
 import com.educonnect.postservice.repository.PostRepository;
@@ -9,9 +12,11 @@ import com.educonnect.postservice.util.BlacklistProvider;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
+import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.OffsetDateTime;
 import java.util.Optional;
 
 /**
@@ -45,10 +50,14 @@ public class PostModerationConsumer {
 
     private final PostRepository postRepository;
     private final BlacklistProvider blacklistProvider;
+    private final RabbitTemplate rabbitTemplate;
 
-    public PostModerationConsumer(PostRepository postRepository, BlacklistProvider blacklistProvider) {
+    public PostModerationConsumer(PostRepository postRepository,
+                                  BlacklistProvider blacklistProvider,
+                                  RabbitTemplate rabbitTemplate) {
         this.postRepository = postRepository;
         this.blacklistProvider = blacklistProvider;
+        this.rabbitTemplate = rabbitTemplate;
     }
 
     @RabbitListener(queues = RabbitMQConfig.POST_MODERATION_QUEUE)
@@ -85,6 +94,20 @@ public class PostModerationConsumer {
             post.setStatus(PostStatus.PUBLISHED);
             postRepository.save(post);
             log.info("✅ Post yayınlandı — postId: {}", post.getId());
+
+            if (post.getCategory() == PostCategory.DERS_NOTU) {
+                GamificationEvent gamificationEvent = new GamificationEvent(
+                        post.getAuthorId(),
+                        ActionType.POST_PUBLISHED,
+                        post.getId().toString(),
+                        OffsetDateTime.now()
+                );
+                rabbitTemplate.convertAndSend(
+                        RabbitMQConfig.GAMIFICATION_EXCHANGE,
+                        RabbitMQConfig.ROUTING_KEY_GAMIFICATION_POST_PUBLISHED,
+                        gamificationEvent
+                );
+            }
         }
     }
 }

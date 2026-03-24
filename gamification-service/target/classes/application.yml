@@ -1,0 +1,13 @@
+spring:
+  application:
+    name: gamification-service
+  main:
+    web-application-type: servlet
+  config:
+    import: "optional:configserver:http://localhost:8888"
+  cloud:
+    config:
+      uri: http://localhost:8888
+      fail-fast: true
+
+

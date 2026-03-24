@@ -10,6 +10,7 @@
         <module name="course-service" />
         <module name="config-server" />
         <module name="post-service" />
+        <module name="gamification-service" />
         <module name="club-service" />
         <module name="event-service" />
         <module name="api-gateway" />
@@ -33,6 +34,7 @@
       <module name="educonnect-parent" options="-parameters" />
       <module name="eureka-server" options="-parameters" />
       <module name="event-service" options="-parameters" />
+      <module name="gamification-service" options="-parameters" />
       <module name="notification-service" options="-parameters" />
       <module name="post-service" options="-parameters" />
       <module name="user-service" options="-parameters" />
