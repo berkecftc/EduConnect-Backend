@@ -37,6 +37,7 @@ com/educonnect/postservice/model/PostStatus.class
 com/educonnect/postservice/dto/BookmarkResponse.class
 com/educonnect/postservice/model/PostBookmark.class
 com/educonnect/postservice/model/Post.class
+com/educonnect/postservice/dto/RecentPostDto.class
 com/educonnect/postservice/PostServiceApplication.class
 com/educonnect/postservice/exception/CommentNotFoundException.class
 com/educonnect/postservice/messaging/PostEventPublisher.class

@@ -1,5 +1,6 @@
 package com.educonnect.userservice.service;
 
+import com.educonnect.userservice.dto.request.UpdateUserProfileRequest;
 import com.educonnect.userservice.dto.response.ArchivedAcademicianDTO;
 import com.educonnect.userservice.dto.response.ArchivedStudentDTO;
 import com.educonnect.userservice.dto.response.UserProfileResponse;
@@ -30,6 +31,8 @@ import java.util.stream.Collectors;
 public class ProfileService {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(ProfileService.class);
+    private static final String USER_PROFILE_CACHE = "userProfileV2";
+    private static final String USER_PROFILE_BY_STUDENT_NUMBER_CACHE = "userProfileByStudentNumberV2";
 
     private final StudentRepository studentRepository;
     private final AcademicianRepository academicianRepository;
@@ -51,7 +54,7 @@ public class ProfileService {
     }
 
 
-    @Cacheable(value = "userProfile", key = "#userId")
+    @Cacheable(value = USER_PROFILE_CACHE, key = "#userId")
     public UserProfileResponse getUserProfile(UUID userId) {
 
         Optional<Student> studentOpt = studentRepository.findById(userId);
@@ -69,13 +72,41 @@ public class ProfileService {
         throw new RuntimeException("Profile not found for user ID: " + userId);
     }
 
+    @Transactional(readOnly = false)
+    @CacheEvict(value = USER_PROFILE_CACHE, key = "#userId")
+    public UserProfileResponse updateUserProfile(UUID userId, UpdateUserProfileRequest request) {
+        Optional<Student> studentOpt = studentRepository.findById(userId);
+        if (studentOpt.isPresent()) {
+            Student student = studentOpt.get();
+            applyCommonProfileUpdates(student, request);
+            Student saved = studentRepository.save(student);
+            return mapToResponse(saved);
+        }
+
+        Optional<Academician> academicianOpt = academicianRepository.findById(userId);
+        if (academicianOpt.isPresent()) {
+            Academician academician = academicianOpt.get();
+            applyCommonProfileUpdates(academician, request);
+            if (request.getTitle() != null) {
+                academician.setTitle(request.getTitle());
+            }
+            if (request.getOfficeNumber() != null) {
+                academician.setOfficeNumber(request.getOfficeNumber());
+            }
+            Academician saved = academicianRepository.save(academician);
+            return mapToResponse(saved);
+        }
+
+        throw new RuntimeException("Profile not found for user ID: " + userId);
+    }
+
     // --- YENİ METOT: Profil Resmi Yükleme ---
     /**
      * Bir kullanıcının profil resmini günceller, MinIO'ya yükler
      * ve Redis'teki eski profil cache'ini temizler.
      */
     @Transactional(readOnly = false)
-    @CacheEvict(value = "userProfile", key = "#userId") // Başarılı olursa cache'i temizle!
+    @CacheEvict(value = USER_PROFILE_CACHE, key = "#userId") // Başarılı olursa cache'i temizle!
     public String uploadProfilePicture(UUID userId, MultipartFile file) {
 
         // 1. Önce kullanıcının profilinin var olup olmadığını kontrol et
@@ -123,7 +154,7 @@ public class ProfileService {
      * @param reason Silme nedeni (opsiyonel)
      */
     @Transactional(readOnly = false)
-    @CacheEvict(value = "userProfile", key = "#userId")
+    @CacheEvict(value = USER_PROFILE_CACHE, key = "#userId")
     public void archiveStudent(UUID userId, String reason) {
         Student student = studentRepository.findById(userId)
             .orElseThrow(() -> new RuntimeException("Student not found with ID: " + userId));
@@ -156,7 +187,7 @@ public class ProfileService {
      * @param reason Silme nedeni (opsiyonel)
      */
     @Transactional(readOnly = false)
-    @CacheEvict(value = "userProfile", key = "#userId")
+    @CacheEvict(value = USER_PROFILE_CACHE, key = "#userId")
     public void archiveAcademician(UUID userId, String reason) {
         Academician academician = academicianRepository.findById(userId)
             .orElseThrow(() -> new RuntimeException("Academician not found with ID: " + userId));
@@ -239,7 +270,7 @@ public class ProfileService {
      * @return Öğrenci profil bilgileri
      * @throws RuntimeException Öğrenci bulunamazsa
      */
-    @Cacheable(value = "userProfileByStudentNumber", key = "#studentNumber")
+    @Cacheable(value = USER_PROFILE_BY_STUDENT_NUMBER_CACHE, key = "#studentNumber")
     public UserProfileResponse getStudentByStudentNumber(String studentNumber) {
         Student student = studentRepository.findByStudentNumber(studentNumber)
                 .orElseThrow(() -> new RuntimeException(
@@ -256,6 +287,7 @@ public class ProfileService {
         dto.setLastName(student.getLastName());
         dto.setEmail(student.getEmail());
         dto.setProfileImageUrl(student.getProfileImageUrl());
+        dto.setBio(student.getBio());
         dto.setDepartment(student.getDepartment());
         dto.setStudentNumber(student.getStudentNumber());
         dto.setRole("Student");
@@ -268,9 +300,40 @@ public class ProfileService {
         dto.setFirstName(academician.getFirstName());
         dto.setLastName(academician.getLastName());
         dto.setProfileImageUrl(academician.getProfileImageUrl());
+        dto.setBio(academician.getBio());
         dto.setDepartment(academician.getDepartment());
         dto.setTitle(academician.getTitle());
         dto.setRole("Academician");
         return dto;
+    }
+
+    private void applyCommonProfileUpdates(Student student, UpdateUserProfileRequest request) {
+        if (request.getFirstName() != null) {
+            student.setFirstName(request.getFirstName());
+        }
+        if (request.getLastName() != null) {
+            student.setLastName(request.getLastName());
+        }
+        if (request.getBio() != null) {
+            student.setBio(request.getBio());
+        }
+        if (request.getDepartment() != null) {
+            student.setDepartment(request.getDepartment());
+        }
+    }
+
+    private void applyCommonProfileUpdates(Academician academician, UpdateUserProfileRequest request) {
+        if (request.getFirstName() != null) {
+            academician.setFirstName(request.getFirstName());
+        }
+        if (request.getLastName() != null) {
+            academician.setLastName(request.getLastName());
+        }
+        if (request.getBio() != null) {
+            academician.setBio(request.getBio());
+        }
+        if (request.getDepartment() != null) {
+            academician.setDepartment(request.getDepartment());
+        }
     }
 }

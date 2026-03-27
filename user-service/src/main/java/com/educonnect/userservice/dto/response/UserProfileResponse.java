@@ -5,11 +5,14 @@ import java.util.UUID;
 
 public class UserProfileResponse implements Serializable{
 
+    private static final long serialVersionUID = -8383490846158348982L;
+
     private UUID id;
     private String firstName;
     private String lastName;
     private String email; // Kullanıcının e-posta adresi
     private String profileImageUrl;
+    private String bio;
     private String role; // "Student" veya "Academician"
 
     private String studentNumber; // Sadece öğrenciyse dolu olacak
@@ -28,6 +31,8 @@ public class UserProfileResponse implements Serializable{
     public void setEmail(String email) { this.email = email; }
     public String getProfileImageUrl() { return profileImageUrl; }
     public void setProfileImageUrl(String profileImageUrl) { this.profileImageUrl = profileImageUrl; }
+    public String getBio() { return bio; }
+    public void setBio(String bio) { this.bio = bio; }
     public String getRole() { return role; }
     public void setRole(String role) { this.role = role; }
     public String getStudentNumber() { return studentNumber; }

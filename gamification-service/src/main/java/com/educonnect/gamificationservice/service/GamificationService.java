@@ -1,7 +1,7 @@
 package com.educonnect.gamificationservice.service;
 
 import com.educonnect.gamificationservice.dto.event.GamificationEvent;
-import com.educonnect.gamificationservice.model.ActionType;
+import com.educonnect.gamificationservice.dto.response.GamificationSummaryResponse;
 import com.educonnect.gamificationservice.model.PointHistory;
 import com.educonnect.gamificationservice.model.UserReputation;
 import com.educonnect.gamificationservice.repository.PointHistoryRepository;
@@ -10,6 +10,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
 
@@ -17,6 +18,8 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
 import java.time.ZoneId;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 
 @Service
@@ -95,6 +98,20 @@ public class GamificationService {
         return transactionTemplate.execute(status -> userReputationRepository.resetInactiveStreaks(yesterday));
     }
 
+    @Transactional(readOnly = true)
+    public GamificationSummaryResponse getUserSummary(UUID userId) {
+        UserReputation reputation = userReputationRepository.findById(userId)
+                .orElseGet(() -> UserReputation.initialize(userId));
+
+        List<String> badges = resolveBadges(reputation.getTotalPoints(), reputation.getHighestStreak());
+        return new GamificationSummaryResponse(
+                reputation.getTotalPoints(),
+                reputation.getCurrentStreak(),
+                reputation.getHighestStreak(),
+                badges
+        );
+    }
+
     private int applyDailyLoginStreak(UserReputation reputation, OffsetDateTime occurredAt) {
         LocalDate loginDate = resolveOccurredAt(occurredAt).toLocalDate();
 
@@ -135,6 +152,25 @@ public class GamificationService {
                 event.getReferenceId() == null || event.getReferenceId().isBlank()) {
             throw new IllegalArgumentException("Gamification event validation failed");
         }
+    }
+
+    private List<String> resolveBadges(int totalPoints, int highestStreak) {
+        List<String> badges = new ArrayList<>();
+
+        if (totalPoints >= 1000) {
+            badges.add("POINTS_MASTER");
+        }
+        if (totalPoints >= 250) {
+            badges.add("POINTS_EXPLORER");
+        }
+        if (highestStreak >= 30) {
+            badges.add("STREAK_LEGEND");
+        }
+        if (highestStreak >= 7) {
+            badges.add("WEEK_WARRIOR");
+        }
+
+        return badges;
     }
 }
 

@@ -2,6 +2,7 @@ package com.educonnect.postservice.controller;
 
 import com.educonnect.postservice.dto.CreatePostRequest;
 import com.educonnect.postservice.dto.PostResponse;
+import com.educonnect.postservice.dto.RecentPostDto;
 import com.educonnect.postservice.dto.UpdatePostRequest;
 import com.educonnect.postservice.service.PostService;
 import jakarta.validation.Valid;
@@ -12,6 +13,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
 import java.util.UUID;
 
 @RestController
@@ -120,6 +122,11 @@ public class PostController {
         postService.validatePostAccess(roles);
         UUID currentUserId = UUID.fromString(authenticatedUserId);
         return ResponseEntity.ok(postService.getPostById(postId, currentUserId));
+    }
+
+    @GetMapping("/internal/users/{userId}/recent")
+    public ResponseEntity<List<RecentPostDto>> getRecentPostsByUser(@PathVariable UUID userId) {
+        return ResponseEntity.ok(postService.getRecentPostsByUser(userId));
     }
 }
 

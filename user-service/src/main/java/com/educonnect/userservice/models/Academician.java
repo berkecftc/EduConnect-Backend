@@ -22,6 +22,8 @@ public class Academician {
 
     private String officeNumber;
 
+    private String bio;
+
     private String profileImageUrl; // MinIO'da saklanan profil resminin URL'si
 
     private String idCardImageUrl; // Akademisyen kimlik kartı fotoğrafı URL'si (MinIO'da)
@@ -84,6 +86,14 @@ public class Academician {
 
     public void setOfficeNumber(String officeNumber) {
         this.officeNumber = officeNumber;
+    }
+
+    public String getBio() {
+        return bio;
+    }
+
+    public void setBio(String bio) {
+        this.bio = bio;
     }
 
     public String getProfileImageUrl() {

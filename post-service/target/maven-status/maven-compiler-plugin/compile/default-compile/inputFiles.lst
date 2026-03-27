@@ -13,6 +13,7 @@
 /Users/berkeciftci/Desktop/EduConnect-Backend/post-service/src/main/java/com/educonnect/postservice/dto/CreatePostRequest.java
 /Users/berkeciftci/Desktop/EduConnect-Backend/post-service/src/main/java/com/educonnect/postservice/dto/LikeResponse.java
 /Users/berkeciftci/Desktop/EduConnect-Backend/post-service/src/main/java/com/educonnect/postservice/dto/PostResponse.java
+/Users/berkeciftci/Desktop/EduConnect-Backend/post-service/src/main/java/com/educonnect/postservice/dto/RecentPostDto.java
 /Users/berkeciftci/Desktop/EduConnect-Backend/post-service/src/main/java/com/educonnect/postservice/dto/UpdatePostRequest.java
 /Users/berkeciftci/Desktop/EduConnect-Backend/post-service/src/main/java/com/educonnect/postservice/dto/UserSummaryDto.java
 /Users/berkeciftci/Desktop/EduConnect-Backend/post-service/src/main/java/com/educonnect/postservice/event/ActionType.java

@@ -7,6 +7,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
+import java.util.List;
 import java.util.UUID;
 
 @Repository
@@ -18,6 +19,8 @@ public interface PostRepository extends JpaRepository<Post, UUID> {
      * Tek sorgu çalışır — N+1 riski yoktur.
      */
     Page<Post> findByStatus(PostStatus status, Pageable pageable);
+
+    List<Post> findTop5ByAuthorIdAndStatusOrderByCreatedAtDesc(UUID authorId, PostStatus status);
 
     /**
      * Verilen post'un belirtilen yazara ait olup olmadığını kontrol eder.

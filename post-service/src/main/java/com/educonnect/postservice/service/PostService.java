@@ -3,6 +3,7 @@ package com.educonnect.postservice.service;
 import com.educonnect.postservice.client.UserClient;
 import com.educonnect.postservice.dto.CreatePostRequest;
 import com.educonnect.postservice.dto.PostResponse;
+import com.educonnect.postservice.dto.RecentPostDto;
 import com.educonnect.postservice.dto.UpdatePostRequest;
 import com.educonnect.postservice.dto.UserSummaryDto;
 import com.educonnect.postservice.event.PostModerationEvent;
@@ -185,11 +186,9 @@ public class PostService {
                 .toList();
 
         Map<UUID, UserSummaryDto> userCache = uniqueAuthorIds.stream()
-                .collect(Collectors.toMap(
-                        Function.identity(),
-                        id -> fetchUserSafely(id),
-                        (existing, replacement) -> existing
-                ));
+                .map(id -> Map.entry(id, fetchUserSafely(id)))
+                .filter(entry -> entry.getValue() != null)
+                .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
 
         return postPage.map(post -> mapToResponseWithUser(post, userCache.get(post.getAuthorId()), currentUserId));
     }
@@ -215,11 +214,9 @@ public class PostService {
                 .toList();
 
         Map<UUID, UserSummaryDto> userCache = uniqueAuthorIds.stream()
-                .collect(Collectors.toMap(
-                        Function.identity(),
-                        this::fetchUserSafely,
-                        (existing, replacement) -> existing
-                ));
+                .map(id -> Map.entry(id, fetchUserSafely(id)))
+                .filter(entry -> entry.getValue() != null)
+                .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
 
         List<PostResponse> responses = bookmarkPage.getContent().stream()
                 .filter(bookmark -> postMap.containsKey(bookmark.getPostId()))
@@ -240,6 +237,22 @@ public class PostService {
         Post post = findPostOrThrow(postId);
         UserSummaryDto user = fetchUserSafely(post.getAuthorId());
         return mapToResponseWithUser(post, user, currentUserId);
+    }
+
+    /**
+     * API Composition için: kullanıcının en güncel 5 yayınlanmış postunu döndürür.
+     */
+    @Transactional(readOnly = true)
+    public List<RecentPostDto> getRecentPostsByUser(UUID userId) {
+        return postRepository.findTop5ByAuthorIdAndStatusOrderByCreatedAtDesc(userId, PostStatus.PUBLISHED)
+                .stream()
+                .map(post -> new RecentPostDto(
+                        post.getId(),
+                        post.getTitle(),
+                        post.getContent(),
+                        post.getCreatedAt()
+                ))
+                .toList();
     }
 
     // ═══════════════════════════════════════════════

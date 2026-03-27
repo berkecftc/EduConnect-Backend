@@ -25,6 +25,9 @@ public class Student {
     @Column(name = "department")
     private String department;
 
+    @Column(name = "bio")
+    private String bio;
+
     private String profileImageUrl; // MinIO'da saklanan profil resminin URL'si
 
     @Column(name = "student_document_url")
@@ -88,6 +91,14 @@ public class Student {
 
     public void setDepartment(String department) {
         this.department = department;
+    }
+
+    public String getBio() {
+        return bio;
+    }
+
+    public void setBio(String bio) {
+        this.bio = bio;
     }
 
     public String getProfileImageUrl() {
