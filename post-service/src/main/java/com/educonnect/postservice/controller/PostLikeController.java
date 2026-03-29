@@ -10,10 +10,10 @@ import java.util.UUID;
 
 /**
  * Beğeni endpoint'i.
- * Toggle mantığı ile çalışır: Beğenmişse geri al, beğenmemişse beğen.
+ * Geriye uyumluluk için toggle yanında explicit like/unlike endpoint'leri de sunar.
  */
 @RestController
-@RequestMapping("/api/posts/{postId}/like")
+@RequestMapping({"/api/posts/{postId}/like", "/api/posts/{postId}/likes"})
 public class PostLikeController {
 
     private final PostLikeService postLikeService;
@@ -25,7 +25,37 @@ public class PostLikeController {
     }
 
     /**
-     * Post'u beğen veya beğeniyi geri al (toggle).
+     * Post'u beğen (idempotent).
+     */
+    @PutMapping
+    public ResponseEntity<LikeResponse> likePost(
+            @PathVariable UUID postId,
+            @RequestHeader("X-Authenticated-User-Id") String authenticatedUserId,
+            @RequestHeader("X-Authenticated-User-Roles") String roles
+    ) {
+        postService.validatePostAccess(roles);
+        UUID userId = UUID.fromString(authenticatedUserId);
+        LikeResponse response = postLikeService.likePost(postId, userId);
+        return ResponseEntity.ok(response);
+    }
+
+    /**
+     * Post beğenisini kaldır (idempotent).
+     */
+    @DeleteMapping
+    public ResponseEntity<LikeResponse> unlikePost(
+            @PathVariable UUID postId,
+            @RequestHeader("X-Authenticated-User-Id") String authenticatedUserId,
+            @RequestHeader("X-Authenticated-User-Roles") String roles
+    ) {
+        postService.validatePostAccess(roles);
+        UUID userId = UUID.fromString(authenticatedUserId);
+        LikeResponse response = postLikeService.unlikePost(postId, userId);
+        return ResponseEntity.ok(response);
+    }
+
+    /**
+     * Post'u beğen veya beğeniyi geri al (toggle, geriye uyumluluk için).
      */
     @PostMapping
     public ResponseEntity<LikeResponse> toggleLike(

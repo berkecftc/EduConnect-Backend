@@ -3,6 +3,7 @@ package com.educonnect.postservice.service;
 import com.educonnect.postservice.dto.LikeResponse;
 import com.educonnect.postservice.exception.PostNotFoundException;
 import com.educonnect.postservice.model.PostLike;
+import com.educonnect.postservice.model.PostStatus;
 import com.educonnect.postservice.repository.PostLikeRepository;
 import com.educonnect.postservice.repository.PostRepository;
 import org.slf4j.Logger;
@@ -35,28 +36,55 @@ public class PostLikeService {
      */
     @Transactional
     public LikeResponse toggleLike(UUID postId, UUID userId) {
-        if (!postRepository.existsById(postId)) {
-            throw new PostNotFoundException("Post bulunamadı: " + postId);
-        }
+        validateLikeablePost(postId);
 
         Optional<PostLike> existingLike = postLikeRepository.findByPostIdAndUserId(postId, userId);
 
         if (existingLike.isPresent()) {
-            // Beğeni geri al
-            postLikeRepository.delete(existingLike.get());
-            log.info("👎 Beğeni geri alındı — postId: {}, userId: {}", postId, userId);
-            long count = postLikeRepository.countByPostId(postId);
-            return new LikeResponse(false, count);
-        } else {
-            // Beğen
-            PostLike like = new PostLike();
-            like.setPostId(postId);
-            like.setUserId(userId);
-            postLikeRepository.save(like);
-            log.info("👍 Post beğenildi — postId: {}, userId: {}", postId, userId);
+            return unlikePost(postId, userId);
+        }
+
+        return likePost(postId, userId);
+    }
+
+    /**
+     * Post'u beğenir. Kullanıcı zaten beğenmişse idempotent şekilde mevcut durumu döner.
+     */
+    @Transactional
+    public LikeResponse likePost(UUID postId, UUID userId) {
+        validateLikeablePost(postId);
+
+        if (postLikeRepository.existsByPostIdAndUserId(postId, userId)) {
             long count = postLikeRepository.countByPostId(postId);
             return new LikeResponse(true, count);
         }
+
+        PostLike like = new PostLike();
+        like.setPostId(postId);
+        like.setUserId(userId);
+        postLikeRepository.save(like);
+        log.info("👍 Post beğenildi — postId: {}, userId: {}", postId, userId);
+
+        long count = postLikeRepository.countByPostId(postId);
+        return new LikeResponse(true, count);
+    }
+
+    /**
+     * Post beğenisini kaldırır. Kullanıcı daha önce beğenmemişse idempotent şekilde mevcut durumu döner.
+     */
+    @Transactional
+    public LikeResponse unlikePost(UUID postId, UUID userId) {
+        validateLikeablePost(postId);
+
+        Optional<PostLike> existingLike = postLikeRepository.findByPostIdAndUserId(postId, userId);
+
+        if (existingLike.isPresent()) {
+            postLikeRepository.delete(existingLike.get());
+            log.info("👎 Beğeni geri alındı — postId: {}, userId: {}", postId, userId);
+        }
+
+        long count = postLikeRepository.countByPostId(postId);
+        return new LikeResponse(false, count);
     }
 
     /**
@@ -71,6 +99,15 @@ public class PostLikeService {
      */
     public boolean isLikedByUser(UUID postId, UUID userId) {
         return postLikeRepository.existsByPostIdAndUserId(postId, userId);
+    }
+
+    private void validateLikeablePost(UUID postId) {
+        var post = postRepository.findById(postId)
+                .orElseThrow(() -> new PostNotFoundException("Post bulunamadı: " + postId));
+
+        if (post.getStatus() != PostStatus.PUBLISHED) {
+            throw new IllegalArgumentException("Sadece yayınlanmış postlar beğenilebilir.");
+        }
     }
 }
 
