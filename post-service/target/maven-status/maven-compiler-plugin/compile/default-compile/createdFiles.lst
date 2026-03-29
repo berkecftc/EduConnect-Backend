@@ -26,6 +26,7 @@ com/educonnect/postservice/repository/PostBookmarkRepository.class
 com/educonnect/postservice/repository/PostLikeRepository.class
 com/educonnect/postservice/controller/CommentReplyController.class
 com/educonnect/postservice/service/PostBookmarkService.class
+com/educonnect/postservice/service/PostService$1.class
 com/educonnect/postservice/controller/PostController.class
 com/educonnect/postservice/service/CommentService.class
 com/educonnect/postservice/dto/CreateCommentRequest.class

@@ -96,18 +96,29 @@ public class PostModerationConsumer {
             log.info("✅ Post yayınlandı — postId: {}", post.getId());
 
             if (post.getCategory() == PostCategory.DERS_NOTU) {
-                GamificationEvent gamificationEvent = new GamificationEvent(
-                        post.getAuthorId(),
-                        ActionType.POST_PUBLISHED,
-                        post.getId().toString(),
-                        OffsetDateTime.now()
-                );
-                rabbitTemplate.convertAndSend(
-                        RabbitMQConfig.GAMIFICATION_EXCHANGE,
-                        RabbitMQConfig.ROUTING_KEY_GAMIFICATION_POST_PUBLISHED,
-                        gamificationEvent
-                );
+                publishGamificationEventSafely(post);
             }
+        }
+    }
+
+    private void publishGamificationEventSafely(Post post) {
+        GamificationEvent gamificationEvent = new GamificationEvent(
+                post.getAuthorId(),
+                ActionType.POST_PUBLISHED,
+                post.getId().toString(),
+                OffsetDateTime.now()
+        );
+
+        try {
+            rabbitTemplate.convertAndSend(
+                    RabbitMQConfig.GAMIFICATION_EXCHANGE,
+                    RabbitMQConfig.ROUTING_KEY_GAMIFICATION_POST_PUBLISHED,
+                    gamificationEvent
+            );
+            log.info("🎯 Gamification olayı yayınlandı — postId: {}", post.getId());
+        } catch (Exception ex) {
+            // Moderasyon sonucu commit edilmeli; gamification publish hatası post'u tekrar PENDING yapmamalı.
+            log.error("❌ Gamification olayı yayınlanamadı, moderasyon sonucu korunuyor — postId: {}", post.getId(), ex);
         }
     }
 }

@@ -80,6 +80,7 @@ public class ProfileCreationListener {
             // DTO'dan gelen TÜM BİLGİLERİ doldur
             newAcademician.setFirstName(message.getFirstName());
             newAcademician.setLastName(message.getLastName());
+            newAcademician.setEmail(message.getEmail());
             newAcademician.setTitle(message.getTitle());
             newAcademician.setDepartment(message.getDepartment());
             newAcademician.setOfficeNumber(message.getOfficeNumber());

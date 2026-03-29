@@ -55,6 +55,10 @@ public class RabbitMQConfig {
                 "com.educonnect.postservice.event.GamificationEvent",
                 GamificationEvent.class
         );
+        idClassMapping.put(
+                "com.educonnect.userservice.dto.message.GamificationEventMessage",
+                GamificationEvent.class
+        );
         classMapper.setIdClassMapping(idClassMapping);
         converter.setClassMapper(classMapper);
         return converter;

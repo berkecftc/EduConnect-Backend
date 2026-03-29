@@ -115,6 +115,79 @@ class GamificationServiceTest {
         assertEquals(50, historyCaptor.getValue().getPointsEarned());
     }
 
+    @Test
+    void shouldRecordZeroPointsWhenDailyLimitReachedForAction() {
+        UUID userId = UUID.randomUUID();
+        UserReputation reputation = UserReputation.initialize(userId);
+        reputation.setTotalPoints(120);
+
+        GamificationEvent event = new GamificationEvent(
+                userId,
+                ActionType.POST_PUBLISHED,
+                "post-999",
+                OffsetDateTime.now()
+        );
+
+        when(pointHistoryRepository.existsByUserIdAndActionTypeAndReferenceId(userId, ActionType.POST_PUBLISHED, "post-999"))
+                .thenReturn(false);
+        when(pointHistoryRepository.countByUserIdAndActionTypeAndCreatedAtBetweenAndPointsEarnedGreaterThan(
+                eq(userId),
+                eq(ActionType.POST_PUBLISHED),
+                any(),
+                any(),
+                eq(0)
+        )).thenReturn(3L);
+        when(userReputationRepository.findById(userId)).thenReturn(Optional.of(reputation));
+
+        gamificationService.processEvent(event);
+
+        ArgumentCaptor<UserReputation> reputationCaptor = ArgumentCaptor.forClass(UserReputation.class);
+        verify(userReputationRepository).saveAndFlush(reputationCaptor.capture());
+        assertEquals(120, reputationCaptor.getValue().getTotalPoints());
+
+        ArgumentCaptor<PointHistory> historyCaptor = ArgumentCaptor.forClass(PointHistory.class);
+        verify(pointHistoryRepository).saveAndFlush(historyCaptor.capture());
+        assertEquals(0, historyCaptor.getValue().getPointsEarned());
+    }
+
+    @Test
+    void shouldAddProfileCompletedPoints() {
+        UUID userId = UUID.randomUUID();
+        UserReputation reputation = UserReputation.initialize(userId);
+        reputation.setTotalPoints(10);
+
+        GamificationEvent event = new GamificationEvent(
+                userId,
+                ActionType.PROFILE_COMPLETED,
+                "PROFILE_COMPLETED:" + userId,
+                OffsetDateTime.now()
+        );
+
+        when(pointHistoryRepository.existsByUserIdAndActionTypeAndReferenceId(
+                userId,
+                ActionType.PROFILE_COMPLETED,
+                "PROFILE_COMPLETED:" + userId
+        )).thenReturn(false);
+        when(pointHistoryRepository.countByUserIdAndActionTypeAndCreatedAtBetweenAndPointsEarnedGreaterThan(
+                eq(userId),
+                eq(ActionType.PROFILE_COMPLETED),
+                any(),
+                any(),
+                eq(0)
+        )).thenReturn(0L);
+        when(userReputationRepository.findById(userId)).thenReturn(Optional.of(reputation));
+
+        gamificationService.processEvent(event);
+
+        ArgumentCaptor<UserReputation> reputationCaptor = ArgumentCaptor.forClass(UserReputation.class);
+        verify(userReputationRepository).saveAndFlush(reputationCaptor.capture());
+        assertEquals(110, reputationCaptor.getValue().getTotalPoints());
+
+        ArgumentCaptor<PointHistory> historyCaptor = ArgumentCaptor.forClass(PointHistory.class);
+        verify(pointHistoryRepository).saveAndFlush(historyCaptor.capture());
+        assertEquals(100, historyCaptor.getValue().getPointsEarned());
+    }
+
     private static class NoOpTransactionManager implements PlatformTransactionManager {
 
         @Override

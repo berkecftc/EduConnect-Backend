@@ -353,6 +353,7 @@ public class AuthServiceImpl {
                 user.getId(),
                 req.getFirstName(),
                 req.getLastName(),
+                user.getEmail(),
                 req.getTitle(),
                 req.getDepartment(),
                 req.getOfficeNumber(),

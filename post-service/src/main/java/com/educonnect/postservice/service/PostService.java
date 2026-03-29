@@ -24,6 +24,8 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Arrays;
@@ -100,7 +102,7 @@ public class PostService {
     /**
      * Yeni post oluşturur.
      * - Status başlangıçta PENDING olarak kaydedilir.
-     * - DB'ye kaydedildikten sonra moderasyon olayı RabbitMQ'ya fırlatılır.
+     * - Moderasyon olayı transaction commit'inden sonra RabbitMQ'ya fırlatılır.
      *
      * Mesaj kaybı analizi:
      * - @Transactional sayesinde DB kaydı garanti altındadır.
@@ -120,7 +122,7 @@ public class PostService {
         Post savedPost = postRepository.save(post);
         log.info("📝 Post oluşturuldu (PENDING) — postId: {}, authorId: {}", savedPost.getId(), authorId);
 
-        // Moderasyon olayını RabbitMQ'ya fırlat
+        // Moderasyon olayını commit sonrası yayınla
         publishModerationEvent(savedPost);
 
         UserSummaryDto user = fetchUserSafely(authorId);
@@ -145,7 +147,7 @@ public class PostService {
         Post updatedPost = postRepository.save(post);
         log.info("✏️ Post güncellendi (PENDING) — postId: {}, authorId: {}", updatedPost.getId(), authorId);
 
-        // Yeni moderasyon olayını RabbitMQ'ya fırlat
+        // Yeni moderasyon olayını commit sonrası yayınla
         publishModerationEvent(updatedPost);
 
         UserSummaryDto user = fetchUserSafely(authorId);
@@ -283,6 +285,19 @@ public class PostService {
                 post.getContent(),
                 UUID.randomUUID() // Her olay için benzersiz eventId
         );
+
+        // Consumer aynı serviste çalıştığı için commit öncesi publish edilirse
+        // listener post'u henüz göremeyebilir; bu nedenle publish'i commit sonrasına erteliyoruz.
+        if (TransactionSynchronizationManager.isActualTransactionActive()) {
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    eventPublisher.publishModerationEvent(event);
+                }
+            });
+            return;
+        }
+
         eventPublisher.publishModerationEvent(event);
     }
 

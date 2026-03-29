@@ -31,6 +31,9 @@ public class RabbitMQConfig {
     public static final String USER_DELETE_QUEUE = "user-delete-queue";
     public static final String USER_DELETE_ROUTING_KEY = "user.delete";
 
+    public static final String GAMIFICATION_EXCHANGE = "gamification.exchange";
+    public static final String GAMIFICATION_PROFILE_COMPLETED_ROUTING_KEY = "gamification.user.profile_completed";
+
     @Value("${user.listener.auto-start:true}")
     private boolean listenerAutoStart;
 

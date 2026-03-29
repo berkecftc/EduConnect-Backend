@@ -9,6 +9,7 @@ public class AcademicianProfileMessage implements Serializable {
     private UUID userId; // auth_db'deki User ID
     private String firstName;
     private String lastName;
+    private String email;
     private String title;
     private String department;
     private String officeNumber;
@@ -17,10 +18,11 @@ public class AcademicianProfileMessage implements Serializable {
     // JSON dönüşümü için boş constructor
     public AcademicianProfileMessage() {}
 
-    public AcademicianProfileMessage(UUID userId, String firstName, String lastName, String title, String department, String officeNumber, String idCardImageUrl) {
+    public AcademicianProfileMessage(UUID userId, String firstName, String lastName, String email, String title, String department, String officeNumber, String idCardImageUrl) {
         this.userId = userId;
         this.firstName = firstName;
         this.lastName = lastName;
+        this.email = email;
         this.title = title;
         this.department = department;
         this.officeNumber = officeNumber;
@@ -31,6 +33,8 @@ public class AcademicianProfileMessage implements Serializable {
     public void setFirstName(String firstName) { this.firstName = firstName; }
     public String getLastName() { return lastName; }
     public void setLastName(String lastName) { this.lastName = lastName; }
+    public String getEmail() { return email; }
+    public void setEmail(String email) { this.email = email; }
     public String getDepartment() { return department; }
     public void setDepartment(String department) { this.department = department; }
     public String getTitle() { return title; }

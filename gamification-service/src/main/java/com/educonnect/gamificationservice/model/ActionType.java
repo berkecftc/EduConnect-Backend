@@ -4,6 +4,7 @@ public enum ActionType {
     POST_PUBLISHED,
     ANSWER_ACCEPTED,
     DAILY_LOGIN,
-    VALID_REPORT
+    VALID_REPORT,
+    PROFILE_COMPLETED
 }
 

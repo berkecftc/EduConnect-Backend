@@ -16,6 +16,9 @@ public class Academician {
     @Column(nullable = false)
     private String lastName;
 
+    @Column(unique = true)
+    private String email;
+
     private String title;
 
     private String department;
@@ -62,6 +65,14 @@ public class Academician {
 
     public void setLastName(String lastName) {
         this.lastName = lastName;
+    }
+
+    public String getEmail() {
+        return email;
+    }
+
+    public void setEmail(String email) {
+        this.email = email;
     }
 
     public String getTitle() {

@@ -39,18 +39,21 @@ public class ProfileService {
     private final ArchivedStudentRepository archivedStudentRepository;
     private final ArchivedAcademicianRepository archivedAcademicianRepository;
     private final MinioService minioService;
+    private final GamificationEventPublisher gamificationEventPublisher;
 
     // Elle constructor ekleyelim
     public ProfileService(StudentRepository studentRepository,
                          AcademicianRepository academicianRepository,
                          ArchivedStudentRepository archivedStudentRepository,
                          ArchivedAcademicianRepository archivedAcademicianRepository,
-                         MinioService minioService) {
+                         MinioService minioService,
+                         GamificationEventPublisher gamificationEventPublisher) {
         this.studentRepository = studentRepository;
         this.academicianRepository = academicianRepository;
         this.archivedStudentRepository = archivedStudentRepository;
         this.archivedAcademicianRepository = archivedAcademicianRepository;
         this.minioService = minioService;
+        this.gamificationEventPublisher = gamificationEventPublisher;
     }
 
 
@@ -78,14 +81,17 @@ public class ProfileService {
         Optional<Student> studentOpt = studentRepository.findById(userId);
         if (studentOpt.isPresent()) {
             Student student = studentOpt.get();
+            boolean wasComplete = isStudentProfileComplete(student);
             applyCommonProfileUpdates(student, request);
             Student saved = studentRepository.save(student);
+            publishProfileCompletedIfNeeded(userId, wasComplete, isStudentProfileComplete(saved));
             return mapToResponse(saved);
         }
 
         Optional<Academician> academicianOpt = academicianRepository.findById(userId);
         if (academicianOpt.isPresent()) {
             Academician academician = academicianOpt.get();
+            boolean wasComplete = isAcademicianProfileComplete(academician);
             applyCommonProfileUpdates(academician, request);
             if (request.getTitle() != null) {
                 academician.setTitle(request.getTitle());
@@ -94,6 +100,7 @@ public class ProfileService {
                 academician.setOfficeNumber(request.getOfficeNumber());
             }
             Academician saved = academicianRepository.save(academician);
+            publishProfileCompletedIfNeeded(userId, wasComplete, isAcademicianProfileComplete(saved));
             return mapToResponse(saved);
         }
 
@@ -128,20 +135,24 @@ public class ProfileService {
         // 3. Veritabanındaki kaydı güncelle
         if (studentOpt.isPresent()) {
             Student student = studentOpt.get();
+            boolean wasComplete = isStudentProfileComplete(student);
             LOGGER.info("Updating student profile. Old profileImageUrl: {}, New: {}",
                 student.getProfileImageUrl(), objectName);
             student.setProfileImageUrl(objectName);
             Student saved = studentRepository.save(student);
             LOGGER.info("Student profile saved. Current profileImageUrl in DB: {}",
                 saved.getProfileImageUrl());
+            publishProfileCompletedIfNeeded(userId, wasComplete, isStudentProfileComplete(saved));
         } else {
             Academician academician = academicianOpt.get();
+            boolean wasComplete = isAcademicianProfileComplete(academician);
             LOGGER.info("Updating academician profile. Old profileImageUrl: {}, New: {}",
                 academician.getProfileImageUrl(), objectName);
             academician.setProfileImageUrl(objectName);
             Academician saved = academicianRepository.save(academician);
             LOGGER.info("Academician profile saved. Current profileImageUrl in DB: {}",
                 saved.getProfileImageUrl());
+            publishProfileCompletedIfNeeded(userId, wasComplete, isAcademicianProfileComplete(saved));
         }
 
         // 4. MinIO'daki dosya yolunu döndür
@@ -299,6 +310,7 @@ public class ProfileService {
         dto.setId(academician.getId());
         dto.setFirstName(academician.getFirstName());
         dto.setLastName(academician.getLastName());
+        dto.setEmail(academician.getEmail());
         dto.setProfileImageUrl(academician.getProfileImageUrl());
         dto.setBio(academician.getBio());
         dto.setDepartment(academician.getDepartment());
@@ -335,5 +347,37 @@ public class ProfileService {
         if (request.getDepartment() != null) {
             academician.setDepartment(request.getDepartment());
         }
+    }
+
+    private void publishProfileCompletedIfNeeded(UUID userId, boolean wasComplete, boolean isNowComplete) {
+        if (!wasComplete && isNowComplete) {
+            gamificationEventPublisher.publishProfileCompleted(userId);
+            LOGGER.info("Profile completion gamification event published. userId={}", userId);
+        }
+    }
+
+    private boolean isStudentProfileComplete(Student student) {
+        return hasText(student.getFirstName())
+                && hasText(student.getLastName())
+                && hasText(student.getEmail())
+                && hasText(student.getProfileImageUrl())
+                && hasText(student.getBio())
+                && hasText(student.getDepartment())
+                && hasText(student.getStudentNumber());
+    }
+
+    private boolean isAcademicianProfileComplete(Academician academician) {
+        return hasText(academician.getFirstName())
+                && hasText(academician.getLastName())
+                && hasText(academician.getEmail())
+                && hasText(academician.getProfileImageUrl())
+                && hasText(academician.getBio())
+                && hasText(academician.getDepartment())
+                && hasText(academician.getTitle())
+                && hasText(academician.getOfficeNumber());
+    }
+
+    private boolean hasText(String value) {
+        return value != null && !value.isBlank();
     }
 }

@@ -2,6 +2,7 @@ package com.educonnect.gamificationservice.service;
 
 import com.educonnect.gamificationservice.dto.event.GamificationEvent;
 import com.educonnect.gamificationservice.dto.response.GamificationSummaryResponse;
+import com.educonnect.gamificationservice.model.ActionType;
 import com.educonnect.gamificationservice.model.PointHistory;
 import com.educonnect.gamificationservice.model.UserReputation;
 import com.educonnect.gamificationservice.repository.PointHistoryRepository;
@@ -31,8 +32,10 @@ public class GamificationService {
     private static final int ANSWER_ACCEPTED_POINTS = 50;
     private static final int VALID_REPORT_POINTS = 15;
     private static final int STREAK_BONUS_POINTS = 50;
+    private static final int PROFILE_COMPLETED_POINTS = 100;
 
     private static final int STREAK_BONUS_THRESHOLD = 7;
+    private static final int MAX_DAILY_POINT_EARNINGS_PER_ACTION = 3;
     private static final int MAX_OPTIMISTIC_RETRIES = 3;
 
     private final UserReputationRepository userReputationRepository;
@@ -65,6 +68,8 @@ public class GamificationService {
     private void processEventInTransaction(GamificationEvent event) {
         validateEvent(event);
 
+        LocalDateTime eventOccurredAt = resolveOccurredAt(event.getOccurredAt());
+
         if (pointHistoryRepository.existsByUserIdAndActionTypeAndReferenceId(
                 event.getUserId(), event.getActionType(), event.getReferenceId())) {
             log.info("Duplicate event skipped by idempotency check. userId={}, actionType={}, referenceId={}",
@@ -75,12 +80,20 @@ public class GamificationService {
         UserReputation reputation = userReputationRepository.findById(event.getUserId())
                 .orElseGet(() -> UserReputation.initialize(event.getUserId()));
 
-        int earnedPoints = switch (event.getActionType()) {
-            case POST_PUBLISHED -> POST_PUBLISHED_POINTS;
-            case ANSWER_ACCEPTED -> ANSWER_ACCEPTED_POINTS;
-            case VALID_REPORT -> VALID_REPORT_POINTS;
-            case DAILY_LOGIN -> applyDailyLoginStreak(reputation, event.getOccurredAt());
-        };
+        int earnedPoints;
+        if (isDailyPointsLimitReached(event.getUserId(), event.getActionType(), eventOccurredAt.toLocalDate())) {
+            earnedPoints = 0;
+            log.info("Daily points limit reached. userId={}, actionType={}, limit={}",
+                    event.getUserId(), event.getActionType(), MAX_DAILY_POINT_EARNINGS_PER_ACTION);
+        } else {
+            earnedPoints = switch (event.getActionType()) {
+                case POST_PUBLISHED -> POST_PUBLISHED_POINTS;
+                case ANSWER_ACCEPTED -> ANSWER_ACCEPTED_POINTS;
+                case VALID_REPORT -> VALID_REPORT_POINTS;
+                case DAILY_LOGIN -> applyDailyLoginStreak(reputation, event.getOccurredAt());
+                case PROFILE_COMPLETED -> PROFILE_COMPLETED_POINTS;
+            };
+        }
 
         reputation.setTotalPoints(reputation.getTotalPoints() + earnedPoints);
         userReputationRepository.saveAndFlush(reputation);
@@ -90,8 +103,21 @@ public class GamificationService {
         pointHistory.setActionType(event.getActionType());
         pointHistory.setReferenceId(event.getReferenceId());
         pointHistory.setPointsEarned(earnedPoints);
-        pointHistory.setCreatedAt(resolveOccurredAt(event.getOccurredAt()));
+        pointHistory.setCreatedAt(eventOccurredAt);
         pointHistoryRepository.saveAndFlush(pointHistory);
+    }
+
+    private boolean isDailyPointsLimitReached(UUID userId, ActionType actionType, LocalDate eventDate) {
+        LocalDateTime dayStart = eventDate.atStartOfDay();
+        LocalDateTime dayEnd = eventDate.plusDays(1).atStartOfDay().minusNanos(1);
+        long earnedCount = pointHistoryRepository.countByUserIdAndActionTypeAndCreatedAtBetweenAndPointsEarnedGreaterThan(
+                userId,
+                actionType,
+                dayStart,
+                dayEnd,
+                0
+        );
+        return earnedCount >= MAX_DAILY_POINT_EARNINGS_PER_ACTION;
     }
 
     public int resetInactiveStreaks(LocalDate yesterday) {

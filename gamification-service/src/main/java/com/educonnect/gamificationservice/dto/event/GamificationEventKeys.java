@@ -6,6 +6,7 @@ public final class GamificationEventKeys {
     public static final String ANSWER_ACCEPTED = "gamification.answer.accepted";
     public static final String REPORT_RESOLVED = "gamification.report.resolved";
     public static final String USER_LOGIN = "gamification.user.login";
+    public static final String USER_PROFILE_COMPLETED = "gamification.user.profile_completed";
 
     private GamificationEventKeys() {
     }

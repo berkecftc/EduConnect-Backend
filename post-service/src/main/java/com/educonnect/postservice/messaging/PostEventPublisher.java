@@ -11,7 +11,7 @@ import org.springframework.stereotype.Service;
  * Post moderasyon olaylarını RabbitMQ'ya yayınlar.
  *
  * Mesaj kaybı önlemi:
- * - Service katmanında @Transactional içinde DB kayıt yapıldıktan SONRA çağrılır.
+ * - Service katmanı event'i transaction commit olduktan sonra publish edecek şekilde çağırır.
  * - Jackson2JsonMessageConverter ile JSON serileştirme kullanılır.
  * - Kuyruk durable olduğu için broker yeniden başlasa bile mesaj korunur.
  */
