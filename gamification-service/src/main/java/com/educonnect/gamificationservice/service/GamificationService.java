@@ -1,7 +1,10 @@
 package com.educonnect.gamificationservice.service;
 
+import com.educonnect.gamificationservice.client.UserServiceClient;
+import com.educonnect.gamificationservice.client.dto.UserProfileClientResponse;
 import com.educonnect.gamificationservice.dto.event.GamificationEvent;
 import com.educonnect.gamificationservice.dto.response.GamificationSummaryResponse;
+import com.educonnect.gamificationservice.dto.response.LeaderboardEntryResponse;
 import com.educonnect.gamificationservice.model.ActionType;
 import com.educonnect.gamificationservice.model.PointHistory;
 import com.educonnect.gamificationservice.model.UserReputation;
@@ -9,11 +12,14 @@ import com.educonnect.gamificationservice.repository.PointHistoryRepository;
 import com.educonnect.gamificationservice.repository.UserReputationRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.http.HttpStatus;
 import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -21,6 +27,7 @@ import java.time.OffsetDateTime;
 import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.UUID;
 
 @Service
@@ -37,16 +44,21 @@ public class GamificationService {
     private static final int STREAK_BONUS_THRESHOLD = 7;
     private static final int MAX_DAILY_POINT_EARNINGS_PER_ACTION = 3;
     private static final int MAX_OPTIMISTIC_RETRIES = 3;
+    private static final int MAX_LEADERBOARD_LIMIT = 100;
+    private static final String UNKNOWN_USER_DISPLAY_NAME = "Bilinmeyen Kullanici";
 
     private final UserReputationRepository userReputationRepository;
     private final PointHistoryRepository pointHistoryRepository;
+    private final UserServiceClient userServiceClient;
     private final TransactionTemplate transactionTemplate;
 
     public GamificationService(UserReputationRepository userReputationRepository,
                                PointHistoryRepository pointHistoryRepository,
+                               UserServiceClient userServiceClient,
                                PlatformTransactionManager transactionManager) {
         this.userReputationRepository = userReputationRepository;
         this.pointHistoryRepository = pointHistoryRepository;
+        this.userServiceClient = userServiceClient;
         this.transactionTemplate = new TransactionTemplate(transactionManager);
     }
 
@@ -136,6 +148,61 @@ public class GamificationService {
                 reputation.getHighestStreak(),
                 badges
         );
+    }
+
+    @Transactional(readOnly = true)
+    public List<LeaderboardEntryResponse> getLeaderboard(int limit) {
+        if (limit <= 0 || limit > MAX_LEADERBOARD_LIMIT) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "Leaderboard limit 1 ile " + MAX_LEADERBOARD_LIMIT + " arasinda olmali"
+            );
+        }
+
+        List<UserReputation> reputations = userReputationRepository.findByOrderByTotalPointsDescUserIdAsc(
+                PageRequest.of(0, limit)
+        );
+
+        List<LeaderboardEntryResponse> leaderboard = new ArrayList<>(reputations.size());
+        for (int i = 0; i < reputations.size(); i++) {
+            UserReputation reputation = reputations.get(i);
+            leaderboard.add(new LeaderboardEntryResponse(
+                    i + 1,
+                    resolveDisplayName(reputation.getUserId()),
+                    reputation.getTotalPoints(),
+                    reputation.getCurrentStreak()
+            ));
+        }
+        return leaderboard;
+    }
+
+    private String resolveDisplayName(UUID userId) {
+        try {
+            UserProfileClientResponse profile = userServiceClient.getProfileById(userId);
+            if (profile == null) {
+                return UNKNOWN_USER_DISPLAY_NAME;
+            }
+
+            String firstName = normalizeName(profile.getFirstName());
+            String lastName = normalizeName(profile.getLastName());
+            if (firstName == null && lastName == null) {
+                return UNKNOWN_USER_DISPLAY_NAME;
+            }
+            return String.join(" ",
+                    Objects.requireNonNullElse(firstName, ""),
+                    Objects.requireNonNullElse(lastName, "")
+            ).trim();
+        } catch (Exception ex) {
+            log.warn("User profile could not be resolved for leaderboard. userId={}", userId, ex);
+            return UNKNOWN_USER_DISPLAY_NAME;
+        }
+    }
+
+    private String normalizeName(String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        return value.trim();
     }
 
     private int applyDailyLoginStreak(UserReputation reputation, OffsetDateTime occurredAt) {

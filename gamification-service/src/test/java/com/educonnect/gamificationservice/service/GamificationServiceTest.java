@@ -1,5 +1,7 @@
 package com.educonnect.gamificationservice.service;
 
+import com.educonnect.gamificationservice.client.UserServiceClient;
+import com.educonnect.gamificationservice.client.dto.UserProfileClientResponse;
 import com.educonnect.gamificationservice.dto.event.GamificationEvent;
 import com.educonnect.gamificationservice.model.ActionType;
 import com.educonnect.gamificationservice.model.PointHistory;
@@ -13,19 +15,23 @@ import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.TransactionDefinition;
 import org.springframework.transaction.TransactionStatus;
 import org.springframework.transaction.support.SimpleTransactionStatus;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -33,15 +39,18 @@ class GamificationServiceTest {
 
     private UserReputationRepository userReputationRepository;
     private PointHistoryRepository pointHistoryRepository;
+    private UserServiceClient userServiceClient;
     private GamificationService gamificationService;
 
     @BeforeEach
     void setUp() {
         userReputationRepository = mock(UserReputationRepository.class);
         pointHistoryRepository = mock(PointHistoryRepository.class);
+        userServiceClient = mock(UserServiceClient.class);
         gamificationService = new GamificationService(
                 userReputationRepository,
                 pointHistoryRepository,
+                userServiceClient,
                 new NoOpTransactionManager()
         );
     }
@@ -186,6 +195,70 @@ class GamificationServiceTest {
         ArgumentCaptor<PointHistory> historyCaptor = ArgumentCaptor.forClass(PointHistory.class);
         verify(pointHistoryRepository).saveAndFlush(historyCaptor.capture());
         assertEquals(100, historyCaptor.getValue().getPointsEarned());
+    }
+
+    @Test
+    void shouldReturnLeaderboardWithRankOrder() {
+        UUID firstId = UUID.randomUUID();
+        UUID secondId = UUID.randomUUID();
+
+        UserReputation first = UserReputation.initialize(firstId);
+        first.setTotalPoints(250);
+        first.setCurrentStreak(3);
+
+        UserReputation second = UserReputation.initialize(secondId);
+        second.setTotalPoints(180);
+        second.setCurrentStreak(5);
+
+        when(userReputationRepository.findByOrderByTotalPointsDescUserIdAsc(any()))
+                .thenReturn(List.of(first, second));
+
+        UserProfileClientResponse firstProfile = new UserProfileClientResponse();
+        firstProfile.setFirstName("Ali");
+        firstProfile.setLastName("Yilmaz");
+        when(userServiceClient.getProfileById(firstId)).thenReturn(firstProfile);
+
+        UserProfileClientResponse secondProfile = new UserProfileClientResponse();
+        secondProfile.setFirstName("Ayse");
+        secondProfile.setLastName("Demir");
+        when(userServiceClient.getProfileById(secondId)).thenReturn(secondProfile);
+
+        var leaderboard = gamificationService.getLeaderboard(2);
+
+        assertEquals(2, leaderboard.size());
+        assertEquals(1, leaderboard.get(0).rank());
+        assertEquals("Ali Yilmaz", leaderboard.get(0).fullName());
+        assertEquals(250, leaderboard.get(0).totalPoints());
+        assertEquals(2, leaderboard.get(1).rank());
+        assertEquals("Ayse Demir", leaderboard.get(1).fullName());
+    }
+
+    @Test
+    void shouldRejectInvalidLeaderboardLimit() {
+        ResponseStatusException exception = assertThrows(
+                ResponseStatusException.class,
+                () -> gamificationService.getLeaderboard(0)
+        );
+
+        assertEquals("Leaderboard limit 1 ile 100 arasinda olmali", exception.getReason());
+    }
+
+    @Test
+    void shouldReturnFallbackNameWhenUserServiceFails() {
+        UUID userId = UUID.randomUUID();
+
+        UserReputation reputation = UserReputation.initialize(userId);
+        reputation.setTotalPoints(90);
+        reputation.setCurrentStreak(2);
+
+        when(userReputationRepository.findByOrderByTotalPointsDescUserIdAsc(any()))
+                .thenReturn(List.of(reputation));
+        doThrow(new RuntimeException("downstream error")).when(userServiceClient).getProfileById(userId);
+
+        var leaderboard = gamificationService.getLeaderboard(1);
+
+        assertEquals(1, leaderboard.size());
+        assertEquals("Bilinmeyen Kullanici", leaderboard.get(0).fullName());
     }
 
     private static class NoOpTransactionManager implements PlatformTransactionManager {
