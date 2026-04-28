@@ -1,23 +1,62 @@
 package com.educonnect.llmservice.config;
 
+import com.educonnect.llmservice.client.AssignmentServiceClient;
 import com.educonnect.llmservice.client.CourseServiceClient;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Description;
 
+import java.util.List;
 import java.util.function.Function;
 
 @Configuration
 public class AiToolsConfig {
 
     private final CourseServiceClient courseServiceClient;
+    private final AssignmentServiceClient assignmentServiceClient;
 
-    public AiToolsConfig(CourseServiceClient courseServiceClient) {
+    public AiToolsConfig(CourseServiceClient courseServiceClient,
+                         AssignmentServiceClient assignmentServiceClient) {
         this.courseServiceClient = courseServiceClient;
+        this.assignmentServiceClient = assignmentServiceClient;
     }
 
     // 1. LLM'in dolduracağı girdi (Request) parametreleri
     public record AnnouncementToolRequest(String instructorId, String courseId, String title, String content) {}
+
+    public record AssignmentToolRequest(String userId) {}
+    // AiToolsConfig.java dosyasının içine ekle:
+
+    // LLM'in aklını karıştırmamak için tamamen Türkçe bir DTO oluşturuyoruz
+    public record YapayZekaOdevVerisi(String dersAdi, String odevBasligi, String teslimTarihi, String durum) {}
+
+    @Bean
+    @Description("""
+        Öğrencinin ödevlerini sorgulamak için bu aracı kullan. 
+        Sana dönen listedeki ödevleri kullanarak kullanıcıya şöyle, tamamen Türkçe bir cümle kur:
+        'Şu an [dersAdi] dersinden [teslimTarihi] tarihine kadar teslim etmeniz gereken [odevBasligi] ödeviniz bulunuyor.'
+        """)
+    public Function<AssignmentToolRequest, List<YapayZekaOdevVerisi>> getAssignmentsTool() {
+        return request -> {
+            try {
+                // 1. OpenFeign ile mikroservisten İngilizce JSON'ı çekiyoruz
+                var gercekOdevler = assignmentServiceClient.getUserAssignments(request.userId());
+
+                // 2. İngilizce veriyi, LLM için Türkçe'ye çevirip UUID'leri çöpe atıyoruz (Anti-Corruption)
+                return gercekOdevler.stream()
+                        .map(odev -> new YapayZekaOdevVerisi(
+                                odev.courseName(),
+                                odev.title(),
+                                odev.dueDate(),
+                                "Bekliyor" // Veya odev.status() durumuna göre Türkçe bir kelime
+                        ))
+                        .toList();
+
+            } catch (Exception e) {
+                return List.of();
+            }
+        };
+    }
 
     // 2. LLM'e döneceğimiz sonuç (Response)
     public record AnnouncementToolResponse(boolean success, String message) {}
