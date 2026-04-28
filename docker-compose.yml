@@ -69,6 +69,18 @@ services:
     networks:
       - educonnect-network
 
+  ollama:
+    image: ollama/ollama:latest
+    container_name: ollama
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    networks:
+      - educonnect-network
+    restart: unless-stopped
+
+
 networks:
    educonnect-network:
     driver: bridge
@@ -77,3 +89,4 @@ volumes:
   postgres-data:
   redis-data:
   minio-data:
+  ollama_data:

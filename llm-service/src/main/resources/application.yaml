@@ -1,0 +1,13 @@
+spring:
+  application:
+    name: llm-service
+  config:
+    import: "optional:configserver:http://localhost:8888" # Config Server adresin
+
+# Local logging overrides. Config server can still override these values.
+logging:
+  level:
+    # Keep framework logs at INFO by default, enable DEBUG for service package
+    root: INFO
+    org.springframework: INFO
+    com.educonnect.llmservice: DEBUG

@@ -32,6 +32,15 @@ public class AdditionalRoutesConfig {
                         .path("/api/gamification/**")
                         .filters(f -> f.filter(authenticationFilter.apply(new AuthenticationFilter.Config())))
                         .uri("lb://gamification-service"))
+                // LLM / AI endpoint'leri -> llm-service
+                .route("llm-routes", r -> r
+                        // expose under /api/llm/** (rewritten to /api/ai/**) and /api/ai/** for backward compatibility
+                        .path("/api/llm/**", "/api/ai/**")
+                        .filters(f -> f
+                                .filter(authenticationFilter.apply(new AuthenticationFilter.Config()))
+                                // if clients call /api/llm/..., rewrite to the controller's /api/ai/... mapping
+                                .rewritePath("/api/llm/(?<segment>.*)", "/api/ai/${segment}"))
+                        .uri("lb://llm-service"))
                 .build();
     }
 }

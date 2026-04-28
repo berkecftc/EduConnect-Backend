@@ -7,18 +7,19 @@
         <sourceOutputDir name="target/generated-sources/annotations" />
         <sourceTestOutputDir name="target/generated-test-sources/test-annotations" />
         <outputRelativeToContentRoot value="true" />
-        <module name="course-service" />
-        <module name="config-server" />
-        <module name="post-service" />
-        <module name="gamification-service" />
-        <module name="club-service" />
-        <module name="event-service" />
-        <module name="api-gateway" />
+        <module name="llm-service" />
         <module name="auth-services" />
         <module name="user-service" />
         <module name="eureka-server" />
-        <module name="assignment-service" />
         <module name="notification-service" />
+        <module name="course-service" />
+        <module name="config-server" />
+        <module name="gamification-service" />
+        <module name="post-service" />
+        <module name="club-service" />
+        <module name="event-service" />
+        <module name="api-gateway" />
+        <module name="assignment-service" />
       </profile>
     </annotationProcessing>
   </component>
@@ -35,6 +36,7 @@
       <module name="eureka-server" options="-parameters" />
       <module name="event-service" options="-parameters" />
       <module name="gamification-service" options="-parameters" />
+      <module name="llm-service" options="-parameters" />
       <module name="notification-service" options="-parameters" />
       <module name="post-service" options="-parameters" />
       <module name="user-service" options="-parameters" />

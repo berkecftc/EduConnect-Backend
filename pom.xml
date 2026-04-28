@@ -32,6 +32,7 @@
         <module>notification-service</module>
         <module>post-service</module>
         <module>gamification-service</module>
+        <module>llm-service</module>
     </modules>
 
     <properties>
