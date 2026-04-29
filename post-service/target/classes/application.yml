@@ -61,6 +61,10 @@ management:
   endpoint:
     flyway:
       enabled: true
+post:
+  moderation:
+    mock-consumer:
+      enabled: false
 
 
 
