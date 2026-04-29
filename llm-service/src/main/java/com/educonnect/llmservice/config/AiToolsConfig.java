@@ -40,12 +40,12 @@ public class AiToolsConfig {
         return request -> {
             try {
                 // 1. OpenFeign ile mikroservisten İngilizce JSON'ı çekiyoruz
-                var gercekOdevler = assignmentServiceClient.getUserAssignments(request.userId());
+                var gercekOdevler = assignmentServiceClient.getMyAssignments(request.userId());
 
                 // 2. İngilizce veriyi, LLM için Türkçe'ye çevirip UUID'leri çöpe atıyoruz (Anti-Corruption)
                 return gercekOdevler.stream()
                         .map(odev -> new YapayZekaOdevVerisi(
-                                odev.courseName(),
+                                "ders",
                                 odev.title(),
                                 odev.dueDate(),
                                 "Bekliyor" // Veya odev.status() durumuna göre Türkçe bir kelime
