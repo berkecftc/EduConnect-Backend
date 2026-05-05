@@ -22,7 +22,9 @@ public class ClubRecommendationService {
     private static final Set<String> TURKISH_STOPWORDS = Set.of(
             "ve", "veya", "ile", "bir", "bu", "su", "o", "mi", "mu",
             "icin", "gibi", "ama", "ancak", "de", "da", "ki", "ben", "sen",
-            "biz", "siz", "onlar", "daha", "cok", "az", "en", "midir"
+            "biz", "siz", "onlar", "daha", "cok", "az", "en", "midir",
+            "kulup", "kulubu", "kulübü", "topluluk", "toplulugu", "topluluğu",
+            "var", "mı", "m", "ilgili", "hakkinda"
     );
     private static final Set<String> AI_KEYWORDS = Set.of(
             "yapay", "zeka", "ai", "ml", "machine", "learning",
@@ -39,7 +41,7 @@ public class ClubRecommendationService {
 
         // 1. Öğrencinin mesajını vektöre çevir ve en benzer 5 kulübü getir
         List<Document> similarClubs = vectorStore.similaritySearch(
-                SearchRequest.builder().query(studentMessage).topK(5).build()
+                SearchRequest.builder().query(studentMessage).topK(5).similarityThreshold(0.50).build()
         );
 
         if (similarClubs.isEmpty()) {
@@ -105,9 +107,9 @@ public class ClubRecommendationService {
         if (content == null || content.isBlank() || messageTokens.isEmpty()) {
             return false;
         }
-        Matcher matcher = WORD_PATTERN.matcher(content.toLowerCase(Locale.ROOT));
-        while (matcher.find()) {
-            if (messageTokens.contains(matcher.group())) {
+        String lowerContent = content.toLowerCase(Locale.ROOT);
+        for (String token : messageTokens) {
+            if (lowerContent.contains(token)) {
                 return true;
             }
         }
@@ -133,9 +135,9 @@ public class ClubRecommendationService {
         if (content == null || content.isBlank()) {
             return false;
         }
-        Matcher matcher = WORD_PATTERN.matcher(content.toLowerCase(Locale.ROOT));
-        while (matcher.find()) {
-            if (keywords.contains(matcher.group())) {
+        String lowerContent = content.toLowerCase(Locale.ROOT);
+        for (String keyword : keywords) {
+            if (lowerContent.contains(keyword)) {
                 return true;
             }
         }
