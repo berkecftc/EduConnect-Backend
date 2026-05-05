@@ -5,11 +5,18 @@ spring:
     import: "optional:configserver:http://localhost:8888" # Config Server adresin
   ai:
     ollama:
+      base-url: "http://ollama:11434"
       chat:
         options:
           model: "llama3.2:1b"
           temperature: 0.0
           top_p: 0.1
+      embedding:
+        options:
+          model: nomic-embed-text
+  vector:
+    store:
+      path: "data/club-vector-store.json"
 
 # Local logging overrides. Config server can still override these values.
 logging:
