@@ -7,6 +7,7 @@ import org.springframework.ai.document.Document;
 import org.springframework.ai.vectorstore.SimpleVectorStore;
 import org.springframework.ai.vectorstore.VectorStore;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import jakarta.annotation.PostConstruct;
 
@@ -19,6 +20,7 @@ public class ClubIngestionService {
 
     private static final Logger log = LoggerFactory.getLogger(ClubIngestionService.class);
     private final VectorStore vectorStore;
+    private final JdbcTemplate jdbcTemplate;
 
     @Value("${vector.store.path:data/vector-store.json}")
     private String vectorStorePath;
@@ -26,8 +28,12 @@ public class ClubIngestionService {
     @Value("${club.ingestion.enabled:true}")
     private boolean ingestionEnabled;
 
-    public ClubIngestionService(VectorStore vectorStore) {
+    @Value("${club.ingestion.force:false}")
+    private boolean forceIngestion;
+
+    public ClubIngestionService(VectorStore vectorStore, JdbcTemplate jdbcTemplate) {
         this.vectorStore = vectorStore;
+        this.jdbcTemplate = jdbcTemplate;
     }
 
     @PostConstruct
@@ -42,22 +48,23 @@ public class ClubIngestionService {
         if (parentDir != null && !parentDir.exists()) {
             parentDir.mkdirs();
         }
-        if (storeFile.exists()) {
+        if (storeFile.exists() && !forceIngestion) {
             log.info("Kulüp vektör veritabanı zaten dolu, ETL atlanıyor.");
             return;
         }
+        if (storeFile.exists() && forceIngestion) {
+            if (!storeFile.delete()) {
+                log.warn("Eski vektör dosyası silinemedi: {}", storeFile.getAbsolutePath());
+            }
+        }
 
-        log.info("Veritabanından (veya JSON'dan) kulüp verileri çekiliyor...");
+        log.info("PostgreSQL üzerinden kulüp verileri çekiliyor...");
 
-        // Simüle edilmiş veritabanı verisi (Bunu OpenFeign ile club-service'den de çekebilirsin)
-        List<ClubResponse> clubs = List.of(
-                new ClubResponse("C-101", "Yapay Zeka ve Siber Güvenlik Kulübü", "Teknoloji",
-                        "Makine öğrenmesi, LLM'ler ve ağ güvenliği üzerine projeler geliştiren, siber zorbalık tespiti gibi asenkron mimariler kuran mühendislik topluluğudur.", "Çarşamba"),
-                new ClubResponse("C-102", "Doğa Sporları ve Kampçılık Kulübü", "Sosyal",
-                        "Hafta sonları trekking, dağcılık ve kamp etkinlikleri düzenleyen, doğayı seven öğrencilerin buluşma noktasıdır.", "Cuma"),
-                new ClubResponse("C-103", "Kariyer ve Girişimcilik Kulübü", "İş Dünyası",
-                        "Sektör liderlerini üniversitemizde ağırlayan, öğrencileri mülakatlara (Doğuş Teknoloji, Jotform vb.) hazırlayan kariyer odaklı bir kulüptür.", "Salı")
-        );
+        List<ClubResponse> clubs = fetchClubsFromDatabase();
+        if (clubs.isEmpty()) {
+            log.warn("Kulüp verisi bulunamadı. Vektör veritabanı güncellenmedi.");
+            return;
+        }
 
         log.info("Veriler Yapay Zeka Dokümanlarına (Document) dönüştürülüyor...");
 
@@ -90,4 +97,23 @@ public class ClubIngestionService {
         }
         log.info("Kulüp RAG entegrasyonu tamamlandı!");
     }
+
+    private List<ClubResponse> fetchClubsFromDatabase() {
+        String sql = """
+            SELECT id::text AS id,
+                   name,
+                   COALESCE(about, '') AS about
+            FROM clubs
+            ORDER BY name
+            """;
+
+        return jdbcTemplate.query(sql, (rs, rowNum) -> new ClubResponse(
+                rs.getString("id"),
+                rs.getString("name"),
+                "Belirtilmedi",
+                rs.getString("about"),
+                "Belirtilmedi"
+        ));
+    }
 }
+

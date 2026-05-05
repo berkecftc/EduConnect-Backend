@@ -11,12 +11,25 @@ spring:
           model: "llama3.2:1b"
           temperature: 0.0
           top_p: 0.1
+          # Keep responses short to reduce latency/CPU.
+          num_predict: 128
+          num_ctx: 1024
       embedding:
         options:
           model: nomic-embed-text
   vector:
     store:
-      path: "data/club-vector-store.json"
+      path: "data/vector-store.json"
+  datasource:
+    url: ${CLUB_DB_URL:jdbc:postgresql://localhost:5432/postgres?currentSchema=club_db}
+    username: ${CLUB_DB_USER:eduadmin}
+    password: ${CLUB_DB_PASSWORD:edu123}
+    driver-class-name: org.postgresql.Driver
+
+club:
+  ingestion:
+    enabled: true
+    force: true
 
 # Local logging overrides. Config server can still override these values.
 logging:

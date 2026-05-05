@@ -14,6 +14,9 @@ public class RagConfig {
     @Value("${vector.store.path:data/vector-store.json}")
     private String vectorStorePath;
 
+    @Value("${club.ingestion.force:false}")
+    private boolean forceIngestion;
+
     @Bean
     public VectorStore vectorStore(EmbeddingModel embeddingModel) {
         SimpleVectorStore simpleVectorStore = SimpleVectorStore.builder(embeddingModel).build();
@@ -23,8 +26,7 @@ public class RagConfig {
         if (parentDir != null && !parentDir.exists()) {
             parentDir.mkdirs();
         }
-        // Eğer daha önceden kaydedilmiş vektörler varsa, uygulama kalkarken belleğe yükle
-        if (vectorStoreFile.exists()) {
+        if (vectorStoreFile.exists() && !forceIngestion) {
             simpleVectorStore.load(vectorStoreFile);
         }
 
