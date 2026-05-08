@@ -7,6 +7,7 @@ import com.educonnect.gamificationservice.model.ActionType;
 import com.educonnect.gamificationservice.model.PointHistory;
 import com.educonnect.gamificationservice.model.UserReputation;
 import com.educonnect.gamificationservice.repository.PointHistoryRepository;
+import com.educonnect.gamificationservice.repository.UserBadgeRepository;
 import com.educonnect.gamificationservice.repository.UserReputationRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -40,6 +41,7 @@ class GamificationServiceTest {
     private UserReputationRepository userReputationRepository;
     private PointHistoryRepository pointHistoryRepository;
     private UserServiceClient userServiceClient;
+    private UserBadgeRepository userBadgeRepository;
     private GamificationService gamificationService;
 
     @BeforeEach
@@ -47,11 +49,14 @@ class GamificationServiceTest {
         userReputationRepository = mock(UserReputationRepository.class);
         pointHistoryRepository = mock(PointHistoryRepository.class);
         userServiceClient = mock(UserServiceClient.class);
+        userBadgeRepository = mock(UserBadgeRepository.class);
+        when(userBadgeRepository.findByUserIdOrderByEarnedAtAsc(any())).thenReturn(List.of());
         gamificationService = new GamificationService(
                 userReputationRepository,
                 pointHistoryRepository,
                 userServiceClient,
-                new NoOpTransactionManager()
+                new NoOpTransactionManager(),
+                userBadgeRepository
         );
     }
 
@@ -115,13 +120,13 @@ class GamificationServiceTest {
 
         ArgumentCaptor<UserReputation> reputationCaptor = ArgumentCaptor.forClass(UserReputation.class);
         verify(userReputationRepository).saveAndFlush(reputationCaptor.capture());
-        assertEquals(50, reputationCaptor.getValue().getTotalPoints());
+        assertEquals(20, reputationCaptor.getValue().getTotalPoints());
         assertEquals(0, reputationCaptor.getValue().getCurrentStreak());
         assertEquals(7, reputationCaptor.getValue().getHighestStreak());
 
         ArgumentCaptor<PointHistory> historyCaptor = ArgumentCaptor.forClass(PointHistory.class);
         verify(pointHistoryRepository).saveAndFlush(historyCaptor.capture());
-        assertEquals(50, historyCaptor.getValue().getPointsEarned());
+        assertEquals(20, historyCaptor.getValue().getPointsEarned());
     }
 
     @Test
@@ -190,11 +195,11 @@ class GamificationServiceTest {
 
         ArgumentCaptor<UserReputation> reputationCaptor = ArgumentCaptor.forClass(UserReputation.class);
         verify(userReputationRepository).saveAndFlush(reputationCaptor.capture());
-        assertEquals(110, reputationCaptor.getValue().getTotalPoints());
+        assertEquals(30, reputationCaptor.getValue().getTotalPoints());
 
         ArgumentCaptor<PointHistory> historyCaptor = ArgumentCaptor.forClass(PointHistory.class);
         verify(pointHistoryRepository).saveAndFlush(historyCaptor.capture());
-        assertEquals(100, historyCaptor.getValue().getPointsEarned());
+        assertEquals(20, historyCaptor.getValue().getPointsEarned());
     }
 
     @Test
@@ -277,4 +282,3 @@ class GamificationServiceTest {
         }
     }
 }
-

@@ -9,9 +9,12 @@
 /Users/berkeciftci/Desktop/EduConnect-Backend/gamification-service/src/main/java/com/educonnect/gamificationservice/dto/response/LeaderboardEntryResponse.java
 /Users/berkeciftci/Desktop/EduConnect-Backend/gamification-service/src/main/java/com/educonnect/gamificationservice/listener/GamificationEventListener.java
 /Users/berkeciftci/Desktop/EduConnect-Backend/gamification-service/src/main/java/com/educonnect/gamificationservice/model/ActionType.java
+/Users/berkeciftci/Desktop/EduConnect-Backend/gamification-service/src/main/java/com/educonnect/gamificationservice/model/BadgeType.java
 /Users/berkeciftci/Desktop/EduConnect-Backend/gamification-service/src/main/java/com/educonnect/gamificationservice/model/PointHistory.java
+/Users/berkeciftci/Desktop/EduConnect-Backend/gamification-service/src/main/java/com/educonnect/gamificationservice/model/UserBadge.java
 /Users/berkeciftci/Desktop/EduConnect-Backend/gamification-service/src/main/java/com/educonnect/gamificationservice/model/UserReputation.java
 /Users/berkeciftci/Desktop/EduConnect-Backend/gamification-service/src/main/java/com/educonnect/gamificationservice/repository/PointHistoryRepository.java
+/Users/berkeciftci/Desktop/EduConnect-Backend/gamification-service/src/main/java/com/educonnect/gamificationservice/repository/UserBadgeRepository.java
 /Users/berkeciftci/Desktop/EduConnect-Backend/gamification-service/src/main/java/com/educonnect/gamificationservice/repository/UserReputationRepository.java
 /Users/berkeciftci/Desktop/EduConnect-Backend/gamification-service/src/main/java/com/educonnect/gamificationservice/scheduler/GamificationScheduler.java
 /Users/berkeciftci/Desktop/EduConnect-Backend/gamification-service/src/main/java/com/educonnect/gamificationservice/service/GamificationService.java

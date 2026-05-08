@@ -6,10 +6,13 @@ import com.educonnect.gamificationservice.dto.event.GamificationEvent;
 import com.educonnect.gamificationservice.dto.response.GamificationSummaryResponse;
 import com.educonnect.gamificationservice.dto.response.LeaderboardEntryResponse;
 import com.educonnect.gamificationservice.model.ActionType;
+import com.educonnect.gamificationservice.model.BadgeType;
 import com.educonnect.gamificationservice.model.PointHistory;
 import com.educonnect.gamificationservice.model.UserReputation;
+import com.educonnect.gamificationservice.model.UserBadge;
 import com.educonnect.gamificationservice.repository.PointHistoryRepository;
 import com.educonnect.gamificationservice.repository.UserReputationRepository;
+import com.educonnect.gamificationservice.repository.UserBadgeRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.PageRequest;
@@ -28,7 +31,9 @@ import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
+import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Service
 public class GamificationService {
@@ -36,10 +41,10 @@ public class GamificationService {
     private static final Logger log = LoggerFactory.getLogger(GamificationService.class);
 
     private static final int POST_PUBLISHED_POINTS = 10;
-    private static final int ANSWER_ACCEPTED_POINTS = 50;
+    private static final int ANSWER_ACCEPTED_POINTS = 20;
     private static final int VALID_REPORT_POINTS = 15;
-    private static final int STREAK_BONUS_POINTS = 50;
-    private static final int PROFILE_COMPLETED_POINTS = 100;
+    private static final int STREAK_BONUS_POINTS = 20;
+    private static final int PROFILE_COMPLETED_POINTS = 20;
 
     private static final int STREAK_BONUS_THRESHOLD = 7;
     private static final int MAX_DAILY_POINT_EARNINGS_PER_ACTION = 3;
@@ -51,15 +56,18 @@ public class GamificationService {
     private final PointHistoryRepository pointHistoryRepository;
     private final UserServiceClient userServiceClient;
     private final TransactionTemplate transactionTemplate;
+    private final UserBadgeRepository userBadgeRepository;
 
     public GamificationService(UserReputationRepository userReputationRepository,
                                PointHistoryRepository pointHistoryRepository,
                                UserServiceClient userServiceClient,
-                               PlatformTransactionManager transactionManager) {
+                               PlatformTransactionManager transactionManager,
+                               UserBadgeRepository userBadgeRepository) {
         this.userReputationRepository = userReputationRepository;
         this.pointHistoryRepository = pointHistoryRepository;
         this.userServiceClient = userServiceClient;
         this.transactionTemplate = new TransactionTemplate(transactionManager);
+        this.userBadgeRepository = userBadgeRepository;
     }
 
     public void processEvent(GamificationEvent event) {
@@ -117,6 +125,8 @@ public class GamificationService {
         pointHistory.setPointsEarned(earnedPoints);
         pointHistory.setCreatedAt(eventOccurredAt);
         pointHistoryRepository.saveAndFlush(pointHistory);
+
+        awardNewBadges(event.getUserId(), eventOccurredAt, reputation);
     }
 
     private boolean isDailyPointsLimitReached(UUID userId, ActionType actionType, LocalDate eventDate) {
@@ -141,7 +151,10 @@ public class GamificationService {
         UserReputation reputation = userReputationRepository.findById(userId)
                 .orElseGet(() -> UserReputation.initialize(userId));
 
-        List<String> badges = resolveBadges(reputation.getTotalPoints(), reputation.getHighestStreak());
+        List<String> badges = userBadgeRepository.findByUserIdOrderByEarnedAtAsc(userId)
+                .stream()
+                .map(badge -> badge.getBadgeType().name())
+                .toList();
         return new GamificationSummaryResponse(
                 reputation.getTotalPoints(),
                 reputation.getCurrentStreak(),
@@ -247,24 +260,51 @@ public class GamificationService {
         }
     }
 
-    private List<String> resolveBadges(int totalPoints, int highestStreak) {
-        List<String> badges = new ArrayList<>();
+    private void awardNewBadges(UUID userId, LocalDateTime earnedAt, UserReputation reputation) {
+        List<BadgeType> eligibleBadges = resolveBadges(reputation.getTotalPoints(), reputation.getHighestStreak());
+        if (eligibleBadges.isEmpty()) {
+            return;
+        }
+
+        List<UserBadge> existingBadges = userBadgeRepository.findByUserIdOrderByEarnedAtAsc(userId);
+        Set<BadgeType> alreadyEarned = existingBadges.stream()
+                .map(UserBadge::getBadgeType)
+                .collect(Collectors.toSet());
+
+        List<UserBadge> toSave = new ArrayList<>();
+        for (BadgeType badgeType : eligibleBadges) {
+            if (alreadyEarned.contains(badgeType)) {
+                continue;
+            }
+            UserBadge userBadge = new UserBadge();
+            userBadge.setUserId(userId);
+            userBadge.setBadgeType(badgeType);
+            userBadge.setEarnedAt(earnedAt);
+            toSave.add(userBadge);
+        }
+
+        if (!toSave.isEmpty()) {
+            userBadgeRepository.saveAll(toSave);
+        }
+    }
+
+    private List<BadgeType> resolveBadges(int totalPoints, int highestStreak) {
+        List<BadgeType> badges = new ArrayList<>();
 
         if (totalPoints >= 1000) {
-            badges.add("POINTS_MASTER");
+            badges.add(BadgeType.POINTS_MASTER);
         }
         if (totalPoints >= 250) {
-            badges.add("POINTS_EXPLORER");
+            badges.add(BadgeType.POINTS_EXPLORER);
         }
         if (highestStreak >= 30) {
-            badges.add("STREAK_LEGEND");
+            badges.add(BadgeType.STREAK_LEGEND);
         }
         if (highestStreak >= 7) {
-            badges.add("WEEK_WARRIOR");
+            badges.add(BadgeType.WEEK_WARRIOR);
         }
 
         return badges;
     }
 }
-
 
