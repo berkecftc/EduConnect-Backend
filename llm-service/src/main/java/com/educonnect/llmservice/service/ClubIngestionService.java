@@ -6,6 +6,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.ai.document.Document;
 import org.springframework.ai.vectorstore.SimpleVectorStore;
 import org.springframework.ai.vectorstore.VectorStore;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
@@ -31,7 +32,7 @@ public class ClubIngestionService {
     @Value("${club.ingestion.force:false}")
     private boolean forceIngestion;
 
-    public ClubIngestionService(VectorStore vectorStore, JdbcTemplate jdbcTemplate) {
+    public ClubIngestionService(@Qualifier("clubVectorStore") VectorStore vectorStore, JdbcTemplate jdbcTemplate) {
         this.vectorStore = vectorStore;
         this.jdbcTemplate = jdbcTemplate;
     }
@@ -116,4 +117,3 @@ public class ClubIngestionService {
         ));
     }
 }
-

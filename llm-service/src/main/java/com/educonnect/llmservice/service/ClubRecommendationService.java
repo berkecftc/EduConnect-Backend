@@ -3,6 +3,7 @@ package com.educonnect.llmservice.service;
 import org.springframework.ai.document.Document;
 import org.springframework.ai.vectorstore.SearchRequest;
 import org.springframework.ai.vectorstore.VectorStore;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
 
 import java.util.HashSet;
@@ -46,7 +47,7 @@ public class ClubRecommendationService {
 
     private final VectorStore vectorStore;
 
-    public ClubRecommendationService(VectorStore vectorStore) {
+    public ClubRecommendationService(@Qualifier("clubVectorStore") VectorStore vectorStore) {
         this.vectorStore = vectorStore;
     }
 

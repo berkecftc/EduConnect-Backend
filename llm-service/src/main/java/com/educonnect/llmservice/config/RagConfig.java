@@ -17,8 +17,8 @@ public class RagConfig {
     @Value("${club.ingestion.force:false}")
     private boolean forceIngestion;
 
-    @Bean
-    public VectorStore vectorStore(EmbeddingModel embeddingModel) {
+    @Bean(name = "clubVectorStore")
+    public VectorStore clubVectorStore(EmbeddingModel embeddingModel) {
         SimpleVectorStore simpleVectorStore = SimpleVectorStore.builder(embeddingModel).build();
 
         File vectorStoreFile = new File(vectorStorePath);

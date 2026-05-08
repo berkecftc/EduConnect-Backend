@@ -16,10 +16,11 @@ services:
 
   # Redis cache ve oturum yönetimi servisi
   redis:
-    image: redis:6.2-alpine
+    image: redis/redis-stack:latest
     container_name: educonnect-redis
     ports:
       - "6379:6379" # Lokal makinenizdeki 6379 portunu container'ın 6379 portuna bağlar
+      - "8001:8001" # RedisInsight için
     volumes:
       - redis-data:/data
     networks:
