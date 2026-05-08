@@ -35,18 +35,27 @@ public class CopilotController {
         return ResponseEntity.ok(new ChatResponse(llmReply));
     }
 
-    @PostMapping("/club-assistant")
-    public ResponseEntity<ChatResponse> askClubAssistant(@RequestBody ChatRequest request) {
-        String llmReply = clubRecommendationService.recommendClub(request.message());
-        return ResponseEntity.ok(new ChatResponse(llmReply));
-    }
-
     @PostMapping("/student-assistant")
     public ResponseEntity<ChatResponse> askStudentAssistant(
             @RequestHeader("X-Authenticated-User-Id") String studentId,
             @RequestBody ChatRequest request) {
 
-        String reply = aiAssistantService.chatWithStudent(request.message(), studentId);
+        String message = request.message().toLowerCase(java.util.Locale.forLanguageTag("tr"));
+        String reply;
+
+        if (message.contains("kulüp") || message.contains("kulup") ||
+            message.contains("kulüb") || message.contains("kulub") ||
+            message.contains("topluluk") || message.contains("öneri") || message.contains("oneri")) {
+            reply = clubRecommendationService.recommendClub(request.message());
+        } else if (message.contains("ödev") || message.contains("odev") ||
+                   message.contains("teslim") || message.contains("proje") ||
+                   message.contains("görev") || message.contains("gorev") ||
+                   message.contains("var mı") || message.contains("var mi")) {
+            reply = aiAssistantService.chatWithStudent(request.message(), studentId);
+        } else {
+            reply = "Merhaba! Ben ödev kontrolü ve kulüp tavsiyesi veren bir yapay zeka asistanıyım. Lütfen ödevleriniz veya kulüpler hakkında bir soru sorun.";
+        }
+
         return ResponseEntity.ok(new ChatResponse(reply));
     }
 }

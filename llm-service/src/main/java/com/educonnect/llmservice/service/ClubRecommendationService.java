@@ -20,11 +20,24 @@ public class ClubRecommendationService {
             Pattern.compile("(?m)^Kul(ü|u)p Ad(ı|i)\\s*:\\s*(.+)$");
     private static final Pattern WORD_PATTERN = Pattern.compile("\\p{L}+");
     private static final Set<String> TURKISH_STOPWORDS = Set.of(
-            "ve", "veya", "ile", "bir", "bu", "su", "o", "mi", "mu",
-            "icin", "gibi", "ama", "ancak", "de", "da", "ki", "ben", "sen",
-            "biz", "siz", "onlar", "daha", "cok", "az", "en", "midir",
-            "kulup", "kulubu", "kulübü", "topluluk", "toplulugu", "topluluğu",
-            "var", "mı", "m", "ilgili", "hakkinda"
+            "ve", "veya", "ile", "bir", "bu", "su", "şu", "o", "mi", "mu", "mı", "mü",
+            "icin", "için", "gibi", "ama", "ancak", "de", "da", "ki", "ben", "sen",
+            "biz", "siz", "onlar", "daha", "cok", "çok", "az", "en", "midir", "mıdır",
+            "kulup", "kulüp", "kulub", "kulüb", "kulübü", "kulubu", "topluluk", "topluluğu", "toplulugu",
+            "var", "yok", "m", "ilgili", "hakkinda", "hakkında", "buna", "gore", "göre",
+            "tavsiye", "tavsiyesi", "ver", "verir", "verebilir", "öneri", "oneri", "istiyorum",
+            "hangi", "hangisi", "nelerdir", "ilgileniyorum", "ilgim", "ilgi", "duyuyorum",
+            "bana", "sana", "bizi", "sizi", "nedir", "neler",
+            "merhaba", "selam", "gunler", "günler", "tesekkurler", "teşekkürler", "ederim",
+            "lutfen", "lütfen", "yardim", "yardım", "edebilir", "misiniz", "misin", "mısın", "mısınız",
+            "nasil", "nasıl", "kim", "kimler", "dair", "dolayi", "dolayı", "neden", "nicin", "niçin",
+            "ne", "zaman", "nerede", "nereye", "nereden", "acaba", "belki", "keske", "keşke",
+            "soru", "sorum", "sorabilir", "miyim", "biliyor", "musunuz", "uygun",
+            "katilmak", "katılmak", "ariyorum", "arıyorum", "bul", "bulabilir", "yapar",
+            "ise", "idi", "imis", "imiş", "dır", "dir", "dur", "dür", "tır", "tir", "tur", "tür",
+            "benim", "senin", "onun", "bizim", "sizin", "onlarin", "onların",
+            "bize", "size", "onlara", "benden", "senden", "ondan", "bizden", "sizden", "onlardan",
+            "olarak", "olan", "olmayan", "olur", "olmaz", "ol", "olsun", "oldukca", "oldukça"
     );
     private static final Set<String> AI_KEYWORDS = Set.of(
             "yapay", "zeka", "ai", "ml", "machine", "learning",
