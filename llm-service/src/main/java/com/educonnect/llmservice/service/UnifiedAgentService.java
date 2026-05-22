@@ -140,7 +140,6 @@ public class UnifiedAgentService {
      * This keeps the UX consistent whether the response is live or cached.
      */
     private Flux<String> streamCachedResponse(String cachedResponse) {
-        return Flux.fromIterable(Arrays.asList(cachedResponse.split("(?<=\\s)")))
-                .delayElements(Duration.ofMillis(30));
+        return Flux.just(cachedResponse);
     }
 }
