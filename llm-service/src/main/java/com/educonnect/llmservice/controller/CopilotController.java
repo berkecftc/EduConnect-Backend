@@ -1,61 +1,62 @@
 package com.educonnect.llmservice.controller;
 
-import com.educonnect.llmservice.service.AiAssistantService;
-import com.educonnect.llmservice.service.ClubRecommendationService;
 import com.educonnect.llmservice.service.CopilotService;
+import com.educonnect.llmservice.service.UnifiedAgentService;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import reactor.core.publisher.Flux;
 
+/**
+ * REST entry point for all AI features.
+ *
+ * /instructor-copilot — rule-based announcement assistant for instructors (CopilotService).
+ * /student-assistant  — autonomous ReAct agent for students (UnifiedAgentService).
+ *                        Returns an SSE stream (text/event-stream) consumed by Next.js.
+ *
+ * Authentication: API Gateway validates the JWT and injects the verified user UUID
+ * via the X-Authenticated-User-Id header. This service trusts that header implicitly.
+ */
 @RestController
 @RequestMapping("/api/ai")
 public class CopilotController {
 
     private final CopilotService copilotService;
-    private final AiAssistantService aiAssistantService;
-    private final ClubRecommendationService clubRecommendationService;
+    private final UnifiedAgentService unifiedAgentService;
 
-    public CopilotController(CopilotService copilotService, AiAssistantService aiAssistantService,
-                             ClubRecommendationService clubRecommendationService) {
+    public CopilotController(CopilotService copilotService, UnifiedAgentService unifiedAgentService) {
         this.copilotService = copilotService;
-        this.aiAssistantService = aiAssistantService;
-        this.clubRecommendationService = clubRecommendationService;
+        this.unifiedAgentService = unifiedAgentService;
     }
 
     public record ChatRequest(String message) {}
     public record ChatResponse(String reply) {}
 
+    /**
+     * Instructor copilot: parses natural-language requests and creates course announcements.
+     * Rule-based — no LLM call, deterministic, low-latency.
+     */
     @PostMapping("/instructor-copilot")
-    public ResponseEntity<ChatResponse> askCopilot(
+    public ResponseEntity<ChatResponse> askInstructorCopilot(
             @RequestHeader("X-Authenticated-User-Id") String instructorId,
             @RequestBody ChatRequest request) {
 
-        // Gelen mesajı ve Gateway'den gelen güvenli ID'yi LLM'e veriyoruz
-        String llmReply = copilotService.chatWithInstructor(request.message(), instructorId);
-
-        return ResponseEntity.ok(new ChatResponse(llmReply));
+        String reply = copilotService.chatWithInstructor(request.message(), instructorId);
+        return ResponseEntity.ok(new ChatResponse(reply));
     }
 
-    @PostMapping("/student-assistant")
-    public ResponseEntity<ChatResponse> askStudentAssistant(
+    /**
+     * Student assistant: autonomous ReAct agent with tool calling and conversation memory.
+     *
+     * Returns a Server-Sent Events stream so the browser renders tokens progressively.
+     * The agent autonomously decides whether to query assignments, clubs, or both —
+     * no keyword matching or if-else routing involved.
+     */
+    @PostMapping(value = "/student-assistant", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+    public Flux<String> askStudentAssistant(
             @RequestHeader("X-Authenticated-User-Id") String studentId,
             @RequestBody ChatRequest request) {
 
-        String message = request.message().toLowerCase(java.util.Locale.forLanguageTag("tr"));
-        String reply;
-
-        if (message.contains("kulüp") || message.contains("kulup") ||
-            message.contains("kulüb") || message.contains("kulub") ||
-            message.contains("topluluk") || message.contains("öneri") || message.contains("oneri")) {
-            reply = clubRecommendationService.recommendClub(request.message());
-        } else if (message.contains("ödev") || message.contains("odev") ||
-                   message.contains("teslim") || message.contains("proje") ||
-                   message.contains("görev") || message.contains("gorev") ||
-                   message.contains("var mı") || message.contains("var mi")) {
-            reply = aiAssistantService.chatWithStudent(request.message(), studentId);
-        } else {
-            reply = "Merhaba! Ben ödev kontrolü ve kulüp tavsiyesi veren bir yapay zeka asistanıyım. Lütfen ödevleriniz veya kulüpler hakkında bir soru sorun.";
-        }
-
-        return ResponseEntity.ok(new ChatResponse(reply));
+        return unifiedAgentService.chatWithStudentStream(studentId, request.message());
     }
 }

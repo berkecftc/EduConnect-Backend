@@ -8,7 +8,7 @@ spring:
       base-url: "http://ollama:11434"
       chat:
         options:
-          model: "llama3.2:1b"
+          model: "llama3.1:8b"
           temperature: 0.0
           top_p: 0.1
           # Keep responses short to reduce latency/CPU.
@@ -17,6 +17,11 @@ spring:
       embedding:
         options:
           model: nomic-embed-text
+    vectorstore:
+      redis:
+        initialize-schema: true
+        index: default-index
+        prefix: "default:"
   vector:
     store:
       path: "data/vector-store.json"
