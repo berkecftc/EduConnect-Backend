@@ -29,6 +29,7 @@ spring:
     url: ${CLUB_DB_URL:jdbc:postgresql://localhost:5432/postgres?currentSchema=club_db}
     username: ${CLUB_DB_USER:eduadmin}
     password: ${CLUB_DB_PASSWORD:edu123}
+
     driver-class-name: org.postgresql.Driver
 
 club:

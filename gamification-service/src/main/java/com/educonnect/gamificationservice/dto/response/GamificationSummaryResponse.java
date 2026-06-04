@@ -6,7 +6,7 @@ public record GamificationSummaryResponse(
         int totalPoints,
         int currentStreak,
         int highestStreak,
-        List<String> badges
+        List<BadgeInfoResponse> badges
 ) {
 }
 

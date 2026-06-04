@@ -129,8 +129,11 @@ public class AuthenticationFilter extends AbstractGatewayFilterFactory<Authentic
         // 2. Tek etkinlik detayı (GET /api/events/{uuid})
         boolean isSingleEventEndpoint = path.matches("^/api/events/[a-fA-F0-9\\-]{36}$");
 
+        // 3. Rozet görselleri (GET /api/gamification/badges/{badgeType}/image)
+        boolean isBadgeImageEndpoint = path.matches("^/api/gamification/badges/[a-zA-Z_]+/image$");
+
         return matchesPublicList || isClubListEndpoint || isSingleClubEndpoint ||
-                isEventListEndpoint || isSingleEventEndpoint; // <-- Bunları return'e ekleyin
+                isEventListEndpoint || isSingleEventEndpoint || isBadgeImageEndpoint;
     }
 
     private Mono<Void> onError(ServerWebExchange exchange, String err, HttpStatus httpStatus) {

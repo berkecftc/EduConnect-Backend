@@ -3,6 +3,7 @@ package com.educonnect.gamificationservice.service;
 import com.educonnect.gamificationservice.client.UserServiceClient;
 import com.educonnect.gamificationservice.client.dto.UserProfileClientResponse;
 import com.educonnect.gamificationservice.dto.event.GamificationEvent;
+import com.educonnect.gamificationservice.dto.response.BadgeInfoResponse;
 import com.educonnect.gamificationservice.dto.response.GamificationSummaryResponse;
 import com.educonnect.gamificationservice.dto.response.LeaderboardEntryResponse;
 import com.educonnect.gamificationservice.model.ActionType;
@@ -43,10 +44,13 @@ public class GamificationService {
     private static final int POST_PUBLISHED_POINTS = 10;
     private static final int ANSWER_ACCEPTED_POINTS = 20;
     private static final int VALID_REPORT_POINTS = 15;
-    private static final int STREAK_BONUS_POINTS = 20;
+    private static final int DAILY_LOGIN_POINTS = 10;
+    private static final int STREAK_MILESTONE_BONUS = 100;
     private static final int PROFILE_COMPLETED_POINTS = 20;
 
-    private static final int STREAK_BONUS_THRESHOLD = 7;
+    private static final int STREAK_MILESTONE_7 = 7;
+    private static final int STREAK_MILESTONE_14 = 14;
+    private static final int STREAK_MILESTONE_28 = 28;
     private static final int MAX_DAILY_POINT_EARNINGS_PER_ACTION = 3;
     private static final int MAX_OPTIMISTIC_RETRIES = 3;
     private static final int MAX_LEADERBOARD_LIMIT = 100;
@@ -126,7 +130,7 @@ public class GamificationService {
         pointHistory.setCreatedAt(eventOccurredAt);
         pointHistoryRepository.saveAndFlush(pointHistory);
 
-        awardNewBadges(event.getUserId(), eventOccurredAt, reputation);
+        awardNewBadges(event.getUserId(), eventOccurredAt, reputation, event.getActionType());
     }
 
     private boolean isDailyPointsLimitReached(UUID userId, ActionType actionType, LocalDate eventDate) {
@@ -151,10 +155,17 @@ public class GamificationService {
         UserReputation reputation = userReputationRepository.findById(userId)
                 .orElseGet(() -> UserReputation.initialize(userId));
 
-        List<String> badges = userBadgeRepository.findByUserIdOrderByEarnedAtAsc(userId)
+        List<BadgeInfoResponse> badges = userBadgeRepository.findByUserIdOrderByEarnedAtAsc(userId)
                 .stream()
-                .map(badge -> badge.getBadgeType().name())
+                .map(badge -> new BadgeInfoResponse(
+                        badge.getBadgeType().name(),
+                        badge.getBadgeType().getDisplayName(),
+                        badge.getBadgeType().getDescription(),
+                        "/api/gamification/badges/" + badge.getBadgeType().name().toLowerCase() + "/image",
+                        badge.getEarnedAt()
+                ))
                 .toList();
+
         return new GamificationSummaryResponse(
                 reputation.getTotalPoints(),
                 reputation.getCurrentStreak(),
@@ -223,26 +234,34 @@ public class GamificationService {
 
         if (reputation.getLastLoginDate() != null) {
             if (reputation.getLastLoginDate().isEqual(loginDate.minusDays(1))) {
+                // Consecutive day — increment streak
                 reputation.setCurrentStreak(reputation.getCurrentStreak() + 1);
             } else if (!reputation.getLastLoginDate().isEqual(loginDate)) {
+                // Gap in streak — reset to 1
                 reputation.setCurrentStreak(1);
             }
+            // Same day: streak unchanged (idempotency covers this case)
         } else {
             reputation.setCurrentStreak(1);
         }
 
-        int streakBeforeReset = reputation.getCurrentStreak();
-        if (streakBeforeReset > reputation.getHighestStreak()) {
-            reputation.setHighestStreak(streakBeforeReset);
-        }
-
-        int earnedPoints = 0;
-        if (streakBeforeReset >= STREAK_BONUS_THRESHOLD) {
-            earnedPoints = STREAK_BONUS_POINTS;
-            reputation.setCurrentStreak(0);
+        if (reputation.getCurrentStreak() > reputation.getHighestStreak()) {
+            reputation.setHighestStreak(reputation.getCurrentStreak());
         }
 
         reputation.setLastLoginDate(loginDate);
+
+        // Base points for every daily login
+        int earnedPoints = DAILY_LOGIN_POINTS;
+
+        // Milestone bonus on 7th, 14th and 28th consecutive days
+        int streak = reputation.getCurrentStreak();
+        if (streak == STREAK_MILESTONE_7 || streak == STREAK_MILESTONE_14 || streak == STREAK_MILESTONE_28) {
+            earnedPoints += STREAK_MILESTONE_BONUS;
+            log.info("Streak milestone bonus awarded. userId={}, streak={}, bonus={}",
+                    reputation.getUserId(), streak, STREAK_MILESTONE_BONUS);
+        }
+
         return earnedPoints;
     }
 
@@ -260,8 +279,8 @@ public class GamificationService {
         }
     }
 
-    private void awardNewBadges(UUID userId, LocalDateTime earnedAt, UserReputation reputation) {
-        List<BadgeType> eligibleBadges = resolveBadges(reputation.getTotalPoints(), reputation.getHighestStreak());
+    private void awardNewBadges(UUID userId, LocalDateTime earnedAt, UserReputation reputation, ActionType actionType) {
+        List<BadgeType> eligibleBadges = resolveBadges(reputation.getTotalPoints(), reputation.getHighestStreak(), actionType);
         if (eligibleBadges.isEmpty()) {
             return;
         }
@@ -288,20 +307,29 @@ public class GamificationService {
         }
     }
 
-    private List<BadgeType> resolveBadges(int totalPoints, int highestStreak) {
+    private List<BadgeType> resolveBadges(int totalPoints, int highestStreak, ActionType actionType) {
         List<BadgeType> badges = new ArrayList<>();
 
-        if (totalPoints >= 1000) {
-            badges.add(BadgeType.POINTS_MASTER);
+        if (totalPoints >= 1) {
+            badges.add(BadgeType.FIRST_STEP);
         }
         if (totalPoints >= 250) {
             badges.add(BadgeType.POINTS_EXPLORER);
         }
-        if (highestStreak >= 30) {
+        if (totalPoints >= 1000) {
+            badges.add(BadgeType.POINTS_MASTER);
+        }
+        if (highestStreak >= STREAK_MILESTONE_7) {
+            badges.add(BadgeType.WEEK_WARRIOR);
+        }
+        if (highestStreak >= STREAK_MILESTONE_14) {
+            badges.add(BadgeType.FORTNIGHT_WARRIOR);
+        }
+        if (highestStreak >= STREAK_MILESTONE_28) {
             badges.add(BadgeType.STREAK_LEGEND);
         }
-        if (highestStreak >= 7) {
-            badges.add(BadgeType.WEEK_WARRIOR);
+        if (actionType == ActionType.PROFILE_COMPLETED) {
+            badges.add(BadgeType.PROFILE_COMPLETE);
         }
 
         return badges;

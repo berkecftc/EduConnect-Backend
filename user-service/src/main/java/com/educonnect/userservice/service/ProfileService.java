@@ -357,24 +357,24 @@ public class ProfileService {
     }
 
     private boolean isStudentProfileComplete(Student student) {
+        // Only user-fillable fields count toward completion.
+        // email and studentNumber are set automatically at registration.
         return hasText(student.getFirstName())
                 && hasText(student.getLastName())
-                && hasText(student.getEmail())
-                && hasText(student.getProfileImageUrl())
                 && hasText(student.getBio())
                 && hasText(student.getDepartment())
-                && hasText(student.getStudentNumber());
+                && hasText(student.getProfileImageUrl());
     }
 
     private boolean isAcademicianProfileComplete(Academician academician) {
+        // Only user-fillable fields count toward completion.
+        // email and officeNumber are set automatically at registration.
         return hasText(academician.getFirstName())
                 && hasText(academician.getLastName())
-                && hasText(academician.getEmail())
-                && hasText(academician.getProfileImageUrl())
                 && hasText(academician.getBio())
                 && hasText(academician.getDepartment())
-                && hasText(academician.getTitle())
-                && hasText(academician.getOfficeNumber());
+                && hasText(academician.getProfileImageUrl())
+                && hasText(academician.getTitle());
     }
 
     private boolean hasText(String value) {

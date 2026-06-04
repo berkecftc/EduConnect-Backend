@@ -5,6 +5,7 @@
 /Users/berkeciftci/Desktop/EduConnect-Backend/gamification-service/src/main/java/com/educonnect/gamificationservice/controller/GamificationController.java
 /Users/berkeciftci/Desktop/EduConnect-Backend/gamification-service/src/main/java/com/educonnect/gamificationservice/dto/event/GamificationEvent.java
 /Users/berkeciftci/Desktop/EduConnect-Backend/gamification-service/src/main/java/com/educonnect/gamificationservice/dto/event/GamificationEventKeys.java
+/Users/berkeciftci/Desktop/EduConnect-Backend/gamification-service/src/main/java/com/educonnect/gamificationservice/dto/response/BadgeInfoResponse.java
 /Users/berkeciftci/Desktop/EduConnect-Backend/gamification-service/src/main/java/com/educonnect/gamificationservice/dto/response/GamificationSummaryResponse.java
 /Users/berkeciftci/Desktop/EduConnect-Backend/gamification-service/src/main/java/com/educonnect/gamificationservice/dto/response/LeaderboardEntryResponse.java
 /Users/berkeciftci/Desktop/EduConnect-Backend/gamification-service/src/main/java/com/educonnect/gamificationservice/listener/GamificationEventListener.java
@@ -18,3 +19,4 @@
 /Users/berkeciftci/Desktop/EduConnect-Backend/gamification-service/src/main/java/com/educonnect/gamificationservice/repository/UserReputationRepository.java
 /Users/berkeciftci/Desktop/EduConnect-Backend/gamification-service/src/main/java/com/educonnect/gamificationservice/scheduler/GamificationScheduler.java
 /Users/berkeciftci/Desktop/EduConnect-Backend/gamification-service/src/main/java/com/educonnect/gamificationservice/service/GamificationService.java
+/Users/berkeciftci/Desktop/EduConnect-Backend/gamification-service/src/main/java/com/educonnect/gamificationservice/util/BadgeSvgProvider.java

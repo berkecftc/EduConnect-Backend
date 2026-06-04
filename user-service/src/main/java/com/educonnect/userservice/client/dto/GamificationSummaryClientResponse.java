@@ -7,7 +7,7 @@ public class GamificationSummaryClientResponse {
     private int totalPoints;
     private int currentStreak;
     private int highestStreak;
-    private List<String> badges = new ArrayList<>();
+    private List<BadgeInfoClientResponse> badges = new ArrayList<>();
 
     public GamificationSummaryClientResponse() {
     }
@@ -36,11 +36,11 @@ public class GamificationSummaryClientResponse {
         this.highestStreak = highestStreak;
     }
 
-    public List<String> getBadges() {
+    public List<BadgeInfoClientResponse> getBadges() {
         return badges;
     }
 
-    public void setBadges(List<String> badges) {
+    public void setBadges(List<BadgeInfoClientResponse> badges) {
         this.badges = badges == null ? List.of() : badges;
     }
 }

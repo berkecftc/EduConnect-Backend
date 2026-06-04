@@ -1,5 +1,6 @@
 com/educonnect/gamificationservice/config/RabbitMQConfig.class
 com/educonnect/gamificationservice/GamificationServiceApplication.class
+com/educonnect/gamificationservice/util/BadgeSvgProvider.class
 com/educonnect/gamificationservice/repository/PointHistoryRepository.class
 com/educonnect/gamificationservice/repository/UserReputationRepository.class
 com/educonnect/gamificationservice/client/UserServiceClient.class
@@ -15,6 +16,7 @@ com/educonnect/gamificationservice/dto/event/GamificationEventKeys.class
 com/educonnect/gamificationservice/service/GamificationService.class
 com/educonnect/gamificationservice/client/dto/UserProfileClientResponse.class
 com/educonnect/gamificationservice/model/ActionType.class
+com/educonnect/gamificationservice/dto/response/BadgeInfoResponse.class
 com/educonnect/gamificationservice/service/GamificationService$1.class
 com/educonnect/gamificationservice/dto/response/LeaderboardEntryResponse.class
 com/educonnect/gamificationservice/model/UserReputation.class

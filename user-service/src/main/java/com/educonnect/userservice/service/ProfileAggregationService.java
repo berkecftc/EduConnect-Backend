@@ -2,8 +2,10 @@ package com.educonnect.userservice.service;
 
 import com.educonnect.userservice.client.dto.GamificationSummaryClientResponse;
 import com.educonnect.userservice.client.dto.RecentPostClientResponse;
+import com.educonnect.userservice.client.dto.BadgeInfoClientResponse;
 import com.educonnect.userservice.dto.response.GamificationSummaryDTO;
 import com.educonnect.userservice.dto.response.RecentPostDTO;
+import com.educonnect.userservice.dto.response.BadgeInfoDTO;
 import com.educonnect.userservice.dto.response.UserProfileResponse;
 import com.educonnect.userservice.dto.response.UserProfileResponseDTO;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -74,7 +76,19 @@ public class ProfileAggregationService {
         gamificationSummary.setTotalPoints(gamification.getTotalPoints());
         gamificationSummary.setCurrentStreak(gamification.getCurrentStreak());
         gamificationSummary.setHighestStreak(gamification.getHighestStreak());
-        gamificationSummary.setBadges(gamification.getBadges());
+        
+        List<BadgeInfoDTO> badgeDTOs = (gamification.getBadges() == null ? new java.util.ArrayList<BadgeInfoClientResponse>() : gamification.getBadges()).stream()
+                .map(b -> {
+                    BadgeInfoDTO dto = new BadgeInfoDTO();
+                    dto.setBadgeType(b.getBadgeType());
+                    dto.setName(b.getName());
+                    dto.setDescription(b.getDescription());
+                    dto.setImageUrl(b.getImageUrl());
+                    dto.setEarnedAt(b.getEarnedAt());
+                    return dto;
+                })
+                .toList();
+        gamificationSummary.setBadges(badgeDTOs);
 
         response.setGamification(gamificationSummary);
         response.setRecentPosts(posts.stream().map(this::toRecentPostDTO).toList());
@@ -101,38 +115,21 @@ public class ProfileAggregationService {
     }
 
     private int calculateProfileCompletionPercentage(UserProfileResponse profile) {
-        int totalFields = 6;
+        // Base fields every user can actively fill (email/studentNumber/officeNumber
+        // are auto-set at registration and must not inflate the denominator).
+        int totalFields = 5;
         int completedFields = 0;
 
-        if (hasText(profile.getFirstName())) {
-            completedFields++;
-        }
-        if (hasText(profile.getLastName())) {
-            completedFields++;
-        }
-        if (hasText(profile.getProfileImageUrl())) {
-            completedFields++;
-        }
-        if (hasText(profile.getDepartment())) {
-            completedFields++;
-        }
-        if (hasText(profile.getBio())) {
-            completedFields++;
-        }
-        if (hasText(profile.getEmail())) {
-            completedFields++;
-        }
+        if (hasText(profile.getFirstName())) completedFields++;
+        if (hasText(profile.getLastName())) completedFields++;
+        if (hasText(profile.getBio())) completedFields++;
+        if (hasText(profile.getDepartment())) completedFields++;
+        if (hasText(profile.getProfileImageUrl())) completedFields++;
 
-        if ("Student".equalsIgnoreCase(profile.getRole())) {
+        // Academicians have one additional user-fillable field: title
+        if ("Academician".equalsIgnoreCase(profile.getRole())) {
             totalFields++;
-            if (hasText(profile.getStudentNumber())) {
-                completedFields++;
-            }
-        } else if ("Academician".equalsIgnoreCase(profile.getRole())) {
-            totalFields++;
-            if (hasText(profile.getTitle())) {
-                completedFields++;
-            }
+            if (hasText(profile.getTitle())) completedFields++;
         }
 
         return (int) Math.round((completedFields * 100.0) / totalFields);

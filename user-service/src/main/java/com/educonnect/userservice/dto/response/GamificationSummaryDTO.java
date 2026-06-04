@@ -7,7 +7,7 @@ public class GamificationSummaryDTO {
     private int totalPoints;
     private int currentStreak;
     private int highestStreak;
-    private List<String> badges = new ArrayList<>();
+    private List<BadgeInfoDTO> badges = new ArrayList<>();
 
     public GamificationSummaryDTO() {
     }
@@ -45,11 +45,11 @@ public class GamificationSummaryDTO {
         this.highestStreak = highestStreak;
     }
 
-    public List<String> getBadges() {
+    public List<BadgeInfoDTO> getBadges() {
         return badges;
     }
 
-    public void setBadges(List<String> badges) {
+    public void setBadges(List<BadgeInfoDTO> badges) {
         this.badges = badges == null ? List.of() : badges;
     }
 }
