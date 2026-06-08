@@ -393,6 +393,350 @@ curl -X GET http://localhost:8080/api/users/profile/[userId] \
 
 ---
 
+## ⚙️ Config Server & Merkezi Yapılandırma
+
+### Genel Bakış
+
+EduConnect, **Spring Cloud Config Server** kullanarak tüm servislerin yapılandırmasını **merkezi olarak** yönetir. Yapılandırma dosyaları harici bir **Git repository**'sinden çekilir, bu sayede:
+
+- ✅ Kod ve konfigürasyon **ayrı tutulur**
+- ✅ Farklı ortamlar (dev/staging/prod) için **farklı config** uygulanır
+- ✅ Config değişiklik yapılsa bile **servisler yeniden derlenmiyor**
+- ✅ Şirket içi gizli bilgiler (veritabanı şifresi, API key'leri) **repo'da saklanır**
+
+### Config Server Mimari
+
+```
+┌─────────────────────────────────┐
+│   Spring Cloud Config Server    │
+│   (port 8888)                   │
+└────────────────┬────────────────┘
+                 │
+                 │ clone-on-start: true
+                 │
+                 ▼
+┌─────────────────────────────────────────────┐
+│   Git Repository                            │
+│ (https://github.com/berkecftc/...config..)  │
+│                                             │
+│  ├─ application.yml (global defaults)       │
+│  ├─ application-dev.yml (development)       │
+│  ├─ application-prod.yml (production)       │
+│  ├─ auth-service.yml (service-specific)     │
+│  ├─ course-service.yml                      │
+│  └─ ... (diğer servislerin config'leri)    │
+└────────────────┬────────────────────────────┘
+                 │
+    ┌────────────┼────────────┐
+    ▼            ▼            ▼
+[auth-svc] [user-svc] [course-svc] ...
+```
+
+### Config Server Yapılandırması
+
+**config-server/src/main/resources/application.yml**:
+
+```yaml
+server:
+  port: 8888
+
+spring:
+  application:
+    name: config-server
+  cloud:
+    config:
+      server:
+        git:
+          uri: https://github.com/berkecftc/educonnect-config-repo.git
+          # Git repository'si URL'i
+          clone-on-start: true
+          # Sunucu başlangıçta config'leri klonlar
+          search-paths: /
+          # Klasörlermde config dosyalarını ara
+
+eureka:
+  client:
+    register-with-eureka: false
+    # Config Server, Eureka'ya kaydolmaz (bootstrap aşaması)
+    fetch-registry: false
+```
+
+### İstemci Yapılandırması (İş Mantığı Servisleri)
+
+Her servis, **bootstrap aşamasında** Config Server'dan yapılandırmasını çeker:
+
+**auth-services/src/main/resources/application.yml**:
+```yaml
+spring:
+  config:
+    import: "configserver:http://localhost:8888"
+    # Config Server'dan import et (PORT 8888)
+
+  # Geri kalan konfigürasyon Config Server'dan çekilir
+  application:
+    name: auth-services
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+
+server:
+  port: 8081
+
+eureka:
+  client:
+    service-url:
+      defaultZone: http://localhost:8761/eureka/
+```
+
+### Config Şemaları (Dosya Adlandırması)
+
+Git repository'sinde yapılandırma dosyalarının adlandırması şu konvansiyonu izler:
+
+```
+application.yml                  # Global defaults (tüm servislerde kullanılır)
+application-dev.yml             # Development profile (dev ortamı)
+application-prod.yml            # Production profile (prod ortamı)
+
+auth-services.yml               # Auth Service spesifik config
+auth-services-dev.yml           # Auth Service + dev
+auth-services-prod.yml          # Auth Service + prod
+
+course-service.yml              # Course Service spesifik config
+course-service-dev.yml
+course-service-prod.yml
+
+...ve diğer servislere ait
+```
+
+### Config Server ile İsstek Akışı
+
+```
+1. Auth Service başlangıçı:
+   ├─ application.yml okuması: spring.profiles.active = ?
+   ├─ spring.config.import: configserver:http://localhost:8888
+   │
+   └─ Config Server'a istek:
+       → GET http://localhost:8888/auth-services/dev
+       (servis adı: auth-services, profile: dev)
+
+2. Config Server yanıt verir:
+   ├─ application.yml (global) yükle
+   ├─ application-dev.yml (profile spesifik) yükle
+   ├─ auth-services.yml (servis spesifik) yükle
+   └─ auth-services-dev.yml (servis + profile) yükle
+
+   (Sonraki dosyalar öncekini override eder)
+
+3. Birleştirilmiş config → Auth Service'de kullanılır
+```
+
+### Profil Yönetimi (Dev vs Prod)
+
+**Development ortamında (local machine)**:
+```bash
+# Auth Service 'dev' profiliyle başlat
+java -Dspring.profiles.active=dev \
+     -jar auth-services-1.0.0-SNAPSHOT.jar
+```
+
+Veya `application.yml`'de:
+```yaml
+spring:
+  profiles:
+    active: dev    # dev profile'ini kullan
+```
+
+**Production ortamında**:
+```yaml
+spring:
+  profiles:
+    active: prod   # production profile'ini kullan
+```
+
+### Tipik Config Dosyası Yapısı
+
+**Git Repo: application-dev.yml** (örnek)
+```yaml
+# Database Configuration (Development)
+spring:
+  datasource:
+    url: jdbc:postgresql://localhost:5432/educonnect
+    username: eduadmin
+    password: edu123
+
+  jpa:
+    database: postgresql
+    generate-ddl: true
+
+  rabbitmq:
+    host: localhost
+    port: 5672
+    username: guest
+    password: guest
+
+  redis:
+    host: localhost
+    port: 6379
+
+  mail:
+    host: localhost
+    port: 1025           # Mailpit SMTP
+    protocol: smtp
+
+# MinIO Configuration
+minio:
+  url: http://localhost:9000
+  access-key: minioadmin
+  secret-key: minioadmin
+  bucket-prefix: educonnect
+
+# JWT Configuration
+jwt:
+  secret: dev-secret-key-only-for-testing    # ⚠️ Dev sadece!
+  expiration: 3600000  # 1 hour
+
+# Logging
+logging:
+  level:
+    root: INFO
+    com.educonnect: DEBUG
+
+# Service URLs
+service-urls:
+  user-service: http://user-service:8082
+  course-service: http://course-service:8083
+```
+
+**Git Repo: application-prod.yml** (örnek)
+```yaml
+# Database Configuration (Production)
+spring:
+  datasource:
+    url: jdbc:postgresql://prod-db.example.com:5432/educonnect_prod
+    username: ${DB_USERNAME}          # Ortam değişkeninden oku
+    password: ${DB_PASSWORD}
+
+  rabbitmq:
+    host: ${RABBITMQ_HOST}
+    port: 5672
+    username: ${RABBITMQ_USER}
+    password: ${RABBITMQ_PASSWORD}
+
+  redis:
+    host: ${REDIS_HOST}
+    port: 6379
+    password: ${REDIS_PASSWORD}
+
+# JWT Configuration
+jwt:
+  secret: ${JWT_SECRET}               # Çevre değişkeninden oku!
+  expiration: 1800000  # 30 minutes
+
+# Logging
+logging:
+  level:
+    root: WARN
+    com.educonnect: INFO
+  file:
+    name: /var/log/educonnect/app.log
+
+# TLS/HTTPS
+server:
+  ssl:
+    key-store: ${KEYSTORE_PATH}
+    key-store-password: ${KEYSTORE_PASSWORD}
+```
+
+### Şirket İçi Gizli Bilgileri Güvenli Tutma
+
+**Asla yapmazsanız**: Config repository'sinde plain-text şifreler
+```yaml
+# ❌ ASLA KÖK YAPMAYIN!
+spring:
+  datasource:
+    password: prod123456  # Tehlikeli!
+```
+
+**Yapılması Gereken**: Ortam değişkenleri kullanın
+```yaml
+# ✅ Doğru Yol
+spring:
+  datasource:
+    password: ${DB_PASSWORD}  # Çevre değişkeninden oku
+```
+
+Sonra production server'da çevre değişkenlerini ayarlayın:
+```bash
+export DB_PASSWORD="gerçek-şifre"
+export RABBITMQ_USER="prod-user"
+export JWT_SECRET="üretim-gizli-anahtarı"
+java -jar auth-services-1.0.0-SNAPSHOT.jar
+```
+
+Veya Docker container'ında:
+```bash
+docker run -e DB_PASSWORD="..." \
+           -e RABBITMQ_USER="..." \
+           -e JWT_SECRET="..." \
+           auth-services-image
+```
+
+### Config Server Health Check
+
+Config Server'ın çalışıp çalışmadığını kontrol edin:
+
+```bash
+# Config Server'ın durumu
+curl http://localhost:8888/actuator/health
+
+# Belirli bir servisin config'ini göster
+curl http://localhost:8888/auth-services/dev
+
+# Yanıt örneği:
+{
+  "name": "auth-services",
+  "profiles": ["dev"],
+  "label": "main",
+  "version": "abc123...",
+  "propertySources": [
+    {
+      "name": "https://github.com/berkecftc/.../application-dev.yml",
+      "source": {
+        "spring.datasource.url": "jdbc:postgresql://localhost:5432/...",
+        ...
+      }
+    }
+  ]
+}
+```
+
+### Yerel Geliştirmede Config Override Etme
+
+Config Server'dan çekilen değerler **local ortam değişkenleriyle override** edilebilir:
+
+```bash
+# DB_URL ortam değişkenini ön planda ayarla
+export SPRING_DATASOURCE_URL="jdbc:postgresql://localhost:5432/local-db"
+
+# Servis başlat (override değeri kullanılır)
+java -jar auth-services-1.0.0-SNAPSHOT.jar
+```
+
+Veya IDE'den (IntelliJ IDEA):
+1. **Run → Edit Configurations**
+2. **Environment variables** sekmesine gider
+3. Ekle: `SPRING_DATASOURCE_URL=jdbc:postgresql://localhost:5432/test-db`
+4. **Run** seç
+
+### Kaynaklar
+
+- 📖 [Spring Cloud Config Documentation](https://cloud.spring.io/spring-cloud-config/reference/html/)
+- 🔐 [Config Server Security Best Practices](https://spring.io/projects/spring-cloud-config#security)
+- 🚀 **Git Repository**: https://github.com/berkecftc/educonnect-config-repo
+
+---
+
 ## 📂 Proje Yapısı
 
 ```
@@ -1434,7 +1778,7 @@ LinkedHashSet ile dedüplikasyon
     ↓
 LLM Prompt:
     SYSTEM: "Türkçe eğitim danışmanısın"
-    USER: "Öğrenci şu kulüblere ilgi gösterebilir: [liste]"
+    USER: "Öğrenci şu kulüpleri ilgi gösterebilir: [liste]"
     ↓
 LLM (temperature=0, max 128 token) → Yanıt
     ↓
@@ -2302,8 +2646,6 @@ Fixes #123
 ## 📄 Lisans & Ek Kaynaklar
 
 - **Lisans**: MIT
-- **PROJE_RAPORU.md**: Detaylı akademik rapor (1000+ satır)
-- **TEKNIK_RAPOR.md**: Teknik mimarisi detayları
 
 ---
 
@@ -2311,8 +2653,7 @@ Fixes #123
 
 Sorularınız için:
 - GitHub Issues: Hata raporları ve özellik talepleri
-- Email: [contact@educonnect.dev]
-- Discord: [Community sunucusu linki]
+- Email: [ahmetberkeciftci@gmail.com]
 
 ---
 
