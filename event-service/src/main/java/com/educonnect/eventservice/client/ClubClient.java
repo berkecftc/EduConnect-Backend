@@ -1,5 +1,6 @@
 package com.educonnect.eventservice.client;
 
+import com.educonnect.common.security.ServiceTokenFeignConfiguration;
 import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -12,7 +13,7 @@ import java.util.UUID;
  * Eureka üzerinden "club-service" ismiyle kayıtlı servise bağlanır.
  * Etkinlik onayı için kulübün danışman akademisyen bilgisini almak amacıyla kullanılır.
  */
-@FeignClient(name = "club-service", path = "/api/clubs")
+@FeignClient(name = "club-service", path = "/api/clubs/internal", configuration = ServiceTokenFeignConfiguration.class)
 public interface ClubClient {
 
     /**
@@ -30,5 +31,7 @@ public interface ClubClient {
      */
     @GetMapping("/by-advisor/{advisorId}/ids")
     List<UUID> getClubIdsByAdvisorId(@PathVariable("advisorId") UUID advisorId);
-}
 
+    @GetMapping("/{clubId}/is-member/{studentId}")
+    Boolean isStudentMemberOfClub(@PathVariable("clubId") UUID clubId, @PathVariable("studentId") UUID studentId);
+}

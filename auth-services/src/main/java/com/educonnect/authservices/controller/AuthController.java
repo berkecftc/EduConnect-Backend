@@ -182,12 +182,6 @@ public class AuthController {
         }
     }
 
-    // Toplu e-posta sorgulama (POST kullanıyoruz çünkü ID listesi uzun olabilir)
-    @PostMapping("/users/emails")
-    public ResponseEntity<List<String>> getEmailsByIds(@RequestBody List<UUID> userIds) {
-        return ResponseEntity.ok(authService.getEmailsByUserIds(userIds));
-    }
-
     // --- YENİ ENDPOINT: ŞİFREMİ UNUTTUM ---
     /**
      * Kullanıcı şifresini unuttuğunda e-posta ile şifre sıfırlama linki gönderir.

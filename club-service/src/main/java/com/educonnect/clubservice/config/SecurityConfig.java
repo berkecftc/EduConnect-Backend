@@ -1,5 +1,6 @@
 package com.educonnect.clubservice.config;
 
+import com.educonnect.common.security.ServiceIdentity;
 import com.educonnect.common.security.VerifiedIdentityFilter;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -32,20 +33,16 @@ public class SecurityConfig {
                         .sessionCreationPolicy(SessionCreationPolicy.STATELESS)) // JWT kullandığımız için
 
                 .authorizeHttpRequests(auth -> auth
+                        .requestMatchers("/api/*/internal/**").hasRole(ServiceIdentity.ROLE)
+
                         // Dashboard endpoints - authentication required (bu kurallar önce gelmeli!)
                         .requestMatchers(HttpMethod.GET, "/api/clubs/my-memberships").authenticated()
                         .requestMatchers(HttpMethod.GET, "/api/clubs/my-managed-clubs").hasAnyRole("ADMIN", "CLUB_OFFICIAL")
-
-                        // Servisler arası iletişim için public endpoints (Feign Client)
-                        .requestMatchers(HttpMethod.GET, "/api/clubs/by-advisor/*/ids").permitAll()
-                        .requestMatchers(HttpMethod.GET, "/api/clubs/*/advisor-id").permitAll()
 
                         // Public GET endpoints (genel kulüp listeleme/detay)
                         .requestMatchers(HttpMethod.GET, "/api/clubs").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/clubs/{clubId}").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/clubs/{clubId}/board-members").permitAll()
-                        .requestMatchers(HttpMethod.GET, "/api/clubs/{clubId}/members/ids").permitAll()
-                        .requestMatchers(HttpMethod.GET, "/api/clubs/{clubId}/is-member/{studentId}").permitAll() // Servisler arası iletişim
                         .requestMatchers(HttpMethod.GET, "/api/clubs/search").permitAll()
 
                         // Akademisyen (Danışman) endpoints - görev değişikliği onay/red

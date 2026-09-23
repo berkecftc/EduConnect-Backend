@@ -1,5 +1,6 @@
 package com.educonnect.courseservice.config;
 
+import com.educonnect.common.security.ServiceIdentity;
 import com.educonnect.common.security.VerifiedIdentityFilter;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -33,6 +34,7 @@ public class SecurityConfig {
             .cors(cors -> cors.configurationSource(corsConfigurationSource()))
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
+                .requestMatchers("/api/*/internal/**").hasRole(ServiceIdentity.ROLE)
                 .requestMatchers("/actuator/**").permitAll()
                 .anyRequest().permitAll() // API Gateway zaten authentication yapıyor
             )

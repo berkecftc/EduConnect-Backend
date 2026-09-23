@@ -15,29 +15,39 @@ import java.security.interfaces.RSAPrivateCrtKey;
 import java.security.interfaces.RSAPublicKey;
 import java.security.spec.PKCS8EncodedKeySpec;
 import java.security.spec.RSAPublicKeySpec;
+import java.time.Duration;
 import java.util.Arrays;
 import java.util.Base64;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.function.Function;
 
 @Service
 public class JWTService {
 
+    public static final String SERVICE_ROLE = "ROLE_SERVICE";
+    private static final String TOKEN_USE_CLAIM = "token_use";
+    private static final String TOKEN_USE_SERVICE = "service";
+
     private final RSAPrivateCrtKey privateKey;
     private final RSAPublicKey publicKey;
     private final String keyId;
     private final String issuer;
     private final String audience;
+    private final String internalAudience;
+    private final Duration serviceTokenTtl;
     private final long accessTokenExpirationMs;
     private final long refreshTokenExpirationMs;
 
     public JWTService(@Value("${jwt.private-key}") String privateKeyPem,
                       @Value("${educonnect.security.jwt.issuer}") String issuer,
                       @Value("${educonnect.security.jwt.audience}") String audience,
+                      @Value("${educonnect.security.jwt.internal-audience:educonnect-internal}") String internalAudience,
+                      @Value("${educonnect.security.service-token.ttl:PT10M}") Duration serviceTokenTtl,
                       @Value("${jwt.access-token-expiration-ms:900000}") long accessTokenExpirationMs,
                       @Value("${jwt.refresh-token-expiration-ms:604800000}") long refreshTokenExpirationMs) {
         this.privateKey = parsePrivateKey(privateKeyPem);
@@ -45,6 +55,8 @@ public class JWTService {
         this.keyId = computeKeyId(this.publicKey);
         this.issuer = issuer;
         this.audience = audience;
+        this.internalAudience = internalAudience;
+        this.serviceTokenTtl = serviceTokenTtl;
         this.accessTokenExpirationMs = accessTokenExpirationMs;
         this.refreshTokenExpirationMs = refreshTokenExpirationMs;
     }
@@ -88,6 +100,42 @@ public class JWTService {
                 .expiration(new Date(now + accessTokenExpirationMs))
                 .signWith(privateKey, Jwts.SIG.RS256)
                 .compact();
+    }
+
+    public String generateServiceToken(String clientId) {
+        long now = System.currentTimeMillis();
+        return Jwts.builder()
+                .header().keyId(keyId).and()
+                .claim(TOKEN_USE_CLAIM, TOKEN_USE_SERVICE)
+                .claim("roles", SERVICE_ROLE)
+                .id(UUID.randomUUID().toString())
+                .issuer(issuer)
+                .audience().add(internalAudience).and()
+                .subject(clientId)
+                .issuedAt(new Date(now))
+                .expiration(new Date(now + serviceTokenTtl.toMillis()))
+                .signWith(privateKey, Jwts.SIG.RS256)
+                .compact();
+    }
+
+    public Duration getServiceTokenTtl() {
+        return serviceTokenTtl;
+    }
+
+    public Optional<String> extractServiceClientId(String token) {
+        try {
+            Claims claims = Jwts.parser()
+                    .verifyWith(publicKey)
+                    .requireIssuer(issuer)
+                    .requireAudience(internalAudience)
+                    .require(TOKEN_USE_CLAIM, TOKEN_USE_SERVICE)
+                    .build()
+                    .parseSignedClaims(token)
+                    .getPayload();
+            return Optional.ofNullable(claims.getSubject());
+        } catch (Exception e) {
+            return Optional.empty();
+        }
     }
 
     public String generateRefreshToken() {

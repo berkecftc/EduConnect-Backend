@@ -20,7 +20,6 @@ import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
 import java.util.UUID;
-import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/clubs") // Public rota
@@ -192,21 +191,6 @@ public class ClubController {
         return ResponseEntity.ok(new ClubSummaryDTO(club.getId(), club.getName(), club.getLogoUrl()));
     }
 
-    /**
-     * Notification Service için: Bir kulübün tüm üyelerinin ID'lerini döner.
-     * (Sadece servisler arası iletişim için kullanılacağından güvenliği basit tutabiliriz veya internal yapabiliriz)
-     */
-    @GetMapping("/{clubId}/members/ids")
-    public ResponseEntity<List<UUID>> getClubMemberIds(@PathVariable UUID clubId) {
-        // ClubDetailsDTO'dan veya direkt repository'den çekebiliriz
-        // Repository'de 'findStudentIdsByClubId' gibi bir metot yoksa, stream ile çevirelim:
-        List<UUID> memberIds = clubService.getClubDetails(clubId).getMembers().stream()
-                .map(MemberDTO::getStudentId)
-                .collect(Collectors.toList());
-
-        return ResponseEntity.ok(memberIds);
-    }
-
     // ÖĞRENCİNİN KULÜP ÜYELİKLERİNİ GETİR
     @GetMapping("/my-memberships")
     public ResponseEntity<List<MyClubMembershipDTO>> getMyMemberships(
@@ -230,20 +214,6 @@ public class ClubController {
     }
 
     /**
-     * Öğrencinin kulüp üyesi olup olmadığını kontrol eder.
-     * Event-service gibi diğer servisler tarafından kullanılır.
-     * GET /api/clubs/{clubId}/is-member/{studentId}
-     */
-    @GetMapping("/{clubId}/is-member/{studentId}")
-    public ResponseEntity<Boolean> isStudentMemberOfClub(
-            @PathVariable UUID clubId,
-            @PathVariable UUID studentId
-    ) {
-        boolean isMember = clubService.isStudentMemberOfClub(clubId, studentId);
-        return ResponseEntity.ok(isMember);
-    }
-
-    /**
      * Kulüp yetkilisinin yönetim kurulunda olduğu tüm kulüpleri getirir.
      * ROLE_CLUB_OFFICIAL, ROLE_VICE_PRESIDENT veya ROLE_BOARD_MEMBER rolüne sahip olduğu kulüpler.
      * Cache: 5 dakika TTL
@@ -256,25 +226,5 @@ public class ClubController {
         UUID userId = UUID.fromString(userIdHeader);
         List<MyClubMembershipDTO> managedClubs = clubService.getManagedClubs(userId);
         return ResponseEntity.ok(managedClubs);
-    }
-
-    /**
-     * Bir kulübün danışman akademisyen ID'sini döndürür.
-     * Event-service tarafından etkinlik onayı için kullanılır (Feign Client).
-     */
-    @GetMapping("/{clubId}/advisor-id")
-    public ResponseEntity<UUID> getClubAdvisorId(@PathVariable UUID clubId) {
-        UUID advisorId = clubService.getClubAdvisorId(clubId);
-        return ResponseEntity.ok(advisorId);
-    }
-
-    /**
-     * Bir danışman akademisyenin sorumlu olduğu kulüplerin ID listesini döndürür.
-     * Event-service tarafından bekleyen etkinlikleri listelemek için kullanılır (Feign Client).
-     */
-    @GetMapping("/by-advisor/{advisorId}/ids")
-    public ResponseEntity<List<UUID>> getClubIdsByAdvisor(@PathVariable UUID advisorId) {
-        List<UUID> clubIds = clubService.getClubIdsByAdvisorId(advisorId);
-        return ResponseEntity.ok(clubIds);
     }
 }

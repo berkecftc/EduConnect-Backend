@@ -1,5 +1,6 @@
 package com.educonnect.userservice.config;
 
+import com.educonnect.common.security.ServiceIdentity;
 import com.educonnect.common.security.VerifiedIdentityFilter;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -27,6 +28,7 @@ public class SecurityConfig {
             .csrf(csrf -> csrf.disable())
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
+                .requestMatchers("/api/*/internal/**").hasRole(ServiceIdentity.ROLE)
                 .requestMatchers("/actuator/**").permitAll()
                 .anyRequest().permitAll() // API Gateway zaten authentication kontrolü yapıyor
             )

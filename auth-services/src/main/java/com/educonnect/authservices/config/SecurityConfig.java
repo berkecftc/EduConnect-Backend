@@ -4,8 +4,10 @@ import com.educonnect.authservices.Repository.UserRepository;
 import com.educonnect.authservices.security.JwtAuthenticationFilter;
 import com.educonnect.authservices.service.JWTService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.AuthenticationProvider;
 import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
@@ -30,6 +32,7 @@ import java.util.List;
 @Configuration
 @EnableWebSecurity
 @EnableMethodSecurity
+@EnableConfigurationProperties(ServiceClientsProperties.class)
 public class SecurityConfig {
 
     private final UserRepository userRepository;
@@ -48,14 +51,14 @@ public class SecurityConfig {
                 .csrf(csrf -> csrf.disable())
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/.well-known/jwks.json").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/auth/internal/token").permitAll()
+                        .requestMatchers("/api/auth/internal/**").hasRole("SERVICE")
                         .requestMatchers("/api/auth/register",
                                          "/api/auth/login",
                                          "/api/auth/refresh",
                                          "/api/auth/logout",
                                          "/api/auth/forgot-password",
                                          "/api/auth/reset-password",
-                                         "/api/auth/users/emails",
-                                         "/{clubId}/members/ids",
                                          "/api/auth/request/academician-account",
                                          "/api/auth/request/student-account").permitAll()
                         .requestMatchers("/api/auth/admin/**").hasRole("ADMIN")

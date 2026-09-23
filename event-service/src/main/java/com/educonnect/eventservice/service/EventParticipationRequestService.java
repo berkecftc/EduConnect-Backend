@@ -3,6 +3,7 @@ package com.educonnect.eventservice.service;
 import com.educonnect.eventservice.Repository.EventParticipationRequestRepository;
 import com.educonnect.eventservice.Repository.EventRegistrationRepository;
 import com.educonnect.eventservice.Repository.EventRepository;
+import com.educonnect.eventservice.client.ClubClient;
 import com.educonnect.eventservice.client.UserClient;
 import com.educonnect.eventservice.config.EventRabbitMQConfig;
 import com.educonnect.eventservice.dto.message.EventRegistrationMessage;
@@ -41,6 +42,7 @@ public class EventParticipationRequestService {
     private final RestTemplate restTemplate;
     private final RabbitTemplate rabbitTemplate;
     private final UserClient userClient;
+    private final ClubClient clubClient;
 
     public EventParticipationRequestService(
             EventParticipationRequestRepository participationRequestRepository,
@@ -48,13 +50,15 @@ public class EventParticipationRequestService {
             EventRegistrationRepository eventRegistrationRepository,
             RestTemplate restTemplate,
             RabbitTemplate rabbitTemplate,
-            UserClient userClient) {
+            UserClient userClient,
+            ClubClient clubClient) {
         this.participationRequestRepository = participationRequestRepository;
         this.eventRepository = eventRepository;
         this.eventRegistrationRepository = eventRegistrationRepository;
         this.restTemplate = restTemplate;
         this.rabbitTemplate = rabbitTemplate;
         this.userClient = userClient;
+        this.clubClient = clubClient;
     }
 
     /**
@@ -331,9 +335,7 @@ public class EventParticipationRequestService {
      */
     private boolean isStudentMemberOfClub(UUID studentId, UUID clubId) {
         try {
-            String clubServiceUrl = "http://CLUB-SERVICE/api/clubs/" + clubId + "/is-member/" + studentId;
-            Boolean isMember = restTemplate.getForObject(clubServiceUrl, Boolean.class);
-            return Boolean.TRUE.equals(isMember);
+            return Boolean.TRUE.equals(clubClient.isStudentMemberOfClub(clubId, studentId));
         } catch (Exception e) {
             log.error("Club-service'e üyelik kontrolü yapılamadı: {}", e.getMessage());
             // Güvenli tarafta kal - üyelik doğrulanamadığında izin verme

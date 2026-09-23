@@ -43,7 +43,7 @@ public class EventNotificationListener {
 
         try {
             // 1. ADIM: club-service'ten üye ID'lerini çek
-            String clubServiceUrl = "http://CLUB-SERVICE/api/clubs/" + clubId + "/members/ids";
+            String clubServiceUrl = "http://CLUB-SERVICE/api/clubs/internal/" + clubId + "/members/ids";
             log.info("🔍 Fetching member IDs from: {}", clubServiceUrl);
 
             ResponseEntity<List<UUID>> memberIdsResponse = restTemplate.exchange(
@@ -62,7 +62,7 @@ public class EventNotificationListener {
             }
 
             // 2. ADIM: auth-services'ten bu ID'lerin e-postalarını çek
-            String authServiceUrl = "http://AUTH-SERVICES/api/auth/users/emails";
+            String authServiceUrl = "http://AUTH-SERVICES/api/auth/internal/users/emails";
             log.info("🔍 Fetching emails from auth-services for {} member(s)", memberIds.size());
 
             HttpEntity<List<UUID>> request = new HttpEntity<>(memberIds);

@@ -1,5 +1,6 @@
 package com.educonnect.llmservice.config;
 
+import com.educonnect.common.security.ServiceIdentity;
 import com.educonnect.common.security.VerifiedIdentityFilter;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -24,7 +25,9 @@ public class SecurityConfig {
         http
                 .csrf(csrf -> csrf.disable())
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-                .authorizeHttpRequests(auth -> auth.anyRequest().permitAll())
+                .authorizeHttpRequests(auth -> auth
+                        .requestMatchers("/api/*/internal/**").hasRole(ServiceIdentity.ROLE)
+                        .anyRequest().permitAll())
                 .addFilterBefore(verifiedIdentityFilter, UsernamePasswordAuthenticationFilter.class)
                 .formLogin(form -> form.disable())
                 .httpBasic(basic -> basic.disable());

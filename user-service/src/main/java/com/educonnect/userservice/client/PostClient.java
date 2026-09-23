@@ -1,5 +1,6 @@
 package com.educonnect.userservice.client;
 
+import com.educonnect.common.security.ServiceTokenFeignConfiguration;
 import com.educonnect.userservice.client.dto.RecentPostClientResponse;
 import com.educonnect.userservice.client.fallback.PostClientFallbackFactory;
 import org.springframework.cloud.openfeign.FeignClient;
@@ -12,7 +13,8 @@ import java.util.UUID;
 @FeignClient(
         name = "post-service",
         path = "/api/posts",
-        fallbackFactory = PostClientFallbackFactory.class
+        fallbackFactory = PostClientFallbackFactory.class,
+        configuration = ServiceTokenFeignConfiguration.class
 )
 public interface PostClient {
 

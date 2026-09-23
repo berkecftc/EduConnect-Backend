@@ -1024,8 +1024,8 @@ DELETE /api/clubs/{id}/leave                           # Kulüpten ayrıl
 POST   /api/clubs/{id}/logo                            # Logo yükle
 GET    /api/clubs/my-memberships                       # Üyeliklerim
 POST   /api/clubs/{id}/membership-request              # Üyelik talebi (onay tabanlı)
-GET    /api/clubs/{id}/members/ids                     # Üye ID listesi (internal, Event için)
-GET    /api/clubs/{id}/advisor-id                      # Danışman ID'si (internal, advisor approval)
+GET    /api/clubs/internal/{id}/members/ids            # Üye ID listesi (yalnızca servis token)
+GET    /api/clubs/internal/{id}/advisor-id             # Danışman ID'si (yalnızca servis token)
 GET    /api/clubs/search?name=...                      # İsme göre arama
 POST   /api/admin/clubs                                # Kulüp oluştur (Admin)
 DELETE /api/admin/clubs/{id}                           # Kulüp sil/arşivle (Admin)
@@ -1348,6 +1348,23 @@ public class ProfileAggregationService {
 - Zaman aşımı: 500ms (connectTimeout + readTimeout)
 - Yük dengeleme: Eureka müteşekkil (round-robin)
 - Devre kesici: Resilience4j
+
+### Servis Kimliği (İç Uçlar)
+
+Servisler arası uçlar `/api/<servis>/internal/**` altında toplanır. Gateway bu yolları dışarıya 404 ile kapatır; servisler ise yalnızca `ROLE_SERVICE` taşıyan servis token'ını kabul eder.
+
+- Çağıran servis, auth-service'ten **client credentials** ile kısa ömürlü bir token alır: `POST /api/auth/internal/token` (HTTP Basic `client_id:client_secret`, `grant_type=client_credentials`).
+- Token RS256 ile imzalanır; `aud` = `educonnect-internal`, `token_use` = `service`, `sub` = istemci adı. Gateway bu audience'ı kabul etmediği için servis token'ı dışarıdan kullanılamaz.
+- Servis token'ı yalnızca iç yollarda geçerlidir; diğer uçlarda anonim istek gibi değerlendirilir.
+- `common-security` token'ı önbelleğe alır ve süresi dolmadan yeniler. Feign istemcileri `configuration = ServiceTokenFeignConfiguration.class`, RestTemplate'ler `ServiceTokenHttpRequestInterceptor` ile token ekler.
+- İstemci sırları config repo'da `{cipher}` ile saklanır: çağıran serviste `educonnect.security.service-client.secret`, auth-service'te `educonnect.security.service-clients.<istemci>` (bcrypt karması).
+
+| Çağıran | İç uç |
+|---|---|
+| notification-service | `POST /api/auth/internal/users/emails`, `GET /api/clubs/internal/{id}/members/ids` |
+| event-service | `GET /api/clubs/internal/{id}/advisor-id`, `/by-advisor/{id}/ids`, `/{id}/is-member/{studentId}` |
+| user-service | `GET /api/gamification/internal/users/{id}/summary`, `GET /api/posts/internal/users/{id}/recent` |
+| llm-service | `PUT /api/posts/internal/{postId}/moderation` |
 
 ### Asenkron İletişim (RabbitMQ)
 

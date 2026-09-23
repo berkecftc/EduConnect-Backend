@@ -1,1 +1,2 @@
 com.educonnect.common.security.CommonSecurityAutoConfiguration
+com.educonnect.common.security.ServiceClientAutoConfiguration

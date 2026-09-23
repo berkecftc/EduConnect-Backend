@@ -22,7 +22,7 @@ import java.util.UUID;
 public class ClubNotificationListener {
 
     private static final Logger log = LoggerFactory.getLogger(ClubNotificationListener.class);
-    private static final String AUTH_EMAILS_URL = "http://AUTH-SERVICES/api/auth/users/emails";
+    private static final String AUTH_EMAILS_URL = "http://AUTH-SERVICES/api/auth/internal/users/emails";
 
     private final EmailService emailService;
     private final RestTemplate restTemplate;

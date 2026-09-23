@@ -1,5 +1,6 @@
 package com.educonnect.eventservice.config;
 
+import com.educonnect.common.security.ServiceIdentity;
 import com.educonnect.common.security.VerifiedIdentityFilter;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -28,6 +29,7 @@ public class SecurityConfig {
                 .csrf(csrf -> csrf.disable())
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
+                        .requestMatchers("/api/*/internal/**").hasRole(ServiceIdentity.ROLE)
                         // ===== ACADEMICIAN (Advisor) endpoints - EN ÖNCE! =====
                         .requestMatchers(HttpMethod.GET, "/api/events/advisor/**").hasRole("ACADEMICIAN")
                         .requestMatchers(HttpMethod.POST, "/api/events/advisor/**").hasRole("ACADEMICIAN")

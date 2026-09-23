@@ -68,7 +68,7 @@ public class CourseNotificationListener {
 
         try {
             // auth-services'ten öğrenci e-postalarını çek
-            String authServiceUrl = "http://AUTH-SERVICES/api/auth/users/emails";
+            String authServiceUrl = "http://AUTH-SERVICES/api/auth/internal/users/emails";
             log.info("🔍 {} öğrenci için e-posta adresleri çekiliyor...", studentIds.size());
 
             HttpEntity<List<UUID>> request = new HttpEntity<>(studentIds);

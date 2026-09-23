@@ -33,7 +33,8 @@ public class CommonSecurityAutoConfiguration {
 
         NimbusJwtDecoder decoder = NimbusJwtDecoder.withJwkSetUri(properties.jwksUri()).build();
         OAuth2TokenValidator<Jwt> audienceValidator = new JwtClaimValidator<List<String>>(
-                "aud", aud -> aud != null && aud.contains(properties.audience()));
+                "aud", aud -> aud != null
+                        && (aud.contains(properties.audience()) || aud.contains(properties.internalAudience())));
         decoder.setJwtValidator(new DelegatingOAuth2TokenValidator<>(
                 JwtValidators.createDefaultWithIssuer(properties.issuer()),
                 audienceValidator));
@@ -42,8 +43,8 @@ public class CommonSecurityAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean
-    public VerifiedIdentityFilter verifiedIdentityFilter(JwtDecoder jwtDecoder) {
-        return new VerifiedIdentityFilter(jwtDecoder);
+    public VerifiedIdentityFilter verifiedIdentityFilter(JwtDecoder jwtDecoder, JwtProperties properties) {
+        return new VerifiedIdentityFilter(jwtDecoder, properties.internalAudience());
     }
 
     @Bean

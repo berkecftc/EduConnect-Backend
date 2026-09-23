@@ -49,7 +49,7 @@ public class RegistrationNotificationListener {
 
         // auth-services'ten öğrencinin e-posta adresini bulmak için URL
         // (Not: Servis adını büyük harfle AUTH-SERVICES olarak kullanıyoruz, LoadBalanced RestTemplate bunu çözer)
-        String authServiceUrl = "http://AUTH-SERVICES/api/auth/users/emails";
+        String authServiceUrl = "http://AUTH-SERVICES/api/auth/internal/users/emails";
 
         // İstek gövdesi olarak ID listesi hazırlıyoruz
         List<UUID> ids = List.of(studentId);

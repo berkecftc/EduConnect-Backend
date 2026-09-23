@@ -8,6 +8,7 @@ import jakarta.servlet.http.HttpServletResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
@@ -16,10 +17,12 @@ import org.springframework.util.StringUtils;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
+import java.util.List;
 
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private static final Logger log = LoggerFactory.getLogger(JwtAuthenticationFilter.class);
+    private static final String INTERNAL_PATH_PREFIX = "/api/auth/internal/";
 
     private final JWTService jwtService;
     private final UserDetailsService userDetailsService;
@@ -42,7 +45,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             path.equals("/api/auth/reset-password") ||
             path.equals("/api/auth/request/academician-account") ||
             path.equals("/api/auth/request/student-account") ||
-            path.equals("/api/auth/users/emails")) {
+            path.equals("/api/auth/internal/token")) {
             filterChain.doFilter(request, response);
             return;
         }
@@ -56,6 +59,14 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         String token = authHeader.substring(7).trim();
         if (token.startsWith("\"") && token.endsWith("\"") && token.length() > 1) {
             token = token.substring(1, token.length() - 1).trim();
+        }
+
+        if (path.startsWith(INTERNAL_PATH_PREFIX)) {
+            jwtService.extractServiceClientId(token).ifPresent(clientId ->
+                    SecurityContextHolder.getContext().setAuthentication(new UsernamePasswordAuthenticationToken(
+                            clientId, null, List.of(new SimpleGrantedAuthority(JWTService.SERVICE_ROLE)))));
+            filterChain.doFilter(request, response);
+            return;
         }
 
         try {

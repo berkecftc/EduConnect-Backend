@@ -26,9 +26,15 @@ public class VerifiedIdentityFilter extends OncePerRequestFilter {
     private static final Logger log = LoggerFactory.getLogger(VerifiedIdentityFilter.class);
 
     private final JwtDecoder jwtDecoder;
+    private final String internalAudience;
 
     public VerifiedIdentityFilter(JwtDecoder jwtDecoder) {
+        this(jwtDecoder, ServiceIdentity.DEFAULT_INTERNAL_AUDIENCE);
+    }
+
+    public VerifiedIdentityFilter(JwtDecoder jwtDecoder, String internalAudience) {
         this.jwtDecoder = jwtDecoder;
+        this.internalAudience = internalAudience;
     }
 
     @Override
@@ -50,6 +56,17 @@ public class VerifiedIdentityFilter extends OncePerRequestFilter {
             return;
         }
 
+        if (isServiceToken(jwt)) {
+            if (ServiceIdentity.INTERNAL_PATH.matcher(request.getRequestURI()).matches()) {
+                authenticateService(jwt);
+            } else {
+                log.debug("Ignored service token from '{}' on non-internal path {}", jwt.getSubject(),
+                        request.getRequestURI());
+            }
+            filterChain.doFilter(new VerifiedIdentityRequestWrapper(request, Map.of()), response);
+            return;
+        }
+
         String email = jwt.getSubject();
         String userId = jwt.getClaimAsString("userId");
         String roles = jwt.getClaimAsString("roles");
@@ -57,6 +74,7 @@ public class VerifiedIdentityFilter extends OncePerRequestFilter {
         List<SimpleGrantedAuthority> authorities = roles == null ? List.of() : Arrays.stream(roles.split(","))
                 .map(String::trim)
                 .filter(role -> !role.isEmpty())
+                .filter(role -> !ServiceIdentity.AUTHORITY.equals(role))
                 .map(SimpleGrantedAuthority::new)
                 .toList();
 
@@ -71,6 +89,18 @@ public class VerifiedIdentityFilter extends OncePerRequestFilter {
         identity.put(IdentityHeaders.USER_ROLES, roles);
 
         filterChain.doFilter(new VerifiedIdentityRequestWrapper(request, identity), response);
+    }
+
+    private boolean isServiceToken(Jwt jwt) {
+        List<String> audience = jwt.getAudience();
+        return audience != null && audience.contains(internalAudience)
+                && ServiceIdentity.TOKEN_USE_SERVICE.equals(jwt.getClaimAsString(ServiceIdentity.TOKEN_USE_CLAIM));
+    }
+
+    private void authenticateService(Jwt jwt) {
+        UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
+                jwt.getSubject(), null, List.of(new SimpleGrantedAuthority(ServiceIdentity.AUTHORITY)));
+        SecurityContextHolder.getContext().setAuthentication(authentication);
     }
 
     static String extractBearerToken(String authorizationHeader) {
