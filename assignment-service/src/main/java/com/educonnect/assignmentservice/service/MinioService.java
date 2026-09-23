@@ -5,7 +5,7 @@ import io.minio.GetObjectArgs;
 import io.minio.MakeBucketArgs;
 import io.minio.MinioClient;
 import io.minio.PutObjectArgs;
-import io.minio.SetBucketPolicyArgs;
+import io.minio.DeleteBucketPolicyArgs;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
@@ -38,8 +38,6 @@ public class MinioService {
 
     public String uploadFile(MultipartFile file) {
         try {
-            ensureBucketExists();
-
             String fileName = UUID.randomUUID() + "_" + file.getOriginalFilename();
             InputStream inputStream = file.getInputStream();
 
@@ -63,15 +61,9 @@ public class MinioService {
                 minioClient.makeBucket(MakeBucketArgs.builder().bucket(bucketName).build());
             }
 
-            String policyJson = String.format(
-                    "{\"Version\":\"2012-10-17\",\"Statement\":[{\"Effect\":\"Allow\",\"Principal\":{\"AWS\":[\"*\"]},\"Action\":[\"s3:GetObject\"],\"Resource\":[\"arn:aws:s3:::%s/*\"]}]}",
-                    bucketName
-            );
-
-            minioClient.setBucketPolicy(
-                    SetBucketPolicyArgs.builder()
+            minioClient.deleteBucketPolicy(
+                    DeleteBucketPolicyArgs.builder()
                             .bucket(bucketName)
-                            .config(policyJson)
                             .build()
             );
         } catch (Exception e) {

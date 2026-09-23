@@ -262,7 +262,7 @@ public class ClubMembershipRequestService {
                     studentId, clubId, clubName, status, message);
 
             rabbitTemplate.convertAndSend(
-                    ClubRabbitMQConfig.EXCHANGE_NAME,
+                    ClubRabbitMQConfig.CLUB_EXCHANGE_NAME,
                     ROUTING_KEY_MEMBERSHIP_NOTIFICATION,
                     notificationMessage);
 

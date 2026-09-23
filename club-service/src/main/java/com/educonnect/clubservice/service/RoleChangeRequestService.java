@@ -186,7 +186,7 @@ public class RoleChangeRequestService {
                         clubId
                 );
                 rabbitTemplate.convertAndSend(
-                        ClubRabbitMQConfig.EXCHANGE_NAME,
+                        ClubRabbitMQConfig.USER_EXCHANGE_NAME,
                         "user.role.revoke",
                         revokeMessage
                 );
@@ -318,7 +318,7 @@ public class RoleChangeRequestService {
                         request.getClubId()
                 );
                 rabbitTemplate.convertAndSend(
-                        ClubRabbitMQConfig.EXCHANGE_NAME,
+                        ClubRabbitMQConfig.USER_EXCHANGE_NAME,
                         "user.role.assign",
                         assignMessage
                 );
@@ -561,7 +561,7 @@ public class RoleChangeRequestService {
             );
 
             rabbitTemplate.convertAndSend(
-                    ClubRabbitMQConfig.EXCHANGE_NAME,
+                    ClubRabbitMQConfig.CLUB_EXCHANGE_NAME,
                     ROUTING_KEY_ROLE_CHANGE_NOTIFICATION,
                     notificationMessage
             );

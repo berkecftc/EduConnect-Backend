@@ -2,6 +2,7 @@ package com.educonnect.apigateway.config;
 
 import com.educonnect.apigateway.filter.AuthenticationFilter;
 import org.springframework.cloud.gateway.route.RouteLocator;
+import org.springframework.cloud.gateway.support.RouteMetadataUtils;
 import org.springframework.cloud.gateway.route.builder.RouteLocatorBuilder;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -40,6 +41,8 @@ public class AdditionalRoutesConfig {
                                 .filter(authenticationFilter.apply(new AuthenticationFilter.Config()))
                                 // if clients call /api/llm/..., rewrite to the controller's /api/ai/... mapping
                                 .rewritePath("/api/llm/(?<segment>.*)", "/api/ai/${segment}"))
+                        .metadata(RouteMetadataUtils.RESPONSE_TIMEOUT_ATTR, 180000)
+                        .metadata(RouteMetadataUtils.CONNECT_TIMEOUT_ATTR, 30000)
                         .uri("lb://llm-service"))
                 .build();
     }

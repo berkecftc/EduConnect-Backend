@@ -1,0 +1,15 @@
+.env
+*.env.local
+
+target/
+*.jar
+*.class
+
+.idea/
+*.iml
+.vscode/
+
+data/
+
+.DS_Store
+Thumbs.db

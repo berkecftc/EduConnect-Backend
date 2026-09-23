@@ -13,11 +13,12 @@ public class GatewaySecurityConfig {
     @Bean
     public SecurityWebFilterChain springSecurityFilterChain(ServerHttpSecurity http) {
 
-        // Bu yapılandırmanın TEK GÖREVİ CSRF'i KAPATMAKTIR
         http
-                .csrf(ServerHttpSecurity.CsrfSpec::disable) // CSRF Korumasını KAPAT
+                .csrf(ServerHttpSecurity.CsrfSpec::disable)
                 .authorizeExchange(exchange -> exchange
-                        .pathMatchers("/**").permitAll() // Tüm isteklere izin ver (Filtremiz zaten çalışıyor)
+                        .pathMatchers("/actuator/health", "/actuator/health/**", "/actuator/info").permitAll()
+                        .pathMatchers("/actuator/**").denyAll()
+                        .pathMatchers("/**").permitAll()
                 );
 
         return http.build();

@@ -115,7 +115,7 @@ public class ClubService {
 
             String routingKey = "user.role.assign";
             rabbitTemplate.convertAndSend(
-                    ClubRabbitMQConfig.EXCHANGE_NAME,
+                    ClubRabbitMQConfig.USER_EXCHANGE_NAME,
                     routingKey,
                     message
             );
@@ -314,7 +314,7 @@ public class ClubService {
 
             String routingKey = "club.deleted";
             rabbitTemplate.convertAndSend(
-                ClubRabbitMQConfig.EXCHANGE_NAME,
+                ClubRabbitMQConfig.CLUB_EXCHANGE_NAME,
                 routingKey,
                 message
             );
@@ -360,7 +360,7 @@ public class ClubService {
             );
 
             String routingKey = "club.updated"; // YENİ ROUTING KEY
-            rabbitTemplate.convertAndSend(ClubRabbitMQConfig.EXCHANGE_NAME, routingKey, message);
+            rabbitTemplate.convertAndSend(ClubRabbitMQConfig.CLUB_EXCHANGE_NAME, routingKey, message);
 
             System.out.println("Club updated message sent: " + updatedClub.getName());
         }

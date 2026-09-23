@@ -10,6 +10,8 @@ import com.educonnect.authservices.service.AuthServiceImpl;
 import com.educonnect.authservices.Repository.UserRepository;
 import com.educonnect.authservices.models.User;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.web.server.ResponseStatusException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
@@ -37,18 +39,25 @@ public class AuthController {
 
     private final AuthServiceImpl authService;
     private final UserRepository userRepository;
+    private final boolean openRegistrationEnabled;
 
     @Autowired
-    public AuthController(AuthServiceImpl authService, UserRepository userRepository) {
+    public AuthController(AuthServiceImpl authService,
+                          UserRepository userRepository,
+                          @Value("${auth.registration.open-enabled:false}") boolean openRegistrationEnabled) {
         this.authService = authService;
         this.userRepository = userRepository;
+        this.openRegistrationEnabled = openRegistrationEnabled;
     }
 
     @PostMapping("/register")
     public ResponseEntity<AuthResponse> register(
             @RequestBody RegisterRequest request
     ) {
-        // TODO: Gelen request'i doğrula (Validation)
+        if (!openRegistrationEnabled) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN,
+                    "Doğrudan kayıt kapalıdır. Lütfen öğrenci veya akademisyen başvurusu yapın.");
+        }
         return ResponseEntity.ok(authService.register(request));
     }
 
@@ -187,13 +196,9 @@ public class AuthController {
     public ResponseEntity<String> forgotPassword(@RequestBody ForgotPasswordRequest request) {
         try {
             authService.forgotPassword(request);
-            return ResponseEntity.ok("Şifre sıfırlama linki e-posta adresinize gönderildi.");
-        } catch (NoSuchElementException e) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body("Şifre sıfırlama işlemi sırasında bir hata oluştu.");
+        } catch (NoSuchElementException ignored) {
         }
+        return ResponseEntity.ok("Bu e-posta adresi kayıtlıysa şifre sıfırlama linki gönderildi.");
     }
 
     // --- YENİ ENDPOINT: ŞİFRE SIFIRLAMA ---

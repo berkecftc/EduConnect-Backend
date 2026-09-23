@@ -13,7 +13,11 @@ import com.educonnect.authservices.dto.request.ForgotPasswordRequest;
 import com.educonnect.authservices.dto.request.LoginRequest;
 import com.educonnect.authservices.dto.request.RegisterRequest;
 import com.educonnect.authservices.dto.request.ResetPasswordRequest;
+import com.educonnect.authservices.dto.response.AcademicianRequestAdminView;
 import com.educonnect.authservices.dto.response.AuthResponse;
+import com.educonnect.authservices.dto.response.StudentRequestAdminView;
+import org.springframework.http.HttpStatus;
+import org.springframework.web.server.ResponseStatusException;
 import com.educonnect.authservices.models.AcademicianRegistrationRequest; // YENİ IMPORT
 import com.educonnect.authservices.models.PasswordResetToken;
 import com.educonnect.authservices.models.StudentRegistrationRequest; // ÖĞRENCİ BAŞVURU
@@ -274,8 +278,18 @@ public class AuthServiceImpl {
     }
 
     // --- TÜM ÖĞRENCİ BAŞVURULARINI LİSTELE ---
-    public List<StudentRegistrationRequest> getAllStudentRequests() {
-        return studentRequestRepository.findAll();
+    public List<StudentRequestAdminView> getAllStudentRequests() {
+        return studentRequestRepository.findAll().stream()
+                .map(req -> new StudentRequestAdminView(
+                        req.getId(),
+                        req.getFirstName(),
+                        req.getLastName(),
+                        req.getEmail(),
+                        req.getStudentNumber(),
+                        req.getDepartment(),
+                        minioService.createPresignedUrl(req.getStudentDocumentUrl())
+                ))
+                .toList();
     }
 
     // --- AKADEMİSYEN BAŞVURU İŞLEMİ (DÜZELTİLDİ) ---
@@ -401,7 +415,8 @@ public class AuthServiceImpl {
                 .anyMatch(role -> role.name().equals("ROLE_PENDING_ACADEMICIAN"));
 
         if (isPendingAcademician) {
-            throw new RuntimeException("Hesabınız henüz onaylanmadı. Lütfen yönetici onayını bekleyin.");
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN,
+                    "Hesabınız henüz onaylanmadı. Lütfen yönetici onayını bekleyin.");
         }
         // ---------------------------------------------
 
@@ -481,11 +496,6 @@ public class AuthServiceImpl {
         roles.add(Role.ROLE_CLUB_OFFICIAL);
         user.setRoles(roles);
         userRepository.save(user);
-
-        // Opsiyonel: Profili güncellemek/rol senkronu için mesaj gönder
-        String firstName = user.getEmail().split("@")[0];
-        String lastName = "ClubOfficial";
-        sendMessageToUserQueue(user, firstName, lastName, roles);
     }
 
     /**
@@ -605,36 +615,22 @@ public class AuthServiceImpl {
         LOGGER.info("User logged out, refresh token deleted");
     }
 
-    /**
-     * Helper metod: User-service'e kullanıcı profil güncelleme mesajı gönderir.
-     */
-    private void sendMessageToUserQueue(User user, String firstName, String lastName, Set<Role> roles) {
-        Set<String> roleStrings = roles.stream().map(Role::name).collect(Collectors.toSet());
-
-        UserRegisteredMessage message = new UserRegisteredMessage(
-                user.getId(),
-                firstName,
-                lastName,
-                user.getEmail(),
-                roleStrings,
-                null, // studentId yok
-                null  // department yok
-        );
-
-        rabbitTemplate.convertAndSend(
-                RabbitMQConfig.EXCHANGE_NAME,
-                RabbitMQConfig.ROUTING_KEY,
-                message
-        );
-
-        LOGGER.info("User profile update message sent for user: {}", user.getId());
-    }
-
     // ... Diğer metodlar ...
 
     // 1. BEKLEYEN AKADEMİSYEN İSTEKLERİNİ LİSTELE
-    public List<AcademicianRegistrationRequest> getAllAcademicianRequests() {
-        return requestRepository.findAll();
+    public List<AcademicianRequestAdminView> getAllAcademicianRequests() {
+        return requestRepository.findAll().stream()
+                .map(req -> new AcademicianRequestAdminView(
+                        req.getId(),
+                        req.getUserId(),
+                        req.getFirstName(),
+                        req.getLastName(),
+                        req.getTitle(),
+                        req.getDepartment(),
+                        req.getOfficeNumber(),
+                        minioService.createPresignedUrl(req.getIdCardImageUrl())
+                ))
+                .toList();
     }
 
     // 2. AKADEMİSYEN İSTEĞİNİ REDDET

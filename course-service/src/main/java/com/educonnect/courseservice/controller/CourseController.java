@@ -54,8 +54,12 @@ public class CourseController {
     public ResponseEntity<CourseResponse> create(
             @RequestPart("course") @Valid CourseRequest request,
             @RequestPart(value = "file", required = false) MultipartFile file,
-            @RequestHeader("X-Authenticated-User-Id") String authenticatedUserId
+            @RequestHeader("X-Authenticated-User-Id") String authenticatedUserId,
+            @RequestHeader(value = "X-Authenticated-User-Roles", required = false) String roles
     ) {
+        if (!hasRole(roles, "ROLE_ACADEMICIAN")) {
+            throw new UnauthorizedCourseAccessException("Ders oluşturma yetkisi yalnızca akademisyenlere aittir.");
+        }
         // Header'dan gelen kullanıcı ID ile body'deki instructorId eşleşmeli
         UUID authUserId = UUID.fromString(authenticatedUserId);
         if (!authUserId.equals(request.getInstructorId())) {
@@ -65,9 +69,23 @@ public class CourseController {
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> delete(@PathVariable UUID id) {
+    public ResponseEntity<Void> delete(
+            @PathVariable UUID id,
+            @RequestHeader("X-Authenticated-User-Id") String authenticatedUserId,
+            @RequestHeader(value = "X-Authenticated-User-Roles", required = false) String roles
+    ) {
+        UUID instructorId = courseService.getCourseById(id).getInstructorId();
+        if (!hasRole(roles, "ROLE_ADMIN") && !UUID.fromString(authenticatedUserId).equals(instructorId)) {
+            throw new UnauthorizedCourseAccessException("Bu dersi silme yetkiniz yok.");
+        }
         courseService.deleteCourse(id);
         return ResponseEntity.noContent().build();
+    }
+
+    private static boolean hasRole(String rolesHeader, String role) {
+        return rolesHeader != null && java.util.Arrays.stream(rolesHeader.split(","))
+                .map(String::trim)
+                .anyMatch(role::equals);
     }
 
     // ===================== ÖĞRENCİ KAYIT (DOĞRUDAN - Akademisyen) =====================

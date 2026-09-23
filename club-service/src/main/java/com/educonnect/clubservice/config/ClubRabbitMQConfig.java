@@ -15,18 +15,18 @@ public class ClubRabbitMQConfig {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(ClubRabbitMQConfig.class);
 
-    /**
-     * Mesajların gönderileceği ana exchange (auth-services ile aynı isim olmalı)
-     */
-    public static final String EXCHANGE_NAME = "user-exchange";
+    public static final String USER_EXCHANGE_NAME = "user-exchange";
 
-    /**
-     * Bu servisin 'club-exchange' adında bir DirectExchange kullanacağını Spring'e bildirir.
-     * @return DirectExchange bean'i
-     */
+    public static final String CLUB_EXCHANGE_NAME = "club-exchange";
+
+    @Bean
+    public DirectExchange userExchange() {
+        return new DirectExchange(USER_EXCHANGE_NAME);
+    }
+
     @Bean
     public DirectExchange clubExchange() {
-        return new DirectExchange(EXCHANGE_NAME);
+        return new DirectExchange(CLUB_EXCHANGE_NAME);
     }
 
     /**

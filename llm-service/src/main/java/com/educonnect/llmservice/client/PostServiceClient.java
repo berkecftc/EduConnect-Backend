@@ -9,7 +9,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 @FeignClient(name = "post-service", path = "/api/posts")
 public interface PostServiceClient {
 
-    @PutMapping("/{postId}/moderation")
+    @PutMapping("/internal/{postId}/moderation")
     void applyModerationDecision(
             @PathVariable("postId") String postId,
             @RequestBody ModerationDecisionRequest request

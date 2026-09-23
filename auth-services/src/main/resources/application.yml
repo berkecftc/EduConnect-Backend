@@ -67,9 +67,6 @@ management:
       enabled: true
 
 
-jwt:
-  secret: ${JWT_SECRET:Base64:jZwU5GubnUxm1GesQMzbti2lhVckdkLpww1Awn3h0ng=}
-  expiration-ms: ${JWT_EXPIRATION_MS:86400000}
 
 # MinIO yapılandırması
 minio:

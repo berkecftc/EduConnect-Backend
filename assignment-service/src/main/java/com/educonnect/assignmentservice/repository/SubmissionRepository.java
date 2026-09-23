@@ -22,5 +22,7 @@ public interface SubmissionRepository extends JpaRepository<AssignmentSubmission
 
     // Öğrenci bu ödevi teslim etmiş mi?
     boolean existsByAssignmentIdAndStudentId(UUID assignmentId, UUID studentId);
+
+    Optional<AssignmentSubmission> findFirstBySubmissionFileUrl(String submissionFileUrl);
 }
 

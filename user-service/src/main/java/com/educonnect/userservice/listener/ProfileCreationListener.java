@@ -34,6 +34,12 @@ public class ProfileCreationListener {
                 message.getUserId(), message.getRoles(), message.getDepartment(), message.getStudentNumber());
 
         try {
+            if (studentRepository.existsById(message.getUserId())
+                    || academicianRepository.existsById(message.getUserId())) {
+                LOGGER.info("Profile already exists for user ID: {}. Registration message ignored.", message.getUserId());
+                return;
+            }
+
             if (message.getRoles() != null && message.getRoles().contains("ROLE_STUDENT")) {
                 // Guvenli degerler
                 String firstName = message.getFirstName();
@@ -71,6 +77,11 @@ public class ProfileCreationListener {
         LOGGER.info("Received new academician profile creation message for user ID: {}", message.getUserId());
 
         try {
+            if (academicianRepository.existsById(message.getUserId())) {
+                LOGGER.info("Academician profile already exists for user ID: {}. Message ignored.", message.getUserId());
+                return;
+            }
+
             // Akademisyen profili oluştur
             Academician newAcademician = new Academician();
 

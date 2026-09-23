@@ -1,14 +1,20 @@
 package com.educonnect.authservices.service;
 
 import io.minio.*;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.util.UUID;
+import java.util.concurrent.TimeUnit;
 
 @Service
 public class MinioService {
+
+    private static final Logger log = LoggerFactory.getLogger(MinioService.class);
+    private static final int PRESIGNED_URL_EXPIRY_MINUTES = 15;
 
     private final MinioClient minioClient;
 
@@ -36,7 +42,7 @@ public class MinioService {
     }
 
     /**
-     * Bucket'ı kontrol eder, yoksa oluşturur ve Public Read yapar.
+     * Bucket'ı kontrol eder, yoksa oluşturur.
      */
     private void ensureBucketExists() {
         try {
@@ -52,34 +58,38 @@ public class MinioService {
                                 .bucket(bucketName)
                                 .build()
                 );
-                System.out.println("Auth Service: MinIO bucket oluşturuldu -> " + bucketName);
+                log.info("MinIO bucket created: {}", bucketName);
             }
 
-            // Bucket politikasını "Public Read" olarak ayarla
-            String policyJson = String.format(
-                    "{\n" +
-                            "    \"Version\": \"2012-10-17\",\n" +
-                            "    \"Statement\": [\n" +
-                            "        {\n" +
-                            "            \"Effect\": \"Allow\",\n" +
-                            "            \"Principal\": {\"AWS\": [\"*\"]},\n" +
-                            "            \"Action\": [\"s3:GetObject\"],\n" +
-                            "            \"Resource\": [\"arn:aws:s3:::%s/*\"]\n" +
-                            "        }\n" +
-                            "    ]\n" +
-                            "}", bucketName);
-
-            minioClient.setBucketPolicy(
-                    SetBucketPolicyArgs.builder()
+            minioClient.deleteBucketPolicy(
+                    DeleteBucketPolicyArgs.builder()
                             .bucket(bucketName)
-                            .config(policyJson)
                             .build()
             );
-
-            System.out.println("Auth Service: Bucket politikası 'Public Read' olarak güncellendi.");
+            log.info("MinIO bucket '{}' is private (public policy removed)", bucketName);
 
         } catch (Exception e) {
             throw new RuntimeException("Error checking/creating MinIO bucket: " + e.getMessage(), e);
+        }
+    }
+
+    public String createPresignedUrl(String storedUrl) {
+        String objectName = extractObjectName(storedUrl);
+        if (objectName == null) {
+            return null;
+        }
+        try {
+            return minioClient.getPresignedObjectUrl(
+                    GetPresignedObjectUrlArgs.builder()
+                            .method(io.minio.http.Method.GET)
+                            .bucket(bucketName)
+                            .object(objectName)
+                            .expiry(PRESIGNED_URL_EXPIRY_MINUTES, TimeUnit.MINUTES)
+                            .build()
+            );
+        } catch (Exception e) {
+            log.error("Could not create presigned URL for object {}", objectName, e);
+            return null;
         }
     }
 

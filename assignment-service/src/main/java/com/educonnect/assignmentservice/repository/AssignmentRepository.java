@@ -7,4 +7,5 @@ import java.util.UUID;
 public interface AssignmentRepository extends JpaRepository<Assignment, UUID> {
     List<Assignment> findByCourseId(UUID courseId);
     void deleteByCourseId(UUID courseId); // Ders silinince çalışacak
+    java.util.Optional<Assignment> findFirstByFileUrl(String fileUrl);
 }

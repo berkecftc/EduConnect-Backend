@@ -27,7 +27,7 @@ public class PostModerationController {
         this.postModerationService = postModerationService;
     }
 
-    @PutMapping("/{postId}/moderation")
+    @PutMapping("/internal/{postId}/moderation")
     public ResponseEntity<Void> applyModeration(
             @PathVariable UUID postId,
             @RequestBody ModerationDecisionRequest request) {
