@@ -47,6 +47,7 @@ public class SecurityConfig {
         http
                 .csrf(csrf -> csrf.disable())
                 .authorizeHttpRequests(auth -> auth
+                        .requestMatchers("/.well-known/jwks.json").permitAll()
                         .requestMatchers("/api/auth/register",
                                          "/api/auth/login",
                                          "/api/auth/refresh",

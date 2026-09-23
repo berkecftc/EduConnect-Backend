@@ -18,6 +18,10 @@
     <description>EduConnect Blog / İçerik Moderasyonu Servisi</description>
 
     <dependencies>
+        <dependency>
+            <groupId>com.educonnect</groupId>
+            <artifactId>common-security</artifactId>
+        </dependency>
         <!-- Spring Data JPA -->
         <dependency>
             <groupId>org.springframework.boot</groupId>

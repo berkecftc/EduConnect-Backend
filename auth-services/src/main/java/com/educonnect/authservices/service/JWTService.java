@@ -1,22 +1,25 @@
 package com.educonnect.authservices.service;
 
+import com.educonnect.authservices.models.User;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
-import io.jsonwebtoken.io.Decoders;
-import io.jsonwebtoken.security.Keys;
-import javax.crypto.SecretKey;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Service;
 
-import java.nio.charset.StandardCharsets;
+import java.math.BigInteger;
+import java.security.KeyFactory;
 import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
+import java.security.PublicKey;
+import java.security.interfaces.RSAPrivateCrtKey;
+import java.security.interfaces.RSAPublicKey;
+import java.security.spec.PKCS8EncodedKeySpec;
+import java.security.spec.RSAPublicKeySpec;
+import java.util.Arrays;
 import java.util.Base64;
 import java.util.Date;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.function.Function;
@@ -24,16 +27,27 @@ import java.util.function.Function;
 @Service
 public class JWTService {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger(JWTService.class);
+    private final RSAPrivateCrtKey privateKey;
+    private final RSAPublicKey publicKey;
+    private final String keyId;
+    private final String issuer;
+    private final String audience;
+    private final long accessTokenExpirationMs;
+    private final long refreshTokenExpirationMs;
 
-    @Value("${jwt.secret}")
-    private String JWT_SECRET;
-
-    @Value("${jwt.access-token-expiration-ms:900000}") // Default: 15 dakika
-    private long ACCESS_TOKEN_EXPIRATION;
-
-    @Value("${jwt.refresh-token-expiration-ms:604800000}") // Default: 7 gün
-    private long REFRESH_TOKEN_EXPIRATION;
+    public JWTService(@Value("${jwt.private-key}") String privateKeyPem,
+                      @Value("${educonnect.security.jwt.issuer}") String issuer,
+                      @Value("${educonnect.security.jwt.audience}") String audience,
+                      @Value("${jwt.access-token-expiration-ms:900000}") long accessTokenExpirationMs,
+                      @Value("${jwt.refresh-token-expiration-ms:604800000}") long refreshTokenExpirationMs) {
+        this.privateKey = parsePrivateKey(privateKeyPem);
+        this.publicKey = derivePublicKey(this.privateKey);
+        this.keyId = computeKeyId(this.publicKey);
+        this.issuer = issuer;
+        this.audience = audience;
+        this.accessTokenExpirationMs = accessTokenExpirationMs;
+        this.refreshTokenExpirationMs = refreshTokenExpirationMs;
+    }
 
     public String extractUsername(String token) {
         return extractClaim(token, Claims::getSubject);
@@ -45,14 +59,10 @@ public class JWTService {
 
     public String generateToken(UserDetails userDetails) {
         Map<String, Object> claims = new HashMap<>();
-        // UserDetails aslında User objesi, ID ve Role'leri ekleyelim
-        if (userDetails instanceof com.educonnect.authservices.models.User user) {
+        if (userDetails instanceof User user) {
             claims.put("userId", user.getId().toString());
-            // Birden fazla role olabilir, comma-separated string olarak ekle
-            // ROLE_ADMIN varsa önce onu koy, yoksa doğal sıralama
             String rolesString = user.getRoles().stream()
                     .sorted((r1, r2) -> {
-                        // ROLE_ADMIN önce gelsin
                         if (r1.name().equals("ROLE_ADMIN")) return -1;
                         if (r2.name().equals("ROLE_ADMIN")) return 1;
                         return r1.name().compareTo(r2.name());
@@ -60,20 +70,32 @@ public class JWTService {
                     .map(Enum::name)
                     .reduce((a, b) -> a + "," + b)
                     .orElse("");
-            claims.put("roles", rolesString); // Örn: "ROLE_ADMIN,ROLE_STUDENT"
+            claims.put("roles", rolesString);
         }
         return generateToken(claims, userDetails);
     }
 
-    /**
-     * Refresh token oluşturur (basit UUID tabanlı)
-     */
+    public String generateToken(Map<String, Object> extraClaims, UserDetails userDetails) {
+        long now = System.currentTimeMillis();
+        return Jwts.builder()
+                .header().keyId(keyId).and()
+                .claims(extraClaims)
+                .id(UUID.randomUUID().toString())
+                .issuer(issuer)
+                .audience().add(audience).and()
+                .subject(userDetails.getUsername())
+                .issuedAt(new Date(now))
+                .expiration(new Date(now + accessTokenExpirationMs))
+                .signWith(privateKey, Jwts.SIG.RS256)
+                .compact();
+    }
+
     public String generateRefreshToken() {
         return UUID.randomUUID().toString();
     }
 
     public long getRefreshTokenExpirationMs() {
-        return REFRESH_TOKEN_EXPIRATION;
+        return refreshTokenExpirationMs;
     }
 
     public boolean isTokenValid(String token, UserDetails userDetails) {
@@ -87,90 +109,72 @@ public class JWTService {
         }
     }
 
-    private boolean isTokenExpired(String token) {
-        return extractExpiration(token).before(new Date());
-    }
-
-    private Date extractExpiration(String token) {
-        return extractClaim(token, Claims::getExpiration);
-    }
-
     public <T> T extractClaim(String token, Function<Claims, T> claimsResolver) {
-        final Claims claims = extractAllClaims(token);
-        return claimsResolver.apply(claims);
+        return claimsResolver.apply(parseClaims(token));
     }
 
-    private Claims extractAllClaims(String token) {
-        return parseClaims(token);
+    public Map<String, Object> jwks() {
+        Map<String, Object> jwk = Map.of(
+                "kty", "RSA",
+                "use", "sig",
+                "alg", "RS256",
+                "kid", keyId,
+                "n", base64Url(publicKey.getModulus()),
+                "e", base64Url(publicKey.getPublicExponent())
+        );
+        return Map.of("keys", List.of(jwk));
     }
 
     private Claims parseClaims(String token) {
-        return Jwts
-                .parser()
-                .verifyWith(getSignInKey())
+        return Jwts.parser()
+                .verifyWith(publicKey)
+                .requireIssuer(issuer)
+                .requireAudience(audience)
                 .build()
                 .parseSignedClaims(token)
                 .getPayload();
     }
 
-    public String generateToken(Map<String, Object> extraClaims, UserDetails userDetails) {
-        return Jwts
-                .builder()
-                .claims(extraClaims)
-                .subject(userDetails.getUsername())
-                .issuedAt(new Date(System.currentTimeMillis()))
-                .expiration(new Date(System.currentTimeMillis() + ACCESS_TOKEN_EXPIRATION))
-                .signWith(getSignInKey(), Jwts.SIG.HS256)
-                .compact();
-    }
-
-    private SecretKey getSignInKey() {
-        SecretKey key = deriveHmacKey(JWT_SECRET);
-        if (LOGGER.isDebugEnabled()) {
-            LOGGER.debug("JWT key fingerprint (SHA-256 Base64): {}", fingerprint(key));
+    private static RSAPrivateCrtKey parsePrivateKey(String pem) {
+        if (pem == null || pem.isBlank()) {
+            throw new IllegalStateException("jwt.private-key property is missing or blank");
         }
-        return key;
-    }
-
-    // Prefix algılama (case-insensitive): "BASE64:<val>" veya "RAW:<val>"; tanınmazsa otomatik algı.
-    private static SecretKey deriveHmacKey(String secretValue) {
-        if (secretValue == null || secretValue.isBlank()) {
-            throw new IllegalStateException("jwt.secret property is missing or blank");
-        }
-        String value = secretValue.trim();
-        byte[] keyBytes;
-
-        int colon = value.indexOf(':');
-        if (colon > 0 && colon < 16) { // "BASE64", "RAW" gibi kısa prefixler için yeterli
-            String prefix = value.substring(0, colon).trim().toUpperCase();
-            String rest = value.substring(colon + 1).trim();
-            if ("BASE64".equals(prefix)) {
-                keyBytes = Decoders.BASE64.decode(rest);
-                return Keys.hmacShaKeyFor(keyBytes);
-            } else if ("RAW".equals(prefix)) {
-                keyBytes = rest.getBytes(StandardCharsets.UTF_8);
-                return Keys.hmacShaKeyFor(keyBytes);
-            }
-            // tanınmayan prefix: otomatik algıya düş
-            value = rest.isEmpty() ? value : rest;
-        }
-
-        // Otomatik algı: Base64 dene, olmazsa RAW olarak kabul et
+        String base64 = pem
+                .replace("-----BEGIN PRIVATE KEY-----", "")
+                .replace("-----END PRIVATE KEY-----", "")
+                .replaceAll("\\s", "");
         try {
-            keyBytes = Decoders.BASE64.decode(value);
-        } catch (IllegalArgumentException ex) {
-            keyBytes = value.getBytes(StandardCharsets.UTF_8);
+            byte[] der = Base64.getDecoder().decode(base64);
+            return (RSAPrivateCrtKey) KeyFactory.getInstance("RSA").generatePrivate(new PKCS8EncodedKeySpec(der));
+        } catch (Exception e) {
+            throw new IllegalStateException("jwt.private-key must be an RSA private key in PKCS#8 PEM format", e);
         }
-        return Keys.hmacShaKeyFor(keyBytes);
     }
 
-    private static String fingerprint(SecretKey key) {
+    private static RSAPublicKey derivePublicKey(RSAPrivateCrtKey privateKey) {
         try {
-            MessageDigest md = MessageDigest.getInstance("SHA-256");
-            byte[] digest = md.digest(key.getEncoded());
-            return Base64.getEncoder().encodeToString(digest);
-        } catch (NoSuchAlgorithmException e) {
-            return "n/a";
+            PublicKey key = KeyFactory.getInstance("RSA")
+                    .generatePublic(new RSAPublicKeySpec(privateKey.getModulus(), privateKey.getPublicExponent()));
+            return (RSAPublicKey) key;
+        } catch (Exception e) {
+            throw new IllegalStateException("Could not derive RSA public key", e);
         }
+    }
+
+    private static String computeKeyId(RSAPublicKey key) {
+        try {
+            byte[] digest = MessageDigest.getInstance("SHA-256").digest(key.getEncoded());
+            return Base64.getUrlEncoder().withoutPadding().encodeToString(Arrays.copyOf(digest, 16));
+        } catch (Exception e) {
+            throw new IllegalStateException("Could not compute key id", e);
+        }
+    }
+
+    private static String base64Url(BigInteger value) {
+        byte[] bytes = value.toByteArray();
+        if (bytes.length > 1 && bytes[0] == 0) {
+            bytes = Arrays.copyOfRange(bytes, 1, bytes.length);
+        }
+        return Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
     }
 }

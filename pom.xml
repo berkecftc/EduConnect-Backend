@@ -20,6 +20,7 @@
     <description>EduConnect Mikroservis Projesi için Ana Yönetim POM'u</description>
 
     <modules>
+        <module>common-security</module>
         <module>config-server</module>
         <module>eureka-server</module>
         <module>api-gateway</module>
@@ -51,6 +52,11 @@
 
     <dependencyManagement>
         <dependencies>
+            <dependency>
+                <groupId>com.educonnect</groupId>
+                <artifactId>common-security</artifactId>
+                <version>${project.version}</version>
+            </dependency>
             <dependency>
                 <groupId>org.springframework.cloud</groupId>
                 <artifactId>spring-cloud-dependencies</artifactId>
