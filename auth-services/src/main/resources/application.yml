@@ -1,78 +1,10 @@
 spring:
   application:
     name: auth-services
-
   profiles:
     active: dev
-
   config:
-    import: "optional:configserver:"
-
+    import: "configserver:${CONFIG_SERVER_URL:http://localhost:8888}"
   cloud:
     config:
-      uri: http://localhost:8888
       fail-fast: true
-
-  servlet:
-    multipart:
-      enabled: true
-      max-file-size: 5MB
-      max-request-size: 10MB
-
-  datasource:
-    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/educonnect}
-    username: ${SPRING_DATASOURCE_USERNAME:eduadmin}
-    password: ${SPRING_DATASOURCE_PASSWORD:edu123}
-    driver-class-name: org.postgresql.Driver
-
-  rabbitmq:
-    host: ${SPRING_RABBITMQ_HOST:localhost}
-    port: ${SPRING_RABBITMQ_PORT:5672}
-    username: ${SPRING_RABBITMQ_USERNAME:guest}
-    password: ${SPRING_RABBITMQ_PASSWORD:guest}
-    virtual-host: ${SPRING_RABBITMQ_VHOST:/}
-    publisher-returns: true
-    publisher-confirm-type: correlated
-
-  flyway:
-    enabled: true
-    schemas: auth_db
-    default-schema: auth_db
-    baseline-on-migrate: true
-    clean-on-validation-error: true
-    out-of-order: true
-
-  jpa:
-    hibernate:
-      ddl-auto: update
-    properties:
-      hibernate:
-        default_schema: auth_db
-        dialect: org.hibernate.dialect.PostgreSQLDialect
-    show-sql: true
-
-logging:
-  level:
-    org.springframework.security: DEBUG
-    com.educonnect.authservices.service: DEBUG
-    org.springframework.amqp: DEBUG
-
-management:
-  endpoints:
-    web:
-      exposure:
-        include: health,info,env,flyway
-  endpoint:
-    flyway:
-      enabled: true
-
-
-
-# MinIO yapılandırması
-minio:
-  url: ${MINIO_URL:http://localhost:9000}
-  access-key: ${MINIO_ACCESS_KEY:your_minio_user}
-  secret-key: ${MINIO_SECRET_KEY:your_minio_password}
-  bucket:
-    name: ${MINIO_BUCKET_NAME:academician-id-cards}
-

@@ -2,45 +2,7 @@ spring:
   application:
     name: llm-service
   config:
-    import: "optional:configserver:http://localhost:8888" # Config Server adresin
-  ai:
-    ollama:
-      base-url: "http://ollama:11434"
-      chat:
-        options:
-          model: "llama3.1:8b"
-          temperature: 0.0
-          top_p: 0.1
-          # Keep responses short to reduce latency/CPU.
-          num_predict: 128
-          num_ctx: 1024
-      embedding:
-        options:
-          model: nomic-embed-text
-    vectorstore:
-      redis:
-        initialize-schema: true
-        index: default-index
-        prefix: "default:"
-  vector:
-    store:
-      path: "data/vector-store.json"
-  datasource:
-    url: ${CLUB_DB_URL:jdbc:postgresql://localhost:5432/postgres?currentSchema=club_db}
-    username: ${CLUB_DB_USER:eduadmin}
-    password: ${CLUB_DB_PASSWORD:edu123}
-
-    driver-class-name: org.postgresql.Driver
-
-club:
-  ingestion:
-    enabled: true
-    force: true
-
-# Local logging overrides. Config server can still override these values.
-logging:
-  level:
-    # Keep framework logs at INFO by default, enable DEBUG for service package
-    root: INFO
-    org.springframework: INFO
-    com.educonnect.llmservice: DEBUG
+    import: "configserver:${CONFIG_SERVER_URL:http://localhost:8888}"
+  cloud:
+    config:
+      fail-fast: true
