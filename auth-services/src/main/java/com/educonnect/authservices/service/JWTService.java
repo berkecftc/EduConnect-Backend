@@ -138,10 +138,6 @@ public class JWTService {
         }
     }
 
-    public String generateRefreshToken() {
-        return UUID.randomUUID().toString();
-    }
-
     public long getRefreshTokenExpirationMs() {
         return refreshTokenExpirationMs;
     }

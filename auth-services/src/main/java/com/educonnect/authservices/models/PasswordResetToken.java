@@ -12,8 +12,8 @@ public class PasswordResetToken {
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
 
-    @Column(nullable = false, unique = true)
-    private String token;
+    @Column(name = "token_hash", nullable = false, unique = true, length = 64)
+    private String tokenHash;
 
     @Column(name = "user_id", nullable = false)
     private UUID userId;
@@ -33,8 +33,8 @@ public class PasswordResetToken {
     public PasswordResetToken() {
     }
 
-    public PasswordResetToken(String token, UUID userId, Instant expiryDate) {
-        this.token = token;
+    public PasswordResetToken(String tokenHash, UUID userId, Instant expiryDate) {
+        this.tokenHash = tokenHash;
         this.userId = userId;
         this.expiryDate = expiryDate;
     }
@@ -48,12 +48,12 @@ public class PasswordResetToken {
         this.id = id;
     }
 
-    public String getToken() {
-        return token;
+    public String getTokenHash() {
+        return tokenHash;
     }
 
-    public void setToken(String token) {
-        this.token = token;
+    public void setTokenHash(String tokenHash) {
+        this.tokenHash = tokenHash;
     }
 
     public UUID getUserId() {

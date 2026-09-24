@@ -21,7 +21,6 @@ import org.springframework.web.server.ResponseStatusException;
 import com.educonnect.authservices.models.AcademicianRegistrationRequest; // YENİ IMPORT
 import com.educonnect.authservices.models.PasswordResetToken;
 import com.educonnect.authservices.models.StudentRegistrationRequest; // ÖĞRENCİ BAŞVURU
-import com.educonnect.authservices.models.RefreshToken;
 import com.educonnect.authservices.models.Role;
 import com.educonnect.authservices.models.User;
 import com.educonnect.authservices.Repository.AcademicianRequestRepository; // YENİ IMPORT
@@ -32,6 +31,7 @@ import jakarta.transaction.Transactional; // Transaction yönetimi için
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -71,6 +71,8 @@ public class AuthServiceImpl {
     private final RabbitTemplate rabbitTemplate;
     private final RefreshTokenService refreshTokenService;
     private final MinioService minioService; // Akademisyen kimlik kartı yüklemesi için
+    private final PasswordPolicy passwordPolicy;
+    private final LoginAttemptService loginAttemptService;
 
     @Autowired
     public AuthServiceImpl(UserRepository userRepository,
@@ -82,7 +84,11 @@ public class AuthServiceImpl {
                            AuthenticationManager authenticationManager,
                            RabbitTemplate rabbitTemplate,
                            RefreshTokenService refreshTokenService,
-                           MinioService minioService) {
+                           MinioService minioService,
+                           PasswordPolicy passwordPolicy,
+                           LoginAttemptService loginAttemptService) {
+        this.passwordPolicy = passwordPolicy;
+        this.loginAttemptService = loginAttemptService;
         this.userRepository = userRepository;
         this.requestRepository = requestRepository;
         this.studentRequestRepository = studentRequestRepository;
@@ -100,6 +106,7 @@ public class AuthServiceImpl {
                 || request.getFirstName() == null || request.getLastName() == null) {
             throw new IllegalArgumentException("Missing required fields for registration");
         }
+        passwordPolicy.validateNewPassword(request.getPassword(), request.getEmail());
 
         Set<Role> roles = Stream.of(Role.ROLE_STUDENT).collect(Collectors.toSet());
 
@@ -130,8 +137,8 @@ public class AuthServiceImpl {
         );
 
         var jwtToken = jwtService.generateToken(savedUser);
-        var refreshToken = refreshTokenService.createRefreshToken(savedUser.getId());
-        return buildAuthResponse(jwtToken, refreshToken.getToken(), "User registered successfully.", savedUser);
+        String refreshToken = refreshTokenService.issue(savedUser.getId());
+        return buildAuthResponse(jwtToken, refreshToken, "User registered successfully.", savedUser);
     }
 
     // --- ÖĞRENCİ BAŞVURU İŞLEMİ ---
@@ -150,6 +157,7 @@ public class AuthServiceImpl {
         if (studentDocument == null || studentDocument.isEmpty()) {
             throw new IllegalArgumentException("Öğrenci belgesi zorunludur");
         }
+        passwordPolicy.validateNewPassword(request.getPassword(), request.getEmail());
 
         // 1. Öğrenci belgesini MinIO'ya yükle (geçici UUID ile)
         UUID tempId = UUID.randomUUID();
@@ -295,6 +303,7 @@ public class AuthServiceImpl {
         if (idCardImage == null || idCardImage.isEmpty()) {
             throw new IllegalArgumentException("Akademisyen kimlik kartı fotoğrafı zorunludur");
         }
+        passwordPolicy.validateNewPassword(request.getPassword(), request.getEmail());
 
         // 1. Kullanıcıyı 'PENDING' rolüyle USERS tablosuna kaydet
         Set<Role> roles = Stream.of(Role.ROLE_PENDING_ACADEMICIAN).collect(Collectors.toSet());
@@ -390,10 +399,16 @@ public class AuthServiceImpl {
 
 
     public AuthResponse login(LoginRequest loginRequest) {
-        // 1. Önce kimlik doğrulaması (Email & Şifre kontrolü)
-        Authentication authentication = authenticationManager.authenticate(
-                new UsernamePasswordAuthenticationToken(loginRequest.getEmail(), loginRequest.getPassword())
-        );
+        loginAttemptService.ensureNotLocked(loginRequest.getEmail());
+        Authentication authentication;
+        try {
+            authentication = authenticationManager.authenticate(
+                    new UsernamePasswordAuthenticationToken(loginRequest.getEmail(), loginRequest.getPassword())
+            );
+        } catch (BadCredentialsException e) {
+            loginAttemptService.recordFailure(loginRequest.getEmail());
+            throw e;
+        }
 
         // 2. Kullanıcıyı veritabanından çek
         User user = userRepository.findByEmail(loginRequest.getEmail())
@@ -411,12 +426,10 @@ public class AuthServiceImpl {
         }
         // ---------------------------------------------
 
-        // 3. Her şey yolundaysa Token üret
+        loginAttemptService.recordSuccess(user.getId());
         SecurityContextHolder.getContext().setAuthentication(authentication);
         String jwt = jwtService.generateToken(user);
-
-        // Refresh token oluştur
-        var refreshToken = refreshTokenService.createRefreshToken(user.getId());
+        String refreshToken = refreshTokenService.issue(user.getId());
 
         LocalDate istanbulToday = LocalDate.now(ZoneId.of("Europe/Istanbul"));
         String referenceId = "LOGIN:" + istanbulToday + ":" + user.getId();
@@ -434,7 +447,7 @@ public class AuthServiceImpl {
             );
         }
 
-        return buildAuthResponse(jwt, refreshToken.getToken(), "Login successful", user);
+        return buildAuthResponse(jwt, refreshToken, "Login successful", user);
     }
 
     // ---- Kulüp Görevlisi Başvuru Akışı ----
@@ -532,33 +545,25 @@ public class AuthServiceImpl {
         if (passwordEncoder.matches(request.getNewPassword(), user.getPassword())) {
             throw new IllegalStateException("New password cannot be the same as the old password");
         }
+        passwordPolicy.validateNewPassword(request.getNewPassword(), user.getEmail());
 
-        // 5. Her şey yolundaysa, yeni şifreyi HASH'le ve kaydet
         user.setPassword(passwordEncoder.encode(request.getNewPassword()));
         userRepository.save(user);
-
-        // NOT: (İleri Seviye Güvenlik)
-        // Şifre değiştiğinde, bu kullanıcıya ait diğer tüm JWT token'ları
-        // geçersiz kılmak için bir mekanizma (örn: 'passwordChangedAt' timestamp'i)
-        // eklenebilir. Şimdilik bu adımı atlıyoruz.
+        refreshTokenService.revokeAllSessions(user.getId());
     }
 
     public List<String> getEmailsByUserIds(List<UUID> userIds) {
         return userRepository.findEmailsByIds(userIds);
     }
 
-    /**
-     * Refresh token ile yeni access token oluşturur
-     */
     public AuthResponse refreshAccessToken(String refreshTokenStr) {
-        RefreshToken refreshToken = refreshTokenService.findByToken(refreshTokenStr);
-        refreshTokenService.verifyExpiration(refreshToken);
+        RefreshTokenService.RotatedRefreshToken rotated = refreshTokenService.rotate(refreshTokenStr);
 
-        User user = userRepository.findById(refreshToken.getUserId())
-                .orElseThrow(() -> new RuntimeException("User not found"));
+        User user = userRepository.findById(rotated.userId())
+                .orElseThrow(() -> new RefreshTokenService.InvalidRefreshTokenException("Invalid refresh token"));
 
         String newAccessToken = jwtService.generateToken(user);
-        return buildAuthResponse(newAccessToken, refreshTokenStr, "Token refreshed successfully", user);
+        return buildAuthResponse(newAccessToken, rotated.rawToken(), "Token refreshed successfully", user);
     }
 
     private AuthResponse buildAuthResponse(String token, String refreshToken, String message, User user) {
@@ -568,13 +573,8 @@ public class AuthServiceImpl {
                 RolePresentation.pendingRequests(roles));
     }
 
-    /**
-     * Logout - refresh token'ı siler
-     */
-    @Transactional
     public void logout(String refreshToken) {
-        refreshTokenService.deleteByToken(refreshToken);
-        LOGGER.info("User logged out, refresh token deleted");
+        refreshTokenService.revokeSession(refreshToken);
     }
 
     // ... Diğer metodlar ...
@@ -704,12 +704,10 @@ public class AuthServiceImpl {
         // 2. Önceki tokenları temizle
         passwordResetTokenRepository.deleteByUserId(user.getId());
 
-        // 3. Yeni token oluştur (UUID benzersiz token)
-        String token = UUID.randomUUID().toString();
+        String token = OpaqueTokens.generate();
 
-        // 4. Token'ı 15 dakika geçerli olacak şekilde kaydet
         PasswordResetToken resetToken = new PasswordResetToken(
-                token,
+                OpaqueTokens.hash(token),
                 user.getId(),
                 java.time.Instant.now().plusSeconds(15 * 60) // 15 dakika
         );
@@ -753,13 +751,7 @@ public class AuthServiceImpl {
             throw new IllegalStateException("Şifreler eşleşmiyor.");
         }
 
-        // 3. Şifre uzunluk kontrolü
-        if (newPassword.length() < 6) {
-            throw new IllegalArgumentException("Şifre en az 6 karakter olmalıdır.");
-        }
-
-        // 4. Token'ı bul
-        PasswordResetToken resetToken = passwordResetTokenRepository.findByToken(token)
+        PasswordResetToken resetToken = passwordResetTokenRepository.findByTokenHash(OpaqueTokens.hash(token))
                 .orElseThrow(() -> new NoSuchElementException("Geçersiz veya süresi dolmuş token."));
 
         // 5. Token süre kontrolü
@@ -771,10 +763,12 @@ public class AuthServiceImpl {
         // 6. Kullanıcıyı bul
         User user = userRepository.findById(resetToken.getUserId())
                 .orElseThrow(() -> new NoSuchElementException("Kullanıcı bulunamadı."));
+        passwordPolicy.validateResetPassword(newPassword, user.getEmail());
 
-        // 7. Şifreyi güncelle
         user.setPassword(passwordEncoder.encode(newPassword));
         userRepository.save(user);
+        refreshTokenService.revokeAllSessions(user.getId());
+        loginAttemptService.recordSuccess(user.getId());
 
         // 8. Kullanılan token'ı sil
         passwordResetTokenRepository.delete(resetToken);

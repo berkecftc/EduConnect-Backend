@@ -32,7 +32,7 @@ import java.util.List;
 @Configuration
 @EnableWebSecurity
 @EnableMethodSecurity
-@EnableConfigurationProperties(ServiceClientsProperties.class)
+@EnableConfigurationProperties({ServiceClientsProperties.class, AuthSecurityProperties.class})
 public class SecurityConfig {
 
     private final UserRepository userRepository;
