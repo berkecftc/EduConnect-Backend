@@ -9,7 +9,7 @@ import java.util.UUID;
  * Kulüp başkanı veya yönetim kurulu üyesi atamalarının danışman onayına sunulması için kullanılır.
  */
 @Entity
-@Table(name = "role_change_requests", schema = "club_db")
+@Table(name = "role_change_requests")
 public class RoleChangeRequest {
 
     @Id

@@ -6,7 +6,7 @@ import java.time.LocalDateTime;
 import java.util.UUID;
 
 @Entity
-@Table(name = "assignment_submissions", schema = "assignment_db",
+@Table(name = "assignment_submissions",
         uniqueConstraints = @UniqueConstraint(columnNames = {"assignment_id", "student_id"}))
 public class AssignmentSubmission {
 

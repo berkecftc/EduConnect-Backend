@@ -4,7 +4,7 @@ import jakarta.persistence.*;
 import com.educonnect.common.storage.ObjectUrlConverter;
 
 @Entity
-@Table(name = "student_requests", schema = "auth_db")
+@Table(name = "student_requests")
 @SuppressWarnings("JpaDataSourceORMInspection")
 public class StudentRegistrationRequest {
 

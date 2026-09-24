@@ -1,6 +1,7 @@
 package com.educonnect.clubservice.controller;
 
 import com.educonnect.clubservice.dto.response.ClubAccessResponse;
+import com.educonnect.clubservice.dto.response.ClubCatalogEntry;
 import com.educonnect.clubservice.security.ClubAuthorizationService;
 import com.educonnect.clubservice.service.ClubService;
 import org.springframework.http.ResponseEntity;
@@ -22,6 +23,11 @@ public class InternalClubController {
     public InternalClubController(ClubService clubService, ClubAuthorizationService clubAuthorizationService) {
         this.clubService = clubService;
         this.clubAuthorizationService = clubAuthorizationService;
+    }
+
+    @GetMapping("/catalog")
+    public ResponseEntity<List<ClubCatalogEntry>> getClubCatalog() {
+        return ResponseEntity.ok(clubService.getClubCatalog());
     }
 
     @GetMapping("/{clubId}/members/ids")

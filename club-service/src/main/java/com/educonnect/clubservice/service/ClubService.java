@@ -7,6 +7,7 @@ import com.educonnect.clubservice.dto.message.ClubUpdateMessage;
 import com.educonnect.clubservice.dto.request.*;
 import com.educonnect.clubservice.dto.response.AcademicianSummary;
 import com.educonnect.clubservice.dto.response.ArchivedClubDTO;
+import com.educonnect.clubservice.dto.response.ClubCatalogEntry;
 import com.educonnect.clubservice.dto.response.ClubAdminSummaryDto;
 import com.educonnect.clubservice.dto.response.ClubDetailsDTO;
 import com.educonnect.clubservice.dto.response.ClubSummaryDTO;
@@ -27,6 +28,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.cache.annotation.Cacheable;
+import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -835,5 +837,12 @@ public class ClubService {
         return clubs.stream()
                 .map(Club::getId)
                 .collect(Collectors.toList());
+    }
+
+    @Transactional(readOnly = true)
+    public List<ClubCatalogEntry> getClubCatalog() {
+        return clubRepository.findAll(Sort.by("name")).stream()
+                .map(club -> new ClubCatalogEntry(club.getId(), club.getName(), club.getAbout()))
+                .toList();
     }
 }

@@ -5,7 +5,7 @@ import com.educonnect.common.storage.ObjectUrlConverter;
 import java.util.UUID;
 
 @Entity
-@Table(name = "courses", schema = "course_db")
+@Table(name = "courses")
 public class Course {
 
     @Id

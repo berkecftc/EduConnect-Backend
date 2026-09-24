@@ -5,7 +5,7 @@ import java.time.LocalDateTime;
 import java.util.UUID;
 
 @Entity
-@Table(name = "course_applications", schema = "course_db",
+@Table(name = "course_applications",
         uniqueConstraints = @UniqueConstraint(columnNames = {"course_id", "student_id"}))
 public class CourseApplication {
 

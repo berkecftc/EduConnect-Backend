@@ -32,22 +32,22 @@ public interface UserRepository extends JpaRepository<User, UUID> {
     @Query("UPDATE User u SET u.emailVerifiedAt = :now WHERE u.email = :email AND u.emailVerifiedAt IS NULL")
     int markEmailVerified(@Param("email") String email, @Param("now") Instant now);
 
-    @Query(value = "SELECT COUNT(*) > 0 FROM auth_db.users WHERE email = :email AND locked_until > :now", nativeQuery = true)
+    @Query(value = "SELECT COUNT(*) > 0 FROM users WHERE email = :email AND locked_until > :now", nativeQuery = true)
     boolean isLoginLocked(@Param("email") String email, @Param("now") Instant now);
 
     @Modifying
-    @Query(value = "UPDATE auth_db.users SET failed_login_attempts = failed_login_attempts + 1 WHERE email = :email", nativeQuery = true)
+    @Query(value = "UPDATE users SET failed_login_attempts = failed_login_attempts + 1 WHERE email = :email", nativeQuery = true)
     int incrementFailedLoginAttempts(@Param("email") String email);
 
     @Modifying
-    @Query(value = "UPDATE auth_db.users SET locked_until = :lockedUntil, failed_login_attempts = 0 "
+    @Query(value = "UPDATE users SET locked_until = :lockedUntil, failed_login_attempts = 0 "
             + "WHERE email = :email AND failed_login_attempts >= :maxAttempts", nativeQuery = true)
     int lockIfAttemptsExceeded(@Param("email") String email,
                                @Param("maxAttempts") int maxAttempts,
                                @Param("lockedUntil") Instant lockedUntil);
 
     @Modifying
-    @Query(value = "UPDATE auth_db.users SET failed_login_attempts = 0, locked_until = NULL "
+    @Query(value = "UPDATE users SET failed_login_attempts = 0, locked_until = NULL "
             + "WHERE id = :userId AND (failed_login_attempts <> 0 OR locked_until IS NOT NULL)", nativeQuery = true)
     int resetFailedLoginAttempts(@Param("userId") UUID userId);
 }

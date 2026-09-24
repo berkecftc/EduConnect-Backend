@@ -10,7 +10,7 @@ import java.time.LocalDate;
 import java.util.UUID;
 
 @Entity
-@Table(name = "user_reputation", schema = "gamification_db")
+@Table(name = "user_reputation")
 public class UserReputation {
 
     @Id

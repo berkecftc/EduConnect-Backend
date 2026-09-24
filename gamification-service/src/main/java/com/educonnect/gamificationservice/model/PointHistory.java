@@ -15,7 +15,7 @@ import java.time.LocalDateTime;
 import java.util.UUID;
 
 @Entity
-@Table(name = "point_history", schema = "gamification_db",
+@Table(name = "point_history",
         uniqueConstraints = {
                 @UniqueConstraint(
                         name = "uq_point_history_user_action_reference",

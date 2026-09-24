@@ -6,7 +6,7 @@ import java.time.Instant;
 import java.util.UUID;
 
 @Entity
-@Table(name = "admin_audit_log", schema = "auth_db")
+@Table(name = "admin_audit_log")
 public class AdminAuditEntry {
 
     @Id

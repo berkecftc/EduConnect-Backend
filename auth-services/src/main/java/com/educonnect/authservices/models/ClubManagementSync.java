@@ -9,7 +9,7 @@ import java.time.Instant;
 import java.util.UUID;
 
 @Entity
-@Table(name = "club_management_sync", schema = "auth_db")
+@Table(name = "club_management_sync")
 public class ClubManagementSync {
 
     @Id

@@ -5,7 +5,7 @@ import java.time.LocalDateTime;
 import java.util.UUID;
 
 @Entity
-@Table(name = "club_memberships", schema = "club_db",
+@Table(name = "club_memberships",
         uniqueConstraints = @UniqueConstraint(columnNames = {"club_id", "student_id"}))
 public class ClubMembership {
 

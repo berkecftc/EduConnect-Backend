@@ -1,5 +1,6 @@
 package com.educonnect.llmservice.service;
 
+import com.educonnect.llmservice.client.ClubServiceClient;
 import com.educonnect.llmservice.dto.ClubResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -8,9 +9,9 @@ import org.springframework.ai.vectorstore.SimpleVectorStore;
 import org.springframework.ai.vectorstore.VectorStore;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.boot.context.event.ApplicationReadyEvent;
+import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Service;
-import jakarta.annotation.PostConstruct;
 
 import java.io.File;
 import java.util.List;
@@ -21,7 +22,7 @@ public class ClubIngestionService {
 
     private static final Logger log = LoggerFactory.getLogger(ClubIngestionService.class);
     private final VectorStore vectorStore;
-    private final JdbcTemplate jdbcTemplate;
+    private final ClubServiceClient clubServiceClient;
 
     @Value("${vector.store.path:data/vector-store.json}")
     private String vectorStorePath;
@@ -32,12 +33,12 @@ public class ClubIngestionService {
     @Value("${club.ingestion.force:false}")
     private boolean forceIngestion;
 
-    public ClubIngestionService(@Qualifier("clubVectorStore") VectorStore vectorStore, JdbcTemplate jdbcTemplate) {
+    public ClubIngestionService(@Qualifier("clubVectorStore") VectorStore vectorStore, ClubServiceClient clubServiceClient) {
         this.vectorStore = vectorStore;
-        this.jdbcTemplate = jdbcTemplate;
+        this.clubServiceClient = clubServiceClient;
     }
 
-    @PostConstruct
+    @EventListener(ApplicationReadyEvent.class)
     public void ingestClubsToVectorStore() {
         if (!ingestionEnabled) {
             log.info("Kulüp ETL devre dışı. club.ingestion.enabled=false");
@@ -59,9 +60,15 @@ public class ClubIngestionService {
             }
         }
 
-        log.info("PostgreSQL üzerinden kulüp verileri çekiliyor...");
+        log.info("club-service üzerinden kulüp verileri çekiliyor...");
 
-        List<ClubResponse> clubs = fetchClubsFromDatabase();
+        List<ClubResponse> clubs;
+        try {
+            clubs = fetchClubsFromClubService();
+        } catch (RuntimeException ex) {
+            log.warn("Kulüp verileri club-service'ten alınamadı, ETL atlandı: {}", ex.getMessage());
+            return;
+        }
         if (clubs.isEmpty()) {
             log.warn("Kulüp verisi bulunamadı. Vektör veritabanı güncellenmedi.");
             return;
@@ -99,21 +106,15 @@ public class ClubIngestionService {
         log.info("Kulüp RAG entegrasyonu tamamlandı!");
     }
 
-    private List<ClubResponse> fetchClubsFromDatabase() {
-        String sql = """
-            SELECT id::text AS id,
-                   name,
-                   COALESCE(about, '') AS about
-            FROM clubs
-            ORDER BY name
-            """;
-
-        return jdbcTemplate.query(sql, (rs, rowNum) -> new ClubResponse(
-                rs.getString("id"),
-                rs.getString("name"),
-                "Belirtilmedi",
-                rs.getString("about"),
-                "Belirtilmedi"
-        ));
+    private List<ClubResponse> fetchClubsFromClubService() {
+        return clubServiceClient.getClubCatalog().stream()
+                .map(club -> new ClubResponse(
+                        club.id(),
+                        club.name(),
+                        "Belirtilmedi",
+                        club.about() != null ? club.about() : "",
+                        "Belirtilmedi"
+                ))
+                .toList();
     }
 }

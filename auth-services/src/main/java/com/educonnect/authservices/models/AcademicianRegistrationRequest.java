@@ -6,7 +6,7 @@ import com.educonnect.common.storage.ObjectUrlConverter;
 import java.util.UUID;
 
 @Entity
-@Table(name = "academician_requests", schema = "auth_db")
+@Table(name = "academician_requests")
 @SuppressWarnings("JpaDataSourceORMInspection")
 public class AcademicianRegistrationRequest {
 

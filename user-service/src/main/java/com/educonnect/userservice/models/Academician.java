@@ -5,7 +5,7 @@ import com.educonnect.common.storage.ObjectUrlConverter;
 import java.util.UUID;
 
 @Entity
-@Table(name = "academicians", schema = "user_db") // 'user_db' içinde 'academicians' tablosunu oluşturur
+@Table(name = "academicians") // 'user_db' içinde 'academicians' tablosunu oluşturur
 public class Academician {
 
     @Id

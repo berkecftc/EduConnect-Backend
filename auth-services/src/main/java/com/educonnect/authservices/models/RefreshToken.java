@@ -5,7 +5,7 @@ import java.time.Instant;
 import java.util.UUID;
 
 @Entity
-@Table(name = "refresh_tokens", schema = "auth_db")
+@Table(name = "refresh_tokens")
 public class RefreshToken {
 
     @Id
