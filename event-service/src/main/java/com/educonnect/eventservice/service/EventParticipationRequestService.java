@@ -5,6 +5,7 @@ import com.educonnect.eventservice.Repository.EventRegistrationRepository;
 import com.educonnect.eventservice.Repository.EventRepository;
 import com.educonnect.eventservice.client.ClubClient;
 import com.educonnect.eventservice.client.UserClient;
+import com.educonnect.eventservice.client.UserLookup;
 import com.educonnect.eventservice.config.EventRabbitMQConfig;
 import com.educonnect.eventservice.dto.message.EventRegistrationMessage;
 import com.educonnect.eventservice.dto.response.EventParticipationRequestDTO;
@@ -21,7 +22,9 @@ import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 /**
@@ -256,6 +259,9 @@ public class EventParticipationRequestService {
      */
     public List<EventParticipationRequestDTO> getStudentParticipationRequests(UUID studentId) {
         List<EventParticipationRequest> requests = participationRequestRepository.findByStudentId(studentId);
+        List<UUID> eventIds = requests.stream().map(EventParticipationRequest::getEventId).distinct().toList();
+        Map<UUID, Event> events = eventIds.isEmpty() ? Map.of() : eventRepository.findAllById(eventIds).stream()
+                .collect(Collectors.toMap(Event::getId, Function.identity()));
 
         return requests.stream().map(request -> {
             EventParticipationRequestDTO dto = new EventParticipationRequestDTO();
@@ -268,10 +274,10 @@ public class EventParticipationRequestService {
             dto.setMessage(request.getMessage());
             dto.setRejectionReason(request.getRejectionReason());
 
-            // Etkinlik bilgisini ekle
-            eventRepository.findById(request.getEventId()).ifPresent(event -> {
+            Event event = events.get(request.getEventId());
+            if (event != null) {
                 dto.setEventTitle(event.getTitle());
-            });
+            }
 
             return dto;
         }).collect(Collectors.toList());
@@ -299,8 +305,10 @@ public class EventParticipationRequestService {
         // 2. Bu etkinliklerin bekleyen isteklerini getir
         List<EventParticipationRequest> requests = participationRequestRepository
                 .findByEventIdInAndStatus(eventIds, ParticipationRequestStatus.PENDING);
+        Map<UUID, Event> eventsById = officialEvents.stream().collect(Collectors.toMap(Event::getId, Function.identity()));
+        Map<UUID, UserSummary> users = UserLookup.usersById(userClient,
+                requests.stream().map(EventParticipationRequest::getStudentId).toList());
 
-        // 3. DTO'ya dönüştür
         return requests.stream().map(request -> {
             EventParticipationRequestDTO dto = new EventParticipationRequestDTO();
             dto.setId(request.getId());
@@ -310,30 +318,27 @@ public class EventParticipationRequestService {
             dto.setRequestDate(request.getRequestDate());
             dto.setMessage(request.getMessage());
 
-            // Etkinlik bilgisini ekle
-            officialEvents.stream()
-                    .filter(e -> e.getId().equals(request.getEventId()))
-                    .findFirst()
-                    .ifPresent(event -> dto.setEventTitle(event.getTitle()));
-
-            // Kullanıcı bilgisini ekle
-            try {
-                UserSummary user = userClient.getUserById(request.getStudentId());
-                if (user != null) {
-                    dto.setStudentName(user.getFirstName() + " " + user.getLastName());
-                    dto.setStudentEmail(user.getEmail());
-                }
-            } catch (Exception e) {
-                log.warn("Kullanıcı bilgisi alınamadı: {}", request.getStudentId());
-                dto.setStudentName("Bilinmiyor");
-                dto.setStudentEmail("N/A");
+            Event event = eventsById.get(request.getEventId());
+            if (event != null) {
+                dto.setEventTitle(event.getTitle());
             }
+            applyStudentInfo(dto, users.get(request.getStudentId()));
 
             return dto;
         }).collect(Collectors.toList());
     }
 
     // ==================== HELPER METHODS ====================
+
+    private void applyStudentInfo(EventParticipationRequestDTO dto, UserSummary user) {
+        if (user != null) {
+            dto.setStudentName(user.getFirstName() + " " + user.getLastName());
+            dto.setStudentEmail(user.getEmail());
+        } else {
+            dto.setStudentName("Bilinmiyor");
+            dto.setStudentEmail("N/A");
+        }
+    }
 
     /**
      * Öğrencinin kulüp üyesi olup olmadığını kontrol eder.
@@ -360,6 +365,8 @@ public class EventParticipationRequestService {
      */
     private List<EventParticipationRequestDTO> enrichRequestsWithUserInfo(
             List<EventParticipationRequest> requests, Event event) {
+        Map<UUID, UserSummary> users = UserLookup.usersById(userClient,
+                requests.stream().map(EventParticipationRequest::getStudentId).toList());
 
         return requests.stream().map(request -> {
             EventParticipationRequestDTO dto = new EventParticipationRequestDTO();
@@ -372,19 +379,7 @@ public class EventParticipationRequestService {
             dto.setProcessedDate(request.getProcessedDate());
             dto.setMessage(request.getMessage());
             dto.setRejectionReason(request.getRejectionReason());
-
-            // Kullanıcı bilgisini ekle
-            try {
-                UserSummary user = userClient.getUserById(request.getStudentId());
-                if (user != null) {
-                    dto.setStudentName(user.getFirstName() + " " + user.getLastName());
-                    dto.setStudentEmail(user.getEmail());
-                }
-            } catch (Exception e) {
-                log.warn("Kullanıcı bilgisi alınamadı: {}", request.getStudentId());
-                dto.setStudentName("Bilinmiyor");
-                dto.setStudentEmail("N/A");
-            }
+            applyStudentInfo(dto, users.get(request.getStudentId()));
 
             return dto;
         }).collect(Collectors.toList());

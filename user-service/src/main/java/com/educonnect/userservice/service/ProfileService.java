@@ -21,7 +21,11 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -73,6 +77,13 @@ public class ProfileService {
         }
 
         throw new RuntimeException("Profile not found for user ID: " + userId);
+    }
+
+    public List<UserProfileResponse> getUserProfiles(Collection<UUID> userIds) {
+        Map<UUID, UserProfileResponse> profiles = new LinkedHashMap<>();
+        studentRepository.findAllById(userIds).forEach(student -> profiles.put(student.getId(), mapToResponse(student)));
+        academicianRepository.findAllById(userIds).forEach(academician -> profiles.putIfAbsent(academician.getId(), mapToResponse(academician)));
+        return new ArrayList<>(profiles.values());
     }
 
     @Transactional(readOnly = false)

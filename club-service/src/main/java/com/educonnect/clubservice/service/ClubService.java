@@ -2,6 +2,7 @@ package com.educonnect.clubservice.service;
 
 import com.educonnect.clubservice.Repository.ClubCreationRequestRepository;
 import com.educonnect.clubservice.client.UserClient;
+import com.educonnect.clubservice.client.UserLookup;
 import com.educonnect.clubservice.config.ClubRabbitMQConfig; // RabbitMQ yapılandırmamız
 import com.educonnect.clubservice.dto.message.ClubUpdateMessage;
 import com.educonnect.clubservice.dto.request.*;
@@ -13,6 +14,7 @@ import com.educonnect.clubservice.dto.response.ClubDetailsDTO;
 import com.educonnect.clubservice.dto.response.ClubSummaryDTO;
 import com.educonnect.clubservice.dto.response.MemberDTO;
 import com.educonnect.clubservice.dto.response.MyClubMembershipDTO;
+import com.educonnect.clubservice.dto.response.PageResponse;
 import com.educonnect.clubservice.dto.response.UserSummary;
 import com.educonnect.clubservice.model.ArchivedClub;
 import com.educonnect.clubservice.model.Club;
@@ -29,6 +31,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.cache.annotation.Cacheable;
+import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -37,8 +40,11 @@ import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDateTime;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 @Service
@@ -59,6 +65,7 @@ public class ClubService {
     private final ClubCacheEvictor cacheEvictor;
     private final ClubManagementStatusPublisher managementStatusPublisher;
     private final ClubNotificationPublisher notificationPublisher;
+    private final UserLookup userLookup;
 
     public ClubService(ClubRepository clubRepository,
                        ClubMembershipRepository membershipRepository,
@@ -70,7 +77,8 @@ public class ClubService {
                        ClubAuthorizationService clubAuthorizationService,
                        ClubCacheEvictor cacheEvictor,
                        ClubManagementStatusPublisher managementStatusPublisher,
-                       ClubNotificationPublisher notificationPublisher) {
+                       ClubNotificationPublisher notificationPublisher,
+                       UserLookup userLookup) {
         this.clubRepository = clubRepository;
         this.membershipRepository = membershipRepository;
         this.rabbitTemplate = rabbitTemplate;
@@ -82,6 +90,7 @@ public class ClubService {
         this.cacheEvictor = cacheEvictor;
         this.managementStatusPublisher = managementStatusPublisher;
         this.notificationPublisher = notificationPublisher;
+        this.userLookup = userLookup;
     }
 
     /**
@@ -134,34 +143,34 @@ public class ClubService {
      */
     @Transactional(readOnly = true) // Bu metot sadece okuma yapar
     public List<ClubSummaryDTO> getAllClubs() {
-        // 1. Tüm kulüp Entity'lerini veritabanından çek
-        List<Club> clubs = clubRepository.findAll();
+        return toClubSummaries(clubRepository.findAll());
+    }
 
-        // 2. Entity listesini DTO listesine dönüştür (üye sayısı ve danışman bilgisi dahil)
+    @Transactional(readOnly = true)
+    public PageResponse<ClubSummaryDTO> getClubsPage(int page, Integer size) {
+        Page<Club> clubs = clubRepository.findAll(PageResponse.request(page, size, Sort.by("name").and(Sort.by("id"))));
+        return PageResponse.of(clubs, toClubSummaries(clubs.getContent()));
+    }
+
+    private List<ClubSummaryDTO> toClubSummaries(List<Club> clubs) {
+        if (clubs.isEmpty()) {
+            return List.of();
+        }
+        Map<UUID, Long> memberCounts = membershipRepository.countByClubIds(clubs.stream().map(Club::getId).toList()).stream()
+                .collect(Collectors.toMap(ClubMembershipRepository.ClubMemberCount::getClubId,
+                        ClubMembershipRepository.ClubMemberCount::getTotal));
+        Map<UUID, AcademicianSummary> advisors = userLookup.academiciansById(
+                clubs.stream().map(Club::getAcademicAdvisorId).toList());
+
         return clubs.stream()
                 .map(club -> {
-                    // Üye sayısını al
-                    long memberCount = membershipRepository.countByClubId(club.getId());
-
-                    // Danışman hoca bilgisini al
-                    String advisorName = null;
-                    try {
-                        if (club.getAcademicAdvisorId() != null) {
-                            var advisor = userClient.getAcademicianById(club.getAcademicAdvisorId());
-                            if (advisor != null) {
-                                advisorName = advisor.getFullName();
-                            }
-                        }
-                    } catch (Exception e) {
-                        log.warn("Could not fetch advisor info for club {}: {}", club.getId(), e.getMessage());
-                    }
-
+                    AcademicianSummary advisor = advisors.get(club.getAcademicAdvisorId());
                     return new ClubSummaryDTO(
                             club.getId(),
                             club.getName(),
                             club.getLogoUrl(),
-                            memberCount,
-                            advisorName,
+                            memberCounts.getOrDefault(club.getId(), 0L),
+                            advisor != null ? advisor.getFullName() : null,
                             club.getAcademicAdvisorId()
                     );
                 })
@@ -595,19 +604,25 @@ public class ClubService {
     // 1. ADMIN İÇİN TÜM AKTİF KULÜPLERİ GETİR
     public List<ClubAdminSummaryDto> getAllClubsForAdmin() {
         List<Club> clubs = clubRepository.findAll();
+        if (clubs.isEmpty()) {
+            return List.of();
+        }
+        Map<UUID, List<ClubMembership>> membershipsByClub = membershipRepository
+                .findByClubIdIn(clubs.stream().map(Club::getId).toList()).stream()
+                .collect(Collectors.groupingBy(ClubMembership::getClubId));
+        Map<UUID, UUID> presidentByClub = new HashMap<>();
+        membershipsByClub.forEach((clubId, memberships) -> memberships.stream()
+                .filter(m -> m.getClubRole() == ClubPosition.PRESIDENT)
+                .findFirst()
+                .ifPresent(m -> presidentByClub.put(clubId, m.getStudentId())));
+        Map<UUID, UserSummary> presidents = userLookup.usersById(presidentByClub.values());
 
         return clubs.stream().map(club -> {
-            // Başkanı Bul (Rolü CLUB_OFFICIAL olan)
-            List<ClubMembership> memberships = membershipRepository.findByClubId(club.getId());
-
-            UUID presidentId = memberships.stream()
-                    .filter(m -> m.getClubRole() == ClubPosition.PRESIDENT)
-                    .findFirst()
-                    .map(ClubMembership::getStudentId)
-                    .orElse(null);
-
-            // TODO: presidentId ile user-service'e istek atarak ismi çek
-            String presidentName = presidentId != null ? presidentId.toString() : "Atanmamış";
+            List<ClubMembership> memberships = membershipsByClub.getOrDefault(club.getId(), List.of());
+            UUID presidentId = presidentByClub.get(club.getId());
+            UserSummary president = presidentId != null ? presidents.get(presidentId) : null;
+            String presidentName = president != null ? president.getFullName()
+                    : presidentId != null ? presidentId.toString() : "Atanmamış";
 
             return new ClubAdminSummaryDto(
                     club.getId(),
@@ -625,30 +640,19 @@ public class ClubService {
             throw new RuntimeException("Kulüp bulunamadı");
         }
 
-        List<ClubMembership> memberships = membershipRepository.findByClubId(clubId);
-
-        return memberships.stream()
+        List<ClubMembership> boardMembers = membershipRepository.findByClubId(clubId).stream()
                 .filter(ClubMembership::isActive)
                 .filter(m -> m.getClubRole().isManagement())
-                .map(m -> {
-                    // 1. User Service'ten ismi çek
-                    String fName = "Bilinmiyor";
-                    String lName = "User";
-                    try {
-                        UserSummary user = userClient.getUserById(m.getStudentId());
-                        if (user != null) {
-                            fName = user.getFirstName();
-                            lName = user.getLastName();
-                        }
-                    } catch (Exception e) {
-                        System.err.println("User Service hatası: " + e.getMessage());
-                    }
+                .toList();
+        Map<UUID, UserSummary> users = userLookup.usersById(boardMembers.stream().map(ClubMembership::getStudentId).toList());
 
-                    // 2. DTO oluştur
+        return boardMembers.stream()
+                .map(m -> {
+                    UserSummary user = users.get(m.getStudentId());
                     return new MemberDTO(
                             m.getStudentId(),
-                            fName,
-                            lName,
+                            user != null ? user.getFirstName() : "Bilinmiyor",
+                            user != null ? user.getLastName() : "User",
                             m.getClubRole().apiName()
                     );
                 })
@@ -687,27 +691,15 @@ public class ClubService {
                 .sorted((a, b) -> b.getTermStartDate().compareTo(a.getTermStartDate())) // En yeniden eskiye
                 .toList();
 
-        // DTO'ya dönüştür
+        Map<UUID, UserSummary> users = userLookup.usersById(pastPresidents.stream().map(ClubMembership::getStudentId).toList());
+
         return pastPresidents.stream()
                 .map(m -> {
-                    // User Service'ten ismi çek
-                    String fName = "Bilinmiyor";
-                    String lName = "User";
-                    try {
-                        UserSummary user = userClient.getUserById(m.getStudentId());
-                        if (user != null) {
-                            fName = user.getFirstName();
-                            lName = user.getLastName();
-                        }
-                    } catch (Exception e) {
-                        log.error("User Service hatası: {}", e.getMessage());
-                    }
-
-                    // DTO oluştur (tarih bilgisiyle birlikte)
+                    UserSummary user = users.get(m.getStudentId());
                     return new MemberDTO(
                             m.getStudentId(),
-                            fName,
-                            lName,
+                            user != null ? user.getFirstName() : "Bilinmiyor",
+                            user != null ? user.getLastName() : "User",
                             "Geçmiş Başkan", // Eski başkan olduğunu belirt
                             m.isActive(),
                             m.getTermStartDate(),
@@ -748,9 +740,10 @@ public class ClubService {
     @Cacheable(value = "studentClubMemberships", key = "#studentId")
     public List<MyClubMembershipDTO> getStudentClubMemberships(UUID studentId) {
         List<ClubMembership> memberships = membershipRepository.findByStudentId(studentId);
+        Map<UUID, Club> clubs = clubsById(memberships);
 
         return memberships.stream().map(membership -> {
-            Club club = clubRepository.findById(membership.getClubId()).orElse(null);
+            Club club = clubs.get(membership.getClubId());
             if (club == null) return null;
 
             MyClubMembershipDTO dto = new MyClubMembershipDTO();
@@ -775,14 +768,15 @@ public class ClubService {
      */
     @Cacheable(value = "managedClubs", key = "#userId")
     public List<MyClubMembershipDTO> getManagedClubs(UUID userId) {
-        List<ClubMembership> memberships = membershipRepository.findByStudentId(userId);
+        List<ClubMembership> memberships = membershipRepository.findByStudentId(userId).stream()
+                .filter(membership -> membership.getClubRole().isManagement())
+                .filter(ClubMembership::isActive)
+                .toList();
+        Map<UUID, Club> clubs = clubsById(memberships);
 
         return memberships.stream()
-                .filter(membership -> membership.getClubRole().isManagement())
-                // Sadece aktif üyelikleri al
-                .filter(ClubMembership::isActive)
                 .map(membership -> {
-                    Club club = clubRepository.findById(membership.getClubId()).orElse(null);
+                    Club club = clubs.get(membership.getClubId());
                     if (club == null) return null;
 
                     MyClubMembershipDTO dto = new MyClubMembershipDTO();
@@ -838,6 +832,15 @@ public class ClubService {
         return clubs.stream()
                 .map(Club::getId)
                 .collect(Collectors.toList());
+    }
+
+    private Map<UUID, Club> clubsById(List<ClubMembership> memberships) {
+        List<UUID> clubIds = memberships.stream().map(ClubMembership::getClubId).distinct().toList();
+        if (clubIds.isEmpty()) {
+            return Map.of();
+        }
+        return clubRepository.findAllById(clubIds).stream()
+                .collect(Collectors.toMap(Club::getId, Function.identity()));
     }
 
     @Transactional(readOnly = true)

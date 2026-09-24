@@ -20,6 +20,8 @@ public interface SubmissionRepository extends JpaRepository<AssignmentSubmission
     // Bir ödeve yapılan tüm teslimleri getir (akademisyen için)
     List<AssignmentSubmission> findByAssignmentId(UUID assignmentId);
 
+    List<AssignmentSubmission> findByAssignmentIdIn(java.util.Collection<UUID> assignmentIds);
+
     // Öğrenci bu ödevi teslim etmiş mi?
     boolean existsByAssignmentIdAndStudentId(UUID assignmentId, UUID studentId);
 

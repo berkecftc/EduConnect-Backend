@@ -40,6 +40,12 @@ public class CourseController {
         return ResponseEntity.ok(courseService.getAllCourses());
     }
 
+    @GetMapping(params = "page")
+    public ResponseEntity<PageResponse<CourseResponse>> getPage(@RequestParam int page,
+                                                                @RequestParam(required = false) Integer size) {
+        return ResponseEntity.ok(courseService.getCoursesPage(page, size));
+    }
+
     @GetMapping("/{id}")
     public ResponseEntity<CourseResponse> getById(@PathVariable UUID id) {
         return ResponseEntity.ok(courseService.getCourseById(id));

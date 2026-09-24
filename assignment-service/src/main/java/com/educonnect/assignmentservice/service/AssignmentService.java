@@ -2,6 +2,7 @@ package com.educonnect.assignmentservice.service;
 
 import com.educonnect.assignmentservice.client.CourseClient;
 import com.educonnect.assignmentservice.client.CourseInternalClient;
+import com.educonnect.assignmentservice.client.InternalUserClient;
 import com.educonnect.assignmentservice.client.UserClient;
 import com.educonnect.assignmentservice.dto.*;
 import com.educonnect.assignmentservice.event.AssignmentNotificationEvent;
@@ -21,10 +22,14 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.io.InputStream;
 import java.time.LocalDateTime;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 @Service
@@ -39,10 +44,13 @@ public class AssignmentService {
     private final CourseInternalClient courseInternalClient;
     private final UserClient userClient;
     private final AssignmentProducer assignmentProducer;
+    private final InternalUserClient internalUserClient;
 
     public AssignmentService(AssignmentRepository repo, SubmissionRepository subRepo,
                              MinioService minio, CourseClient client, CourseInternalClient internalClient,
-                             UserClient userClient, AssignmentProducer producer) {
+                             UserClient userClient, AssignmentProducer producer,
+                             InternalUserClient internalUserClient) {
+        this.internalUserClient = internalUserClient;
         this.assignmentRepository = repo;
         this.submissionRepository = subRepo;
         this.minioService = minio;
@@ -188,20 +196,18 @@ public class AssignmentService {
     // BİR DERSE AİT TÜM TESLİMLERİ GETİR (Akademisyen için)
     public List<SubmissionSummaryDTO> getSubmissionsByCourse(UUID courseId) {
         // Önce bu derse ait tüm ödevleri bul
-        List<Assignment> assignments = assignmentRepository.findByCourseId(courseId);
-
-        // Her ödevin teslimlerini topla
-        return assignments.stream()
-                .flatMap(assignment -> submissionRepository.findByAssignmentId(assignment.getId()).stream())
-                .map(this::mapToSubmissionSummary)
-                .collect(Collectors.toList());
+        List<UUID> assignmentIds = assignmentRepository.findByCourseId(courseId).stream()
+                .map(Assignment::getId)
+                .toList();
+        if (assignmentIds.isEmpty()) {
+            return List.of();
+        }
+        return toSubmissionSummaries(submissionRepository.findByAssignmentIdIn(assignmentIds));
     }
 
     // BİR ÖDEVE AİT TÜM TESLİMLERİ GETİR (Akademisyen için)
     public List<SubmissionSummaryDTO> getSubmissionsByAssignment(UUID assignmentId) {
-        return submissionRepository.findByAssignmentId(assignmentId).stream()
-                .map(this::mapToSubmissionSummary)
-                .collect(Collectors.toList());
+        return toSubmissionSummaries(submissionRepository.findByAssignmentId(assignmentId));
     }
 
     // ÖĞRENCİNİN TÜM ÖDEVLERİNİ GETİR (Teslim durumuyla birlikte)
@@ -210,8 +216,20 @@ public class AssignmentService {
         // Öğrencinin teslimleri
         List<AssignmentSubmission> submissions = submissionRepository.findByStudentId(studentId);
 
-        // Tüm ödevleri al (TODO: Öğrencinin kayıtlı olduğu derslere göre filtreleme yapılabilir)
-        List<Assignment> allAssignments = assignmentRepository.findAll();
+        Set<UUID> courseIds = new HashSet<>();
+        try {
+            courseIds.addAll(courseInternalClient.getActiveCourseIds(studentId));
+        } catch (Exception e) {
+            log.warn("Could not fetch active courses of student {}: {}", studentId, e.getMessage());
+        }
+        List<UUID> submittedAssignmentIds = submissions.stream().map(AssignmentSubmission::getAssignmentId).distinct().toList();
+        if (!submittedAssignmentIds.isEmpty()) {
+            assignmentRepository.findAllById(submittedAssignmentIds).forEach(a -> courseIds.add(a.getCourseId()));
+        }
+        if (courseIds.isEmpty()) {
+            return List.of();
+        }
+        List<Assignment> allAssignments = assignmentRepository.findByCourseIdIn(courseIds);
 
         return allAssignments.stream().map(assignment -> {
             normalizeAssignmentFileUrlIfNeeded(assignment);
@@ -257,7 +275,30 @@ public class AssignmentService {
         return res;
     }
 
-    private SubmissionSummaryDTO mapToSubmissionSummary(AssignmentSubmission submission) {
+    private List<SubmissionSummaryDTO> toSubmissionSummaries(List<AssignmentSubmission> submissions) {
+        Map<UUID, UserClient.UserProfileDTO> students = studentsById(
+                submissions.stream().map(AssignmentSubmission::getStudentId).toList());
+        return submissions.stream()
+                .map(submission -> mapToSubmissionSummary(submission, students.get(submission.getStudentId())))
+                .collect(Collectors.toList());
+    }
+
+    private Map<UUID, UserClient.UserProfileDTO> studentsById(List<UUID> studentIds) {
+        List<UUID> ids = studentIds.stream().filter(Objects::nonNull).distinct().toList();
+        if (ids.isEmpty()) {
+            return Map.of();
+        }
+        try {
+            return internalUserClient.getUsersByIds(ids).stream()
+                    .filter(profile -> profile != null && profile.getId() != null)
+                    .collect(Collectors.toMap(UserClient.UserProfileDTO::getId, Function.identity(), (first, second) -> first));
+        } catch (Exception e) {
+            log.warn("Could not fetch {} student profiles: {}", ids.size(), e.getMessage());
+            return Map.of();
+        }
+    }
+
+    private SubmissionSummaryDTO mapToSubmissionSummary(AssignmentSubmission submission, UserClient.UserProfileDTO userProfile) {
         normalizeSubmissionFileUrlIfNeeded(submission);
 
         SubmissionSummaryDTO dto = new SubmissionSummaryDTO();
@@ -268,23 +309,10 @@ public class AssignmentService {
         dto.setGrade(submission.getGrade());
         dto.setLate(submission.isLate());
 
-        // Öğrenci bilgisini user-service'den çek
-        try {
-            UserClient.UserProfileDTO userProfile = userClient.getUserProfile(submission.getStudentId());
-
-            if (userProfile != null) {
-                String fullName = userProfile.getFirstName() + " " + userProfile.getLastName();
-                String studentNumber = userProfile.getStudentNumber();
-                
-                dto.setStudentName(fullName);
-                dto.setStudentNumber(studentNumber);
-            } else {
-                log.warn("⚠️ Student profile is null for studentId: {}", submission.getStudentId());
-                dto.setStudentName("Bilinmeyen Öğrenci");
-                dto.setStudentNumber("N/A");
-            }
-        } catch (Exception e) {
-            log.error("❌ Öğrenci bilgisi çekilemedi (ID: {}): {}", submission.getStudentId(), e.getMessage(), e);
+        if (userProfile != null) {
+            dto.setStudentName(userProfile.getFirstName() + " " + userProfile.getLastName());
+            dto.setStudentNumber(userProfile.getStudentNumber());
+        } else {
             dto.setStudentName("Bilinmeyen Öğrenci");
             dto.setStudentNumber("N/A");
         }

@@ -2,6 +2,10 @@ package com.educonnect.eventservice.service;
 
 import com.educonnect.eventservice.client.ClubClient;
 import com.educonnect.eventservice.client.UserClient;
+import com.educonnect.eventservice.client.UserLookup;
+import com.educonnect.eventservice.dto.response.PageResponse;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Sort;
 import com.educonnect.eventservice.config.EventRabbitMQConfig;
 import com.educonnect.eventservice.dto.message.EventCreatedMessage;
 import com.educonnect.eventservice.dto.message.EventRegistrationMessage;
@@ -32,6 +36,7 @@ import org.springframework.web.server.ResponseStatusException;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 @Service
@@ -258,12 +263,13 @@ public class EventService {
      * Tüm aktif etkinlikleri listeler (Tarihe göre sıralı).
      */
     public List<Event> getAllActiveEvents() {
-        // Repository'ye 'findByStatusOrderByEventTimeDesc' metodu eklenebilir
-        // Şimdilik basit findAll yapıp filtereliyoruz (Performans için repository metodunu tercih edin)
-        return eventRepository.findAll().stream()
-                .filter(e -> e.getStatus() == EventStatus.ACTIVE)
-                .sorted((e1, e2) -> e1.getEventTime().compareTo(e2.getEventTime()))
-                .toList();
+        return eventRepository.findByStatusOrderByEventTimeAsc(EventStatus.ACTIVE);
+    }
+
+    public PageResponse<Event> getActiveEventsPage(int page, Integer size) {
+        Page<Event> events = eventRepository.findByStatus(EventStatus.ACTIVE,
+                PageResponse.request(page, size, Sort.by("eventTime").and(Sort.by("id"))));
+        return PageResponse.of(events, events.getContent());
     }
 
     public Event getEventDetails(UUID eventId) {
@@ -424,9 +430,12 @@ public class EventService {
     @Cacheable(value = "studentEventRegistrations", key = "#studentId")
     public List<MyEventRegistrationDTO> getStudentEventRegistrations(UUID studentId) {
         List<EventRegistration> registrations = eventRegistrationRepository.findByStudentId(studentId);
+        List<UUID> eventIds = registrations.stream().map(EventRegistration::getEventId).distinct().toList();
+        Map<UUID, Event> events = eventIds.isEmpty() ? Map.of() : eventRepository.findAllById(eventIds).stream()
+                .collect(Collectors.toMap(Event::getId, Function.identity()));
 
         return registrations.stream().map(registration -> {
-            Event event = eventRepository.findById(registration.getEventId()).orElse(null);
+            Event event = events.get(registration.getEventId());
             if (event == null) return null;
 
             MyEventRegistrationDTO dto = new MyEventRegistrationDTO();
@@ -472,27 +481,22 @@ public class EventService {
 
         // 3. Etkinliğe kayıtlı tüm kullanıcıları getir
         List<EventRegistration> registrations = eventRegistrationRepository.findByEventId(eventId);
+        Map<UUID, UserSummary> users = UserLookup.usersById(userClient,
+                registrations.stream().map(EventRegistration::getStudentId).toList());
 
-        // 4. Her kayıt için user-service'den bilgi çek ve DTO'ya dönüştür
         return registrations.stream().map(registration -> {
             EventRegistrantDTO dto = new EventRegistrantDTO();
             dto.setStudentId(registration.getStudentId());
             dto.setRegistrationTime(registration.getRegistrationTime());
             dto.setAttended(registration.isAttended());
 
-            // User-service'den kullanıcı bilgilerini çek (graceful fallback ile)
-            try {
-                UserSummary user = userClient.getUserById(registration.getStudentId());
-                if (user != null) {
-                    dto.setFirstName(user.getFirstName());
-                    dto.setLastName(user.getLastName());
-                    dto.setEmail(user.getEmail());
-                    dto.setDepartment(user.getDepartment());
-                }
-            } catch (Exception e) {
-                log.warn("User-service'den kullanıcı bilgisi alınamadı (ID: {}): {}",
-                        registration.getStudentId(), e.getMessage());
-                // Fallback değerler
+            UserSummary user = users.get(registration.getStudentId());
+            if (user != null) {
+                dto.setFirstName(user.getFirstName());
+                dto.setLastName(user.getLastName());
+                dto.setEmail(user.getEmail());
+                dto.setDepartment(user.getDepartment());
+            } else {
                 dto.setFirstName("Bilinmiyor");
                 dto.setLastName("");
                 dto.setEmail("N/A");

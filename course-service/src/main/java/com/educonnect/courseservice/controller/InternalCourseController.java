@@ -24,4 +24,9 @@ public class InternalCourseController {
     public ResponseEntity<List<UUID>> getEnrolledStudentIds(@PathVariable UUID courseId) {
         return ResponseEntity.ok(courseService.getEnrolledStudentIds(courseId));
     }
+
+    @GetMapping("/students/{studentId}/course-ids")
+    public ResponseEntity<List<UUID>> getActiveCourseIds(@PathVariable UUID studentId) {
+        return ResponseEntity.ok(courseService.getActiveCourseIds(studentId));
+    }
 }

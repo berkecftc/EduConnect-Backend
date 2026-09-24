@@ -10,10 +10,14 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.util.List;
+import java.util.Set;
 import java.util.UUID;
+import java.util.stream.IntStream;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -106,5 +110,31 @@ class ProfileViewServiceTest {
         when(profileService.getUserProfile(ownerId)).thenReturn(cachedProfile);
 
         assertThat(profileViewService.getProfileForService(ownerId).getEmail()).isEqualTo("ayse@example.edu");
+    }
+
+    @Test
+    void getProfilesForService_whenIdsEmpty_shouldNotQuery() {
+        assertThat(profileViewService.getProfilesForService(List.of())).isEmpty();
+        verifyNoInteractions(profileService);
+    }
+
+    @Test
+    void getProfilesForService_shouldDeduplicateIds() {
+        when(profileService.getUserProfiles(Set.of(ownerId))).thenReturn(List.of(cachedProfile));
+
+        assertThat(profileViewService.getProfilesForService(List.of(ownerId, ownerId)))
+                .singleElement()
+                .satisfies(profile -> assertThat(profile.getEmail()).isEqualTo("ayse@example.edu"));
+    }
+
+    @Test
+    void getProfilesForService_whenTooManyIds_shouldReject() {
+        List<UUID> ids = IntStream.range(0, ProfileViewService.MAX_BATCH_SIZE + 1)
+                .mapToObj(i -> UUID.randomUUID())
+                .toList();
+
+        assertThatThrownBy(() -> profileViewService.getProfilesForService(ids))
+                .isInstanceOf(ResponseStatusException.class);
+        verifyNoInteractions(profileService);
     }
 }

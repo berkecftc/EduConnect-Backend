@@ -1,6 +1,7 @@
 package com.educonnect.courseservice.service;
 
 import com.educonnect.courseservice.client.UserClient;
+import com.educonnect.courseservice.client.UserLookup;
 import com.educonnect.courseservice.dto.AnnouncementRequest;
 import com.educonnect.courseservice.dto.AnnouncementResponse;
 import com.educonnect.courseservice.dto.UserSummaryDto;
@@ -20,6 +21,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -86,8 +88,12 @@ public class CourseAnnouncementService {
             throw new UnauthorizedCourseAccessException("Bu dersin duyurularını görme yetkiniz yok.");
         }
 
-        return announcementRepository.findByCourseIdOrderByCreatedAtDesc(courseId).stream()
-                .map(a -> mapToResponse(a, course))
+        List<CourseAnnouncement> announcements = announcementRepository.findByCourseIdOrderByCreatedAtDesc(courseId);
+        Map<UUID, UserSummaryDto> authors = UserLookup.usersById(userClient,
+                announcements.stream().map(CourseAnnouncement::getCreatedBy).toList());
+
+        return announcements.stream()
+                .map(a -> toResponse(a, course, authors.get(a.getCreatedBy())))
                 .collect(Collectors.toList());
     }
 
@@ -142,6 +148,16 @@ public class CourseAnnouncementService {
     }
 
     private AnnouncementResponse mapToResponse(CourseAnnouncement announcement, Course course) {
+        UserSummaryDto author;
+        try {
+            author = userClient.getUserById(announcement.getCreatedBy());
+        } catch (Exception e) {
+            author = null;
+        }
+        return toResponse(announcement, course, author);
+    }
+
+    private AnnouncementResponse toResponse(CourseAnnouncement announcement, Course course, UserSummaryDto author) {
         AnnouncementResponse dto = new AnnouncementResponse();
         dto.setId(announcement.getId());
         dto.setCourseId(announcement.getCourseId());
@@ -150,14 +166,7 @@ public class CourseAnnouncementService {
         dto.setContent(announcement.getContent());
         dto.setCreatedAt(announcement.getCreatedAt());
         dto.setCreatedBy(announcement.getCreatedBy());
-
-        try {
-            UserSummaryDto user = userClient.getUserById(announcement.getCreatedBy());
-            dto.setCreatedByName(user.getFirstName() + " " + user.getLastName());
-        } catch (Exception e) {
-            dto.setCreatedByName("Bilinmiyor");
-        }
-
+        dto.setCreatedByName(author != null ? author.getFirstName() + " " + author.getLastName() : "Bilinmiyor");
         return dto;
     }
 }

@@ -7,6 +7,7 @@ import com.educonnect.clubservice.dto.response.ClubDetailsDTO;
 import com.educonnect.clubservice.dto.response.ClubSummaryDTO;
 import com.educonnect.clubservice.dto.response.MemberDTO;
 import com.educonnect.clubservice.dto.response.MyClubMembershipDTO;
+import com.educonnect.clubservice.dto.response.PageResponse;
 import com.educonnect.clubservice.model.Club;
 import com.educonnect.clubservice.service.ClubService;
 import org.springframework.http.HttpStatus;
@@ -37,6 +38,12 @@ public class ClubController {
     @GetMapping
     public ResponseEntity<List<ClubSummaryDTO>> getAllClubs() {
         return ResponseEntity.ok(clubService.getAllClubs());
+    }
+
+    @GetMapping(params = "page")
+    public ResponseEntity<PageResponse<ClubSummaryDTO>> getClubsPage(@RequestParam int page,
+                                                                    @RequestParam(required = false) Integer size) {
+        return ResponseEntity.ok(clubService.getClubsPage(page, size));
     }
 
     // Tek Bir Kulübün Detaylarını Getir (Üyelerle Birlikte)

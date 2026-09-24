@@ -1,6 +1,7 @@
 package com.educonnect.eventservice.controller;
 
 import com.educonnect.eventservice.dto.MyEventRegistrationDTO;
+import com.educonnect.eventservice.dto.response.PageResponse;
 import com.educonnect.eventservice.model.Event;
 import com.educonnect.eventservice.model.EventRegistration;
 import com.educonnect.eventservice.service.EventService;
@@ -29,6 +30,12 @@ public class EventController {
     @GetMapping
     public ResponseEntity<List<Event>> getAllActiveEvents() {
         return ResponseEntity.ok(eventService.getAllActiveEvents());
+    }
+
+    @GetMapping(params = "page")
+    public ResponseEntity<PageResponse<Event>> getActiveEventsPage(@RequestParam int page,
+                                                                  @RequestParam(required = false) Integer size) {
+        return ResponseEntity.ok(eventService.getActiveEventsPage(page, size));
     }
 
     // 👇 ADMİN İÇİN ÖZEL ENDPOINT

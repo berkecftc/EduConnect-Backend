@@ -23,9 +23,14 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDateTime;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 import java.util.UUID;
+import java.util.function.Function;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 /**
  * Kulüp görev değişikliği taleplerini yöneten servis.
@@ -38,6 +43,7 @@ public class RoleChangeRequestService {
     private static final Logger log = LoggerFactory.getLogger(RoleChangeRequestService.class);
 
     private static final String ROUTING_KEY_ROLE_CHANGE_NOTIFICATION = "club.role.change.notification";
+    private static final String UNKNOWN_USER_NAME = "Bilinmeyen Kullanıcı";
 
     private final RoleChangeRequestRepository roleChangeRequestRepository;
     private final ClubMembershipRepository membershipRepository;
@@ -142,9 +148,10 @@ public class RoleChangeRequestService {
 
         Club club = clubRepository.findById(clubId).orElse(null);
         List<RoleChangeRequest> requests = roleChangeRequestRepository.findByClubId(clubId);
+        Map<UUID, String> names = fetchUserNames(requests);
 
         return requests.stream()
-                .map(req -> mapToDTO(req, club))
+                .map(req -> mapToDTO(req, club, names))
                 .collect(Collectors.toList());
     }
 
@@ -165,15 +172,11 @@ public class RoleChangeRequestService {
 
         List<RoleChangeRequest> pendingRequests = roleChangeRequestRepository
                 .findByClubIdInAndStatus(clubIds, RoleChangeRequestStatus.PENDING);
+        Map<UUID, Club> clubsById = advisorClubs.stream().collect(Collectors.toMap(Club::getId, Function.identity()));
+        Map<UUID, String> names = fetchUserNames(pendingRequests);
 
         return pendingRequests.stream()
-                .map(req -> {
-                    Club club = advisorClubs.stream()
-                            .filter(c -> c.getId().equals(req.getClubId()))
-                            .findFirst()
-                            .orElse(null);
-                    return mapToDTO(req, club);
-                })
+                .map(req -> mapToDTO(req, clubsById.get(req.getClubId()), names))
                 .collect(Collectors.toList());
     }
 
@@ -386,7 +389,28 @@ public class RoleChangeRequestService {
         } catch (Exception e) {
             log.warn("Failed to fetch user name for userId={}: {}", userId, e.getMessage());
         }
-        return "Bilinmeyen Kullanıcı";
+        return UNKNOWN_USER_NAME;
+    }
+
+    private Map<UUID, String> fetchUserNames(List<RoleChangeRequest> requests) {
+        List<UUID> userIds = requests.stream()
+                .flatMap(request -> Stream.of(request.getStudentId(), request.getRequesterId()))
+                .filter(Objects::nonNull)
+                .distinct()
+                .toList();
+        if (userIds.isEmpty()) {
+            return Map.of();
+        }
+        try {
+            return userClient.getUsersByIds(userIds).stream()
+                    .filter(user -> user != null && user.getId() != null)
+                    .collect(Collectors.toMap(UserSummary::getId,
+                            user -> user.getFirstName() + " " + user.getLastName(),
+                            (first, second) -> first));
+        } catch (Exception e) {
+            log.warn("Failed to fetch {} user names: {}", userIds.size(), e.getMessage());
+            return Map.of();
+        }
     }
 
     private void sendNotificationToAdvisor(Club club, RoleChangeRequest request, String message) {
@@ -494,16 +518,23 @@ public class RoleChangeRequestService {
     }
 
     private RoleChangeRequestDTO mapToDTO(RoleChangeRequest request, Club club) {
+        Map<UUID, String> names = new HashMap<>();
+        names.put(request.getStudentId(), fetchUserName(request.getStudentId()));
+        names.put(request.getRequesterId(), fetchUserName(request.getRequesterId()));
+        return mapToDTO(request, club, names);
+    }
+
+    private RoleChangeRequestDTO mapToDTO(RoleChangeRequest request, Club club, Map<UUID, String> names) {
         RoleChangeRequestDTO dto = new RoleChangeRequestDTO();
         dto.setId(request.getId());
         dto.setClubId(request.getClubId());
         dto.setClubName(club != null ? club.getName() : null);
         dto.setStudentId(request.getStudentId());
-        dto.setStudentName(fetchUserName(request.getStudentId()));
+        dto.setStudentName(names.getOrDefault(request.getStudentId(), UNKNOWN_USER_NAME));
         dto.setCurrentRole(request.getCurrentRole());
         dto.setRequestedRole(request.getRequestedRole());
         dto.setRequesterId(request.getRequesterId());
-        dto.setRequesterName(fetchUserName(request.getRequesterId()));
+        dto.setRequesterName(names.getOrDefault(request.getRequesterId(), UNKNOWN_USER_NAME));
         dto.setStatus(request.getStatus());
         dto.setRejectionReason(request.getRejectionReason());
         dto.setCreatedAt(request.getCreatedAt());

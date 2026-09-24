@@ -1,6 +1,7 @@
 package com.educonnect.courseservice.service;
 
 import com.educonnect.courseservice.client.UserClient;
+import com.educonnect.courseservice.client.UserLookup;
 import com.educonnect.courseservice.dto.CourseApplicationResponse;
 import com.educonnect.courseservice.dto.UserSummaryDto;
 import com.educonnect.courseservice.exception.*;
@@ -19,7 +20,9 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 @Service
@@ -91,9 +94,11 @@ public class CourseApplicationService {
 
         List<CourseApplication> pendingApps = applicationRepository
                 .findByCourseIdAndStatusOrderByApplicationDateAsc(courseId, CourseApplicationStatus.PENDING);
+        Map<UUID, UserSummaryDto> students = UserLookup.usersById(userClient,
+                pendingApps.stream().map(CourseApplication::getStudentId).toList());
 
         return pendingApps.stream()
-                .map(app -> mapToResponseWithStudentInfo(app, course))
+                .map(app -> mapToResponseWithStudentInfo(app, course, students.get(app.getStudentId())))
                 .collect(Collectors.toList());
     }
 
@@ -182,11 +187,13 @@ public class CourseApplicationService {
     public List<CourseApplicationResponse> getMyApplications(UUID studentId) {
         List<CourseApplication> applications = applicationRepository
                 .findByStudentIdOrderByApplicationDateDesc(studentId);
+        List<UUID> courseIds = applications.stream().map(CourseApplication::getCourseId).distinct().toList();
+        Map<UUID, Course> courses = courseIds.isEmpty() ? Map.of() : courseRepository.findAllById(courseIds).stream()
+                .collect(Collectors.toMap(Course::getId, Function.identity()));
 
-        return applications.stream().map(app -> {
-            Course course = courseRepository.findById(app.getCourseId()).orElse(null);
-            return mapToResponse(app, course);
-        }).collect(Collectors.toList());
+        return applications.stream()
+                .map(app -> mapToResponse(app, courses.get(app.getCourseId())))
+                .collect(Collectors.toList());
     }
 
     // --- PRIVATE HELPER METHODS ---
@@ -209,18 +216,15 @@ public class CourseApplicationService {
         return dto;
     }
 
-    private CourseApplicationResponse mapToResponseWithStudentInfo(CourseApplication app, Course course) {
+    private CourseApplicationResponse mapToResponseWithStudentInfo(CourseApplication app, Course course, UserSummaryDto user) {
         CourseApplicationResponse dto = mapToResponse(app, course);
 
-        // User-service'den öğrenci bilgilerini çek
-        try {
-            UserSummaryDto user = userClient.getUserById(app.getStudentId());
+        if (user != null) {
             dto.setStudentName(user.getFirstName() + " " + user.getLastName());
             dto.setStudentNumber(user.getStudentNumber());
             dto.setStudentEmail(user.getEmail());
-        } catch (Exception e) {
+        } else {
             dto.setStudentName("Bilinmiyor");
-            log.warn("Öğrenci bilgisi çekilemedi: {}", app.getStudentId());
         }
 
         return dto;

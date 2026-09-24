@@ -7,12 +7,16 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.util.Arrays;
+import java.util.Collection;
+import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.UUID;
 
 @Service
 public class ProfileViewService {
 
     private static final String ROLE_ADMIN = "ROLE_ADMIN";
+    static final int MAX_BATCH_SIZE = 500;
 
     private final ProfileService profileService;
     private final ProfileAggregationService profileAggregationService;
@@ -38,6 +42,16 @@ public class ProfileViewService {
 
     public UserProfileResponse getProfileForService(UUID userId) {
         return findProfile(userId);
+    }
+
+    public List<UserProfileResponse> getProfilesForService(Collection<UUID> userIds) {
+        if (userIds == null || userIds.isEmpty()) {
+            return List.of();
+        }
+        if (userIds.size() > MAX_BATCH_SIZE) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "En fazla " + MAX_BATCH_SIZE + " profil istenebilir.");
+        }
+        return profileService.getUserProfiles(new LinkedHashSet<>(userIds));
     }
 
     public UserProfileResponse getStudentByStudentNumberForService(String studentNumber) {

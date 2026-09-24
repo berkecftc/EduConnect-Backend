@@ -4,6 +4,7 @@ import com.educonnect.clubservice.Repository.ClubMembershipRepository;
 import com.educonnect.clubservice.Repository.ClubMembershipRequestRepository;
 import com.educonnect.clubservice.Repository.ClubRepository;
 import com.educonnect.clubservice.client.UserClient;
+import com.educonnect.clubservice.client.UserLookup;
 import com.educonnect.clubservice.config.ClubRabbitMQConfig;
 import com.educonnect.clubservice.dto.message.MembershipRequestMessage;
 import com.educonnect.clubservice.dto.request.CreateMembershipRequestDTO;
@@ -23,7 +24,9 @@ import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 @Service
@@ -42,6 +45,7 @@ public class ClubMembershipRequestService {
     private final ClubAuthorizationService clubAuthorizationService;
     private final ClubNotificationPublisher notificationPublisher;
     private final ClubCacheEvictor cacheEvictor;
+    private final UserLookup userLookup;
 
     public ClubMembershipRequestService(ClubMembershipRequestRepository requestRepository,
                                          ClubMembershipRepository membershipRepository,
@@ -50,7 +54,9 @@ public class ClubMembershipRequestService {
                                          RabbitTemplate rabbitTemplate,
                                          ClubAuthorizationService clubAuthorizationService,
                                          ClubNotificationPublisher notificationPublisher,
-                                         ClubCacheEvictor cacheEvictor) {
+                                         ClubCacheEvictor cacheEvictor,
+                                         UserLookup userLookup) {
+        this.userLookup = userLookup;
         this.requestRepository = requestRepository;
         this.membershipRepository = membershipRepository;
         this.clubRepository = clubRepository;
@@ -97,12 +103,12 @@ public class ClubMembershipRequestService {
     @Transactional(readOnly = true)
     public List<MembershipRequestDTO> getMyMembershipRequests(UUID studentId) {
         List<ClubMembershipRequest> requests = requestRepository.findByStudentId(studentId);
+        List<UUID> clubIds = requests.stream().map(ClubMembershipRequest::getClubId).distinct().toList();
+        Map<UUID, Club> clubs = clubIds.isEmpty() ? Map.of() : clubRepository.findAllById(clubIds).stream()
+                .collect(Collectors.toMap(Club::getId, Function.identity()));
 
         return requests.stream()
-                .map(request -> {
-                    Club club = clubRepository.findById(request.getClubId()).orElse(null);
-                    return mapToDTO(request, club, null);
-                })
+                .map(request -> mapToDTO(request, clubs.get(request.getClubId()), null))
                 .collect(Collectors.toList());
     }
 
@@ -127,12 +133,11 @@ public class ClubMembershipRequestService {
 
         List<ClubMembershipRequest> requests = requestRepository.findByClubIdAndStatus(clubId, MembershipRequestStatus.PENDING);
         Club club = clubRepository.findById(clubId).orElse(null);
+        Map<UUID, UserSummary> students = userLookup.usersById(
+                requests.stream().map(ClubMembershipRequest::getStudentId).toList());
 
         return requests.stream()
-                .map(request -> {
-                    UserSummary student = fetchUserSummary(request.getStudentId());
-                    return mapToDTO(request, club, student);
-                })
+                .map(request -> mapToDTO(request, club, students.get(request.getStudentId())))
                 .collect(Collectors.toList());
     }
 

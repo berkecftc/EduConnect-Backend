@@ -3,8 +3,11 @@ package com.educonnect.clubservice.Repository;
 import com.educonnect.clubservice.model.ClubMembership;
 import com.educonnect.clubservice.model.ClubPosition; // Enum'u import et
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -14,6 +17,8 @@ public interface ClubMembershipRepository extends JpaRepository<ClubMembership, 
 
     // Bir kulübün tüm üyelerini/yönetimini getir
     List<ClubMembership> findByClubId(UUID clubId);
+
+    List<ClubMembership> findByClubIdIn(Collection<UUID> clubIds);
 
     // Bir öğrencinin tüm kulüp üyeliklerini getir
     List<ClubMembership> findByStudentId(UUID studentId);
@@ -38,6 +43,14 @@ public interface ClubMembershipRepository extends JpaRepository<ClubMembership, 
 
     // Bir kulübün toplam üye sayısını getir
     long countByClubId(UUID clubId);
+
+    @Query("select m.clubId as clubId, count(m) as total from ClubMembership m where m.clubId in :clubIds group by m.clubId")
+    List<ClubMemberCount> countByClubIds(@Param("clubIds") Collection<UUID> clubIds);
+
+    interface ClubMemberCount {
+        UUID getClubId();
+        long getTotal();
+    }
 
     // Bir kulübün aktif üye sayısını getir
     long countByClubIdAndIsActive(UUID clubId, boolean isActive);
