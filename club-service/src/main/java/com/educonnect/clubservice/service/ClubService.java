@@ -17,6 +17,7 @@ import com.educonnect.clubservice.dto.response.UserSummary;
 import com.educonnect.clubservice.model.ArchivedClub;
 import com.educonnect.clubservice.model.Club;
 import com.educonnect.clubservice.model.ClubCreationRequest;
+import com.educonnect.clubservice.model.ClubCreationRequestStatus;
 import com.educonnect.clubservice.model.ClubMembership;
 import com.educonnect.clubservice.model.ClubPosition;
 import com.educonnect.clubservice.Repository.ArchivedClubRepository;
@@ -491,7 +492,7 @@ public class ClubService {
         }
         ensureValidAdvisor(request.getAcademicAdvisorId());
         ensureEligibleForManagement(studentId);
-        if (requestRepository.existsByRequestingStudentIdAndStatus(studentId, "PENDING")) {
+        if (requestRepository.existsByRequestingStudentIdAndStatus(studentId, ClubCreationRequestStatus.PENDING)) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Bekleyen bir kulüp kuruluş başvurunuz zaten var.");
         }
         if (clubRepository.findByName(request.getName()).isPresent()) {
@@ -519,7 +520,7 @@ public class ClubService {
     }
 
     public List<ClubCreationRequest> getPendingCreationRequestsForAdvisor(UUID advisorId) {
-        return requestRepository.findByStatusAndSuggestedAdvisorId("PENDING", advisorId);
+        return requestRepository.findByStatusAndSuggestedAdvisorId(ClubCreationRequestStatus.PENDING, advisorId);
     }
 
     public Club approveClubCreationRequestByAdvisor(UUID requestId, UUID advisorId) {
@@ -529,7 +530,7 @@ public class ClubService {
 
     public ClubCreationRequest rejectClubCreationRequestByAdvisor(UUID requestId, UUID advisorId, String reason) {
         ClubCreationRequest request = findCreationRequestForAdvisor(requestId, advisorId);
-        request.setStatus("REJECTED");
+        request.setStatus(ClubCreationRequestStatus.REJECTED);
         request.setRejectionReason(reason);
         request.setProcessedAt(LocalDateTime.now());
         request.setProcessedBy(advisorId);
@@ -554,7 +555,7 @@ public class ClubService {
     }
 
     private Club approveCreationRequest(ClubCreationRequest request, UUID approverId) {
-        if (!"PENDING".equals(request.getStatus())) {
+        if (request.getStatus() != ClubCreationRequestStatus.PENDING) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Bu başvuru zaten işlenmiş.");
         }
 
@@ -566,7 +567,7 @@ public class ClubService {
 
         Club newClub = createClub(createDto);
 
-        request.setStatus("APPROVED");
+        request.setStatus(ClubCreationRequestStatus.APPROVED);
         request.setProcessedAt(LocalDateTime.now());
         request.setProcessedBy(approverId);
         requestRepository.save(request);
@@ -578,7 +579,7 @@ public class ClubService {
 
     // --- 3. ADMIN: Talepleri Listeleme ---
     public List<ClubCreationRequest> getPendingClubRequests() {
-        return requestRepository.findByStatus("PENDING");
+        return requestRepository.findByStatus(ClubCreationRequestStatus.PENDING);
     }
 
     /// İsteği reddetme metodu
@@ -586,7 +587,7 @@ public class ClubService {
         ClubCreationRequest request = requestRepository.findById(requestId)
                 .orElseThrow(() -> new RuntimeException("İstek bulunamadı"));
 
-        request.setStatus("REJECTED");
+        request.setStatus(ClubCreationRequestStatus.REJECTED);
         request.setProcessedAt(LocalDateTime.now());
         requestRepository.save(request);
     }

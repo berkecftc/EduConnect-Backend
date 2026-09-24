@@ -13,6 +13,10 @@ public class CourseApplication {
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
 
+    @Version
+    @Column(nullable = false)
+    private Long version;
+
     @Column(name = "course_id", nullable = false)
     private UUID courseId;
 

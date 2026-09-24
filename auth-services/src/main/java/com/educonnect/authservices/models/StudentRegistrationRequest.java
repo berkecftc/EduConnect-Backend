@@ -2,6 +2,8 @@ package com.educonnect.authservices.models;
 
 import jakarta.persistence.*;
 import com.educonnect.common.storage.ObjectUrlConverter;
+import org.hibernate.annotations.CreationTimestamp;
+import java.time.Instant;
 
 @Entity
 @Table(name = "student_requests")
@@ -11,6 +13,10 @@ public class StudentRegistrationRequest {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
+
+    @CreationTimestamp
+    @Column(name = "created_at", nullable = false, updatable = false)
+    private Instant createdAt;
 
     @Column(name = "first_name")
     private String firstName;
@@ -109,5 +115,7 @@ public class StudentRegistrationRequest {
     public void setStudentDocumentUrl(String studentDocumentUrl) {
         this.studentDocumentUrl = studentDocumentUrl;
     }
+
+    public Instant getCreatedAt() { return createdAt; }
 }
 

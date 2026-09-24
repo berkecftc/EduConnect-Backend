@@ -1,6 +1,7 @@
 package com.educonnect.clubservice.Repository;
 
 import com.educonnect.clubservice.model.ClubCreationRequest;
+import com.educonnect.clubservice.model.ClubCreationRequestStatus;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
@@ -16,9 +17,9 @@ public interface ClubCreationRequestRepository extends JpaRepository<ClubCreatio
      * @param status Aranacak talep durumu (PENDING, APPROVED, REJECTED)
      * @return Belirtilen duruma sahip taleplerin listesi
      */
-    List<ClubCreationRequest> findByStatus(String status);
+    List<ClubCreationRequest> findByStatus(ClubCreationRequestStatus status);
 
-    List<ClubCreationRequest> findByStatusAndSuggestedAdvisorId(String status, UUID suggestedAdvisorId);
+    List<ClubCreationRequest> findByStatusAndSuggestedAdvisorId(ClubCreationRequestStatus status, UUID suggestedAdvisorId);
 
-    boolean existsByRequestingStudentIdAndStatus(UUID requestingStudentId, String status);
+    boolean existsByRequestingStudentIdAndStatus(UUID requestingStudentId, ClubCreationRequestStatus status);
 }

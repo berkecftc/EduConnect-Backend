@@ -3,6 +3,9 @@ package com.educonnect.clubservice.model;
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
 import java.util.UUID;
+import org.hibernate.annotations.CreationTimestamp;
+import java.time.Instant;
+import org.hibernate.annotations.UpdateTimestamp;
 
 @Entity
 @Table(name = "club_memberships",
@@ -12,6 +15,18 @@ public class ClubMembership {
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
+
+    @CreationTimestamp
+    @Column(name = "created_at", nullable = false, updatable = false)
+    private Instant createdAt;
+
+    @UpdateTimestamp
+    @Column(name = "updated_at", nullable = false)
+    private Instant updatedAt;
+
+    @Version
+    @Column(nullable = false)
+    private Long version;
 
     @Column(name = "club_id", nullable = false)
     private UUID clubId; // Hangi kulüp (clubs.id'ye işaret eder)
@@ -58,4 +73,7 @@ public class ClubMembership {
     public void setTermStartDate(LocalDateTime termStartDate) { this.termStartDate = termStartDate; }
     public LocalDateTime getTermEndDate() { return termEndDate; }
     public void setTermEndDate(LocalDateTime termEndDate) { this.termEndDate = termEndDate; }
+
+    public Instant getCreatedAt() { return createdAt; }
+    public Instant getUpdatedAt() { return updatedAt; }
 }

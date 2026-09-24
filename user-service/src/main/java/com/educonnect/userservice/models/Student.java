@@ -3,6 +3,9 @@ package com.educonnect.userservice.models;
 import jakarta.persistence.*;
 import com.educonnect.common.storage.ObjectUrlConverter;
 import java.util.UUID;
+import org.hibernate.annotations.CreationTimestamp;
+import java.time.Instant;
+import org.hibernate.annotations.UpdateTimestamp;
 
 @Entity
 @Table(name = "students")
@@ -10,6 +13,18 @@ public class Student {
 
     @Id
     private UUID id;
+
+    @CreationTimestamp
+    @Column(name = "created_at", nullable = false, updatable = false)
+    private Instant createdAt;
+
+    @UpdateTimestamp
+    @Column(name = "updated_at", nullable = false)
+    private Instant updatedAt;
+
+    @Version
+    @Column(nullable = false)
+    private Long version;
 
     @Column(nullable = false)
     private String firstName;
@@ -119,4 +134,7 @@ public class Student {
     public void setStudentDocumentUrl(String studentDocumentUrl) {
         this.studentDocumentUrl = studentDocumentUrl;
     }
+
+    public Instant getCreatedAt() { return createdAt; }
+    public Instant getUpdatedAt() { return updatedAt; }
 }

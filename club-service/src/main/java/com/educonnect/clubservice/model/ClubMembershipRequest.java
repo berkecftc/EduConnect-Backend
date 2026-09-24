@@ -12,6 +12,10 @@ public class ClubMembershipRequest {
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
 
+    @Version
+    @Column(nullable = false)
+    private Long version;
+
     @Column(name = "club_id", nullable = false)
     private UUID clubId;
 

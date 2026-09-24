@@ -18,6 +18,10 @@ public class EventParticipationRequest {
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
 
+    @Version
+    @Column(nullable = false)
+    private Long version;
+
     @Column(name = "event_id", nullable = false)
     private UUID eventId;
 
