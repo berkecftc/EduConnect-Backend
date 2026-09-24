@@ -12,6 +12,7 @@ public class AcademicianSummary {
     private String title;
     private String department;
     private String profileImageUrl;
+    private String role;
 
     public AcademicianSummary() {}
 
@@ -35,6 +36,9 @@ public class AcademicianSummary {
     public void setProfileImageUrl(String profileImageUrl) { this.profileImageUrl = profileImageUrl; }
 
     // Yardımcı metot - Tam isim (ünvan dahil)
+    public String getRole() { return role; }
+    public void setRole(String role) { this.role = role; }
+
     public String getFullName() {
         StringBuilder sb = new StringBuilder();
         if (title != null && !title.isEmpty()) {

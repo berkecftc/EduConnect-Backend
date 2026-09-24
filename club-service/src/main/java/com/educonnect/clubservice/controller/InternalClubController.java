@@ -1,6 +1,7 @@
 package com.educonnect.clubservice.controller;
 
-import com.educonnect.clubservice.dto.response.MemberDTO;
+import com.educonnect.clubservice.dto.response.ClubAccessResponse;
+import com.educonnect.clubservice.security.ClubAuthorizationService;
 import com.educonnect.clubservice.service.ClubService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -16,17 +17,16 @@ import java.util.UUID;
 public class InternalClubController {
 
     private final ClubService clubService;
+    private final ClubAuthorizationService clubAuthorizationService;
 
-    public InternalClubController(ClubService clubService) {
+    public InternalClubController(ClubService clubService, ClubAuthorizationService clubAuthorizationService) {
         this.clubService = clubService;
+        this.clubAuthorizationService = clubAuthorizationService;
     }
 
     @GetMapping("/{clubId}/members/ids")
     public ResponseEntity<List<UUID>> getClubMemberIds(@PathVariable UUID clubId) {
-        List<UUID> memberIds = clubService.getClubDetails(clubId).getMembers().stream()
-                .map(MemberDTO::getStudentId)
-                .toList();
-        return ResponseEntity.ok(memberIds);
+        return ResponseEntity.ok(clubService.getActiveMemberIds(clubId));
     }
 
     @GetMapping("/{clubId}/is-member/{studentId}")
@@ -42,5 +42,17 @@ public class InternalClubController {
     @GetMapping("/by-advisor/{advisorId}/ids")
     public ResponseEntity<List<UUID>> getClubIdsByAdvisor(@PathVariable UUID advisorId) {
         return ResponseEntity.ok(clubService.getClubIdsByAdvisorId(advisorId));
+    }
+
+    @GetMapping("/{clubId}/access/{userId}")
+    public ResponseEntity<ClubAccessResponse> getAccess(@PathVariable UUID clubId, @PathVariable UUID userId) {
+        return ResponseEntity.ok(ClubAccessResponse.from(clubAuthorizationService.accessOf(clubId, userId)));
+    }
+
+    @GetMapping("/users/{userId}/access")
+    public ResponseEntity<List<ClubAccessResponse>> getUserAccess(@PathVariable UUID userId) {
+        return ResponseEntity.ok(clubAuthorizationService.accessesOf(userId).stream()
+                .map(ClubAccessResponse::from)
+                .toList());
     }
 }

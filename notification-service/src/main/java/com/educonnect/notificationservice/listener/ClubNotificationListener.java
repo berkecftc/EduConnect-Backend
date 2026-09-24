@@ -2,6 +2,7 @@ package com.educonnect.notificationservice.listener;
 
 import com.educonnect.notificationservice.config.NotificationRabbitMQConfig;
 import com.educonnect.notificationservice.dto.message.ClubMembershipNotificationMessage;
+import com.educonnect.notificationservice.dto.message.ClubNotificationMessage;
 import com.educonnect.notificationservice.dto.message.ClubRoleChangeNotificationMessage;
 import com.educonnect.notificationservice.service.EmailService;
 import org.slf4j.Logger;
@@ -51,6 +52,16 @@ public class ClubNotificationListener {
 
         findEmail(message.targetUserId()).ifPresent(email -> {
             String subject = "EduConnect - " + message.clubName() + " görev değişikliği";
+            emailService.sendSimpleEmail(email, subject, "Merhaba,\n\n" + message.message() + "\n\nEduConnect");
+        });
+    }
+
+    @RabbitListener(queues = NotificationRabbitMQConfig.CLUB_GENERAL_NOTIFICATION_QUEUE)
+    public void handleClubNotification(ClubNotificationMessage message) {
+        log.info("Club notification received: clubId={}", message.clubId());
+
+        findEmail(message.targetUserId()).ifPresent(email -> {
+            String subject = "EduConnect - " + message.clubName() + ": " + message.subject();
             emailService.sendSimpleEmail(email, subject, "Merhaba,\n\n" + message.message() + "\n\nEduConnect");
         });
     }

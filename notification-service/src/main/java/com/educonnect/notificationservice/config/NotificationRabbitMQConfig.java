@@ -43,6 +43,8 @@ public class NotificationRabbitMQConfig {
     public static final String ROUTING_KEY_CLUB_MEMBERSHIP = "club.membership.notification";
     public static final String CLUB_ROLE_CHANGE_NOTIFICATION_QUEUE = "notification-club-role-change-queue";
     public static final String ROUTING_KEY_CLUB_ROLE_CHANGE = "club.role.change.notification";
+    public static final String CLUB_GENERAL_NOTIFICATION_QUEUE = "notification-club-general-queue";
+    public static final String ROUTING_KEY_CLUB_NOTIFICATION = "club.notification";
 
     @Bean
     public Queue clubMembershipNotificationQueue() {
@@ -66,6 +68,18 @@ public class NotificationRabbitMQConfig {
             @Qualifier("clubRoleChangeNotificationQueue") Queue queue,
             @Qualifier("clubExchange") DirectExchange clubExchange) {
         return BindingBuilder.bind(queue).to(clubExchange).with(ROUTING_KEY_CLUB_ROLE_CHANGE);
+    }
+
+    @Bean
+    public Queue clubGeneralNotificationQueue() {
+        return new Queue(CLUB_GENERAL_NOTIFICATION_QUEUE);
+    }
+
+    @Bean
+    public Binding bindingClubGeneralNotification(
+            @Qualifier("clubGeneralNotificationQueue") Queue queue,
+            @Qualifier("clubExchange") DirectExchange clubExchange) {
+        return BindingBuilder.bind(queue).to(clubExchange).with(ROUTING_KEY_CLUB_NOTIFICATION);
     }
 
     @Bean

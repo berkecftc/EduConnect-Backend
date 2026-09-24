@@ -1,6 +1,6 @@
 package com.educonnect.clubservice.dto.response;
 
-import com.educonnect.clubservice.model.ClubRole;
+import com.educonnect.clubservice.model.ClubPosition;
 
 import java.time.LocalDateTime;
 import java.util.UUID;
@@ -18,9 +18,9 @@ public class MemberDTO {
     private LocalDateTime termEndDate; // Görev bitiş tarihi
 
     // Boş Constructor
-    public MemberDTO(UUID studentId, ClubRole clubRole) {
+    public MemberDTO(UUID studentId, ClubPosition clubRole) {
         this.studentId = studentId;
-        this.role = clubRole != null ? clubRole.name() : null;
+        this.role = clubRole != null ? clubRole.apiName() : null;
     }
 
     // Ana Constructor (Service'de kullandığımız)

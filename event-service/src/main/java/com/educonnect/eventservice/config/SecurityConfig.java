@@ -45,17 +45,16 @@ public class SecurityConfig {
                         // Participation request endpoints (authenticated)
                         .requestMatchers(HttpMethod.POST, "/api/events/*/participation-request").authenticated()
                         .requestMatchers(HttpMethod.GET, "/api/events/*/participation-requests/**").authenticated()
-                        .requestMatchers(HttpMethod.POST, "/api/events/participation-requests/*/approve").hasAnyRole("ADMIN", "CLUB_OFFICIAL")
-                        .requestMatchers(HttpMethod.POST, "/api/events/participation-requests/*/reject").hasAnyRole("ADMIN", "CLUB_OFFICIAL")
-                        .requestMatchers(HttpMethod.GET, "/api/events/official/pending-requests").hasAnyRole("ADMIN", "CLUB_OFFICIAL")
+                        .requestMatchers(HttpMethod.POST, "/api/events/participation-requests/*/approve").authenticated()
+                        .requestMatchers(HttpMethod.POST, "/api/events/participation-requests/*/reject").authenticated()
+                        .requestMatchers(HttpMethod.GET, "/api/events/official/pending-requests").authenticated()
 
-                        // Club Official/Admin management endpoints
-                        .requestMatchers(HttpMethod.POST, "/api/events/manage").hasAnyRole("ADMIN", "CLUB_OFFICIAL")
+                        .requestMatchers(HttpMethod.POST, "/api/events/manage").authenticated()
                         .requestMatchers(HttpMethod.GET, "/api/events/manage/pending").hasRole("ACADEMICIAN")
                         .requestMatchers(HttpMethod.POST, "/api/events/manage/*/approve").hasRole("ACADEMICIAN")
                         .requestMatchers(HttpMethod.POST, "/api/events/manage/*/reject").hasRole("ACADEMICIAN")
-                        .requestMatchers(HttpMethod.GET, "/api/events/manage/**").hasAnyRole("ADMIN", "CLUB_OFFICIAL", "ACADEMICIAN")
-                        .requestMatchers("/api/events/manage/**").hasAnyRole("ADMIN", "CLUB_OFFICIAL", "ACADEMICIAN")
+                        .requestMatchers("/api/events/manage/**").authenticated()
+                        .requestMatchers("/api/events/admin/**").hasRole("ADMIN")
 
                         // Event registration requires authentication
                         .requestMatchers("/api/events/*/register").authenticated()

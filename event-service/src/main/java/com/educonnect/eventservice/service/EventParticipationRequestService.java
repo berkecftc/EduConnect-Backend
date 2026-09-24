@@ -10,18 +10,17 @@ import com.educonnect.eventservice.dto.message.EventRegistrationMessage;
 import com.educonnect.eventservice.dto.response.EventParticipationRequestDTO;
 import com.educonnect.eventservice.dto.response.UserSummary;
 import com.educonnect.eventservice.model.*;
+import com.educonnect.eventservice.security.EventAuthorizationService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.client.RestTemplate;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -39,7 +38,7 @@ public class EventParticipationRequestService {
     private final EventParticipationRequestRepository participationRequestRepository;
     private final EventRepository eventRepository;
     private final EventRegistrationRepository eventRegistrationRepository;
-    private final RestTemplate restTemplate;
+    private final EventAuthorizationService eventAuthorizationService;
     private final RabbitTemplate rabbitTemplate;
     private final UserClient userClient;
     private final ClubClient clubClient;
@@ -48,14 +47,14 @@ public class EventParticipationRequestService {
             EventParticipationRequestRepository participationRequestRepository,
             EventRepository eventRepository,
             EventRegistrationRepository eventRegistrationRepository,
-            RestTemplate restTemplate,
+            EventAuthorizationService eventAuthorizationService,
             RabbitTemplate rabbitTemplate,
             UserClient userClient,
             ClubClient clubClient) {
         this.participationRequestRepository = participationRequestRepository;
         this.eventRepository = eventRepository;
         this.eventRegistrationRepository = eventRegistrationRepository;
-        this.restTemplate = restTemplate;
+        this.eventAuthorizationService = eventAuthorizationService;
         this.rabbitTemplate = rabbitTemplate;
         this.userClient = userClient;
         this.clubClient = clubClient;
@@ -282,8 +281,14 @@ public class EventParticipationRequestService {
      * Kulüp yetkilisinin yönettiği tüm etkinliklerin bekleyen isteklerini getirir.
      */
     public List<EventParticipationRequestDTO> getPendingRequestsForOfficialEvents(UUID officialId) {
-        // 1. Yetkilinin oluşturduğu etkinlikleri bul
-        List<Event> officialEvents = eventRepository.findByCreatedByStudentId(officialId);
+        List<UUID> managedClubIds = eventAuthorizationService.accessesOf(officialId).stream()
+                .filter(access -> access.has(EventAuthorizationService.MANAGE_EVENT_OPERATIONS))
+                .map(access -> access.clubId())
+                .toList();
+        if (managedClubIds.isEmpty()) {
+            return List.of();
+        }
+        List<Event> officialEvents = eventRepository.findByClubIdIn(managedClubIds);
 
         if (officialEvents.isEmpty()) {
             return List.of();
@@ -347,32 +352,7 @@ public class EventParticipationRequestService {
      * Kullanıcının etkinliği yönetme yetkisi olup olmadığını kontrol eder.
      */
     private boolean isAuthorizedToManageEvent(UUID userId, Event event) {
-        // 1. Etkinliği oluşturan kişi mi?
-        if (event.getCreatedByStudentId().equals(userId)) {
-            return true;
-        }
-
-        // 2. Kulüp yönetim kurulu üyesi mi?
-        try {
-            String clubServiceUrl = "http://CLUB-SERVICE/api/clubs/" + event.getClubId() + "/board-members";
-            List<Map<String, Object>> boardMembers = restTemplate.getForObject(clubServiceUrl, List.class);
-
-            if (boardMembers != null) {
-                return boardMembers.stream()
-                        .anyMatch(member -> {
-                            Object studentIdObj = member.get("studentId");
-                            if (studentIdObj != null) {
-                                UUID memberId = UUID.fromString(studentIdObj.toString());
-                                return memberId.equals(userId);
-                            }
-                            return false;
-                        });
-            }
-        } catch (Exception e) {
-            log.error("Club-service'den yönetim kurulu bilgisi alınamadı: {}", e.getMessage());
-        }
-
-        return false;
+        return eventAuthorizationService.canManageEvent(event, userId);
     }
 
     /**

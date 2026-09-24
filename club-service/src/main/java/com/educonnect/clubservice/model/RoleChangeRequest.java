@@ -24,11 +24,11 @@ public class RoleChangeRequest {
 
     @Enumerated(EnumType.STRING)
     @Column(name = "previous_role")
-    private ClubRole currentRole; // Şu anki rolü (null ise normal üye veya yeni atama)
+    private ClubPosition currentRole; // Şu anki rolü (null ise normal üye veya yeni atama)
 
     @Enumerated(EnumType.STRING)
     @Column(name = "requested_role", nullable = false)
-    private ClubRole requestedRole; // Talep edilen yeni rol
+    private ClubPosition requestedRole; // Talep edilen yeni rol
 
     @Column(name = "requester_id", nullable = false)
     private UUID requesterId; // Talebi oluşturan kişi (kulüp başkanı veya YK üyesi)
@@ -53,8 +53,8 @@ public class RoleChangeRequest {
     public RoleChangeRequest() {}
 
     // Convenience constructor
-    public RoleChangeRequest(UUID clubId, UUID studentId, ClubRole currentRole,
-                              ClubRole requestedRole, UUID requesterId) {
+    public RoleChangeRequest(UUID clubId, UUID studentId, ClubPosition currentRole,
+                              ClubPosition requestedRole, UUID requesterId) {
         this.clubId = clubId;
         this.studentId = studentId;
         this.currentRole = currentRole;
@@ -74,11 +74,11 @@ public class RoleChangeRequest {
     public UUID getStudentId() { return studentId; }
     public void setStudentId(UUID studentId) { this.studentId = studentId; }
 
-    public ClubRole getCurrentRole() { return currentRole; }
-    public void setCurrentRole(ClubRole currentRole) { this.currentRole = currentRole; }
+    public ClubPosition getCurrentRole() { return currentRole; }
+    public void setCurrentRole(ClubPosition currentRole) { this.currentRole = currentRole; }
 
-    public ClubRole getRequestedRole() { return requestedRole; }
-    public void setRequestedRole(ClubRole requestedRole) { this.requestedRole = requestedRole; }
+    public ClubPosition getRequestedRole() { return requestedRole; }
+    public void setRequestedRole(ClubPosition requestedRole) { this.requestedRole = requestedRole; }
 
     public UUID getRequesterId() { return requesterId; }
     public void setRequesterId(UUID requesterId) { this.requesterId = requesterId; }

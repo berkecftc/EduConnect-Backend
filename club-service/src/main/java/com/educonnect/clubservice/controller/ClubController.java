@@ -1,7 +1,6 @@
 package com.educonnect.clubservice.controller;
 
 import com.educonnect.clubservice.Repository.ClubRepository;
-import com.educonnect.clubservice.dto.request.AddMemberRequest;
 import com.educonnect.clubservice.dto.request.SubmitClubRequest;
 import com.educonnect.clubservice.dto.request.UpdateMemberRoleRequest;
 import com.educonnect.clubservice.dto.response.ClubDetailsDTO;
@@ -9,7 +8,6 @@ import com.educonnect.clubservice.dto.response.ClubSummaryDTO;
 import com.educonnect.clubservice.dto.response.MemberDTO;
 import com.educonnect.clubservice.dto.response.MyClubMembershipDTO;
 import com.educonnect.clubservice.model.Club;
-import com.educonnect.clubservice.model.ClubMembership;
 import com.educonnect.clubservice.service.ClubService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -43,54 +41,24 @@ public class ClubController {
 
     // Tek Bir Kulübün Detaylarını Getir (Üyelerle Birlikte)
     @GetMapping("/{clubId}")
-    public ResponseEntity<ClubDetailsDTO> getClubDetails(@PathVariable UUID clubId) {
-        return ResponseEntity.ok(clubService.getClubDetails(clubId));
+    public ResponseEntity<ClubDetailsDTO> getClubDetails(
+            @PathVariable UUID clubId,
+            @RequestHeader(value = "X-Authenticated-User-Id", required = false) String userIdHeader
+    ) {
+        UUID viewerId = userIdHeader != null ? UUID.fromString(userIdHeader) : null;
+        return ResponseEntity.ok(clubService.getClubDetails(clubId, viewerId));
     }
 
-    /**
-     * Giriş yapmış öğrencinin, URL'de belirtilen kulübe katılması için istek.
-     * @param clubId URL'den gelen kulüp ID'si
-     * @param userIdHeader API Gateway tarafından JWT token'dan eklenen kullanıcı ID'si
-     * @return Başarılı katılım mesajı
-     */
     @PostMapping("/{clubId}/join")
-    @PreAuthorize("isAuthenticated()") // Sadece giriş yapmış kullanıcılar (öğrenciler vb.)
-    public ResponseEntity<String> joinClub(
-            @PathVariable UUID clubId,
-            @RequestHeader("X-Authenticated-User-Id") String userIdHeader
-    ) {
-        try {
-            UUID studentId = UUID.fromString(userIdHeader);
-            clubService.joinClub(clubId, studentId);
-
-            return ResponseEntity.ok("Successfully joined the club.");
-
-        } catch (IllegalArgumentException e) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Invalid user id format.");
-        } catch (IllegalStateException e) {
-            // "Zaten üye" hatasını yakala
-            return ResponseEntity.status(HttpStatus.CONFLICT).body(e.getMessage());
-        } catch (RuntimeException e) {
-            // "Kulüp bulunamadı" hatasını yakala
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
-        }
+    public ResponseEntity<String> joinClub(@PathVariable UUID clubId) {
+        return ResponseEntity.status(HttpStatus.GONE)
+                .body("Kulübe doğrudan katılım kapatıldı. Üyelik için POST /api/clubs/{clubId}/membership-requests kullanın.");
     }
 
     @PostMapping("/{clubId}/members")
-    @PreAuthorize("hasAnyRole('ADMIN', 'CLUB_OFFICIAL')") // Sadece Admin veya Kulüp Yetkilisi
-    public ResponseEntity<ClubMembership> addMember(
-            @PathVariable UUID clubId,
-            @RequestBody AddMemberRequest request
-    ) {
-        // TODO: (İleri Seviye) İstek atan kullanıcının (token'dan gelen)
-        // bu 'clubId'nin gerçekten yetkilisi olup olmadığını kontrol et.
-
-        try {
-            ClubMembership newMember = clubService.addMemberToClub(clubId, request);
-            return ResponseEntity.status(HttpStatus.CREATED).body(newMember);
-        } catch (IllegalStateException e) {
-            return ResponseEntity.status(HttpStatus.CONFLICT).body(null); // Zaten üye
-        }
+    public ResponseEntity<String> addMember(@PathVariable UUID clubId) {
+        return ResponseEntity.status(HttpStatus.GONE)
+                .body("Doğrudan üye ekleme kapatıldı. Üyelik başvurusu ve görev değişikliği talebi akışlarını kullanın.");
     }
 
     /**
@@ -103,7 +71,6 @@ public class ClubController {
      */
     @Deprecated
     @PutMapping("/{clubId}/members/{studentId}")
-    @PreAuthorize("hasAnyRole('ADMIN', 'CLUB_OFFICIAL')") // Sadece Admin veya Kulüp Yetkilisi
     public ResponseEntity<String> updateMemberRole(
             @PathVariable UUID clubId,
             @PathVariable UUID studentId,
@@ -126,6 +93,8 @@ public class ClubController {
             UUID studentId = UUID.fromString(userIdHeader);
             clubService.leaveClub(clubId, studentId);
             return ResponseEntity.ok("Successfully left the club.");
+        } catch (ResponseStatusException e) {
+            return ResponseEntity.status(e.getStatusCode()).body(e.getReason());
         } catch (IllegalArgumentException e) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Invalid user id format.");
         } catch (RuntimeException e) {
@@ -142,7 +111,7 @@ public class ClubController {
      * @return Yüklenen dosyanın adı (objectName)
      */
     @PostMapping(value = "/{clubId}/logo", consumes = "multipart/form-data")
-    @PreAuthorize("hasAnyRole('ADMIN', 'CLUB_OFFICIAL')") // Sadece Admin veya Kulüp Yetkilisi
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<String> uploadClubLogo(
             @PathVariable UUID clubId,
             @RequestParam("file") MultipartFile file,
@@ -219,7 +188,7 @@ public class ClubController {
      * Cache: 5 dakika TTL
      */
     @GetMapping("/my-managed-clubs")
-    @PreAuthorize("hasAnyRole('ADMIN', 'CLUB_OFFICIAL')")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<List<MyClubMembershipDTO>> getMyManagedClubs(
             @RequestHeader("X-Authenticated-User-Id") String userIdHeader
     ) {

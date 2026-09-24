@@ -14,6 +14,7 @@ import com.educonnect.eventservice.model.EventStatus;
 import com.educonnect.eventservice.Repository.EventRepository;
 import com.educonnect.eventservice.model.EventRegistration;
 import com.educonnect.eventservice.Repository.EventRegistrationRepository;
+import com.educonnect.eventservice.security.EventAuthorizationService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
@@ -44,6 +45,7 @@ public class EventService {
     private final RestTemplate restTemplate;
     private final UserClient userClient;
     private final ClubClient clubClient;
+    private final EventAuthorizationService eventAuthorizationService;
 
     public EventService(EventRepository eventRepository,
                        MinioService minioService,
@@ -51,7 +53,8 @@ public class EventService {
                        EventRegistrationRepository eventRegistrationRepository,
                        RestTemplate restTemplate,
                        UserClient userClient,
-                       ClubClient clubClient) {
+                       ClubClient clubClient,
+                       EventAuthorizationService eventAuthorizationService) {
         this.eventRepository = eventRepository;
         this.minioService = minioService;
         this.rabbitTemplate = rabbitTemplate;
@@ -59,6 +62,7 @@ public class EventService {
         this.restTemplate = restTemplate;
         this.userClient = userClient;
         this.clubClient = clubClient;
+        this.eventAuthorizationService = eventAuthorizationService;
     }
 
     /**
@@ -89,6 +93,8 @@ public class EventService {
         } catch (Exception e) {
             throw new IllegalArgumentException("Invalid club name: " + request.getClubName() + ". Club not found.");
         }
+
+        eventAuthorizationService.require(resolvedClubId, creatorId, EventAuthorizationService.CREATE_EVENT);
 
         // 1. Event Entity'sini oluştur
         Event event = new Event();
@@ -235,9 +241,7 @@ public class EventService {
      * @throws ResponseStatusException Kullanıcı danışman değilse
      */
     private void validateAdvisorAuthorization(UUID clubId, UUID userId) {
-        UUID actualAdvisorId = clubClient.getClubAdvisorId(clubId);
-
-        if (actualAdvisorId == null || !actualAdvisorId.equals(userId)) {
+        if (!eventAuthorizationService.accessOf(clubId, userId).has(EventAuthorizationService.ADVISE)) {
             throw new ResponseStatusException(
                     HttpStatus.FORBIDDEN,
                     "Bu etkinliği onaylama/reddetme yetkiniz yok. Sadece ilgili kulübün danışmanı bu işlemi yapabilir."
@@ -259,7 +263,21 @@ public class EventService {
 
     public Event getEventDetails(UUID eventId) {
         return eventRepository.findById(eventId)
-                .orElseThrow(() -> new RuntimeException("Event not found"));
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Etkinlik bulunamadı."));
+    }
+
+    public Event getEventDetailsForViewer(UUID eventId, UUID viewerId) {
+        Event event = getEventDetails(eventId);
+        if (isPubliclyVisible(event) || eventAuthorizationService.canViewEventInternals(event, viewerId)) {
+            return event;
+        }
+        throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Etkinlik bulunamadı.");
+    }
+
+    private static boolean isPubliclyVisible(Event event) {
+        return event.getStatus() == EventStatus.ACTIVE
+                || event.getStatus() == EventStatus.COMPLETED
+                || event.getStatus() == EventStatus.CANCELLED;
     }
 
     /**
@@ -311,9 +329,15 @@ public class EventService {
         // 1. Etkinlik var mı?
         Event event = getEventDetails(eventId);
 
-        // 2. Etkinlik iptal edilmiş mi?
-        if (event.getStatus() == EventStatus.CANCELLED) {
-            throw new IllegalStateException("Cannot register for a cancelled event.");
+        // 2. Etkinlik kayda açık mı?
+        if (event.getStatus() != EventStatus.ACTIVE) {
+            throw new IllegalStateException("Bu etkinlik kayda açık değil.");
+        }
+        if (event.getEventTime() != null && event.getEventTime().isBefore(java.time.LocalDateTime.now())) {
+            throw new IllegalStateException("Geçmiş bir etkinliğe kayıt olunamaz.");
+        }
+        if (!Boolean.TRUE.equals(clubClient.isStudentMemberOfClub(event.getClubId(), studentId))) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Bu etkinliğe kayıt için kulübe üye olmalısınız.");
         }
 
         // 3. Zaten kayıtlı mı?
@@ -360,10 +384,16 @@ public class EventService {
     /**
      * QR Kodu okutarak katılımı doğrular (Check-in).
      */
-    public boolean verifyTicket(String qrCode) {
+    public boolean verifyTicket(String qrCode, UUID scannerId) {
         // 1. Bileti bul
         EventRegistration registration = eventRegistrationRepository.findByQrCode(qrCode)
                 .orElseThrow(() -> new RuntimeException("Invalid ticket (QR Code not found)"));
+
+        Event event = getEventDetails(registration.getEventId());
+        eventAuthorizationService.requireEventManager(event, scannerId);
+        if (event.getStatus() != EventStatus.ACTIVE) {
+            throw new IllegalStateException("Event is not active.");
+        }
 
         // 2. Zaten kullanılmış mı?
         if (registration.isAttended()) {
@@ -421,23 +451,19 @@ public class EventService {
 
     /**
      * Bir etkinliğe kayıtlı tüm kullanıcıları user-service'den isim/email bilgisiyle birlikte getirir.
-     * Yetki kontrolü yapar: Sadece etkinliği oluşturan kişi, ilgili kulübün yetkilisi veya ADMIN erişebilir.
+     * Yetki kontrolü yapar: Sadece ilgili kulübün yönetim kurulu veya danışmanı erişebilir.
      *
      * @param eventId Etkinlik ID'si
      * @param requesterId İstek yapan kullanıcının ID'si
-     * @param isAdmin İstek yapan kullanıcı admin mi?
      * @return Kayıtlı kullanıcıların zenginleştirilmiş listesi
      */
-    @Cacheable(value = "eventRegistrants", key = "#eventId")
-    public List<EventRegistrantDTO> getEventRegistrantsWithUserInfo(UUID eventId, UUID requesterId, boolean isAdmin) {
+    public List<EventRegistrantDTO> getEventRegistrantsWithUserInfo(UUID eventId, UUID requesterId) {
         // 1. Etkinliği bul
         Event event = eventRepository.findById(eventId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Event not found"));
 
-        // 2. Yetki kontrolü (Admin değilse)
-        if (!isAdmin) {
-            checkEventAccessPermission(event, requesterId);
-        }
+        // 2. Yetki kontrolü
+        eventAuthorizationService.requireEventViewer(event, requesterId);
 
         // 3. Etkinliğe kayıtlı tüm kullanıcıları getir
         List<EventRegistration> registrations = eventRegistrationRepository.findByEventId(eventId);
@@ -448,7 +474,6 @@ public class EventService {
             dto.setStudentId(registration.getStudentId());
             dto.setRegistrationTime(registration.getRegistrationTime());
             dto.setAttended(registration.isAttended());
-            dto.setQrCode(registration.getQrCode());
 
             // User-service'den kullanıcı bilgilerini çek (graceful fallback ile)
             try {
@@ -474,50 +499,6 @@ public class EventService {
     }
 
     /**
-     * Etkinliğe erişim yetkisi kontrolü.
-     * Sadece etkinliği oluşturan kişi veya etkinliğin ait olduğu kulübün yetkilisi erişebilir.
-     *
-     * @param event Etkinlik
-     * @param requesterId İstek yapan kullanıcının ID'si
-     * @throws ResponseStatusException Yetki yoksa 403 FORBIDDEN
-     */
-    private void checkEventAccessPermission(Event event, UUID requesterId) {
-        // Etkinliği oluşturan kişi mi?
-        if (event.getCreatedByStudentId().equals(requesterId)) {
-            return; // Erişim izni var
-        }
-
-        // Kulüp yetkilisi mi? (Club-service'e çağrı yaparak kontrol)
-        // Not: Bu kontrol için club-service'e REST çağrısı yapıyoruz
-        try {
-            String clubServiceUrl = "http://CLUB-SERVICE/api/clubs/" + event.getClubId() + "/board-members";
-            List<Map<String, Object>> boardMembers = restTemplate.getForObject(clubServiceUrl, List.class);
-
-            if (boardMembers != null) {
-                boolean isBoardMember = boardMembers.stream()
-                        .anyMatch(member -> {
-                            Object studentIdObj = member.get("studentId");
-                            if (studentIdObj != null) {
-                                UUID memberId = UUID.fromString(studentIdObj.toString());
-                                return memberId.equals(requesterId);
-                            }
-                            return false;
-                        });
-
-                if (isBoardMember) {
-                    return; // Erişim izni var
-                }
-            }
-        } catch (Exception e) {
-            log.error("Club-service'den yönetim kurulu bilgisi alınamadı: {}", e.getMessage());
-            // Hata durumunda güvenli tarafta kal ve reddet
-        }
-
-        throw new ResponseStatusException(HttpStatus.FORBIDDEN,
-                "Bu etkinliğin kayıtlarını görüntüleme yetkiniz yok");
-    }
-
-    /**
      * Bir kulübün etkinliklerini getirir (Kulüp yetkilisi dashboard için).
      * @param clubId Kulüp ID'si
      * @return Kulübün etkinlikleri
@@ -527,11 +508,11 @@ public class EventService {
         return eventRepository.findByClubId(clubId);
     }
 
-    /**
-     * Etkinlik kayıtları cache'ini temizler (yeni kayıt olduğunda çağrılır).
-     */
-    @CacheEvict(value = "eventRegistrants", key = "#eventId")
-    public void evictEventRegistrantsCache(UUID eventId) {
-        log.info("Evicted eventRegistrants cache for event: {}", eventId);
+    public List<Event> getEventsByClubIdForManagement(UUID clubId, UUID requesterId) {
+        var access = eventAuthorizationService.accessOf(clubId, requesterId);
+        if (!access.has(EventAuthorizationService.MANAGE_EVENT_OPERATIONS) && !access.has(EventAuthorizationService.ADVISE)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Bu kulübün etkinlik yönetimine erişim yetkiniz yok.");
+        }
+        return eventRepository.findByClubId(clubId);
     }
 }

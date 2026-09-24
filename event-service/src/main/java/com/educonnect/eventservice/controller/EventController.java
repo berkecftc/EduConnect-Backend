@@ -6,7 +6,9 @@ import com.educonnect.eventservice.model.EventRegistration;
 import com.educonnect.eventservice.service.EventService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
 import java.util.UUID;
@@ -32,6 +34,7 @@ public class EventController {
     // 👇 ADMİN İÇİN ÖZEL ENDPOINT
     // Bu endpoint Bekleyen, Onaylanan, Reddedilen, Geçmiş... HEPSİNİ getirir.
     @GetMapping("/admin/all")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<List<Event>> getAllEventsForAdmin() {
         return ResponseEntity.ok(eventService.getAllEventsForAdmin());
     }
@@ -40,8 +43,12 @@ public class EventController {
      * Tek bir etkinliğin detaylarını getirir.
      */
     @GetMapping("/{eventId}")
-    public ResponseEntity<Event> getEventDetails(@PathVariable UUID eventId) {
-        return ResponseEntity.ok(eventService.getEventDetails(eventId));
+    public ResponseEntity<Event> getEventDetails(
+            @PathVariable UUID eventId,
+            @RequestHeader(value = "X-Authenticated-User-Id", required = false) String userIdHeader
+    ) {
+        UUID viewerId = userIdHeader != null ? UUID.fromString(userIdHeader) : null;
+        return ResponseEntity.ok(eventService.getEventDetailsForViewer(eventId, viewerId));
     }
 
     /**
@@ -62,6 +69,8 @@ public class EventController {
         } catch (IllegalStateException e) {
             // "Zaten kayıtlı" veya "İptal edilmiş" hatası
             return ResponseEntity.status(HttpStatus.CONFLICT).body(e.getMessage());
+        } catch (ResponseStatusException e) {
+            return ResponseEntity.status(e.getStatusCode()).body(e.getReason());
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Registration failed.");
         }

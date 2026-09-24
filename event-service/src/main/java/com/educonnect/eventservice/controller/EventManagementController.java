@@ -8,11 +8,9 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.GrantedAuthority;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.util.UUID;
 import java.util.List;
@@ -32,7 +30,7 @@ public class EventManagementController {
      * RequestPart kullanıyoruz çünkü hem JSON hem Dosya aynı anda gelecek.
      */
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    @PreAuthorize("hasAnyRole('ADMIN', 'CLUB_OFFICIAL')")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<Event> createEvent(
             @RequestPart("data") CreateEventRequest request, // JSON verisi
             @RequestPart(value = "poster") MultipartFile poster, // Afiş dosyası (zorunlu)
@@ -51,7 +49,6 @@ public class EventManagementController {
             return ResponseEntity.badRequest().build();
         }
 
-        // TODO: (Güvenlik) creatorId'nin, request.getClubId() kulübünün yetkilisi olup olmadığı kontrol edilebilir.
 
         Event createdEvent = eventService.createEvent(request, poster, creatorId);
         return ResponseEntity.status(HttpStatus.CREATED).body(createdEvent);
@@ -96,10 +93,11 @@ public class EventManagementController {
      * QR kodu query param (?qrCode=xxx) veya JSON body ({"qrCode": "xxx"}) olarak gönderilebilir.
      */
     @PostMapping("/verify-qr")
-    @PreAuthorize("hasAnyRole('ADMIN', 'CLUB_OFFICIAL')")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<String> verifyTicket(
             @RequestParam(required = false) String qrCode,
-            @RequestBody(required = false) java.util.Map<String, String> body
+            @RequestBody(required = false) java.util.Map<String, String> body,
+            @RequestHeader("X-Authenticated-User-Id") String userIdHeader
     ) {
         // QR kodu önce query param'dan, yoksa body'den al
         String code = qrCode;
@@ -112,12 +110,14 @@ public class EventManagementController {
         }
 
         try {
-            boolean verified = eventService.verifyTicket(code);
+            boolean verified = eventService.verifyTicket(code, UUID.fromString(userIdHeader));
             if (verified) {
                 return ResponseEntity.ok("ACCESS GRANTED: Ticket verified successfully.");
             } else {
                 return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Verification failed.");
             }
+        } catch (ResponseStatusException e) {
+            return ResponseEntity.status(e.getStatusCode()).body("ACCESS DENIED: " + e.getReason());
         } catch (RuntimeException e) {
             // "Invalid ticket" veya "Already used" hataları
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("ACCESS DENIED: " + e.getMessage());
@@ -131,7 +131,7 @@ public class EventManagementController {
      * Cache: 5 dakika TTL
      */
     @GetMapping("/my-events")
-    @PreAuthorize("hasAnyRole('ADMIN', 'CLUB_OFFICIAL')")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<List<Event>> getMyCreatedEvents(
             @RequestHeader("X-Authenticated-User-Id") String userIdHeader
     ) {
@@ -144,19 +144,16 @@ public class EventManagementController {
      * Bir etkinliğe kayıtlı tüm kullanıcıları getirir.
      * User-service'den isim/email bilgisi ile zenginleştirilmiş.
      *
-     * Yetki: Sadece etkinliği oluşturan kişi, ilgili kulübün yetkilisi veya ADMIN erişebilir.
-     * Cache: 5 dakika TTL
+     * Yetki: Sadece ilgili kulübün yönetim kurulu veya danışmanı erişebilir.
      */
     @GetMapping("/{eventId}/registrations")
-    @PreAuthorize("hasAnyRole('ADMIN', 'CLUB_OFFICIAL')")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<List<EventRegistrantDTO>> getEventRegistrations(
             @PathVariable UUID eventId,
             @RequestHeader("X-Authenticated-User-Id") String userIdHeader
     ) {
         UUID requesterId = UUID.fromString(userIdHeader);
-        boolean isAdmin = checkIfAdmin();
-
-        List<EventRegistrantDTO> registrants = eventService.getEventRegistrantsWithUserInfo(eventId, requesterId, isAdmin);
+        List<EventRegistrantDTO> registrants = eventService.getEventRegistrantsWithUserInfo(eventId, requesterId);
         return ResponseEntity.ok(registrants);
     }
 
@@ -165,23 +162,13 @@ public class EventManagementController {
      * Kulüp yetkilisi kendi kulübünün etkinliklerini görmek için kullanır.
      */
     @GetMapping("/club/{clubId}/events")
-    @PreAuthorize("hasAnyRole('ADMIN', 'CLUB_OFFICIAL')")
-    public ResponseEntity<List<Event>> getClubEvents(@PathVariable UUID clubId) {
-        List<Event> events = eventService.getEventsByClubId(clubId);
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<List<Event>> getClubEvents(
+            @PathVariable UUID clubId,
+            @RequestHeader("X-Authenticated-User-Id") String userIdHeader
+    ) {
+        List<Event> events = eventService.getEventsByClubIdForManagement(clubId, UUID.fromString(userIdHeader));
         return ResponseEntity.ok(events);
-    }
-
-    /**
-     * SecurityContext'ten kullanıcının ADMIN rolüne sahip olup olmadığını kontrol eder.
-     */
-    private boolean checkIfAdmin() {
-        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-        if (auth == null || auth.getAuthorities() == null) {
-            return false;
-        }
-        return auth.getAuthorities().stream()
-                .map(GrantedAuthority::getAuthority)
-                .anyMatch(role -> role.equals("ROLE_ADMIN"));
     }
 
     // Etkinlik İptal Etme (DELETE) de buraya eklenebilir

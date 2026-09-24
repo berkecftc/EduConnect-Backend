@@ -11,6 +11,8 @@ import com.educonnect.clubservice.dto.request.RejectMembershipRequestDTO;
 import com.educonnect.clubservice.dto.response.MembershipRequestDTO;
 import com.educonnect.clubservice.dto.response.UserSummary;
 import com.educonnect.clubservice.model.*;
+import com.educonnect.clubservice.security.ClubAuthorizationService;
+import com.educonnect.clubservice.security.ClubPermission;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
@@ -37,17 +39,26 @@ public class ClubMembershipRequestService {
     private final ClubRepository clubRepository;
     private final UserClient userClient;
     private final RabbitTemplate rabbitTemplate;
+    private final ClubAuthorizationService clubAuthorizationService;
+    private final ClubNotificationPublisher notificationPublisher;
+    private final ClubCacheEvictor cacheEvictor;
 
     public ClubMembershipRequestService(ClubMembershipRequestRepository requestRepository,
                                          ClubMembershipRepository membershipRepository,
                                          ClubRepository clubRepository,
                                          UserClient userClient,
-                                         RabbitTemplate rabbitTemplate) {
+                                         RabbitTemplate rabbitTemplate,
+                                         ClubAuthorizationService clubAuthorizationService,
+                                         ClubNotificationPublisher notificationPublisher,
+                                         ClubCacheEvictor cacheEvictor) {
         this.requestRepository = requestRepository;
         this.membershipRepository = membershipRepository;
         this.clubRepository = clubRepository;
         this.userClient = userClient;
         this.rabbitTemplate = rabbitTemplate;
+        this.clubAuthorizationService = clubAuthorizationService;
+        this.notificationPublisher = notificationPublisher;
+        this.cacheEvictor = cacheEvictor;
     }
 
     /**
@@ -112,8 +123,7 @@ public class ClubMembershipRequestService {
      */
     @Transactional(readOnly = true)
     public List<MembershipRequestDTO> getPendingRequests(UUID clubId, UUID officialId) {
-        // Yetkili kulüp başkanı mı kontrol et
-        verifyClubOfficial(clubId, officialId);
+        clubAuthorizationService.require(clubId, officialId, ClubPermission.MANAGE_MEMBERSHIP_REQUESTS);
 
         List<ClubMembershipRequest> requests = requestRepository.findByClubIdAndStatus(clubId, MembershipRequestStatus.PENDING);
         Club club = clubRepository.findById(clubId).orElse(null);
@@ -130,8 +140,7 @@ public class ClubMembershipRequestService {
      * Kulüp başkanı üyelik isteğini onaylar.
      */
     public MembershipRequestDTO approveRequest(UUID clubId, UUID requestId, UUID officialId) {
-        // Yetkili kulüp başkanı mı kontrol et
-        verifyClubOfficial(clubId, officialId);
+        clubAuthorizationService.require(clubId, officialId, ClubPermission.MANAGE_MEMBERSHIP_REQUESTS);
 
         ClubMembershipRequest request = requestRepository.findById(requestId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Üyelik isteği bulunamadı"));
@@ -146,6 +155,10 @@ public class ClubMembershipRequestService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Bu istek zaten işlenmiş");
         }
 
+        if (membershipRepository.existsByClubIdAndStudentId(clubId, request.getStudentId())) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Öğrenci zaten bu kulübün üyesi");
+        }
+
         // İsteği onayla
         request.setStatus(MembershipRequestStatus.APPROVED);
         request.setProcessedDate(LocalDateTime.now());
@@ -153,9 +166,10 @@ public class ClubMembershipRequestService {
         requestRepository.save(request);
 
         // Kulüp üyeliği oluştur
-        ClubMembership membership = new ClubMembership(clubId, request.getStudentId(), ClubRole.ROLE_MEMBER);
+        ClubMembership membership = new ClubMembership(clubId, request.getStudentId(), ClubPosition.MEMBER);
         membership.setTermStartDate(LocalDateTime.now());
         membershipRepository.save(membership);
+        cacheEvictor.evictUser(request.getStudentId());
 
         log.info("Membership request approved: requestId={}, studentId={}, clubId={}",
                 requestId, request.getStudentId(), clubId);
@@ -167,6 +181,10 @@ public class ClubMembershipRequestService {
                 "APPROVED",
                 "Üyelik isteğiniz onaylandı! Artık " + (club != null ? club.getName() : "kulüp") + " üyesisiniz.");
 
+        UserSummary student = fetchUserSummary(request.getStudentId());
+        notificationPublisher.notifyAdvisor(club, "Yeni üye",
+                (student != null ? student.getFullName() : "Bir öğrenci") + " kulübe üye olarak kabul edildi.");
+
         return mapToDTO(request, club, null);
     }
 
@@ -174,8 +192,7 @@ public class ClubMembershipRequestService {
      * Kulüp başkanı üyelik isteğini reddeder.
      */
     public MembershipRequestDTO rejectRequest(UUID clubId, UUID requestId, UUID officialId, RejectMembershipRequestDTO dto) {
-        // Yetkili kulüp başkanı mı kontrol et
-        verifyClubOfficial(clubId, officialId);
+        clubAuthorizationService.require(clubId, officialId, ClubPermission.MANAGE_MEMBERSHIP_REQUESTS);
 
         ClubMembershipRequest request = requestRepository.findById(requestId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Üyelik isteği bulunamadı"));
@@ -220,26 +237,11 @@ public class ClubMembershipRequestService {
      */
     @Transactional(readOnly = true)
     public long getPendingRequestCount(UUID clubId, UUID officialId) {
-        verifyClubOfficial(clubId, officialId);
+        clubAuthorizationService.require(clubId, officialId, ClubPermission.VIEW_MANAGEMENT_DATA);
         return requestRepository.countByClubIdAndStatus(clubId, MembershipRequestStatus.PENDING);
     }
 
     // ==================== YARDIMCI METOTLAR ====================
-
-    /**
-     * Kullanıcının belirtilen kulübün yetkilisi olup olmadığını kontrol eder.
-     */
-    private void verifyClubOfficial(UUID clubId, UUID userId) {
-        List<ClubMembership> memberships = membershipRepository.findByClubIdAndClubRoleAndIsActive(
-                clubId, ClubRole.ROLE_CLUB_OFFICIAL, true);
-
-        boolean isOfficial = memberships.stream()
-                .anyMatch(m -> m.getStudentId().equals(userId));
-
-        if (!isOfficial) {
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Bu işlem için yetkiniz yok");
-        }
-    }
 
     /**
      * User-service'den kullanıcı bilgilerini çeker.

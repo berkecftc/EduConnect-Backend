@@ -21,7 +21,7 @@ public class ClubMembership {
 
     @Enumerated(EnumType.STRING)
     @Column(name = "club_role", nullable = false)
-    private ClubRole clubRole; // Kulüp içindeki görevi (Başkan, Üye, vb.)
+    private ClubPosition clubRole; // Kulüp içindeki görevi (Başkan, Üye, vb.)
 
     @Column(name = "is_active", nullable = false)
     private boolean isActive = true; // Aktif üyelik durumu
@@ -36,7 +36,7 @@ public class ClubMembership {
     public ClubMembership() {}
 
     // Service katmanında kullanılan convenience constructor
-    public ClubMembership(UUID clubId, UUID studentId, ClubRole clubRole) {
+    public ClubMembership(UUID clubId, UUID studentId, ClubPosition clubRole) {
         this.clubId = clubId;
         this.studentId = studentId;
         this.clubRole = clubRole;
@@ -50,8 +50,8 @@ public class ClubMembership {
     public void setClubId(UUID clubId) { this.clubId = clubId; }
     public UUID getStudentId() { return studentId; }
     public void setStudentId(UUID studentId) { this.studentId = studentId; }
-    public ClubRole getClubRole() { return clubRole; }
-    public void setClubRole(ClubRole clubRole) { this.clubRole = clubRole; }
+    public ClubPosition getClubRole() { return clubRole; }
+    public void setClubRole(ClubPosition clubRole) { this.clubRole = clubRole; }
     public boolean isActive() { return isActive; }
     public void setActive(boolean active) { isActive = active; }
     public LocalDateTime getTermStartDate() { return termStartDate; }

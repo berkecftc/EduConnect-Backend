@@ -1,6 +1,7 @@
 package com.educonnect.eventservice.client;
 
 import com.educonnect.common.security.ServiceTokenFeignConfiguration;
+import com.educonnect.eventservice.dto.response.ClubAccess;
 import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -34,4 +35,10 @@ public interface ClubClient {
 
     @GetMapping("/{clubId}/is-member/{studentId}")
     Boolean isStudentMemberOfClub(@PathVariable("clubId") UUID clubId, @PathVariable("studentId") UUID studentId);
+
+    @GetMapping("/{clubId}/access/{userId}")
+    ClubAccess getAccess(@PathVariable("clubId") UUID clubId, @PathVariable("userId") UUID userId);
+
+    @GetMapping("/users/{userId}/access")
+    List<ClubAccess> getUserAccess(@PathVariable("userId") UUID userId);
 }

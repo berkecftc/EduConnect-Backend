@@ -77,7 +77,7 @@ public class ClubMembershipRequestController {
      * GET /api/clubs/{clubId}/membership-requests/pending
      */
     @GetMapping("/{clubId}/membership-requests/pending")
-    @PreAuthorize("hasAnyRole('CLUB_OFFICIAL', 'ADMIN')")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<List<MembershipRequestDTO>> getPendingRequests(
             @PathVariable UUID clubId,
             @RequestHeader("X-Authenticated-User-Id") String userIdHeader) {
@@ -92,7 +92,7 @@ public class ClubMembershipRequestController {
      * GET /api/clubs/{clubId}/membership-requests/pending/count
      */
     @GetMapping("/{clubId}/membership-requests/pending/count")
-    @PreAuthorize("hasAnyRole('CLUB_OFFICIAL', 'ADMIN')")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<Map<String, Long>> getPendingRequestCount(
             @PathVariable UUID clubId,
             @RequestHeader("X-Authenticated-User-Id") String userIdHeader) {
@@ -107,7 +107,7 @@ public class ClubMembershipRequestController {
      * PUT /api/clubs/{clubId}/membership-requests/{requestId}/approve
      */
     @PutMapping("/{clubId}/membership-requests/{requestId}/approve")
-    @PreAuthorize("hasAnyRole('CLUB_OFFICIAL', 'ADMIN')")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<MembershipRequestDTO> approveRequest(
             @PathVariable UUID clubId,
             @PathVariable UUID requestId,
@@ -123,7 +123,7 @@ public class ClubMembershipRequestController {
      * PUT /api/clubs/{clubId}/membership-requests/{requestId}/reject
      */
     @PutMapping("/{clubId}/membership-requests/{requestId}/reject")
-    @PreAuthorize("hasAnyRole('CLUB_OFFICIAL', 'ADMIN')")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<MembershipRequestDTO> rejectRequest(
             @PathVariable UUID clubId,
             @PathVariable UUID requestId,

@@ -1,6 +1,6 @@
 package com.educonnect.clubservice.dto.request;
 
-import com.educonnect.clubservice.model.ClubRole;
+import com.educonnect.clubservice.model.ClubPosition;
 
 /**
  * Görev değişikliği talebi oluşturmak için kullanılan DTO.
@@ -11,16 +11,16 @@ public class CreateRoleChangeRequestDTO {
 
     private String studentId;       // Göreve atanacak öğrenci UUID'si (opsiyonel)
     private String studentNumber;   // Göreve atanacak öğrenci numarası (opsiyonel)
-    private ClubRole requestedRole; // Talep edilen rol
+    private ClubPosition requestedRole; // Talep edilen rol
 
     public CreateRoleChangeRequestDTO() {}
 
-    public CreateRoleChangeRequestDTO(String studentId, ClubRole requestedRole) {
+    public CreateRoleChangeRequestDTO(String studentId, ClubPosition requestedRole) {
         this.studentId = studentId;
         this.requestedRole = requestedRole;
     }
 
-    public CreateRoleChangeRequestDTO(String studentId, String studentNumber, ClubRole requestedRole) {
+    public CreateRoleChangeRequestDTO(String studentId, String studentNumber, ClubPosition requestedRole) {
         this.studentId = studentId;
         this.studentNumber = studentNumber;
         this.requestedRole = requestedRole;
@@ -59,7 +59,7 @@ public class CreateRoleChangeRequestDTO {
     public String getStudentNumber() { return studentNumber; }
     public void setStudentNumber(String studentNumber) { this.studentNumber = studentNumber; }
 
-    public ClubRole getRequestedRole() { return requestedRole; }
-    public void setRequestedRole(ClubRole requestedRole) { this.requestedRole = requestedRole; }
+    public ClubPosition getRequestedRole() { return requestedRole; }
+    public void setRequestedRole(ClubPosition requestedRole) { this.requestedRole = requestedRole; }
 }
 
