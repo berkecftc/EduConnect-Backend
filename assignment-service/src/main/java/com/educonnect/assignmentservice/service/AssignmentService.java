@@ -269,18 +269,12 @@ public class AssignmentService {
 
         // Öğrenci bilgisini user-service'den çek
         try {
-            log.info("📞 Fetching student info from user-service for studentId: {}", submission.getStudentId());
             UserClient.UserProfileDTO userProfile = userClient.getUserProfile(submission.getStudentId());
-            log.info("📦 UserProfileDTO object: {}", userProfile);
-            
+
             if (userProfile != null) {
-                log.info("FirstName: {}, LastName: {}, StudentNumber: {}", 
-                        userProfile.getFirstName(), userProfile.getLastName(), userProfile.getStudentNumber());
-                
                 String fullName = userProfile.getFirstName() + " " + userProfile.getLastName();
                 String studentNumber = userProfile.getStudentNumber();
                 
-                log.info("✅ Setting studentName: {}, studentNumber: {}", fullName, studentNumber);
                 dto.setStudentName(fullName);
                 dto.setStudentNumber(studentNumber);
             } else {

@@ -1,5 +1,6 @@
 package com.educonnect.notificationservice.listener;
 
+import com.educonnect.common.security.LogMasking;
 import com.educonnect.notificationservice.config.NotificationRabbitMQConfig;
 import com.educonnect.notificationservice.dto.message.PasswordResetMessage;
 import com.educonnect.notificationservice.service.EmailService;
@@ -24,14 +25,14 @@ public class PasswordResetListener {
 
     @RabbitListener(queues = NotificationRabbitMQConfig.PASSWORD_RESET_QUEUE)
     public void handlePasswordReset(PasswordResetMessage message) {
-        log.info("Şifre sıfırlama mesajı alındı: email={}", message.getEmail());
+        log.info("Şifre sıfırlama mesajı alındı: email={}", LogMasking.email(message.getEmail()));
 
         try {
             String subject = "EduConnect - Şifre Sıfırlama Talebi";
             String htmlBody = buildPasswordResetEmail(message);
 
             emailService.sendHtmlEmail(message.getEmail(), subject, htmlBody);
-            log.info("Şifre sıfırlama e-postası gönderildi: {}", message.getEmail());
+            log.info("Şifre sıfırlama e-postası gönderildi: {}", LogMasking.email(message.getEmail()));
 
         } catch (Exception e) {
             log.error("Şifre sıfırlama e-postası gönderilemedi: {}", e.getMessage(), e);

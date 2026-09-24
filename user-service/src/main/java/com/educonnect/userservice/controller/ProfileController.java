@@ -7,6 +7,7 @@ import com.educonnect.userservice.dto.response.UserProfileResponse;
 import com.educonnect.userservice.dto.response.UserProfileResponseDTO;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.educonnect.common.security.AuditLog;
 import com.educonnect.common.security.IdentityHeaders;
 import com.educonnect.userservice.service.ProfileService;
 import com.educonnect.userservice.service.ProfileViewService;
@@ -205,6 +206,7 @@ public class ProfileController {
             @RequestParam(required = false) String reason) {
         try {
             profileService.archiveStudent(userId, reason);
+            AuditLog.record("ARCHIVE_STUDENT", "USER", userId);
             return ResponseEntity.ok("Öğrenci başarıyla arşivlendi ve aktif tablodan kaldırıldı.");
         } catch (RuntimeException e) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND)
@@ -226,6 +228,7 @@ public class ProfileController {
             @RequestParam(required = false) String reason) {
         try {
             profileService.archiveAcademician(userId, reason);
+            AuditLog.record("ARCHIVE_ACADEMICIAN", "USER", userId);
             return ResponseEntity.ok("Akademisyen başarıyla arşivlendi ve aktif tablodan kaldırıldı.");
         } catch (RuntimeException e) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND)

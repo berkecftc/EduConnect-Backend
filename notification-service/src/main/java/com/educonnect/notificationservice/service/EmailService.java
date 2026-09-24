@@ -1,5 +1,6 @@
 package com.educonnect.notificationservice.service;
 
+import com.educonnect.common.security.LogMasking;
 import jakarta.mail.MessagingException;
 import jakarta.mail.internet.MimeMessage;
 import org.slf4j.Logger;
@@ -34,7 +35,7 @@ public class EmailService {
             message.setText(text);
 
             mailSender.send(message);
-            log.info("✅ Email sent successfully to: {} | Subject: {}", to, subject);
+            log.info("✅ Email sent successfully to: {} | Subject: {}", LogMasking.email(to), subject);
 
         } catch (Exception e) {
             log.error("❌ Error sending email to {}: {}", to, e.getMessage());
@@ -52,7 +53,7 @@ public class EmailService {
             helper.setText(htmlBody, true);
 
             mailSender.send(message);
-            log.info("✅ HTML Email sent successfully to: {} | Subject: {}", to, subject);
+            log.info("✅ HTML Email sent successfully to: {} | Subject: {}", LogMasking.email(to), subject);
 
         } catch (MessagingException e) {
             log.error("❌ Error sending HTML email to {}: {}", to, e.getMessage());

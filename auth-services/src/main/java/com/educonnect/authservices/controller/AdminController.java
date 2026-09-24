@@ -6,6 +6,8 @@ import com.educonnect.authservices.models.Role;
 import com.educonnect.authservices.models.User;
 import com.educonnect.authservices.dto.request.SuspendAccountRequest;
 import com.educonnect.authservices.service.AccountStatusService;
+import com.educonnect.authservices.service.AdminAuditService;
+import com.educonnect.authservices.dto.response.AdminAuditPage;
 import com.educonnect.authservices.service.AuthServiceImpl;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
@@ -31,6 +33,9 @@ public class AdminController {
     @Autowired
     private AccountStatusService accountStatusService;
 
+    @Autowired
+    private AdminAuditService adminAuditService;
+
 
 
     // Kullanıcıyı admin yap
@@ -38,6 +43,7 @@ public class AdminController {
     @PostMapping("/promote/{userId}")
     public ResponseEntity<String> promoteToAdmin(@PathVariable UUID userId) {
         authService.promoteToAdmin(userId);
+        adminAuditService.record("PROMOTE_ADMIN", "USER", userId, null);
         return ResponseEntity.ok("User promoted to ROLE_ADMIN.");
     }
 
@@ -46,6 +52,7 @@ public class AdminController {
     @PostMapping("/revoke/{userId}")
     public ResponseEntity<String> revokeAdmin(@PathVariable UUID userId) {
         authService.revokeAdmin(userId);
+        adminAuditService.record("REVOKE_ADMIN", "USER", userId, null);
         return ResponseEntity.ok("User admin role revoked.");
     }
 
@@ -54,16 +61,7 @@ public class AdminController {
     @GetMapping("/requests/academicians")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<?> getAcademicianRequests() {
-        try {
-            System.out.println("DEBUG: Controller'a girildi. Servis çağrılıyor...");
-            var result = authService.getAllAcademicianRequests();
-            System.out.println("DEBUG: Servisten veri geldi. Boyut: " + (result != null ? result.size() : "null"));
-            return ResponseEntity.ok(result);
-        } catch (Exception e) {
-            System.err.println("🔥🔥🔥 BEKLENMEYEN HATA DETAYI 🔥🔥🔥");
-            e.printStackTrace(); // <--- BU SATIR HATAYI GÖSTERİR
-            return ResponseEntity.internalServerError().body("Sunucu Hatası: " + e.getMessage());
-        }
+        return ResponseEntity.ok(authService.getAllAcademicianRequests());
     }
 
     // 2. Onayla
@@ -71,6 +69,7 @@ public class AdminController {
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<String> approveAcademician(@PathVariable UUID userId) {
         authService.approveAcademician(userId);
+        adminAuditService.record("APPROVE_ACADEMICIAN", "USER", userId, null);
         return ResponseEntity.ok("Akademisyen onaylandı.");
     }
 
@@ -81,6 +80,7 @@ public class AdminController {
             @PathVariable UUID userId,
             @RequestParam(value = "reason", required = false) String reason) {
         authService.rejectAcademician(userId, reason);
+        adminAuditService.record("REJECT_ACADEMICIAN", "USER", userId, reason);
         return ResponseEntity.ok("Akademisyen başvurusu reddedildi.");
     }
 
@@ -90,16 +90,7 @@ public class AdminController {
     @GetMapping("/requests/students")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<?> getStudentRequests() {
-        try {
-            System.out.println("DEBUG: /requests/students endpoint'ine istek geldi");
-            var result = authService.getAllStudentRequests();
-            System.out.println("DEBUG: Servisten veri geldi. Boyut: " + (result != null ? result.size() : "null"));
-            return ResponseEntity.ok(result);
-        } catch (Exception e) {
-            System.err.println("🔥🔥🔥 BEKLENMEYEN HATA DETAYI 🔥🔥🔥");
-            e.printStackTrace();
-            return ResponseEntity.internalServerError().body("Sunucu Hatası: " + e.getMessage());
-        }
+        return ResponseEntity.ok(authService.getAllStudentRequests());
     }
 
     // 2. Öğrenci başvurusunu onayla (requestId ile)
@@ -107,6 +98,7 @@ public class AdminController {
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<String> approveStudent(@PathVariable Long requestId) {
         authService.approveStudent(requestId);
+        adminAuditService.record("APPROVE_STUDENT", "STUDENT_REQUEST", requestId, null);
         return ResponseEntity.ok("Öğrenci onaylandı.");
     }
 
@@ -117,6 +109,7 @@ public class AdminController {
             @PathVariable Long requestId,
             @RequestParam(value = "reason", required = false) String reason) {
         authService.rejectStudent(requestId, reason);
+        adminAuditService.record("REJECT_STUDENT", "STUDENT_REQUEST", requestId, reason);
         return ResponseEntity.ok("Öğrenci başvurusu reddedildi.");
     }
 
@@ -132,6 +125,7 @@ public class AdminController {
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<String> deleteUser(@PathVariable UUID userId) {
         authService.deleteUser(userId);
+        adminAuditService.record("DELETE_USER", "USER", userId, null);
         return ResponseEntity.ok("Kullanıcı başarıyla silindi.");
     }
 
@@ -141,6 +135,7 @@ public class AdminController {
                                               @RequestBody(required = false) SuspendAccountRequest request,
                                               Authentication authentication) {
         accountStatusService.suspend(userId, authentication.getName(), request != null ? request.reason() : null);
+        adminAuditService.record("SUSPEND_USER", "USER", userId, request != null ? request.reason() : null);
         return ResponseEntity.ok("Kullanıcı hesabı askıya alındı.");
     }
 
@@ -148,6 +143,14 @@ public class AdminController {
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<String> reactivateUser(@PathVariable UUID userId, Authentication authentication) {
         accountStatusService.reactivate(userId, authentication.getName());
+        adminAuditService.record("REACTIVATE_USER", "USER", userId, null);
         return ResponseEntity.ok("Kullanıcı hesabı yeniden etkinleştirildi.");
+    }
+
+    @GetMapping("/audit-log")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<AdminAuditPage> getAuditLog(@RequestParam(defaultValue = "0") int page,
+                                                      @RequestParam(defaultValue = "50") int size) {
+        return ResponseEntity.ok(adminAuditService.list(page, size));
     }
 }

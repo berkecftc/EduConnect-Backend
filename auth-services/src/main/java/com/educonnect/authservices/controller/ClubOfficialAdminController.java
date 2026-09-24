@@ -2,6 +2,7 @@ package com.educonnect.authservices.controller;
 
 import com.educonnect.authservices.Repository.UserRepository;
 import com.educonnect.authservices.models.Role;
+import com.educonnect.authservices.service.AdminAuditService;
 import com.educonnect.authservices.service.AuthServiceImpl;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.http.ResponseEntity;
@@ -24,16 +25,20 @@ public class ClubOfficialAdminController {
 
     private final AuthServiceImpl authService;
     private final UserRepository userRepository;
+    private final AdminAuditService adminAuditService;
 
-    public ClubOfficialAdminController(AuthServiceImpl authService, UserRepository userRepository) {
+    public ClubOfficialAdminController(AuthServiceImpl authService, UserRepository userRepository,
+                                       AdminAuditService adminAuditService) {
         this.authService = authService;
         this.userRepository = userRepository;
+        this.adminAuditService = adminAuditService;
     }
 
     @PreAuthorize("hasRole('ADMIN')")
     @PostMapping("/approve/club-official/{userId}")
     public ResponseEntity<String> approveClubOfficial(@PathVariable UUID userId) {
         authService.approveClubOfficial(userId);
+        adminAuditService.record("APPROVE_CLUB_OFFICIAL", "USER", userId, null);
         return ResponseEntity.ok("Club official request approved.");
     }
 
@@ -41,6 +46,7 @@ public class ClubOfficialAdminController {
     @PostMapping("/reject/club-official/{userId}")
     public ResponseEntity<String> rejectClubOfficial(@PathVariable UUID userId) {
         authService.rejectClubOfficial(userId);
+        adminAuditService.record("REJECT_CLUB_OFFICIAL", "USER", userId, null);
         return ResponseEntity.ok("Club official request rejected.");
     }
 

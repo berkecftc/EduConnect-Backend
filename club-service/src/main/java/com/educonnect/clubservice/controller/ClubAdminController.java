@@ -8,6 +8,7 @@ import com.educonnect.clubservice.dto.response.MemberDTO;
 import com.educonnect.clubservice.model.Club;
 import com.educonnect.clubservice.model.ClubCreationRequest;
 import com.educonnect.clubservice.service.ClubService;
+import com.educonnect.common.security.AuditLog;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -44,10 +45,10 @@ public class ClubAdminController {
             @RequestHeader(value = "X-Authenticated-User-Id", required = false) String userId,
             @RequestHeader(value = "X-Authenticated-User-Email", required = false) String userEmail) {
 
-        log.info("Creating club: {}, requested by userId: {}, email: {}",
-                 request.getName(), userId, userEmail);
+        log.info("Creating club: {}, requested by userId: {}", request.getName(), userId);
 
         Club createdClub = clubService.createClub(request);
+        AuditLog.record("CREATE_CLUB", "CLUB", createdClub.getId());
 
         log.info("Club created successfully with ID: {}", createdClub.getId());
 
@@ -70,6 +71,7 @@ public class ClubAdminController {
 
         UUID adminId = userId != null ? UUID.fromString(userId) : null;
         clubService.deleteClub(clubId, reason, adminId);
+        AuditLog.record("ARCHIVE_CLUB", "CLUB", clubId);
 
         log.info("Club archived successfully: {}", clubId);
 
@@ -87,13 +89,16 @@ public class ClubAdminController {
     @PostMapping("/requests/{requestId}/approve")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<Club> approveClubRequest(@PathVariable UUID requestId) {
-        return ResponseEntity.ok(clubService.approveClubCreationRequest(requestId));
+        Club approved = clubService.approveClubCreationRequest(requestId);
+        AuditLog.record("APPROVE_CLUB_CREATION", "CLUB_CREATION_REQUEST", requestId);
+        return ResponseEntity.ok(approved);
     }
 
     @PostMapping("/requests/{requestId}/reject")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<String> rejectClubRequest(@PathVariable UUID requestId) {
         clubService.rejectClubCreationRequest(requestId); // Servisteki metodu çağır
+        AuditLog.record("REJECT_CLUB_CREATION", "CLUB_CREATION_REQUEST", requestId);
         return ResponseEntity.ok("Club creation request rejected.");
     }
 

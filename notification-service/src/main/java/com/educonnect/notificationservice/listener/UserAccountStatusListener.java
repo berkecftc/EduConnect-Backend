@@ -1,5 +1,6 @@
 package com.educonnect.notificationservice.listener;
 
+import com.educonnect.common.security.LogMasking;
 import com.educonnect.notificationservice.config.NotificationRabbitMQConfig;
 import com.educonnect.notificationservice.dto.message.UserAccountStatusMessage;
 import com.educonnect.notificationservice.service.EmailService;
@@ -25,7 +26,7 @@ public class UserAccountStatusListener {
     @RabbitListener(queues = NotificationRabbitMQConfig.USER_ACCOUNT_STATUS_QUEUE)
     public void handleUserAccountStatus(UserAccountStatusMessage message) {
         log.info("Kullanıcı hesap durumu mesajı alındı: email={}, status={}, userType={}",
-                message.getEmail(), message.getStatus(), message.getUserType());
+                LogMasking.email(message.getEmail()), message.getStatus(), message.getUserType());
 
         try {
             String subject;
@@ -52,7 +53,7 @@ public class UserAccountStatusListener {
             }
 
             emailService.sendHtmlEmail(message.getEmail(), subject, htmlBody);
-            log.info("Hesap durumu e-postası gönderildi: {}", message.getEmail());
+            log.info("Hesap durumu e-postası gönderildi: {}", LogMasking.email(message.getEmail()));
 
         } catch (Exception e) {
             log.error("Hesap durumu e-postası gönderilemedi: {}", e.getMessage(), e);
@@ -120,8 +121,8 @@ public class UserAccountStatusListener {
             </body>
             </html>
             """,
-            message.getFirstName(),
-            message.getLastName(),
+            HtmlText.escape(message.getFirstName()),
+            HtmlText.escape(message.getLastName()),
             userTypeText
         );
     }
@@ -136,7 +137,7 @@ public class UserAccountStatusListener {
                     <strong>Red Nedeni:</strong><br>
                     %s
                 </div>
-                """, message.getRejectionReason());
+                """, HtmlText.escape(message.getRejectionReason()));
         }
 
         return String.format("""
@@ -169,8 +170,8 @@ public class UserAccountStatusListener {
             </body>
             </html>
             """,
-            message.getFirstName(),
-            message.getLastName(),
+            HtmlText.escape(message.getFirstName()),
+            HtmlText.escape(message.getLastName()),
             userTypeText,
             reasonSection
         );

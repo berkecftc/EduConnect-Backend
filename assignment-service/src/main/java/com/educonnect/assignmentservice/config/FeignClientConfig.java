@@ -17,7 +17,7 @@ public class FeignClientConfig {
      */
     @Bean
     public Logger.Level feignLoggerLevel() {
-        return Logger.Level.FULL; // FULL, HEADERS, BASIC, NONE
+        return Logger.Level.BASIC;
     }
 
     /**

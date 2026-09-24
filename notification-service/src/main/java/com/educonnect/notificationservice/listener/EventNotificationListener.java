@@ -74,7 +74,7 @@ public class EventNotificationListener {
             );
             List<String> emails = emailsResponse.getBody();
 
-            log.info("📧 Emails received: {}", emails);
+            log.info("📧 {} e-posta adresi alındı.", emails != null ? emails.size() : 0);
 
             // 3. ADIM: Herkese mail gönder
             if (emails != null && !emails.isEmpty()) {

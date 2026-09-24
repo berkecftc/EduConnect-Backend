@@ -188,7 +188,7 @@ public class AuthServiceImpl {
         studentRequestRepository.save(stuReq);
         emailVerificationService.sendVerification(request.getEmail(), request.getFirstName());
 
-        LOGGER.info("Öğrenci başvurusu alındı. Email: {} - Admin onayı bekleniyor.", request.getEmail());
+        LOGGER.info("Öğrenci başvurusu alındı; admin onayı bekleniyor.");
     }
 
     // --- ÖĞRENCİ ONAY İŞLEMİ ---
@@ -273,8 +273,7 @@ public class AuthServiceImpl {
                 RabbitMQConfig.USER_ACCOUNT_STATUS_ROUTING_KEY,
                 statusMessage
         );
-        LOGGER.info("Öğrenci red bildirimi RabbitMQ'ya gönderildi. Email: {}, RoutingKey: {}",
-                req.getEmail(), RabbitMQConfig.USER_ACCOUNT_STATUS_ROUTING_KEY);
+        LOGGER.info("Öğrenci red bildirimi RabbitMQ'ya gönderildi. RoutingKey: {}", RabbitMQConfig.USER_ACCOUNT_STATUS_ROUTING_KEY);
 
         // 3. MinIO'dan belgeyi sil
         minioService.deleteStudentDocument(req.getStudentDocumentUrl());
@@ -282,7 +281,7 @@ public class AuthServiceImpl {
         // 4. Başvuru kaydını sil (users tablosunda kayıt yok, silmeye gerek yok)
         studentRequestRepository.delete(req);
 
-        LOGGER.info("Öğrenci başvurusu reddedildi. Email: {}", req.getEmail());
+        LOGGER.info("Öğrenci başvurusu reddedildi. RequestId: {}", req.getId());
     }
 
     // --- TÜM ÖĞRENCİ BAŞVURULARINI LİSTELE ---
@@ -661,8 +660,7 @@ public class AuthServiceImpl {
                 RabbitMQConfig.USER_ACCOUNT_STATUS_ROUTING_KEY,
                 statusMessage
         );
-        LOGGER.info("Akademisyen red bildirimi RabbitMQ'ya gönderildi. Email: {}, RoutingKey: {}",
-                user.getEmail(), RabbitMQConfig.USER_ACCOUNT_STATUS_ROUTING_KEY);
+        LOGGER.info("Akademisyen red bildirimi RabbitMQ'ya gönderildi. RoutingKey: {}", RabbitMQConfig.USER_ACCOUNT_STATUS_ROUTING_KEY);
 
         // 2. MinIO'dan kimlik kartı fotoğrafını sil
         if (req.getIdCardImageUrl() != null) {
@@ -767,7 +765,7 @@ public class AuthServiceImpl {
                 message
         );
 
-        LOGGER.info("Şifre sıfırlama e-postası gönderildi. Email: {}", email);
+        LOGGER.info("Şifre sıfırlama e-postası kuyruğa alındı. UserID: {}", user.getId());
     }
 
     // --- ŞİFRE SIFIRLAMA İŞLEMİ ---
