@@ -3,6 +3,7 @@ package com.educonnect.notificationservice.service;
 import com.educonnect.common.security.LogMasking;
 import jakarta.mail.MessagingException;
 import jakarta.mail.internet.MimeMessage;
+import org.springframework.core.io.ByteArrayResource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -38,7 +39,7 @@ public class EmailService {
             log.info("✅ Email sent successfully to: {} | Subject: {}", LogMasking.email(to), subject);
 
         } catch (Exception e) {
-            log.error("❌ Error sending email to {}: {}", to, e.getMessage());
+            log.error("❌ Error sending email to {}: {}", LogMasking.email(to), e.getMessage());
         }
     }
 
@@ -56,7 +57,27 @@ public class EmailService {
             log.info("✅ HTML Email sent successfully to: {} | Subject: {}", LogMasking.email(to), subject);
 
         } catch (MessagingException e) {
-            log.error("❌ Error sending HTML email to {}: {}", to, e.getMessage());
+            log.error("❌ Error sending HTML email to {}: {}", LogMasking.email(to), e.getMessage());
+        }
+    }
+
+    public void sendHtmlEmailWithInlineImage(String to, String subject, String htmlBody,
+                                             String contentId, byte[] image, String imageContentType) {
+        try {
+            MimeMessage message = mailSender.createMimeMessage();
+            MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
+
+            helper.setFrom(fromAddress);
+            helper.setTo(to);
+            helper.setSubject(subject);
+            helper.setText(htmlBody, true);
+            helper.addInline(contentId, new ByteArrayResource(image), imageContentType);
+
+            mailSender.send(message);
+            log.info("✅ HTML Email sent successfully to: {} | Subject: {}", LogMasking.email(to), subject);
+
+        } catch (MessagingException e) {
+            log.error("❌ Error sending HTML email to {}: {}", LogMasking.email(to), e.getMessage());
         }
     }
 }

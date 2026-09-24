@@ -98,7 +98,7 @@ class GamificationServiceTest {
     }
 
     @Test
-    void shouldResetStreakAndGiveBonusOnSeventhDay() {
+    void shouldKeepStreakAndGiveMilestoneBonusOnSeventhDay() {
         UUID userId = UUID.randomUUID();
         UserReputation reputation = UserReputation.initialize(userId);
         reputation.setCurrentStreak(6);
@@ -120,13 +120,13 @@ class GamificationServiceTest {
 
         ArgumentCaptor<UserReputation> reputationCaptor = ArgumentCaptor.forClass(UserReputation.class);
         verify(userReputationRepository).saveAndFlush(reputationCaptor.capture());
-        assertEquals(20, reputationCaptor.getValue().getTotalPoints());
-        assertEquals(0, reputationCaptor.getValue().getCurrentStreak());
+        assertEquals(110, reputationCaptor.getValue().getTotalPoints());
+        assertEquals(7, reputationCaptor.getValue().getCurrentStreak());
         assertEquals(7, reputationCaptor.getValue().getHighestStreak());
 
         ArgumentCaptor<PointHistory> historyCaptor = ArgumentCaptor.forClass(PointHistory.class);
         verify(pointHistoryRepository).saveAndFlush(historyCaptor.capture());
-        assertEquals(20, historyCaptor.getValue().getPointsEarned());
+        assertEquals(110, historyCaptor.getValue().getPointsEarned());
     }
 
     @Test

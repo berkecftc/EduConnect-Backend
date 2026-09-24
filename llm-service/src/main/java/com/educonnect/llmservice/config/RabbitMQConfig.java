@@ -51,7 +51,7 @@ public class RabbitMQConfig {
     public MessageConverter jsonMessageConverter() {
         Jackson2JsonMessageConverter converter = new Jackson2JsonMessageConverter();
         DefaultClassMapper classMapper = new DefaultClassMapper();
-        classMapper.setTrustedPackages("*");
+        classMapper.setTrustedPackages("com.educonnect.llmservice");
         Map<String, Class<?>> idClassMapping = new HashMap<>();
         idClassMapping.put("com.educonnect.postservice.event.PostModerationEvent", PostModerationEvent.class);
         classMapper.setIdClassMapping(idClassMapping);

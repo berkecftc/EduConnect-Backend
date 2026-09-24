@@ -44,7 +44,7 @@ public class RabbitMQConfig {
     public MessageConverter jsonMessageConverter() {
         Jackson2JsonMessageConverter converter = new Jackson2JsonMessageConverter();
         DefaultClassMapper classMapper = new DefaultClassMapper();
-        classMapper.setTrustedPackages("*");
+        classMapper.setTrustedPackages("com.educonnect.gamificationservice");
 
         Map<String, Class<?>> idClassMapping = new HashMap<>();
         idClassMapping.put(

@@ -152,7 +152,8 @@ public class AssignmentService {
             submission.setSubmissionFileUrl(minioService.normalizeToFullUrl(fileUrl));
             submission.setSubmittedAt(LocalDateTime.now());
             submission.setLate(isLate);
-            // Not ve feedback'i sıfırlama (akademisyen yeniden notlandıracak)
+            submission.setGrade(null);
+            submission.setFeedback(null);
             return submissionRepository.save(submission);
         } else {
             // Yeni teslim oluştur

@@ -41,7 +41,7 @@ public class RabbitMQConfig {
     public MessageConverter jsonMessageConverter() {
         Jackson2JsonMessageConverter converter = new Jackson2JsonMessageConverter();
         DefaultClassMapper classMapper = new DefaultClassMapper();
-        classMapper.setTrustedPackages("*");
+        classMapper.setTrustedPackages("com.educonnect.userservice");
         Map<String, Class<?>> idClassMapping = new HashMap<>();
         idClassMapping.put(
                 "com.educonnect.authservices.dto.message.UserRegisteredMessage",

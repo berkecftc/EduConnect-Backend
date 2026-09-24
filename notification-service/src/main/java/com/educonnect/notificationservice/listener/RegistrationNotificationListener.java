@@ -4,6 +4,7 @@ import com.educonnect.common.security.LogMasking;
 import com.educonnect.notificationservice.config.NotificationRabbitMQConfig;
 import com.educonnect.notificationservice.dto.message.EventRegistrationMessage;
 import com.educonnect.notificationservice.service.EmailService;
+import com.educonnect.notificationservice.service.QrCodeRenderer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
@@ -25,9 +26,14 @@ public class RegistrationNotificationListener {
 
     private final EmailService emailService;
     private final RestTemplate restTemplate;
+    private final QrCodeRenderer qrCodeRenderer;
 
     // 2. Manuel Constructor (Lombok @RequiredArgsConstructor yerine)
-    public RegistrationNotificationListener(EmailService emailService, RestTemplate restTemplate) {
+    static final String QR_CONTENT_ID = "ticket-qr";
+
+    public RegistrationNotificationListener(EmailService emailService, RestTemplate restTemplate,
+                                            QrCodeRenderer qrCodeRenderer) {
+        this.qrCodeRenderer = qrCodeRenderer;
         this.emailService = emailService;
         this.restTemplate = restTemplate;
     }
@@ -70,9 +76,7 @@ public class RegistrationNotificationListener {
             // E-posta bulunduysa işlemi yap
             if (emails != null && !emails.isEmpty()) {
                 String studentEmail = emails.get(0);
-
-                // Google Charts API (veya benzeri) ile QR Kod Resim URL'si oluşturma
-                String qrImageUrl = "https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=" + qrCode;
+                String qrImageUrl = "cid:" + QR_CONTENT_ID;
 
                 // HTML Mail İçeriğini Hazırlama
                 String htmlBody = String.format("""
@@ -93,10 +97,11 @@ public class RegistrationNotificationListener {
                         </div>
                     </body>
                     </html>
-                    """, eventTitle, eventTime, location, qrImageUrl, qrCode);
+                    """, HtmlText.escape(eventTitle), HtmlText.escape(eventTime), HtmlText.escape(location), qrImageUrl, HtmlText.escape(qrCode));
 
                 // Maili Gönder
-                emailService.sendHtmlEmail(studentEmail, "Biletiniz: " + eventTitle, htmlBody);
+                emailService.sendHtmlEmailWithInlineImage(studentEmail, "Biletiniz: " + eventTitle, htmlBody,
+                        QR_CONTENT_ID, qrCodeRenderer.renderPng(qrCode), "image/png");
 
                 log.info("Registration email sent to: {}", LogMasking.email(studentEmail));
             } else {
