@@ -1,7 +1,8 @@
 package com.educonnect.llmservice.config;
 
 import com.educonnect.llmservice.client.AssignmentServiceClient;
-import com.educonnect.llmservice.client.CourseServiceClient;
+import com.educonnect.llmservice.service.UnifiedAgentService;
+import org.springframework.ai.chat.model.ToolContext;
 import org.springframework.ai.document.Document;
 import org.springframework.ai.vectorstore.SearchRequest;
 import org.springframework.ai.vectorstore.VectorStore;
@@ -13,55 +14,29 @@ import org.springframework.context.annotation.Description;
 import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.List;
+import java.util.function.BiFunction;
 import java.util.function.Function;
 
-/**
- * Defines the tool (function) library available to Spring AI agents.
- *
- * Each @Bean here becomes a callable tool. The @Description text is the
- * prompt the LLM reads to decide WHEN and HOW to call the tool.
- * Good descriptions are the most critical part of prompt engineering for agents.
- *
- * Student tools  : getAssignmentsTool, searchClubsTool
- * Instructor tool: createAnnouncementTool
- */
 @Configuration
 public class AiToolsConfig {
 
     private final AssignmentServiceClient assignmentServiceClient;
-    private final CourseServiceClient courseServiceClient;
     private final VectorStore clubVectorStore;
 
     public AiToolsConfig(
             AssignmentServiceClient assignmentServiceClient,
-            CourseServiceClient courseServiceClient,
             @Qualifier("clubVectorStore") VectorStore clubVectorStore) {
         this.assignmentServiceClient = assignmentServiceClient;
-        this.courseServiceClient = courseServiceClient;
         this.clubVectorStore = clubVectorStore;
     }
 
-    // ── Request / Response records ──────────────────────────────────────────
+    public record GetAssignmentsRequest() {}
 
-    public record GetAssignmentsRequest(String studentId) {}
-
-    /**
-     * Anti-Corruption Layer: Internal domain language (English) is translated
-     * here so the LLM always works with Turkish-friendly field names, preventing
-     * confusion between source service DTOs and agent-visible data.
-     */
     public record PendingAssignment(String courseId, String title, String dueDate, String status) {}
 
     public record ClubSearchRequest(String query) {}
 
     public record ClubInfo(String clubName, String description) {}
-
-    public record CreateAnnouncementRequest(
-            String instructorId, String courseId, String title, String content) {}
-
-    public record AnnouncementResult(boolean success, String message) {}
-
-    // ── Student Tool 1: Pending Assignments ─────────────────────────────────
 
     @Bean
     @Description("""
@@ -70,19 +45,23 @@ public class AiToolsConfig {
             WHEN to call: the student asks about homework, assignments, deadlines,
             submissions, upcoming tasks, or anything related to their coursework obligations.
 
-            HOW to call: always pass the studentId that was given to you in the system prompt
-            as the 'studentId' parameter — never ask the student for their ID.
+            HOW to call: call it without parameters. The student identity is resolved by the system;
+            never ask the student for an ID and never try to query another student.
 
             RESPONSE GUIDANCE:
             - If the returned list is empty: tell the student they have no pending assignments.
             - Otherwise: for each item report the title, courseId, and dueDate clearly in Turkish.
             - Never invent assignment data; only report what this tool returns.
             """)
-    public Function<GetAssignmentsRequest, List<PendingAssignment>> getAssignmentsTool() {
-        return request -> {
+    public BiFunction<GetAssignmentsRequest, ToolContext, List<PendingAssignment>> getAssignmentsTool() {
+        return (request, toolContext) -> {
+            Object studentId = toolContext == null ? null : toolContext.getContext().get(UnifiedAgentService.STUDENT_ID_CONTEXT_KEY);
+            if (studentId == null) {
+                return List.of();
+            }
             try {
                 return assignmentServiceClient
-                        .getMyAssignments(request.studentId())
+                        .getMyAssignments(studentId.toString())
                         .stream()
                         .filter(this::isPending)
                         .map(a -> new PendingAssignment(
@@ -92,13 +71,10 @@ public class AiToolsConfig {
                                 "Pending"))
                         .toList();
             } catch (Exception ex) {
-                // Return empty list — the LLM will respond gracefully per the description above.
                 return List.of();
             }
         };
     }
-
-    // ── Student Tool 2: Club Search ──────────────────────────────────────────
 
     @Bean
     @Description("""
@@ -132,36 +108,6 @@ public class AiToolsConfig {
             }
         };
     }
-
-    // ── Instructor Tool: Create Announcement ────────────────────────────────
-
-    @Bean
-    @Description("""
-            Use this tool to publish a new announcement to a specific course on behalf of an instructor.
-
-            WHEN to call: the instructor asks to announce something to their students
-            (e.g. cancelled class, exam date, important notice).
-
-            HOW to call:
-            - instructorId is provided in the system prompt — always use it as-is.
-            - courseId must be explicitly stated by the instructor; if missing, ask for it first.
-            - Generate a professional, polite Turkish title and content based on the instructor's request.
-            """)
-    public Function<CreateAnnouncementRequest, AnnouncementResult> createAnnouncementTool() {
-        return request -> {
-            try {
-                courseServiceClient.createAnnouncement(
-                        request.instructorId(),
-                        request.courseId(),
-                        new CourseServiceClient.AnnouncementRequest(request.title(), request.content()));
-                return new AnnouncementResult(true, "Announcement published successfully.");
-            } catch (Exception ex) {
-                return new AnnouncementResult(false, "Failed to publish announcement: " + ex.getMessage());
-            }
-        };
-    }
-
-    // ── Private helpers ──────────────────────────────────────────────────────
 
     private boolean isPending(AssignmentServiceClient.AssignmentResponse assignment) {
         boolean notSubmitted = assignment.submission() == null

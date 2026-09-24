@@ -22,6 +22,12 @@ public class RabbitMQConfig {
     public static final String POST_MODERATION_EXCHANGE = "post.moderation.exchange";
     public static final String POST_MODERATION_ROUTING_KEY = "post.moderation.pending";
     public static final String POST_MODERATION_LLM_QUEUE = "post.moderation.llm.queue";
+    public static final String POST_MODERATION_REVIEW_QUEUE = "post.moderation.review.queue";
+
+    @Bean
+    public Queue postModerationReviewQueue() {
+        return new Queue(POST_MODERATION_REVIEW_QUEUE, true);
+    }
 
     @Bean
     public TopicExchange postModerationExchange() {
