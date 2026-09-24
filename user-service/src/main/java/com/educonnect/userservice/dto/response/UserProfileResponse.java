@@ -41,4 +41,18 @@ public class UserProfileResponse implements Serializable{
     public void setTitle(String title) { this.title = title; }
     public String getDepartment() { return department; }
     public void setDepartment(String department) { this.department = department; }
+
+    public UserProfileResponse withoutEmail() {
+        UserProfileResponse copy = new UserProfileResponse();
+        copy.setId(id);
+        copy.setFirstName(firstName);
+        copy.setLastName(lastName);
+        copy.setProfileImageUrl(profileImageUrl);
+        copy.setBio(bio);
+        copy.setRole(role);
+        copy.setStudentNumber(studentNumber);
+        copy.setTitle(title);
+        copy.setDepartment(department);
+        return copy;
+    }
 }

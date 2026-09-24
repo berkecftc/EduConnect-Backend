@@ -7,8 +7,9 @@ import com.educonnect.userservice.dto.response.UserProfileResponse;
 import com.educonnect.userservice.dto.response.UserProfileResponseDTO;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.educonnect.userservice.service.ProfileAggregationService;
+import com.educonnect.common.security.IdentityHeaders;
 import com.educonnect.userservice.service.ProfileService;
+import com.educonnect.userservice.service.ProfileViewService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -25,14 +26,14 @@ import java.util.UUID;
 public class ProfileController {
 
     private final ProfileService profileService;
-    private final ProfileAggregationService profileAggregationService;
+    private final ProfileViewService profileViewService;
     private final ObjectMapper objectMapper;
 
     public ProfileController(ProfileService profileService,
-                             ProfileAggregationService profileAggregationService,
+                             ProfileViewService profileViewService,
                              ObjectMapper objectMapper) {
         this.profileService = profileService;
-        this.profileAggregationService = profileAggregationService;
+        this.profileViewService = profileViewService;
         this.objectMapper = objectMapper;
     }
 
@@ -40,9 +41,11 @@ public class ProfileController {
      * Belirli bir kullanıcının profil bilgilerini getirir.
      */
     @GetMapping("/profile/{userId}")
-    public ResponseEntity<UserProfileResponse> getProfileById(@PathVariable UUID userId) {
-        UserProfileResponse profile = profileService.getUserProfile(userId);
-        return ResponseEntity.ok(profile);
+    public ResponseEntity<UserProfileResponse> getProfileById(
+            @PathVariable UUID userId,
+            @RequestHeader(value = IdentityHeaders.USER_ID, required = false) UUID viewerId,
+            @RequestHeader(value = IdentityHeaders.USER_ROLES, required = false) String viewerRoles) {
+        return ResponseEntity.ok(profileViewService.getProfile(userId, viewerId, viewerRoles));
     }
 
     /**
@@ -144,26 +147,17 @@ public class ProfileController {
      * API Composition yaklaşımı ile profile + gamification + recent posts verisini birleştirir.
      */
     @GetMapping("/profile/{userId}/aggregated")
-    public ResponseEntity<UserProfileResponseDTO> getAggregatedProfileById(@PathVariable UUID userId) {
-        UserProfileResponseDTO profile = profileAggregationService.getAggregatedUserProfile(userId);
-        return ResponseEntity.ok(profile);
+    public ResponseEntity<UserProfileResponseDTO> getAggregatedProfileById(
+            @PathVariable UUID userId,
+            @RequestHeader(value = IdentityHeaders.USER_ID, required = false) UUID viewerId,
+            @RequestHeader(value = IdentityHeaders.USER_ROLES, required = false) String viewerRoles) {
+        return ResponseEntity.ok(profileViewService.getAggregatedProfile(userId, viewerId, viewerRoles));
     }
 
-    /**
-     * Öğrenci numarasına göre öğrenci profil bilgilerini getirir.
-     * Club-service gibi diğer servisler tarafından kullanılır.
-     * @param studentNumber Öğrenci numarası
-     * @return Öğrenci profil bilgileri
-     */
     @GetMapping("/by-student-number/{studentNumber}")
-    public ResponseEntity<UserProfileResponse> getProfileByStudentNumber(
-            @PathVariable String studentNumber) {
-        try {
-            UserProfileResponse profile = profileService.getStudentByStudentNumber(studentNumber);
-            return ResponseEntity.ok(profile);
-        } catch (RuntimeException e) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(null);
-        }
+    public ResponseEntity<String> getProfileByStudentNumber(@PathVariable String studentNumber) {
+        return ResponseEntity.status(HttpStatus.GONE)
+                .body("Öğrenci numarasıyla profil sorgulama kapatıldı.");
     }
 
     // --- YENİ ENDPOINT: Profil Resmi Yükleme ---

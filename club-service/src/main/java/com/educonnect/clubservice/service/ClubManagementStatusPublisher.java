@@ -6,6 +6,7 @@ import com.educonnect.clubservice.security.ClubAuthorizationService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
@@ -24,6 +25,7 @@ public class ClubManagementStatusPublisher {
     private final ClubAuthorizationService clubAuthorizationService;
     private final Clock clock;
 
+    @Autowired
     public ClubManagementStatusPublisher(RabbitTemplate rabbitTemplate, ClubAuthorizationService clubAuthorizationService) {
         this(rabbitTemplate, clubAuthorizationService, Clock.systemUTC());
     }

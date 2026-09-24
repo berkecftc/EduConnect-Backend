@@ -233,10 +233,14 @@ public class CourseController {
         }
     }
 
-    // BİR DERSE AİT DUYURULARI LİSTELER
     @GetMapping("/{courseId}/announcements")
-    public ResponseEntity<List<AnnouncementResponse>> getAnnouncements(@PathVariable UUID courseId) {
-        return ResponseEntity.ok(announcementService.getAnnouncementsByCourse(courseId));
+    public ResponseEntity<List<AnnouncementResponse>> getAnnouncements(
+            @PathVariable UUID courseId,
+            @RequestHeader("X-Authenticated-User-Id") String viewerIdHeader,
+            @RequestHeader(value = "X-Authenticated-User-Roles", required = false) String roles
+    ) {
+        return ResponseEntity.ok(announcementService.getAnnouncementsByCourse(
+                courseId, UUID.fromString(viewerIdHeader), hasRole(roles, "ROLE_ADMIN")));
     }
 
     // DUYURU SİLER

@@ -75,12 +75,16 @@ public class CourseAnnouncementService {
         return mapToResponse(saved, course);
     }
 
-    /**
-     * Bir derse ait duyuruları listeler.
-     */
-    public List<AnnouncementResponse> getAnnouncementsByCourse(UUID courseId) {
+    public List<AnnouncementResponse> getAnnouncementsByCourse(UUID courseId, UUID viewerId, boolean viewerIsAdmin) {
         Course course = courseRepository.findById(courseId)
                 .orElseThrow(() -> new CourseNotFoundException("Ders bulunamadı: " + courseId));
+
+        boolean allowed = viewerIsAdmin
+                || course.getInstructorId().equals(viewerId)
+                || enrollmentRepository.existsByCourseIdAndStudentIdAndIsActive(courseId, viewerId, true);
+        if (!allowed) {
+            throw new UnauthorizedCourseAccessException("Bu dersin duyurularını görme yetkiniz yok.");
+        }
 
         return announcementRepository.findByCourseIdOrderByCreatedAtDesc(courseId).stream()
                 .map(a -> mapToResponse(a, course))
