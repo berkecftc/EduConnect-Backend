@@ -1,6 +1,7 @@
 package com.educonnect.assignmentservice.model;
 
 import jakarta.persistence.*;
+import com.educonnect.common.storage.ObjectUrlConverter;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
@@ -20,6 +21,7 @@ public class AssignmentSubmission {
     private UUID studentId;
 
     @Column(name = "submission_file_url")
+    @Convert(converter = ObjectUrlConverter.class)
     private String submissionFileUrl; // MinIO'da saklanan teslim dosyasının URL'si
 
     @Column(name = "submitted_at", nullable = false)

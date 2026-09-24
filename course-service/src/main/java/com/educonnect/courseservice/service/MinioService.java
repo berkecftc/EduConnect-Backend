@@ -1,5 +1,9 @@
 package com.educonnect.courseservice.service;
 
+import com.educonnect.common.storage.StorageUrls;
+import com.educonnect.common.storage.UploadKind;
+import com.educonnect.common.storage.UploadValidator;
+import com.educonnect.common.storage.ValidatedUpload;
 import io.minio.*;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -10,40 +14,38 @@ import java.util.UUID;
 @Service
 public class MinioService {
     private final MinioClient minioClient;
+    private final StorageUrls storageUrls;
+    private final UploadValidator uploadValidator;
     @Value("${minio.bucket-name}") private String bucketName;
 
-    public MinioService(MinioClient minioClient) { this.minioClient = minioClient; }
+    public MinioService(MinioClient minioClient, StorageUrls storageUrls, UploadValidator uploadValidator) {
+        this.minioClient = minioClient;
+        this.storageUrls = storageUrls;
+        this.uploadValidator = uploadValidator;
+    }
 
     public String uploadFile(MultipartFile file) {
-        try {
+        ValidatedUpload upload = uploadValidator.validate(file, UploadKind.IMAGE);
+        String fileName = UUID.randomUUID() + "_" + upload.safeOriginalName();
+        try (InputStream inputStream = file.getInputStream()) {
             boolean found = minioClient.bucketExists(BucketExistsArgs.builder().bucket(bucketName).build());
             if (!found) minioClient.makeBucket(MakeBucketArgs.builder().bucket(bucketName).build());
-
-            String fileName = UUID.randomUUID() + "_" + file.getOriginalFilename();
-            InputStream inputStream = file.getInputStream();
 
             minioClient.putObject(PutObjectArgs.builder()
                     .bucket(bucketName)
                     .object(fileName)
                     .stream(inputStream, file.getSize(), -1)
-                    .contentType(file.getContentType())
+                    .contentType(upload.contentType())
                     .build());
 
-            // Localhost URL'i
-            return "http://localhost:9000/" + bucketName + "/" + fileName;
+            return storageUrls.url(bucketName, fileName);
         } catch (Exception e) {
             throw new RuntimeException("MinIO Yükleme Hatası: " + e.getMessage());
         }
     }
 
-    /**
-     * MinIO'dan dosya indirir.
-     * @param fileUrl Dosyanın tam URL'si (örn: http://localhost:9000/bucket/dosya.pdf)
-     * @return InputStream olarak dosya verisi
-     */
     public InputStream downloadFile(String fileUrl) {
         try {
-            // URL'den objectName'i çıkar: http://localhost:9000/bucket/dosya.pdf -> dosya.pdf
             String objectName = extractObjectName(fileUrl);
 
             return minioClient.getObject(GetObjectArgs.builder()
@@ -55,25 +57,12 @@ public class MinioService {
         }
     }
 
-    /**
-     * URL'den dosya adını (object name) çıkarır.
-     */
     public String extractObjectName(String fileUrl) {
-        // http://localhost:9000/bucketName/fileName şeklinde URL'den fileName'i çıkar
-        String prefix = "http://localhost:9000/" + bucketName + "/";
-        if (fileUrl.startsWith(prefix)) {
-            return fileUrl.substring(prefix.length());
-        }
-        // Eğer zaten sadece dosya adıysa direkt döndür
-        return fileUrl;
+        return storageUrls.objectName(fileUrl, bucketName);
     }
 
-    /**
-     * URL'den orijinal dosya adını çıkarır (UUID prefix'i kaldırarak).
-     */
     public String extractOriginalFileName(String fileUrl) {
         String objectName = extractObjectName(fileUrl);
-        // UUID_originalname.ext formatından orijinal adı çıkar
         int underscoreIndex = objectName.indexOf('_');
         if (underscoreIndex > 0 && underscoreIndex < objectName.length() - 1) {
             return objectName.substring(underscoreIndex + 1);

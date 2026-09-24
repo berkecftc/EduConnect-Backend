@@ -1,6 +1,7 @@
 package com.educonnect.clubservice.model; // Paket adınız
 
 import jakarta.persistence.*;
+import com.educonnect.common.storage.ObjectUrlConverter;
 import java.util.UUID;
 
 @Entity
@@ -18,6 +19,7 @@ public class Club {
     private String about; // "Hakkında kısmı"
 
     @Column(name = "logo_url")
+    @Convert(converter = ObjectUrlConverter.class)
     private String logoUrl; // "Logosu" (MinIO URL'si)
 
     @Column(name = "academic_advisor_id", nullable = false)

@@ -1,6 +1,7 @@
 package com.educonnect.courseservice.model;
 
 import jakarta.persistence.*;
+import com.educonnect.common.storage.ObjectUrlConverter;
 import java.util.UUID;
 
 @Entity
@@ -30,6 +31,7 @@ public class Course {
     private UUID instructorId;
 
     @Column(name = "image_url")
+    @Convert(converter = ObjectUrlConverter.class)
     private String imageUrl; // MinIO URL'i
 
     public Course() {}

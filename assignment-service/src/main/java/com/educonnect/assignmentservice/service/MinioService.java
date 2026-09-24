@@ -1,5 +1,9 @@
 package com.educonnect.assignmentservice.service;
 
+import com.educonnect.common.storage.StorageUrls;
+import com.educonnect.common.storage.UploadKind;
+import com.educonnect.common.storage.UploadValidator;
+import com.educonnect.common.storage.ValidatedUpload;
 import io.minio.BucketExistsArgs;
 import io.minio.GetObjectArgs;
 import io.minio.MakeBucketArgs;
@@ -17,19 +21,23 @@ import java.util.UUID;
 public class MinioService {
     private final MinioClient minioClient;
     private final String bucketName;
-    private final String minioUrl;
+    private final StorageUrls storageUrls;
+    private final UploadValidator uploadValidator;
 
     public MinioService(@Value("${minio.url}") String minioUrl,
                         @Value("${minio.access-key}") String accessKey,
                         @Value("${minio.secret-key}") String secretKey,
-                        @Value("${minio.bucket.name:${minio.bucket-name}}") String bucketName) {
+                        @Value("${minio.bucket.name:${minio.bucket-name}}") String bucketName,
+                        StorageUrls storageUrls,
+                        UploadValidator uploadValidator) {
         try {
             this.minioClient = MinioClient.builder()
                     .endpoint(minioUrl)
                     .credentials(accessKey, secretKey)
                     .build();
-            this.minioUrl = minioUrl;
             this.bucketName = bucketName;
+            this.storageUrls = storageUrls;
+            this.uploadValidator = uploadValidator;
             ensureBucketExists();
         } catch (Exception e) {
             throw new RuntimeException("MinIO client baslatilamadi", e);
@@ -37,18 +45,17 @@ public class MinioService {
     }
 
     public String uploadFile(MultipartFile file) {
-        try {
-            String fileName = UUID.randomUUID() + "_" + file.getOriginalFilename();
-            InputStream inputStream = file.getInputStream();
-
+        ValidatedUpload upload = uploadValidator.validate(file, UploadKind.ATTACHMENT);
+        String objectName = UUID.randomUUID() + "_" + upload.safeOriginalName();
+        try (InputStream inputStream = file.getInputStream()) {
             minioClient.putObject(PutObjectArgs.builder()
                     .bucket(bucketName)
-                    .object(fileName)
+                    .object(objectName)
                     .stream(inputStream, file.getSize(), -1)
-                    .contentType(file.getContentType())
+                    .contentType(upload.contentType())
                     .build());
 
-            return buildObjectUrl(fileName);
+            return storageUrls.url(bucketName, objectName);
         } catch (Exception e) {
             throw new RuntimeException("Dosya yüklenemedi: " + e.getMessage());
         }
@@ -71,9 +78,6 @@ public class MinioService {
         }
     }
 
-    /**
-     * MinIO'dan dosya indirir.
-     */
     public InputStream downloadFile(String fileUrl) {
         try {
             String objectName = extractObjectName(fileUrl);
@@ -86,58 +90,21 @@ public class MinioService {
         }
     }
 
-    /**
-     * URL'den dosya adını (object name) çıkarır.
-     */
     public String extractObjectName(String fileUrl) {
-        String normalizedMinioUrl = minioUrl.endsWith("/") ? minioUrl.substring(0, minioUrl.length() - 1) : minioUrl;
-        String prefix = normalizedMinioUrl + "/" + bucketName + "/";
-        if (fileUrl != null && fileUrl.startsWith(prefix)) {
-            return fileUrl.substring(prefix.length());
-        }
-
-        // Eski localhost formatındaki URL'lerle geriye dönük uyumluluk.
-        String legacyPrefix = "http://localhost:9000/" + bucketName + "/";
-        if (fileUrl != null && fileUrl.startsWith(legacyPrefix)) {
-            return fileUrl.substring(legacyPrefix.length());
-        }
-
-        return fileUrl;
+        return storageUrls.objectName(fileUrl, bucketName);
     }
 
     public String normalizeToFullUrl(String fileUrlOrObjectName) {
         if (fileUrlOrObjectName == null || fileUrlOrObjectName.isBlank()) {
             return fileUrlOrObjectName;
         }
-
-        String normalizedMinioUrl = minioUrl.endsWith("/") ? minioUrl.substring(0, minioUrl.length() - 1) : minioUrl;
-        String fullPrefix = normalizedMinioUrl + "/" + bucketName + "/";
-        if (fileUrlOrObjectName.startsWith(fullPrefix)) {
-            return fileUrlOrObjectName;
+        String path = storageUrls.toStoredValue(fileUrlOrObjectName);
+        if (path.startsWith("http://") || path.startsWith("https://")) {
+            return path;
         }
-
-        // Dış servisten zaten tam URL geldiyse bozma.
-        if (fileUrlOrObjectName.startsWith("http://") || fileUrlOrObjectName.startsWith("https://")) {
-            return fileUrlOrObjectName;
-        }
-
-        String objectName = fileUrlOrObjectName;
-        String bucketPrefix = bucketName + "/";
-        if (objectName.startsWith(bucketPrefix)) {
-            objectName = objectName.substring(bucketPrefix.length());
-        }
-
-        return buildObjectUrl(objectName);
+        return storageUrls.url(bucketName, storageUrls.objectName(path, bucketName));
     }
 
-    private String buildObjectUrl(String objectName) {
-        String normalizedMinioUrl = minioUrl.endsWith("/") ? minioUrl.substring(0, minioUrl.length() - 1) : minioUrl;
-        return normalizedMinioUrl + "/" + bucketName + "/" + objectName;
-    }
-
-    /**
-     * URL'den orijinal dosya adını çıkarır (UUID prefix'i kaldırarak).
-     */
     public String extractOriginalFileName(String fileUrl) {
         String objectName = extractObjectName(fileUrl);
         int underscoreIndex = objectName.indexOf('_');

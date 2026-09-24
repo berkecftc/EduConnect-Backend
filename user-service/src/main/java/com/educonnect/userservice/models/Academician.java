@@ -1,6 +1,7 @@
 package com.educonnect.userservice.models;
 
 import jakarta.persistence.*;
+import com.educonnect.common.storage.ObjectUrlConverter;
 import java.util.UUID;
 
 @Entity
@@ -27,8 +28,10 @@ public class Academician {
 
     private String bio;
 
+    @Convert(converter = ObjectUrlConverter.class)
     private String profileImageUrl; // MinIO'da saklanan profil resminin URL'si
 
+    @Convert(converter = ObjectUrlConverter.class)
     private String idCardImageUrl; // Akademisyen kimlik kartı fotoğrafı URL'si (MinIO'da)
 
 

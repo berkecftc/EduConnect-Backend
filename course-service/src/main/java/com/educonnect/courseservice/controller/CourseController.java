@@ -1,5 +1,6 @@
 package com.educonnect.courseservice.controller;
 
+import com.educonnect.common.storage.SafeFileNames;
 import com.educonnect.courseservice.dto.*;
 import com.educonnect.courseservice.exception.UnauthorizedCourseAccessException;
 import com.educonnect.courseservice.service.CourseAnnouncementService;
@@ -285,7 +286,8 @@ public class CourseController {
 
             return ResponseEntity.ok()
                     .contentType(MediaType.APPLICATION_OCTET_STREAM)
-                    .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + fileName + "\"")
+                    .header(HttpHeaders.CONTENT_DISPOSITION, SafeFileNames.attachmentHeader(fileName))
+                    .header("X-Content-Type-Options", "nosniff")
                     .body(resource);
         } catch (RuntimeException e) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).build();

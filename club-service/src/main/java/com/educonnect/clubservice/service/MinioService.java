@@ -1,5 +1,9 @@
 package com.educonnect.clubservice.service;
 
+import com.educonnect.common.storage.StorageUrls;
+import com.educonnect.common.storage.UploadKind;
+import com.educonnect.common.storage.UploadValidator;
+import com.educonnect.common.storage.ValidatedUpload;
 import io.minio.BucketExistsArgs;
 import io.minio.MakeBucketArgs;
 import io.minio.MinioClient;
@@ -10,6 +14,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.io.InputStream;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
@@ -17,36 +22,32 @@ import java.util.concurrent.TimeUnit;
 public class MinioService {
 
     private final MinioClient minioClient;
+    private final StorageUrls storageUrls;
+    private final UploadValidator uploadValidator;
 
     @Value("${minio.bucket.name}")
     private String bucketName;
 
-    // 👇 EKLENDİ: URL'i sınıf içinde tutmamız lazım
-    private String minioUrl;
-
-    // MinioClient'ı yapılandırma ayarlarıyla başlat
     public MinioService(@Value("${minio.url}") String url,
                         @Value("${minio.access-key}") String accessKey,
                         @Value("${minio.secret-key}") String secretKey,
-                        @Value("${minio.bucket.name}") String bucketName) {
+                        @Value("${minio.bucket.name}") String bucketName,
+                        StorageUrls storageUrls,
+                        UploadValidator uploadValidator) {
         try {
             this.minioClient = MinioClient.builder()
                     .endpoint(url)
                     .credentials(accessKey, secretKey)
                     .build();
             this.bucketName = bucketName;
-            this.minioUrl = url; // 👇 EKLENDİ: URL değişkenini kaydettik
-
-            // Bucket'ın var olup olmadığını kontrol et ve yoksa oluştur
+            this.storageUrls = storageUrls;
+            this.uploadValidator = uploadValidator;
             ensureBucketExists();
         } catch (Exception e) {
             throw new RuntimeException("Error initializing Minio client", e);
         }
     }
 
-    /**
-     * Bucket'ın var olup olmadığını kontrol eder ve yoksa oluşturur.
-     */
     private void ensureBucketExists() {
         try {
             boolean exists = minioClient.bucketExists(
@@ -55,7 +56,6 @@ public class MinioService {
                             .build()
             );
 
-            // Eğer bucket yoksa oluştur
             if (!exists) {
                 minioClient.makeBucket(
                         MakeBucketArgs.builder()
@@ -64,10 +64,6 @@ public class MinioService {
                 );
                 System.out.println("MinIO bucket oluşturuldu: " + bucketName);
             }
-
-            // 🔥 DEĞİŞİKLİK BURADA 🔥
-            // "if (!exists)" bloğunun DIŞINA çıktık.
-            // Bucket eskiden oluşmuş olsa bile, her başlatmada "Public" ayarını zorla yapıştırıyoruz.
 
             String policyJson = String.format(
                     "{\n" +
@@ -96,63 +92,34 @@ public class MinioService {
         }
     }
 
-    /**
-     * Dosyayı MinIO'ya yükler ve TAM URL döner.
-     */
     public String uploadFile(MultipartFile file, UUID userId) {
-        try {
-            String fileExtension = getFileExtension(file.getOriginalFilename());
-            String objectName = "profiles/" + userId.toString() + fileExtension;
-
-            minioClient.putObject(
-                    PutObjectArgs.builder()
-                            .bucket(bucketName)
-                            .object(objectName)
-                            .stream(file.getInputStream(), file.getSize(), -1)
-                            .contentType(file.getContentType())
-                            .build()
-            );
-
-            // 👇 DEĞİŞTİRİLDİ: Artık tam link dönüyor
-            return minioUrl + "/" + bucketName + "/" + objectName;
-        } catch (Exception e) {
-            throw new RuntimeException("Error uploading file to MinIO: " + e.getMessage(), e);
-        }
+        return uploadFile(file, "profiles", userId.toString());
     }
 
-    /**
-     * Dosyayı belirtilen klasöre yükler ve TAM URL döner.
-     * (Logolar için burası kullanılıyor)
-     */
     public String uploadFile(MultipartFile file, String folder, String nameBase) {
-        try {
-            String fileExtension = getFileExtension(file.getOriginalFilename());
+        ValidatedUpload upload = uploadValidator.validate(file, UploadKind.IMAGE);
+        String extension = upload.extension().isEmpty() ? ".jpg" : upload.extension();
+        String safeFolder = (folder == null || folder.isBlank()) ? "misc" : folder.replaceAll("[^A-Za-z0-9_-]", "");
+        String safeNameBase = (nameBase == null || nameBase.isBlank())
+                ? UUID.randomUUID().toString()
+                : nameBase.replaceAll("[^A-Za-z0-9_-]", "");
+        String objectName = safeFolder + "/" + safeNameBase + extension;
 
-            String safeFolder = (folder == null || folder.isBlank()) ? "misc" : folder.replaceAll("^/+|/+$", "");
-            String safeNameBase = (nameBase == null || nameBase.isBlank()) ? UUID.randomUUID().toString() : nameBase;
-            String objectName = safeFolder + "/" + safeNameBase + fileExtension;
-
+        try (InputStream inputStream = file.getInputStream()) {
             minioClient.putObject(
                     PutObjectArgs.builder()
                             .bucket(bucketName)
                             .object(objectName)
-                            .stream(file.getInputStream(), file.getSize(), -1)
-                            .contentType(file.getContentType())
+                            .stream(inputStream, file.getSize(), -1)
+                            .contentType(upload.contentType())
                             .build()
             );
-
-            // 👇 DEĞİŞTİRİLDİ: Artık tam link dönüyor
-            // Örnek Çıktı: http://localhost:9000/educonnect-bucket/logos/abc-123.png
-            return minioUrl + "/" + bucketName + "/" + objectName;
-
+            return storageUrls.url(bucketName, objectName);
         } catch (Exception e) {
             throw new RuntimeException("Error uploading file to MinIO (custom folder): " + e.getMessage(), e);
         }
     }
 
-    /**
-     * Presigned URL (Süreli Erişim) - Gerekirse kullanılır
-     */
     public String getFileUrl(String objectName) {
         if (objectName == null || objectName.isEmpty()) {
             return null;
@@ -162,19 +129,12 @@ public class MinioService {
                     io.minio.GetPresignedObjectUrlArgs.builder()
                             .method(Method.GET)
                             .bucket(bucketName)
-                            .object(objectName)
+                            .object(storageUrls.objectName(objectName, bucketName))
                             .expiry(7, TimeUnit.DAYS)
                             .build()
             );
         } catch (Exception e) {
             throw new RuntimeException("Error getting file URL from MinIO: " + e.getMessage(), e);
         }
-    }
-
-    private String getFileExtension(String filename) {
-        if (filename == null || !filename.contains(".")) {
-            return ".jpg";
-        }
-        return filename.substring(filename.lastIndexOf("."));
     }
 }

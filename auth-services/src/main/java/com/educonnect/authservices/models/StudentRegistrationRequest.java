@@ -1,6 +1,7 @@
 package com.educonnect.authservices.models;
 
 import jakarta.persistence.*;
+import com.educonnect.common.storage.ObjectUrlConverter;
 
 @Entity
 @Table(name = "student_requests", schema = "auth_db")
@@ -30,6 +31,7 @@ public class StudentRegistrationRequest {
     private String department;
 
     @Column(name = "student_document_url")
+    @Convert(converter = ObjectUrlConverter.class)
     private String studentDocumentUrl; // Öğrenci belgesi URL'si (MinIO'da)
 
     @Column(name = "email_verified_at")

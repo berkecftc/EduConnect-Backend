@@ -1,6 +1,7 @@
 package com.educonnect.userservice.models;
 
 import jakarta.persistence.*;
+import com.educonnect.common.storage.ObjectUrlConverter;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
@@ -27,6 +28,7 @@ public class ArchivedStudent {
     @Column(name = "department")
     private String department;
 
+    @Convert(converter = ObjectUrlConverter.class)
     private String profileImageUrl;
 
     @Column(nullable = false)

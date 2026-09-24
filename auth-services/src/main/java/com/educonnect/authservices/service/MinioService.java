@@ -1,6 +1,10 @@
 package com.educonnect.authservices.service;
 
 import io.minio.*;
+import com.educonnect.common.storage.StorageUrls;
+import com.educonnect.common.storage.UploadKind;
+import com.educonnect.common.storage.UploadValidator;
+import com.educonnect.common.storage.ValidatedUpload;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -21,19 +25,23 @@ public class MinioService {
     @Value("${minio.bucket.name}")
     private String bucketName;
 
-    private String minioUrl;
+    private final StorageUrls storageUrls;
+    private final UploadValidator uploadValidator;
 
     public MinioService(@Value("${minio.url}") String url,
                         @Value("${minio.access-key}") String accessKey,
                         @Value("${minio.secret-key}") String secretKey,
-                        @Value("${minio.bucket.name}") String bucketName) {
+                        @Value("${minio.bucket.name}") String bucketName,
+                        StorageUrls storageUrls,
+                        UploadValidator uploadValidator) {
         try {
             this.minioClient = MinioClient.builder()
                     .endpoint(url)
                     .credentials(accessKey, secretKey)
                     .build();
             this.bucketName = bucketName;
-            this.minioUrl = url;
+            this.storageUrls = storageUrls;
+            this.uploadValidator = uploadValidator;
 
             ensureBucketExists();
         } catch (Exception e) {
@@ -97,21 +105,20 @@ public class MinioService {
      * Akademisyen kimlik kartı fotoğrafını MinIO'ya yükler ve TAM URL döner.
      */
     public String uploadIdCardImage(MultipartFile file, UUID userId) {
+        ValidatedUpload upload = uploadValidator.validate(file, UploadKind.DOCUMENT);
+        String objectName = "id-cards/" + userId + extensionOrDefault(upload);
         try {
-            String fileExtension = getFileExtension(file.getOriginalFilename());
-            String objectName = "id-cards/" + userId.toString() + fileExtension;
 
             minioClient.putObject(
                     PutObjectArgs.builder()
                             .bucket(bucketName)
                             .object(objectName)
                             .stream(file.getInputStream(), file.getSize(), -1)
-                            .contentType(file.getContentType())
+                            .contentType(upload.contentType())
                             .build()
             );
 
-            // Tam URL döner: http://localhost:9000/academician-id-cards/id-cards/uuid.jpg
-            return minioUrl + "/" + bucketName + "/" + objectName;
+            return storageUrls.url(bucketName, objectName);
 
         } catch (Exception e) {
             throw new RuntimeException("Error uploading ID card image to MinIO: " + e.getMessage(), e);
@@ -148,46 +155,34 @@ public class MinioService {
      * URL'den object name'i çıkarır.
      */
     private String extractObjectName(String imageUrl) {
-        if (imageUrl == null) return null;
-        // URL formatı: http://localhost:9000/bucket-name/id-cards/uuid.jpg
-        String bucketPath = "/" + bucketName + "/";
-        int bucketIndex = imageUrl.indexOf(bucketPath);
-        if (bucketIndex > 0) {
-            return imageUrl.substring(bucketIndex + bucketPath.length());
+        if (imageUrl == null || imageUrl.isBlank()) {
+            return null;
         }
-        return null;
+        return storageUrls.objectName(imageUrl, bucketName);
     }
 
-    /**
-     * Dosya uzantısını alır.
-     */
-    private String getFileExtension(String filename) {
-        if (filename == null || filename.isEmpty()) {
-            return ".jpg";
-        }
-        int dotIndex = filename.lastIndexOf(".");
-        return dotIndex > 0 ? filename.substring(dotIndex) : ".jpg";
+    private static String extensionOrDefault(ValidatedUpload upload) {
+        return upload.extension().isEmpty() ? ".jpg" : upload.extension();
     }
 
     /**
      * Öğrenci belgesini MinIO'ya yükler ve TAM URL döner.
      */
     public String uploadStudentDocument(MultipartFile file, UUID userId) {
+        ValidatedUpload upload = uploadValidator.validate(file, UploadKind.DOCUMENT);
+        String objectName = "student-documents/" + userId + extensionOrDefault(upload);
         try {
-            String fileExtension = getFileExtension(file.getOriginalFilename());
-            String objectName = "student-documents/" + userId.toString() + fileExtension;
 
             minioClient.putObject(
                     PutObjectArgs.builder()
                             .bucket(bucketName)
                             .object(objectName)
                             .stream(file.getInputStream(), file.getSize(), -1)
-                            .contentType(file.getContentType())
+                            .contentType(upload.contentType())
                             .build()
             );
 
-            // Tam URL döner: http://localhost:9000/bucket/student-documents/uuid.pdf
-            return minioUrl + "/" + bucketName + "/" + objectName;
+            return storageUrls.url(bucketName, objectName);
 
         } catch (Exception e) {
             throw new RuntimeException("Error uploading student document to MinIO: " + e.getMessage(), e);

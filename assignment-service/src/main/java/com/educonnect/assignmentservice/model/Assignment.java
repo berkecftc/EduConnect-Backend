@@ -1,6 +1,7 @@
 package com.educonnect.assignmentservice.model;
 
 import jakarta.persistence.*;
+import com.educonnect.common.storage.ObjectUrlConverter;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
@@ -23,6 +24,7 @@ public class Assignment {
     @Column(nullable = false)
     private UUID courseId; // Hangi derse ait?
 
+    @Convert(converter = ObjectUrlConverter.class)
     private String fileUrl; // Hoca ek dosya yüklediyse (MinIO)
 
     // Lomboksuz Getter/Setter & Constructor

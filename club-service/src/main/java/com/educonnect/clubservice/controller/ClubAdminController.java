@@ -15,6 +15,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -154,6 +155,8 @@ public class ClubAdminController {
         try {
             String newLogoUrl = clubService.updateClubLogoByAdmin(clubId, file);
             return ResponseEntity.ok(newLogoUrl); // Yeni MinIO URL'ini dönüyoruz
+        } catch (ResponseStatusException e) {
+            return ResponseEntity.status(e.getStatusCode()).body(e.getReason());
         } catch (Exception e) {
             return ResponseEntity.internalServerError().body("Logo yüklenirken hata: " + e.getMessage());
         }

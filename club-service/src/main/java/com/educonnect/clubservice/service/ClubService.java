@@ -451,6 +451,8 @@ public class ClubService {
 
             return newLogoUrl;
 
+        } catch (ResponseStatusException e) {
+            throw e;
         } catch (Exception e) {
             log.error("🔥🔥🔥 LOGO GÜNCELLEME HATASI 🔥🔥🔥", e);
             throw new RuntimeException("Logo güncellenemedi: " + e.getMessage());

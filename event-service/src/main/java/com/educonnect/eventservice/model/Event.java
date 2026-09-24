@@ -1,6 +1,7 @@
 package com.educonnect.eventservice.model;
 
 import jakarta.persistence.*;
+import com.educonnect.common.storage.ObjectUrlConverter;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
@@ -23,6 +24,7 @@ public class Event {
 
     private String location; // Yer
 
+    @Convert(converter = ObjectUrlConverter.class)
     private String imageUrl; // Afiş (MinIO URL)
 
     @Column(nullable = false)

@@ -25,6 +25,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.multipart.MultipartFile;
+import org.springframework.web.util.UriComponentsBuilder;
+import java.net.URI;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
@@ -74,10 +76,13 @@ public class EventService {
         if (posterFile == null || posterFile.isEmpty()) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Etkinlik afişi zorunludur.");
         }
+        minioService.validateImage(posterFile);
 
-        // 1. KULÜP ID'SİNİ BUL (Servisler Arası Çağrı)
-        // "http://SERVİS-ADI/yol" formatını kullanıyoruz
-        String clubServiceUrl = "http://CLUB-SERVICE/api/clubs/search?name=" + request.getClubName();
+        URI clubServiceUrl = UriComponentsBuilder.fromUriString("http://CLUB-SERVICE/api/clubs/search")
+                .queryParam("name", "{name}")
+                .encode()
+                .buildAndExpand(request.getClubName())
+                .toUri();
 
         UUID resolvedClubId;
         try {

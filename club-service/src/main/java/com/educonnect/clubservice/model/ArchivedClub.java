@@ -1,6 +1,7 @@
 package com.educonnect.clubservice.model;
 
 import jakarta.persistence.*;
+import com.educonnect.common.storage.ObjectUrlConverter;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
@@ -22,6 +23,7 @@ public class ArchivedClub {
     private String about;
 
     @Column(name = "logo_url")
+    @Convert(converter = ObjectUrlConverter.class)
     private String logoUrl;
 
     @Column(name = "academic_advisor_id")

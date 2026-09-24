@@ -6,6 +6,7 @@ import com.educonnect.assignmentservice.model.AssignmentSubmission;
 import com.educonnect.assignmentservice.service.AssignmentAccessGuard;
 import com.educonnect.assignmentservice.service.AssignmentService;
 import com.educonnect.assignmentservice.service.MinioService;
+import com.educonnect.common.storage.SafeFileNames;
 import org.springframework.core.io.Resource;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
@@ -149,11 +150,12 @@ public class AssignmentController {
         accessGuard.requireFileAccess(normalizedUrl, parseUserId(userIdHeader), roles);
         try {
             Resource resource = assignmentService.downloadFile(normalizedUrl);
-            String fileName = assignmentService.getOriginalFileName(normalizedUrl).replaceAll("[\"\\r\\n]", "_");
+            String fileName = assignmentService.getOriginalFileName(normalizedUrl);
 
             return ResponseEntity.ok()
                     .contentType(MediaType.APPLICATION_OCTET_STREAM)
-                    .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + fileName + "\"")
+                    .header(HttpHeaders.CONTENT_DISPOSITION, SafeFileNames.attachmentHeader(fileName))
+                    .header("X-Content-Type-Options", "nosniff")
                     .body(resource);
         } catch (RuntimeException e) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).build();

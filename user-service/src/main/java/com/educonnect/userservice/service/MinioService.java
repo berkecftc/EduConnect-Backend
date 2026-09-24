@@ -1,6 +1,10 @@
 package com.educonnect.userservice.service;
 
 import io.minio.*; // Tüm MinIO sınıflarını import ediyoruz (SetBucketPolicyArgs dahil)
+import com.educonnect.common.storage.StorageUrls;
+import com.educonnect.common.storage.UploadKind;
+import com.educonnect.common.storage.UploadValidator;
+import com.educonnect.common.storage.ValidatedUpload;
 import io.minio.http.Method;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -17,21 +21,24 @@ public class MinioService {
     @Value("${minio.bucket.name}")
     private String bucketName;
 
-    // 👇 EKLENDİ: Tam link oluşturmak için URL'i saklıyoruz
-    private String minioUrl;
+    private final StorageUrls storageUrls;
+    private final UploadValidator uploadValidator;
 
     // MinioClient'ı yapılandırma ayarlarıyla başlat
     public MinioService(@Value("${minio.url}") String url,
                         @Value("${minio.access-key}") String accessKey,
                         @Value("${minio.secret-key}") String secretKey,
-                        @Value("${minio.bucket.name}") String bucketName) {
+                        @Value("${minio.bucket.name}") String bucketName,
+                        StorageUrls storageUrls,
+                        UploadValidator uploadValidator) {
         try {
             this.minioClient = MinioClient.builder()
                     .endpoint(url)
                     .credentials(accessKey, secretKey)
                     .build();
             this.bucketName = bucketName;
-            this.minioUrl = url; // URL'i kaydet
+            this.storageUrls = storageUrls;
+            this.uploadValidator = uploadValidator;
 
             // Bucket'ın var olup olmadığını kontrol et ve yoksa oluştur (+ Public Yap)
             ensureBucketExists();
@@ -93,23 +100,20 @@ public class MinioService {
      * Dosyayı MinIO'ya yükler ve TAM URL döner.
      */
     public String uploadFile(MultipartFile file, UUID userId) {
+        ValidatedUpload upload = uploadValidator.validate(file, UploadKind.IMAGE);
+        String objectName = "profiles/" + userId + (upload.extension().isEmpty() ? ".jpg" : upload.extension());
         try {
-            // Dosya adını benzersiz yap (örn: profiles/123e4567....png)
-            String fileExtension = getFileExtension(file.getOriginalFilename());
-            String objectName = "profiles/" + userId.toString() + fileExtension;
 
             minioClient.putObject(
                     PutObjectArgs.builder()
                             .bucket(bucketName)
                             .object(objectName)
                             .stream(file.getInputStream(), file.getSize(), -1)
-                            .contentType(file.getContentType())
+                            .contentType(upload.contentType())
                             .build()
             );
 
-            // 👇 GÜNCELLENDİ: Artık tam, tıklanabilir URL dönüyor
-            // Örn: http://localhost:9000/user-bucket/profiles/uuid.jpg
-            return minioUrl + "/" + bucketName + "/" + objectName;
+            return storageUrls.url(bucketName, objectName);
 
         } catch (Exception e) {
             throw new RuntimeException("Error uploading file to MinIO: " + e.getMessage(), e);
@@ -138,11 +142,4 @@ public class MinioService {
         }
     }
 
-    // Basit bir dosya uzantısı bulucu
-    private String getFileExtension(String filename) {
-        if (filename == null || !filename.contains(".")) {
-            return ".jpg"; // Varsayılan
-        }
-        return filename.substring(filename.lastIndexOf("."));
-    }
 }
