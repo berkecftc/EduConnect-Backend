@@ -42,7 +42,7 @@ class RefreshTokenServiceTest {
 
     @BeforeEach
     void setUp() {
-        AuthSecurityProperties properties = new AuthSecurityProperties(null, null, new AuthSecurityProperties.RefreshTokens(2));
+        AuthSecurityProperties properties = new AuthSecurityProperties(null, null, new AuthSecurityProperties.RefreshTokens(2), null, null, null);
         service = new RefreshTokenService(repository, jwtService, properties, Clock.fixed(NOW, ZoneOffset.UTC));
     }
 

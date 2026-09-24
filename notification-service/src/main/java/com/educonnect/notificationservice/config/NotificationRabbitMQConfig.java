@@ -31,6 +31,9 @@ public class NotificationRabbitMQConfig {
     public static final String PASSWORD_RESET_QUEUE = "password-reset-queue";
     public static final String PASSWORD_RESET_ROUTING_KEY = "user.password.reset";
 
+    public static final String EMAIL_VERIFICATION_QUEUE = "email-verification-queue";
+    public static final String EMAIL_VERIFICATION_ROUTING_KEY = "user.email.verify";
+
     // --- ROUTING KEY'LER ---
     public static final String ROUTING_KEY_EVENT_CREATED = "event.created";
     public static final String ROUTING_KEY_COURSE_ANNOUNCEMENT = "course.announcement.created";
@@ -167,6 +170,18 @@ public class NotificationRabbitMQConfig {
             @Qualifier("userAccountStatusQueue") Queue userAccountStatusQueue,
             @Qualifier("userExchange") DirectExchange userExchange) {
         return BindingBuilder.bind(userAccountStatusQueue).to(userExchange).with(USER_ACCOUNT_STATUS_ROUTING_KEY);
+    }
+
+    @Bean
+    public Queue emailVerificationQueue() {
+        return new Queue(EMAIL_VERIFICATION_QUEUE);
+    }
+
+    @Bean
+    public Binding bindingEmailVerification(
+            @Qualifier("emailVerificationQueue") Queue emailVerificationQueue,
+            @Qualifier("userExchange") DirectExchange userExchange) {
+        return BindingBuilder.bind(emailVerificationQueue).to(userExchange).with(EMAIL_VERIFICATION_ROUTING_KEY);
     }
 
     @Bean

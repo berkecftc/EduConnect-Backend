@@ -10,5 +10,6 @@ public record AcademicianRequestAdminView(
         String title,
         String department,
         String officeNumber,
-        String idCardImageUrl
+        String idCardImageUrl,
+        boolean emailVerified
 ) {}

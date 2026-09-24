@@ -32,6 +32,17 @@ public class StudentRegistrationRequest {
     @Column(name = "student_document_url")
     private String studentDocumentUrl; // Öğrenci belgesi URL'si (MinIO'da)
 
+    @Column(name = "email_verified_at")
+    private java.time.Instant emailVerifiedAt;
+
+    public java.time.Instant getEmailVerifiedAt() {
+        return emailVerifiedAt;
+    }
+
+    public void setEmailVerifiedAt(java.time.Instant emailVerifiedAt) {
+        this.emailVerifiedAt = emailVerifiedAt;
+    }
+
     // Getter ve Setter metodları
     public Long getId() {
         return id;

@@ -37,7 +37,7 @@ public class AuthRateLimitFilter implements GlobalFilter, Ordered {
     private static final Pattern LOGIN = Pattern.compile("^/api/auth/login$");
     private static final Pattern REFRESH = Pattern.compile("^/api/auth/refresh$");
     private static final Pattern SENSITIVE = Pattern.compile(
-            "^/api/auth/(register|forgot-password|reset-password|request/student-account|request/academician-account)$");
+            "^/api/auth/(register|forgot-password|reset-password|resend-verification|request/student-account|request/academician-account)$");
 
     private final AuthRateLimitProperties properties;
     private final Clock clock;

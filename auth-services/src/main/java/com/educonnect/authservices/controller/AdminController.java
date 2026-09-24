@@ -4,10 +4,13 @@ import com.educonnect.authservices.Repository.UserRepository;
 import com.educonnect.authservices.models.AcademicianRegistrationRequest;
 import com.educonnect.authservices.models.Role;
 import com.educonnect.authservices.models.User;
+import com.educonnect.authservices.dto.request.SuspendAccountRequest;
+import com.educonnect.authservices.service.AccountStatusService;
 import com.educonnect.authservices.service.AuthServiceImpl;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -24,6 +27,9 @@ public class AdminController {
 
     @Autowired
     private UserRepository userRepository;
+
+    @Autowired
+    private AccountStatusService accountStatusService;
 
 
 
@@ -127,5 +133,21 @@ public class AdminController {
     public ResponseEntity<String> deleteUser(@PathVariable UUID userId) {
         authService.deleteUser(userId);
         return ResponseEntity.ok("Kullanıcı başarıyla silindi.");
+    }
+
+    @PutMapping("/users/{userId}/suspend")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<String> suspendUser(@PathVariable UUID userId,
+                                              @RequestBody(required = false) SuspendAccountRequest request,
+                                              Authentication authentication) {
+        accountStatusService.suspend(userId, authentication.getName(), request != null ? request.reason() : null);
+        return ResponseEntity.ok("Kullanıcı hesabı askıya alındı.");
+    }
+
+    @PutMapping("/users/{userId}/reactivate")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<String> reactivateUser(@PathVariable UUID userId, Authentication authentication) {
+        accountStatusService.reactivate(userId, authentication.getName());
+        return ResponseEntity.ok("Kullanıcı hesabı yeniden etkinleştirildi.");
     }
 }

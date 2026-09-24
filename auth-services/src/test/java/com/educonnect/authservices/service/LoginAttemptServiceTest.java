@@ -35,7 +35,7 @@ class LoginAttemptServiceTest {
 
     private LoginAttemptService service(boolean enabled) {
         AuthSecurityProperties properties = new AuthSecurityProperties(null,
-                new AuthSecurityProperties.LoginProtection(enabled, 5, Duration.ofMinutes(15)), null);
+                new AuthSecurityProperties.LoginProtection(enabled, 5, Duration.ofMinutes(15)), null, null, null, null);
         return new LoginAttemptService(userRepository, properties, Clock.fixed(NOW, ZoneOffset.UTC));
     }
 

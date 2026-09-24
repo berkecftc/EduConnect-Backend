@@ -37,6 +37,15 @@ public class UserAccountStatusListener {
             } else if ("REJECTED".equals(message.getStatus())) {
                 subject = "EduConnect - Başvurunuz Hakkında Bilgilendirme";
                 htmlBody = buildRejectionEmail(message);
+            } else if ("SUSPENDED".equals(message.getStatus())) {
+                subject = "EduConnect - Hesabınız Askıya Alındı";
+                htmlBody = buildStatusChangeEmail("Hesabınız askıya alındı",
+                        "EduConnect hesabınız bir yönetici tarafından askıya alındı. Bu süre boyunca giriş yapamazsınız.",
+                        message.getRejectionReason());
+            } else if ("REACTIVATED".equals(message.getStatus())) {
+                subject = "EduConnect - Hesabınız Yeniden Etkinleştirildi";
+                htmlBody = buildStatusChangeEmail("Hesabınız yeniden etkin",
+                        "EduConnect hesabınız yeniden etkinleştirildi. Artık giriş yapabilirsiniz.", null);
             } else {
                 log.warn("Bilinmeyen durum: {}", message.getStatus());
                 return;
@@ -48,6 +57,29 @@ public class UserAccountStatusListener {
         } catch (Exception e) {
             log.error("Hesap durumu e-postası gönderilemedi: {}", e.getMessage(), e);
         }
+    }
+
+    static String buildStatusChangeEmail(String title, String body, String reason) {
+        String reasonBlock = reason != null && !reason.isBlank()
+                ? "<p style=\"font-size: 16px;\"><strong>Gerekçe:</strong> " + HtmlText.escape(reason) + "</p>"
+                : "";
+        return String.format("""
+            <html>
+            <body style="font-family: Arial, sans-serif; color: #333; background-color: #f9f9f9; padding: 20px;">
+                <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 10px; padding: 30px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
+                    <h1 style="color: #3498db; text-align: center;">%s</h1>
+                    <p style="font-size: 16px;">Merhaba,</p>
+                    <p style="font-size: 16px;">%s</p>
+                    %s
+                    <hr style="border: none; border-top: 1px solid #eee; margin: 30px 0;">
+                    <p style="font-size: 14px; color: #888; text-align: center;">
+                        EduConnect Ekibi<br>
+                        <small>Bu e-posta otomatik olarak gönderilmiştir. Lütfen yanıtlamayınız.</small>
+                    </p>
+                </div>
+            </body>
+            </html>
+            """, title, body, reasonBlock);
     }
 
     private String buildApprovalEmail(UserAccountStatusMessage message) {

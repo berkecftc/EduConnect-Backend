@@ -58,6 +58,7 @@ public class RabbitMQConfig {
     // Şifre sıfırlama için queue ve routing key
     public static final String PASSWORD_RESET_QUEUE = "password-reset-queue";
     public static final String PASSWORD_RESET_ROUTING_KEY = "user.password.reset";
+    public static final String EMAIL_VERIFICATION_ROUTING_KEY = "user.email.verify";
 
     public static final String GAMIFICATION_EXCHANGE = "gamification.exchange";
     public static final String GAMIFICATION_USER_LOGIN_ROUTING_KEY = "gamification.user.login";

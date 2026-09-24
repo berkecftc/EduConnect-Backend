@@ -41,6 +41,8 @@ import org.springframework.stereotype.Service;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.educonnect.authservices.config.AuthSecurityProperties;
+import java.time.Instant;
 import java.util.List;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
@@ -73,6 +75,8 @@ public class AuthServiceImpl {
     private final MinioService minioService; // Akademisyen kimlik kartı yüklemesi için
     private final PasswordPolicy passwordPolicy;
     private final LoginAttemptService loginAttemptService;
+    private final EmailVerificationService emailVerificationService;
+    private final AuthSecurityProperties.Links links;
 
     @Autowired
     public AuthServiceImpl(UserRepository userRepository,
@@ -86,9 +90,13 @@ public class AuthServiceImpl {
                            RefreshTokenService refreshTokenService,
                            MinioService minioService,
                            PasswordPolicy passwordPolicy,
-                           LoginAttemptService loginAttemptService) {
+                           LoginAttemptService loginAttemptService,
+                           EmailVerificationService emailVerificationService,
+                           AuthSecurityProperties authSecurityProperties) {
         this.passwordPolicy = passwordPolicy;
         this.loginAttemptService = loginAttemptService;
+        this.emailVerificationService = emailVerificationService;
+        this.links = authSecurityProperties.links();
         this.userRepository = userRepository;
         this.requestRepository = requestRepository;
         this.studentRequestRepository = studentRequestRepository;
@@ -115,8 +123,10 @@ public class AuthServiceImpl {
                 passwordEncoder.encode(request.getPassword()),
                 roles
         );
+        user.setEmailVerifiedAt(emailVerificationService.verifiedAtForNewAccount());
 
         User savedUser = userRepository.save(user);
+        emailVerificationService.sendVerification(savedUser.getEmail(), request.getFirstName());
 
         Set<String> roleStrings = roles.stream().map(Role::name).collect(Collectors.toSet());
 
@@ -173,13 +183,10 @@ public class AuthServiceImpl {
         stuReq.setStudentNumber(request.getStudentId());
         stuReq.setDepartment(request.getDepartment());
         stuReq.setStudentDocumentUrl(studentDocumentUrl);
-
-        // DEBUG LOG
-        LOGGER.info("DEBUG - Student Request Data: firstName={}, lastName={}, email={}, studentId={}, department={}",
-                request.getFirstName(), request.getLastName(), request.getEmail(),
-                request.getStudentId(), request.getDepartment());
+        stuReq.setEmailVerifiedAt(emailVerificationService.verifiedAtForNewAccount());
 
         studentRequestRepository.save(stuReq);
+        emailVerificationService.sendVerification(request.getEmail(), request.getFirstName());
 
         LOGGER.info("Öğrenci başvurusu alındı. Email: {} - Admin onayı bekleniyor.", request.getEmail());
     }
@@ -190,6 +197,7 @@ public class AuthServiceImpl {
         // 1. Bekleyen başvuru detaylarını bul
         StudentRegistrationRequest req = studentRequestRepository.findById(requestId)
                 .orElseThrow(() -> new NoSuchElementException("Öğrenci başvuru formu bulunamadı!"));
+        requireVerifiedEmail(req.getEmailVerifiedAt());
 
         // 2. Kullanıcıyı USERS tablosuna kaydet (ŞİMDİ kaydediyoruz!)
         Set<Role> roles = Stream.of(Role.ROLE_STUDENT).collect(Collectors.toSet());
@@ -199,6 +207,7 @@ public class AuthServiceImpl {
                 req.getPassword(), // Zaten hashlenmiş şifre
                 roles
         );
+        user.setEmailVerifiedAt(req.getEmailVerifiedAt() != null ? req.getEmailVerifiedAt() : Instant.now());
 
         User savedUser = userRepository.save(user);
 
@@ -286,7 +295,8 @@ public class AuthServiceImpl {
                         req.getEmail(),
                         req.getStudentNumber(),
                         req.getDepartment(),
-                        minioService.createPresignedUrl(req.getStudentDocumentUrl())
+                        minioService.createPresignedUrl(req.getStudentDocumentUrl()),
+                        req.getEmailVerifiedAt() != null
                 ))
                 .toList();
     }
@@ -313,6 +323,7 @@ public class AuthServiceImpl {
                 passwordEncoder.encode(request.getPassword()),
                 roles
         );
+        user.setEmailVerifiedAt(emailVerificationService.verifiedAtForNewAccount());
 
         User savedUser = userRepository.save(user); // Önce User ID oluşsun
 
@@ -332,6 +343,7 @@ public class AuthServiceImpl {
         accReq.setIdCardImageUrl(idCardImageUrl); // Kimlik kartı URL'sini kaydet
 
         requestRepository.save(accReq);
+        emailVerificationService.sendVerification(savedUser.getEmail(), request.getFirstName());
 
         LOGGER.info("Akademisyen başvurusu alındı. UserID: {}", savedUser.getId());
         // DİKKAT: Burada RabbitMQ mesajı GÖNDERMİYORUZ. Onay bekliyor.
@@ -343,6 +355,7 @@ public class AuthServiceImpl {
         // 1. Kullanıcıyı bul
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new NoSuchElementException("User not found"));
+        requireVerifiedEmail(user.getEmailVerifiedAt());
 
         // 2. Bekleyen başvuru detaylarını (Unvan, Bölüm vs.) bul
         AcademicianRegistrationRequest req = requestRepository.findByUserId(userId)
@@ -425,6 +438,14 @@ public class AuthServiceImpl {
                     "Hesabınız henüz onaylanmadı. Lütfen yönetici onayını bekleyin.");
         }
         // ---------------------------------------------
+        if (user.isSuspended()) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN,
+                    "Hesabınız askıya alınmıştır. Ayrıntılı bilgi için yönetici ile iletişime geçin.");
+        }
+        if (!emailVerificationService.isVerified(user.getEmailVerifiedAt())) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN,
+                    "E-posta adresinizi doğrulamanız gerekiyor. Gelen kutunuzdaki doğrulama bağlantısını kullanın.");
+        }
 
         loginAttemptService.recordSuccess(user.getId());
         SecurityContextHolder.getContext().setAuthentication(authentication);
@@ -561,9 +582,20 @@ public class AuthServiceImpl {
 
         User user = userRepository.findById(rotated.userId())
                 .orElseThrow(() -> new RefreshTokenService.InvalidRefreshTokenException("Invalid refresh token"));
+        if (user.isSuspended()) {
+            refreshTokenService.revokeAllSessions(user.getId());
+            throw new RefreshTokenService.InvalidRefreshTokenException("Account is suspended");
+        }
 
         String newAccessToken = jwtService.generateToken(user);
         return buildAuthResponse(newAccessToken, rotated.rawToken(), "Token refreshed successfully", user);
+    }
+
+    private void requireVerifiedEmail(Instant emailVerifiedAt) {
+        if (!emailVerificationService.isVerified(emailVerifiedAt)) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "Başvuru sahibi e-posta adresini henüz doğrulamadı.");
+        }
     }
 
     private AuthResponse buildAuthResponse(String token, String refreshToken, String message, User user) {
@@ -590,7 +622,10 @@ public class AuthServiceImpl {
                         req.getTitle(),
                         req.getDepartment(),
                         req.getOfficeNumber(),
-                        minioService.createPresignedUrl(req.getIdCardImageUrl())
+                        minioService.createPresignedUrl(req.getIdCardImageUrl()),
+                        userRepository.findById(req.getUserId())
+                                .map(u -> u.getEmailVerifiedAt() != null)
+                                .orElse(false)
                 ))
                 .toList();
     }
@@ -650,7 +685,9 @@ public class AuthServiceImpl {
                 .map(user -> new com.educonnect.authservices.dto.response.UserSummaryDto(
                         user.getId(),
                         user.getEmail(),
-                        user.getRoles().stream().map(Enum::name).collect(Collectors.toSet())
+                        user.getRoles().stream().map(Enum::name).collect(Collectors.toSet()),
+                        user.getStatus() != null ? user.getStatus().name() : null,
+                        user.getEmailVerifiedAt() != null
                 ))
                 .collect(Collectors.toList());
     }
@@ -713,8 +750,7 @@ public class AuthServiceImpl {
         );
         passwordResetTokenRepository.save(resetToken);
 
-        // 5. Şifre sıfırlama linkini oluştur (Frontend URL - daha sonra yapılandırılabilir)
-        String resetLink = "http://localhost:5173/reset-password?token=" + token;
+        String resetLink = links.frontendBaseUrl() + "/reset-password?token=" + token;
 
         // 6. RabbitMQ ile notification-service'e mesaj gönder
         PasswordResetMessage message = new PasswordResetMessage(

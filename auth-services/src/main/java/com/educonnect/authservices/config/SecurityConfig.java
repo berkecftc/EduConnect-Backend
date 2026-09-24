@@ -60,7 +60,9 @@ public class SecurityConfig {
                                          "/api/auth/forgot-password",
                                          "/api/auth/reset-password",
                                          "/api/auth/request/academician-account",
-                                         "/api/auth/request/student-account").permitAll()
+                                         "/api/auth/request/student-account",
+                                         "/api/auth/verify-email",
+                                         "/api/auth/resend-verification").permitAll()
                         .requestMatchers("/api/auth/admin/**").hasRole("ADMIN")
                         .anyRequest().authenticated()
                 )
@@ -99,7 +101,7 @@ public class SecurityConfig {
 
     @Bean
     public PasswordEncoder passwordEncoder() {
-        return new BCryptPasswordEncoder();
+        return new BCryptPasswordEncoder(12);
     }
 
     @Bean

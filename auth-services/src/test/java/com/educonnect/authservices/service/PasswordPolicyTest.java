@@ -10,7 +10,7 @@ class PasswordPolicyTest {
 
     private static PasswordPolicy policy(boolean enabled) {
         return new PasswordPolicy(new AuthSecurityProperties(
-                new AuthSecurityProperties.PasswordPolicy(enabled, 10), null, null));
+                new AuthSecurityProperties.PasswordPolicy(enabled, 10), null, null, null, null, null));
     }
 
     @Test

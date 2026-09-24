@@ -26,6 +26,12 @@ public interface UserRepository extends JpaRepository<User, UUID> {
     @Query("SELECT u.email FROM User u WHERE u.id IN :ids")
     List<String> findEmailsByIds(@Param("ids") List<UUID> ids);
 
+    boolean existsByRolesContaining(Role role);
+
+    @Modifying
+    @Query("UPDATE User u SET u.emailVerifiedAt = :now WHERE u.email = :email AND u.emailVerifiedAt IS NULL")
+    int markEmailVerified(@Param("email") String email, @Param("now") Instant now);
+
     @Query(value = "SELECT COUNT(*) > 0 FROM auth_db.users WHERE email = :email AND locked_until > :now", nativeQuery = true)
     boolean isLoginLocked(@Param("email") String email, @Param("now") Instant now);
 

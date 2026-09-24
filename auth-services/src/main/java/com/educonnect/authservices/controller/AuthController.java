@@ -4,7 +4,12 @@ import com.educonnect.authservices.dto.request.ChangePasswordRequest;
 import com.educonnect.authservices.dto.request.ForgotPasswordRequest;
 import com.educonnect.authservices.dto.request.LoginRequest;
 import com.educonnect.authservices.dto.request.RegisterRequest;
+import com.educonnect.authservices.dto.request.ResendVerificationRequest;
 import com.educonnect.authservices.dto.request.ResetPasswordRequest;
+import com.educonnect.authservices.service.EmailVerificationService;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import java.net.URI;
 import com.educonnect.authservices.dto.response.AuthResponse;
 import com.educonnect.authservices.service.AuthServiceImpl;
 import com.educonnect.authservices.Repository.UserRepository;
@@ -40,14 +45,17 @@ public class AuthController {
     private final AuthServiceImpl authService;
     private final UserRepository userRepository;
     private final boolean openRegistrationEnabled;
+    private final EmailVerificationService emailVerificationService;
 
     @Autowired
     public AuthController(AuthServiceImpl authService,
                           UserRepository userRepository,
-                          @Value("${auth.registration.open-enabled:false}") boolean openRegistrationEnabled) {
+                          @Value("${auth.registration.open-enabled:false}") boolean openRegistrationEnabled,
+                          EmailVerificationService emailVerificationService) {
         this.authService = authService;
         this.userRepository = userRepository;
         this.openRegistrationEnabled = openRegistrationEnabled;
+        this.emailVerificationService = emailVerificationService;
     }
 
     @PostMapping("/register")
@@ -88,6 +96,20 @@ public class AuthController {
         // Servis katmanında bu isteği işleyeceğiz (kimlik kartı fotoğrafı ile birlikte)
         authService.requestAcademicianAccount(request, idCardImage);
         return ResponseEntity.ok("Academician account request received. Pending admin approval.");
+    }
+
+    @GetMapping("/verify-email")
+    public ResponseEntity<Void> verifyEmail(@RequestParam(value = "token", required = false) String token) {
+        boolean verified = emailVerificationService.verify(token);
+        return ResponseEntity.status(HttpStatus.FOUND)
+                .location(URI.create(emailVerificationService.loginRedirectUrl(verified)))
+                .build();
+    }
+
+    @PostMapping("/resend-verification")
+    public ResponseEntity<String> resendVerification(@RequestBody ResendVerificationRequest request) {
+        emailVerificationService.resend(request != null ? request.email() : null);
+        return ResponseEntity.ok("E-posta adresi doğrulama bekliyorsa yeni bir doğrulama bağlantısı gönderildi.");
     }
 
     @PostMapping({"/request/club-official", "/request/club-official/{userId}"})

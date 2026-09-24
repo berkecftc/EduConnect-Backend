@@ -7,5 +7,6 @@ public record StudentRequestAdminView(
         String email,
         String studentNumber,
         String department,
-        String studentDocumentUrl
+        String studentDocumentUrl,
+        boolean emailVerified
 ) {}
