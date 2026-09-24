@@ -5,8 +5,6 @@ import com.educonnect.clubservice.Repository.ClubRepository;
 import com.educonnect.clubservice.Repository.RoleChangeRequestRepository;
 import com.educonnect.clubservice.client.UserClient;
 import com.educonnect.clubservice.config.ClubRabbitMQConfig;
-import com.educonnect.clubservice.dto.message.AssignClubRoleMessage;
-import com.educonnect.clubservice.dto.message.RevokeClubRoleMessage;
 import com.educonnect.clubservice.dto.message.RoleChangeNotificationMessage;
 import com.educonnect.clubservice.dto.request.CreateRoleChangeRequestDTO;
 import com.educonnect.clubservice.dto.request.RejectRoleChangeRequestDTO;
@@ -48,6 +46,7 @@ public class RoleChangeRequestService {
     private final RabbitTemplate rabbitTemplate;
     private final ClubAuthorizationService clubAuthorizationService;
     private final ClubCacheEvictor cacheEvictor;
+    private final ClubManagementStatusPublisher managementStatusPublisher;
 
     public RoleChangeRequestService(RoleChangeRequestRepository roleChangeRequestRepository,
                                      ClubMembershipRepository membershipRepository,
@@ -55,7 +54,8 @@ public class RoleChangeRequestService {
                                      UserClient userClient,
                                      RabbitTemplate rabbitTemplate,
                                      ClubAuthorizationService clubAuthorizationService,
-                                     ClubCacheEvictor cacheEvictor) {
+                                     ClubCacheEvictor cacheEvictor,
+                                     ClubManagementStatusPublisher managementStatusPublisher) {
         this.roleChangeRequestRepository = roleChangeRequestRepository;
         this.membershipRepository = membershipRepository;
         this.clubRepository = clubRepository;
@@ -63,6 +63,7 @@ public class RoleChangeRequestService {
         this.rabbitTemplate = rabbitTemplate;
         this.clubAuthorizationService = clubAuthorizationService;
         this.cacheEvictor = cacheEvictor;
+        this.managementStatusPublisher = managementStatusPublisher;
     }
 
     // ==================== KULÜP BAŞKANI İŞLEMLERİ ====================
@@ -206,7 +207,7 @@ public class RoleChangeRequestService {
         membershipRepository.save(membership);
         cacheEvictor.evictUser(request.getStudentId());
 
-        syncGlobalRole(request.getStudentId(), request.getClubId(), previousRole, newRole);
+        managementStatusPublisher.publishCurrentStatus(request.getStudentId());
 
         request.setStatus(RoleChangeRequestStatus.APPROVED);
         request.setProcessedAt(LocalDateTime.now());
@@ -295,7 +296,7 @@ public class RoleChangeRequestService {
         president.setTermEndDate(LocalDateTime.now());
         membershipRepository.save(president);
         cacheEvictor.evictUser(president.getStudentId());
-        syncGlobalRole(president.getStudentId(), clubId, ClubPosition.PRESIDENT, ClubPosition.MEMBER);
+        managementStatusPublisher.publishCurrentStatus(president.getStudentId());
 
         log.info("President removed by advisor: clubId={}, studentId={}, advisorId={}",
                 clubId, president.getStudentId(), advisorId);
@@ -364,22 +365,6 @@ public class RoleChangeRequestService {
             ensureNoManagementPositionElsewhere(request.getStudentId(), request.getClubId());
         }
         return membership;
-    }
-
-    private void syncGlobalRole(UUID studentId, UUID clubId, ClubPosition previousRole, ClubPosition newRole) {
-        if (newRole == ClubPosition.PRESIDENT) {
-            publishRoleMessage("user.role.assign", new AssignClubRoleMessage(studentId, "ROLE_CLUB_OFFICIAL", clubId));
-        } else if (previousRole == ClubPosition.PRESIDENT) {
-            publishRoleMessage("user.role.revoke", new RevokeClubRoleMessage(studentId, "ROLE_CLUB_OFFICIAL", clubId));
-        }
-    }
-
-    private void publishRoleMessage(String routingKey, Object message) {
-        try {
-            rabbitTemplate.convertAndSend(ClubRabbitMQConfig.USER_EXCHANGE_NAME, routingKey, message);
-        } catch (Exception e) {
-            log.error("Failed to send role message {}: {}", routingKey, e.getMessage(), e);
-        }
     }
 
     private UUID getClubPresidentId(UUID clubId) {

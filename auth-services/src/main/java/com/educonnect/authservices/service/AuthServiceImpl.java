@@ -131,16 +131,7 @@ public class AuthServiceImpl {
 
         var jwtToken = jwtService.generateToken(savedUser);
         var refreshToken = refreshTokenService.createRefreshToken(savedUser.getId());
-        Set<String> userRoles = savedUser.getRoles().stream()
-                .sorted((r1, r2) -> {
-                    if (r1.name().equals("ROLE_ADMIN")) return -1;
-                    if (r2.name().equals("ROLE_ADMIN")) return 1;
-                    return r1.name().compareTo(r2.name());
-                })
-                .map(Role::name)
-                .collect(Collectors.toCollection(java.util.LinkedHashSet::new));
-        return new AuthResponse(jwtToken, refreshToken.getToken(), "User registered successfully.",
-                savedUser.getId().toString(), savedUser.getEmail(), userRoles);
+        return buildAuthResponse(jwtToken, refreshToken.getToken(), "User registered successfully.", savedUser);
     }
 
     // --- ÖĞRENCİ BAŞVURU İŞLEMİ ---
@@ -427,17 +418,6 @@ public class AuthServiceImpl {
         // Refresh token oluştur
         var refreshToken = refreshTokenService.createRefreshToken(user.getId());
 
-        // Tüm rolleri al ve ROLE_ADMIN'i önce koy
-        Set<String> roles = user.getRoles().stream()
-                .sorted((r1, r2) -> {
-                    // ROLE_ADMIN önce gelsin
-                    if (r1.name().equals("ROLE_ADMIN")) return -1;
-                    if (r2.name().equals("ROLE_ADMIN")) return 1;
-                    return r1.name().compareTo(r2.name());
-                })
-                .map(Role::name)
-                .collect(Collectors.toCollection(java.util.LinkedHashSet::new));
-
         LocalDate istanbulToday = LocalDate.now(ZoneId.of("Europe/Istanbul"));
         String referenceId = "LOGIN:" + istanbulToday + ":" + user.getId();
         GamificationEventMessage gamificationEvent = new GamificationEventMessage(
@@ -446,38 +426,18 @@ public class AuthServiceImpl {
                 referenceId,
                 OffsetDateTime.now(ZoneId.of("Europe/Istanbul"))
         );
-        rabbitTemplate.convertAndSend(
-                RabbitMQConfig.GAMIFICATION_EXCHANGE,
-                RabbitMQConfig.GAMIFICATION_USER_LOGIN_ROUTING_KEY,
-                gamificationEvent
-        );
+        if (user.getRoles().contains(Role.ROLE_STUDENT)) {
+            rabbitTemplate.convertAndSend(
+                    RabbitMQConfig.GAMIFICATION_EXCHANGE,
+                    RabbitMQConfig.GAMIFICATION_USER_LOGIN_ROUTING_KEY,
+                    gamificationEvent
+            );
+        }
 
-        return new AuthResponse(jwt, refreshToken.getToken(), "Login successful",
-                user.getId().toString(), user.getEmail(), roles);
+        return buildAuthResponse(jwt, refreshToken.getToken(), "Login successful", user);
     }
 
     // ---- Kulüp Görevlisi Başvuru Akışı ----
-
-    /**
-     * Var olan kullanıcı (örn: ROLE_STUDENT) kulüp görevlisi olmak için başvurur.
-     * Kullanıcının rollerine ROLE_PENDING_CLUB_OFFICIAL eklenir.
-     */
-    public void requestClubOfficialRole(UUID userId) {
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new NoSuchElementException("User not found"));
-
-        Set<Role> roles = user.getRoles();
-        if (roles.contains(Role.ROLE_CLUB_OFFICIAL)) {
-            throw new IllegalStateException("User is already a club official");
-        }
-        if (roles.contains(Role.ROLE_PENDING_CLUB_OFFICIAL)) {
-            // idempotent davran; ikinci kez ekleme
-            return;
-        }
-        roles.add(Role.ROLE_PENDING_CLUB_OFFICIAL);
-        user.setRoles(roles);
-        userRepository.save(user);
-    }
 
     /**
      * Admin kulüp görevlisi talebini kabul eder.
@@ -598,12 +558,14 @@ public class AuthServiceImpl {
                 .orElseThrow(() -> new RuntimeException("User not found"));
 
         String newAccessToken = jwtService.generateToken(user);
-        Set<String> roles = user.getRoles().stream()
-                .map(Role::name)
-                .collect(Collectors.toSet());
+        return buildAuthResponse(newAccessToken, refreshTokenStr, "Token refreshed successfully", user);
+    }
 
-        return new AuthResponse(newAccessToken, refreshTokenStr, "Token refreshed successfully",
-                user.getId().toString(), user.getEmail(), roles);
+    private AuthResponse buildAuthResponse(String token, String refreshToken, String message, User user) {
+        Set<Role> roles = user.getRoles() != null ? user.getRoles() : Set.of();
+        return new AuthResponse(token, refreshToken, message, user.getId().toString(), user.getEmail(),
+                RolePresentation.orderedRoles(roles), RolePresentation.primaryRole(roles),
+                RolePresentation.pendingRequests(roles));
     }
 
     /**

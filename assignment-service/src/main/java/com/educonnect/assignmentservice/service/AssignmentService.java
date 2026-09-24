@@ -1,6 +1,7 @@
 package com.educonnect.assignmentservice.service;
 
 import com.educonnect.assignmentservice.client.CourseClient;
+import com.educonnect.assignmentservice.client.CourseInternalClient;
 import com.educonnect.assignmentservice.client.UserClient;
 import com.educonnect.assignmentservice.dto.*;
 import com.educonnect.assignmentservice.event.AssignmentNotificationEvent;
@@ -35,16 +36,18 @@ public class AssignmentService {
     private final SubmissionRepository submissionRepository;
     private final MinioService minioService;
     private final CourseClient courseClient;
+    private final CourseInternalClient courseInternalClient;
     private final UserClient userClient;
     private final AssignmentProducer assignmentProducer;
 
     public AssignmentService(AssignmentRepository repo, SubmissionRepository subRepo,
-                             MinioService minio, CourseClient client, UserClient userClient,
-                             AssignmentProducer producer) {
+                             MinioService minio, CourseClient client, CourseInternalClient internalClient,
+                             UserClient userClient, AssignmentProducer producer) {
         this.assignmentRepository = repo;
         this.submissionRepository = subRepo;
         this.minioService = minio;
         this.courseClient = client;
+        this.courseInternalClient = internalClient;
         this.userClient = userClient;
         this.assignmentProducer = producer;
     }
@@ -86,7 +89,7 @@ public class AssignmentService {
     private void sendAssignmentNotification(UUID courseId, Map<String, Object> courseData, Assignment assignment) {
         try {
             // Course-service'ten kayıtlı öğrenci ID'lerini çek
-            List<UUID> enrolledStudentIds = courseClient.getEnrolledStudentIds(courseId);
+            List<UUID> enrolledStudentIds = courseInternalClient.getEnrolledStudentIds(courseId);
 
             if (enrolledStudentIds == null || enrolledStudentIds.isEmpty()) {
                 log.info("📭 Derste kayıtlı öğrenci yok, ödev bildirimi gönderilmedi.");

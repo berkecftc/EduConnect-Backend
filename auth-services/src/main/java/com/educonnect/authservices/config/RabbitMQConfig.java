@@ -6,6 +6,7 @@ import org.springframework.amqp.core.Binding;
 import org.springframework.amqp.core.BindingBuilder;
 import org.springframework.amqp.core.DirectExchange;
 import org.springframework.amqp.core.Queue;
+import org.springframework.amqp.core.QueueBuilder;
 import org.springframework.amqp.core.TopicExchange;
 import org.springframework.amqp.rabbit.connection.ConnectionFactory;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
@@ -41,6 +42,10 @@ public class RabbitMQConfig {
     // Kulüp rolü kaldırma için queue ve routing key
     public static final String ROLE_REVOKE_QUEUE = "user-role-revoke-queue";
     public static final String ROLE_REVOKE_ROUTING_KEY = "user.role.revoke";
+
+    public static final String CLUB_MANAGEMENT_QUEUE = "user-club-management-queue";
+    public static final String CLUB_MANAGEMENT_DLQ = CLUB_MANAGEMENT_QUEUE + ".dlq";
+    public static final String CLUB_MANAGEMENT_ROUTING_KEY = "user.club-management.changed";
 
     // Kullanıcı silme için queue ve routing key
     public static final String USER_DELETE_QUEUE = "user-delete-queue";
@@ -111,6 +116,24 @@ public class RabbitMQConfig {
     @Bean
     public Binding roleAssignmentBinding(Queue userRoleAssignmentQueue, DirectExchange userExchange) {
         return BindingBuilder.bind(userRoleAssignmentQueue).to(userExchange).with(ROLE_ASSIGNMENT_ROUTING_KEY);
+    }
+
+    @Bean
+    public Queue clubManagementQueue() {
+        return QueueBuilder.durable(CLUB_MANAGEMENT_QUEUE)
+                .deadLetterExchange("")
+                .deadLetterRoutingKey(CLUB_MANAGEMENT_DLQ)
+                .build();
+    }
+
+    @Bean
+    public Queue clubManagementDeadLetterQueue() {
+        return QueueBuilder.durable(CLUB_MANAGEMENT_DLQ).build();
+    }
+
+    @Bean
+    public Binding clubManagementBinding(Queue clubManagementQueue, DirectExchange userExchange) {
+        return BindingBuilder.bind(clubManagementQueue).to(userExchange).with(CLUB_MANAGEMENT_ROUTING_KEY);
     }
 
     @Bean

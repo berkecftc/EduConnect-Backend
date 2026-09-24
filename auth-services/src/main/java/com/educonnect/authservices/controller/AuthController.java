@@ -90,33 +90,10 @@ public class AuthController {
         return ResponseEntity.ok("Academician account request received. Pending admin approval.");
     }
 
-    // --- YENİ ENDPOINT: Kulüp Görevlisi Rol Talebi ---
-    @PostMapping("/request/club-official")
+    @PostMapping({"/request/club-official", "/request/club-official/{userId}"})
     public ResponseEntity<String> requestClubOfficial() {
-        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-        String email = auth.getName();
-        User user = userRepository.findByEmail(email).orElseThrow();
-        authService.requestClubOfficialRole(user.getId());
-        return ResponseEntity.ok("Club official role request received. Pending admin approval.");
-    }
-
-    // --- Uyumluluk için: Path variable ile talep ---
-    @PostMapping("/request/club-official/{userId}")
-    public ResponseEntity<String> requestClubOfficialById(@PathVariable UUID userId) {
-        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-        // SecurityContext'teki principal bizim User detayımızdır
-        User principal = (User) auth.getPrincipal();
-        boolean isAdmin = auth.getAuthorities().stream()
-                .map(GrantedAuthority::getAuthority)
-                .anyMatch("ROLE_ADMIN"::equals);
-
-        // Admin değilse sadece kendi adına talep atabilir
-        if (!isAdmin && !principal.getId().equals(userId)) {
-            throw new AccessDeniedException("You cannot request club-official role for another user.");
-        }
-
-        authService.requestClubOfficialRole(userId);
-        return ResponseEntity.ok("Club official role request received. Pending admin approval.");
+        return ResponseEntity.status(HttpStatus.GONE)
+                .body("Genel kulüp yetkilisi başvurusu kapatıldı. Kulüp görevleri kulüp kuruluş başvurusu ve danışman onaylı görev atamasıyla verilir.");
     }
 
     // --- YENİ ENDPOINT: ŞİFRE DEĞİŞTİRME ---

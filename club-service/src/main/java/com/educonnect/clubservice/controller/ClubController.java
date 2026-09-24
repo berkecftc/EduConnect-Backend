@@ -145,7 +145,7 @@ public class ClubController {
     ) {
         UUID studentId = UUID.fromString(userIdHeader);
         clubService.submitClubCreationRequest(request, studentId);
-        return ResponseEntity.ok("Club creation request submitted. Pending admin approval.");
+        return ResponseEntity.ok("Club creation request submitted. Pending advisor approval.");
     }
 
     /**

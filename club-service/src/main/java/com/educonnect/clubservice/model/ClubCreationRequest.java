@@ -28,6 +28,15 @@ public class ClubCreationRequest {
 
     private LocalDateTime requestDate = LocalDateTime.now();
 
+    @Column(name = "rejection_reason", columnDefinition = "TEXT")
+    private String rejectionReason;
+
+    @Column(name = "processed_at")
+    private LocalDateTime processedAt;
+
+    @Column(name = "processed_by")
+    private UUID processedBy;
+
     // --- Getter ve Setter ---
     public UUID getId() { return id; }
     public void setId(UUID id) { this.id = id; }
@@ -41,4 +50,10 @@ public class ClubCreationRequest {
     public void setSuggestedAdvisorId(UUID suggestedAdvisorId) { this.suggestedAdvisorId = suggestedAdvisorId; }
     public String getStatus() { return status; }
     public void setStatus(String status) { this.status = status; }
+    public String getRejectionReason() { return rejectionReason; }
+    public void setRejectionReason(String rejectionReason) { this.rejectionReason = rejectionReason; }
+    public LocalDateTime getProcessedAt() { return processedAt; }
+    public void setProcessedAt(LocalDateTime processedAt) { this.processedAt = processedAt; }
+    public UUID getProcessedBy() { return processedBy; }
+    public void setProcessedBy(UUID processedBy) { this.processedBy = processedBy; }
 }

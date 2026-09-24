@@ -35,6 +35,18 @@ public class ClubNotificationPublisher {
         }
     }
 
+    public void notifyUserAboutClubName(UUID targetUserId, String clubName, String subject, String message) {
+        if (targetUserId == null) {
+            return;
+        }
+        try {
+            rabbitTemplate.convertAndSend(ClubRabbitMQConfig.CLUB_EXCHANGE_NAME, ROUTING_KEY_CLUB_NOTIFICATION,
+                    new ClubNotificationMessage(targetUserId, null, clubName, subject, message));
+        } catch (Exception e) {
+            log.error("Failed to publish club notification for {}: {}", clubName, e.getMessage());
+        }
+    }
+
     public void notifyAdvisor(Club club, String subject, String message) {
         if (club != null) {
             notifyUser(club.getAcademicAdvisorId(), club, subject, message);

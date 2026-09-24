@@ -13,8 +13,4 @@ public interface CourseClient {
     // Sadece ders var mı yok mu ve temel bilgisi için
     @GetMapping("/{id}")
     Map<String, Object> getCourseById(@PathVariable("id") UUID id);
-
-    // Kayıtlı öğrenci ID listesi
-    @GetMapping("/{courseId}/enrolled-students/ids")
-    List<UUID> getEnrolledStudentIds(@PathVariable("courseId") UUID courseId);
 }

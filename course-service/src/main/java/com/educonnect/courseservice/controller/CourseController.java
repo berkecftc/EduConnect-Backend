@@ -144,8 +144,12 @@ public class CourseController {
     @PostMapping("/{courseId}/apply")
     public ResponseEntity<?> applyToCourse(
             @PathVariable UUID courseId,
-            @RequestHeader("X-Authenticated-User-Id") String studentIdHeader
+            @RequestHeader("X-Authenticated-User-Id") String studentIdHeader,
+            @RequestHeader(value = "X-Authenticated-User-Roles", required = false) String roles
     ) {
+        if (!hasRole(roles, "ROLE_STUDENT")) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Derse yalnızca öğrenciler başvurabilir.");
+        }
         try {
             UUID studentId = UUID.fromString(studentIdHeader);
             CourseApplicationResponse response = applicationService.applyToCourse(courseId, studentId);
@@ -265,12 +269,6 @@ public class CourseController {
         } catch (RuntimeException e) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
         }
-    }
-
-    // DİĞER SERVİSLER İÇİN - KAYITLI ÖĞRENCİ ID LİSTESİ
-    @GetMapping("/{courseId}/enrolled-students/ids")
-    public ResponseEntity<List<UUID>> getEnrolledStudentIds(@PathVariable UUID courseId) {
-        return ResponseEntity.ok(courseService.getEnrolledStudentIds(courseId));
     }
 
     // ===================== DOSYA İNDİRME =====================

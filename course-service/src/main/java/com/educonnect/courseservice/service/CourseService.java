@@ -118,6 +118,18 @@ public class CourseService {
         evictInstructorCoursesCache(course.getInstructorId());
     }
 
+    private void ensureStudent(UUID userId) {
+        UserSummaryDto user;
+        try {
+            user = userClient.getUserById(userId);
+        } catch (Exception e) {
+            throw new IllegalArgumentException("Öğrenci bulunamadı: " + userId);
+        }
+        if (user == null || !"Student".equalsIgnoreCase(user.getRole())) {
+            throw new IllegalArgumentException("Derse yalnızca öğrenciler kaydedilebilir.");
+        }
+    }
+
     // 6. ÖĞRENCİ KURSA KAYDET (Akademisyen tarafından - doğrudan ekleme)
     @Transactional
     @Caching(evict = {
@@ -140,6 +152,8 @@ public class CourseService {
         if (enrolledCount >= course.getCapacity()) {
             throw new CourseCapacityFullException("Ders kapasitesi dolmuş. Öğrenci eklenemez.");
         }
+
+        ensureStudent(studentId);
 
         StudentCourseEnrollment enrollment = new StudentCourseEnrollment(courseId, studentId);
         enrollmentRepository.save(enrollment);

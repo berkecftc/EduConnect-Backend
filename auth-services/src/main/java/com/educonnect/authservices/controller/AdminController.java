@@ -27,56 +27,6 @@ public class AdminController {
 
 
 
-    // Kulüp görevlisi talebini onayla
-    @PreAuthorize("hasRole('ADMIN')")
-    @PostMapping("/approve/club-official/{userId}")
-    public ResponseEntity<String> approveClubOfficial(@PathVariable UUID userId) {
-        authService.approveClubOfficial(userId);
-        return ResponseEntity.ok("Club official request approved.");
-    }
-
-    // Kulüp görevlisi talebini reddet
-    @PreAuthorize("hasRole('ADMIN')")
-    @PostMapping("/reject/club-official/{userId}")
-    public ResponseEntity<String> rejectClubOfficial(@PathVariable UUID userId) {
-        authService.rejectClubOfficial(userId);
-        return ResponseEntity.ok("Club official request rejected.");
-    }
-
-    // Bekleyen kulüp görevlisi taleplerini listele
-    @PreAuthorize("hasRole('ADMIN')")
-    @GetMapping("/pending/club-official")
-    public ResponseEntity<List<Map<String, Object>>> listPendingClubOfficialRequests() {
-        try {
-            System.out.println("DEBUG: /pending/club-official endpoint'ine istek geldi");
-            List<User> users = userRepository.findAllByRolesContaining(Role.ROLE_PENDING_CLUB_OFFICIAL);
-            System.out.println("DEBUG: Bulunan kullanıcı sayısı: " + users.size());
-
-            List<Map<String, Object>> result = users.stream()
-                    .map(u -> {
-                        try {
-                            return Map.of(
-                                    "id", u.getId(),
-                                    "email", u.getEmail(),
-                                    "roles", u.getRoles().stream()
-                                            .map(Role::name)
-                                            .collect(Collectors.toSet())
-                            );
-                        } catch (Exception e) {
-                            System.err.println("Kullanıcı map'leme hatası: " + e.getMessage());
-                            e.printStackTrace();
-                            throw e;
-                        }
-                    })
-                    .collect(Collectors.toList());
-            return ResponseEntity.ok(result);
-        } catch (Exception e) {
-            System.err.println("🔥 /pending/club-official endpoint hatası:");
-            e.printStackTrace();
-            return ResponseEntity.internalServerError().body(null);
-        }
-    }
-
     // Kullanıcıyı admin yap
     @PreAuthorize("hasRole('ADMIN')")
     @PostMapping("/promote/{userId}")

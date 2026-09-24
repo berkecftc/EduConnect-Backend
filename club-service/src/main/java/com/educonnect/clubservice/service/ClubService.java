@@ -3,9 +3,7 @@ package com.educonnect.clubservice.service;
 import com.educonnect.clubservice.Repository.ClubCreationRequestRepository;
 import com.educonnect.clubservice.client.UserClient;
 import com.educonnect.clubservice.config.ClubRabbitMQConfig; // RabbitMQ yapılandırmamız
-import com.educonnect.clubservice.dto.message.AssignClubRoleMessage;
 import com.educonnect.clubservice.dto.message.ClubUpdateMessage;
-import com.educonnect.clubservice.dto.message.RevokeClubRoleMessage;
 import com.educonnect.clubservice.dto.request.*;
 import com.educonnect.clubservice.dto.response.AcademicianSummary;
 import com.educonnect.clubservice.dto.response.ArchivedClubDTO;
@@ -56,6 +54,8 @@ public class ClubService {
     private final ArchivedClubRepository archivedClubRepository;
     private final ClubAuthorizationService clubAuthorizationService;
     private final ClubCacheEvictor cacheEvictor;
+    private final ClubManagementStatusPublisher managementStatusPublisher;
+    private final ClubNotificationPublisher notificationPublisher;
 
     public ClubService(ClubRepository clubRepository,
                        ClubMembershipRepository membershipRepository,
@@ -65,7 +65,9 @@ public class ClubService {
                        UserClient userClient,
                        ArchivedClubRepository archivedClubRepository,
                        ClubAuthorizationService clubAuthorizationService,
-                       ClubCacheEvictor cacheEvictor) {
+                       ClubCacheEvictor cacheEvictor,
+                       ClubManagementStatusPublisher managementStatusPublisher,
+                       ClubNotificationPublisher notificationPublisher) {
         this.clubRepository = clubRepository;
         this.membershipRepository = membershipRepository;
         this.rabbitTemplate = rabbitTemplate;
@@ -75,6 +77,8 @@ public class ClubService {
         this.archivedClubRepository = archivedClubRepository;
         this.clubAuthorizationService = clubAuthorizationService;
         this.cacheEvictor = cacheEvictor;
+        this.managementStatusPublisher = managementStatusPublisher;
+        this.notificationPublisher = notificationPublisher;
     }
 
     /**
@@ -116,29 +120,7 @@ public class ClubService {
         presidentMembership.setTermStartDate(java.time.LocalDateTime.now());
         membershipRepository.save(presidentMembership);
         cacheEvictor.evictUser(request.getClubPresidentId());
-
-        // 5. RabbitMQ ile auth-service'e mesaj gönder: Başkana ROLE_CLUB_OFFICIAL rolü ata
-        try {
-            AssignClubRoleMessage message = new AssignClubRoleMessage(
-                    request.getClubPresidentId(),
-                    "ROLE_CLUB_OFFICIAL",
-                    savedClub.getId()
-            );
-
-            String routingKey = "user.role.assign";
-            rabbitTemplate.convertAndSend(
-                    ClubRabbitMQConfig.USER_EXCHANGE_NAME,
-                    routingKey,
-                    message
-            );
-
-            log.info("Sent role assignment message for user {} to become ROLE_CLUB_OFFICIAL of club {}",
-                    request.getClubPresidentId(), savedClub.getId());
-        } catch (Exception e) {
-            log.error("Failed to send role assignment message: {}", e.getMessage(), e);
-            // İsterse burada exception fırlatabilirsiniz veya sadece log bırakabilirsiniz
-            // Şu an için sadece log bırakıyoruz, kulüp oluşumu başarılı olsun
-        }
+        managementStatusPublisher.publishCurrentStatus(request.getClubPresidentId());
 
         return savedClub;
     }
@@ -300,6 +282,13 @@ public class ClubService {
         // 3. Kulübün tüm üyeliklerini sil
         List<ClubMembership> members = membershipRepository.findByClubId(clubId);
         membershipRepository.deleteAll(members);
+        membershipRepository.flush();
+        members.forEach(member -> {
+            cacheEvictor.evictUser(member.getStudentId());
+            if (member.isActive() && member.getClubRole().isManagement()) {
+                managementStatusPublisher.publishCurrentStatus(member.getStudentId());
+            }
+        });
         log.info("Deleted {} memberships for club: {}", members.size(), club.getName());
 
         // 4. Aktif tablodan kulübü sil
@@ -393,7 +382,11 @@ public class ClubService {
         }
 
         membershipRepository.delete(membership);
+        membershipRepository.flush();
         cacheEvictor.evictUser(studentId);
+        if (membership.isActive() && membership.getClubRole().isManagement()) {
+            managementStatusPublisher.publishCurrentStatus(studentId);
+        }
     }
 
     // --- YENİ METOT: KULÜP LOGOSU YÜKLEME ---
@@ -488,9 +481,18 @@ public class ClubService {
     }
 
     // --- 1. ÖĞRENCİ: Talep Oluşturma ---
-    public void submitClubCreationRequest(SubmitClubRequest request, UUID studentId) {
+    public ClubCreationRequest submitClubCreationRequest(SubmitClubRequest request, UUID studentId) {
+        if (request.getName() == null || request.getName().isBlank()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Kulüp adı zorunludur.");
+        }
         ensureValidAdvisor(request.getAcademicAdvisorId());
         ensureEligibleForManagement(studentId);
+        if (requestRepository.existsByRequestingStudentIdAndStatus(studentId, "PENDING")) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Bekleyen bir kulüp kuruluş başvurunuz zaten var.");
+        }
+        if (clubRepository.findByName(request.getName()).isPresent()) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Bu isimde bir kulüp zaten var.");
+        }
 
         ClubCreationRequest newRequest = new ClubCreationRequest();
         newRequest.setClubName(request.getName());
@@ -498,34 +500,75 @@ public class ClubService {
         newRequest.setSuggestedAdvisorId(request.getAcademicAdvisorId());
         newRequest.setRequestingStudentId(studentId); // Token'dan gelen ID
 
-        requestRepository.save(newRequest);
+        ClubCreationRequest saved = requestRepository.save(newRequest);
+        notificationPublisher.notifyUserAboutClubName(request.getAcademicAdvisorId(), request.getName(),
+                "Kulüp kuruluş başvurusu",
+                "\"" + request.getName() + "\" kulübü için danışmanlık onayınız bekleniyor.");
+        return saved;
     }
 
     // --- 2. ADMIN: Talebi Onaylama ---
     public Club approveClubCreationRequest(UUID requestId) {
-        // Talebi bul
         ClubCreationRequest request = requestRepository.findById(requestId)
-                .orElseThrow(() -> new RuntimeException("Request not found"));
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Başvuru bulunamadı"));
+        return approveCreationRequest(request, null);
+    }
 
+    public List<ClubCreationRequest> getPendingCreationRequestsForAdvisor(UUID advisorId) {
+        return requestRepository.findByStatusAndSuggestedAdvisorId("PENDING", advisorId);
+    }
+
+    public Club approveClubCreationRequestByAdvisor(UUID requestId, UUID advisorId) {
+        ClubCreationRequest request = findCreationRequestForAdvisor(requestId, advisorId);
+        return approveCreationRequest(request, advisorId);
+    }
+
+    public ClubCreationRequest rejectClubCreationRequestByAdvisor(UUID requestId, UUID advisorId, String reason) {
+        ClubCreationRequest request = findCreationRequestForAdvisor(requestId, advisorId);
+        request.setStatus("REJECTED");
+        request.setRejectionReason(reason);
+        request.setProcessedAt(LocalDateTime.now());
+        request.setProcessedBy(advisorId);
+        ClubCreationRequest saved = requestRepository.save(request);
+
+        String message = "\"" + request.getClubName() + "\" kulübü için kuruluş başvurunuz danışman tarafından reddedildi.";
+        if (reason != null && !reason.isBlank()) {
+            message += " Neden: " + reason;
+        }
+        notificationPublisher.notifyUserAboutClubName(request.getRequestingStudentId(), request.getClubName(),
+                "Kulüp kuruluş başvurusu", message);
+        return saved;
+    }
+
+    private ClubCreationRequest findCreationRequestForAdvisor(UUID requestId, UUID advisorId) {
+        ClubCreationRequest request = requestRepository.findById(requestId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Başvuru bulunamadı"));
+        if (!advisorId.equals(request.getSuggestedAdvisorId())) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Bu başvurunun önerilen danışmanı değilsiniz.");
+        }
+        return request;
+    }
+
+    private Club approveCreationRequest(ClubCreationRequest request, UUID approverId) {
         if (!"PENDING".equals(request.getStatus())) {
-            throw new IllegalStateException("Request is already processed.");
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Bu başvuru zaten işlenmiş.");
         }
 
-        // Mevcut 'createClub' mantığını kullanarak gerçek kulübü oluştur
-        // Bunun için CreateClubRequest DTO'sunu manuel dolduruyoruz
         CreateClubRequest createDto = new CreateClubRequest();
         createDto.setName(request.getClubName());
         createDto.setAbout(request.getAbout());
         createDto.setAcademicAdvisorId(request.getSuggestedAdvisorId());
         createDto.setClubPresidentId(request.getRequestingStudentId()); // Talep eden kişi BAŞKAN olur
 
-        // Mevcut metodu çağır (Bu metot kulübü kurar, başkanı atar ve RabbitMQ mesajını atar)
         Club newClub = createClub(createDto);
 
-        // Talebin durumunu güncelle
         request.setStatus("APPROVED");
+        request.setProcessedAt(LocalDateTime.now());
+        request.setProcessedBy(approverId);
         requestRepository.save(request);
 
+        notificationPublisher.notifyUser(request.getRequestingStudentId(), newClub, "Kulüp kuruluş başvurusu",
+                "\"" + newClub.getName() + "\" kulübünün kuruluşu onaylandı. Kulüp başkanı olarak atandınız.");
         return newClub;
     }
 
@@ -539,13 +582,9 @@ public class ClubService {
         ClubCreationRequest request = requestRepository.findById(requestId)
                 .orElseThrow(() -> new RuntimeException("İstek bulunamadı"));
 
-        // YÖNTEM 1: Durumu REJECTED yapıp saklamak (Tavsiye edilen)
-        // Eğer Status enum'ında REJECTED yoksa eklemen gerekir.
-        // request.setStatus(RequestStatus.REJECTED);
-        // requestRepository.save(request);
-
-        // YÖNTEM 2: Direkt Silmek (Daha basit)
-        requestRepository.delete(request);
+        request.setStatus("REJECTED");
+        request.setProcessedAt(LocalDateTime.now());
+        requestRepository.save(request);
     }
 
     // 1. ADMIN İÇİN TÜM AKTİF KULÜPLERİ GETİR

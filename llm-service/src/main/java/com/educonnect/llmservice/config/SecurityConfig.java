@@ -27,6 +27,8 @@ public class SecurityConfig {
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/api/*/internal/**").hasRole(ServiceIdentity.ROLE)
+                        .requestMatchers("/api/ai/instructor-copilot").hasRole("ACADEMICIAN")
+                        .requestMatchers("/api/ai/student-assistant").hasRole("STUDENT")
                         .anyRequest().permitAll())
                 .addFilterBefore(verifiedIdentityFilter, UsernamePasswordAuthenticationFilter.class)
                 .formLogin(form -> form.disable())

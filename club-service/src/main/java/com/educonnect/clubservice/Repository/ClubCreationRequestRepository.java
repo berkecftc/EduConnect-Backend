@@ -17,4 +17,8 @@ public interface ClubCreationRequestRepository extends JpaRepository<ClubCreatio
      * @return Belirtilen duruma sahip taleplerin listesi
      */
     List<ClubCreationRequest> findByStatus(String status);
+
+    List<ClubCreationRequest> findByStatusAndSuggestedAdvisorId(String status, UUID suggestedAdvisorId);
+
+    boolean existsByRequestingStudentIdAndStatus(UUID requestingStudentId, String status);
 }

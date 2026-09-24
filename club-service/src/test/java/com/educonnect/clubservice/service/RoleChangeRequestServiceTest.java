@@ -27,7 +27,6 @@ import java.util.UUID;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -45,6 +44,7 @@ class RoleChangeRequestServiceTest {
     private ClubMembershipRepository membershipRepository;
     private ClubAuthorizationService authorizationService;
     private RabbitTemplate rabbitTemplate;
+    private ClubManagementStatusPublisher managementStatusPublisher;
     private RoleChangeRequestService service;
 
     @BeforeEach
@@ -54,8 +54,9 @@ class RoleChangeRequestServiceTest {
         ClubRepository clubRepository = mock(ClubRepository.class);
         authorizationService = mock(ClubAuthorizationService.class);
         rabbitTemplate = mock(RabbitTemplate.class);
+        managementStatusPublisher = mock(ClubManagementStatusPublisher.class);
         service = new RoleChangeRequestService(requestRepository, membershipRepository, clubRepository,
-                mock(UserClient.class), rabbitTemplate, authorizationService, mock(ClubCacheEvictor.class));
+                mock(UserClient.class), rabbitTemplate, authorizationService, mock(ClubCacheEvictor.class), managementStatusPublisher);
 
         Club club = new Club();
         club.setId(clubId);
@@ -100,7 +101,7 @@ class RoleChangeRequestServiceTest {
         assertThat(saved.getValue().getCurrentRole()).isEqualTo(ClubPosition.VICE_PRESIDENT);
         assertThat(saved.getValue().getStatus()).isEqualTo(RoleChangeRequestStatus.PENDING);
         assertThat(target.getClubRole()).isEqualTo(ClubPosition.VICE_PRESIDENT);
-        verify(rabbitTemplate, never()).convertAndSend(eq("user-exchange"), anyString(), any(Object.class));
+        verify(managementStatusPublisher, never()).publishCurrentStatus(any());
     }
 
     @Test
@@ -155,6 +156,7 @@ class RoleChangeRequestServiceTest {
         assertThat(target.getClubRole()).isEqualTo(ClubPosition.MEMBER);
         assertThat(target.getTermEndDate()).isNotNull();
         assertThat(request.getStatus()).isEqualTo(RoleChangeRequestStatus.APPROVED);
+        verify(managementStatusPublisher).publishCurrentStatus(studentId);
         verify(authorizationService).require(clubId, advisorId, ClubPermission.ADVISE);
     }
 
@@ -194,6 +196,6 @@ class RoleChangeRequestServiceTest {
 
         assertThat(president.getClubRole()).isEqualTo(ClubPosition.MEMBER);
         assertThat(president.getTermEndDate()).isNotNull();
-        verify(rabbitTemplate).convertAndSend(eq("user-exchange"), eq("user.role.revoke"), any(Object.class));
+        verify(managementStatusPublisher).publishCurrentStatus(presidentId);
     }
 }

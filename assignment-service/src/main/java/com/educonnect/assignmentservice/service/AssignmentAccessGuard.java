@@ -1,6 +1,7 @@
 package com.educonnect.assignmentservice.service;
 
 import com.educonnect.assignmentservice.client.CourseClient;
+import com.educonnect.assignmentservice.client.CourseInternalClient;
 import com.educonnect.assignmentservice.model.Assignment;
 import com.educonnect.assignmentservice.model.AssignmentSubmission;
 import com.educonnect.assignmentservice.repository.AssignmentRepository;
@@ -23,13 +24,16 @@ public class AssignmentAccessGuard {
     private static final Logger log = LoggerFactory.getLogger(AssignmentAccessGuard.class);
 
     private final CourseClient courseClient;
+    private final CourseInternalClient courseInternalClient;
     private final AssignmentRepository assignmentRepository;
     private final SubmissionRepository submissionRepository;
 
     public AssignmentAccessGuard(CourseClient courseClient,
+                                 CourseInternalClient courseInternalClient,
                                  AssignmentRepository assignmentRepository,
                                  SubmissionRepository submissionRepository) {
         this.courseClient = courseClient;
+        this.courseInternalClient = courseInternalClient;
         this.assignmentRepository = assignmentRepository;
         this.submissionRepository = submissionRepository;
     }
@@ -118,7 +122,7 @@ public class AssignmentAccessGuard {
 
     private boolean isEnrolled(UUID courseId, UUID userId) {
         try {
-            List<UUID> studentIds = courseClient.getEnrolledStudentIds(courseId);
+            List<UUID> studentIds = courseInternalClient.getEnrolledStudentIds(courseId);
             return studentIds != null && studentIds.contains(userId);
         } catch (Exception e) {
             log.error("Could not fetch enrolled students for course {}: {}", courseId, e.getMessage());
