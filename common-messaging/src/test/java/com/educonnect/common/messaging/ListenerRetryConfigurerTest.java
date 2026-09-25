@@ -1,5 +1,6 @@
 package com.educonnect.common.messaging;
 
+import com.educonnect.common.messaging.dedup.DuplicateMessageFilter;
 import org.aopalliance.aop.Advice;
 import org.junit.jupiter.api.Test;
 import org.springframework.amqp.AmqpRejectAndDontRequeueException;
@@ -29,7 +30,8 @@ class ListenerRetryConfigurerTest {
 
         configurer(properties).postProcessAfterInitialization(factory, "rabbitListenerContainerFactory");
 
-        assertThat(factory.getAdviceChain()).hasSize(1);
+        assertThat(factory.getAdviceChain()).hasSize(2);
+        assertThat(factory.getAdviceChain()[1]).isInstanceOf(DuplicateMessageFilter.class);
     }
 
     @Test
@@ -82,7 +84,7 @@ class ListenerRetryConfigurerTest {
 
     @SuppressWarnings("unchecked")
     private static ListenerRetryConfigurer configurer(MessagingProperties properties) {
-        return new ListenerRetryConfigurer(properties, mock(ObjectProvider.class));
+        return new ListenerRetryConfigurer(properties, mock(ObjectProvider.class), mock(ObjectProvider.class));
     }
 
     private static ListenerExecutionFailedException wrapped(Throwable cause) {

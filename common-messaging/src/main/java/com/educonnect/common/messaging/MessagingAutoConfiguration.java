@@ -1,5 +1,6 @@
 package com.educonnect.common.messaging;
 
+import com.educonnect.common.messaging.dedup.ProcessedMessageStore;
 import org.springframework.amqp.core.AmqpAdmin;
 import org.springframework.amqp.core.AmqpTemplate;
 import org.springframework.amqp.rabbit.config.RabbitListenerConfigUtils;
@@ -24,10 +25,11 @@ public class MessagingAutoConfiguration {
 
     @Bean
     public static ListenerRetryConfigurer listenerRetryConfigurer(Environment environment,
-                                                                  ObjectProvider<AmqpTemplate> amqpTemplate) {
+                                                                  ObjectProvider<AmqpTemplate> amqpTemplate,
+                                                                  ObjectProvider<ProcessedMessageStore> processedMessageStore) {
         MessagingProperties properties = Binder.get(environment)
                 .bindOrCreate("educonnect.messaging.retry", MessagingProperties.class);
-        return new ListenerRetryConfigurer(properties, amqpTemplate);
+        return new ListenerRetryConfigurer(properties, amqpTemplate, processedMessageStore);
     }
 
     @Bean

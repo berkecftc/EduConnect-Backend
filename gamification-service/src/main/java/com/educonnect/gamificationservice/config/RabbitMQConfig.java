@@ -1,20 +1,15 @@
 package com.educonnect.gamificationservice.config;
 
-import com.educonnect.gamificationservice.dto.event.GamificationEvent;
 import org.springframework.amqp.core.Binding;
 import org.springframework.amqp.core.BindingBuilder;
 import org.springframework.amqp.core.Queue;
 import org.springframework.amqp.core.TopicExchange;
 import org.springframework.amqp.rabbit.config.SimpleRabbitListenerContainerFactory;
 import org.springframework.amqp.rabbit.connection.ConnectionFactory;
-import org.springframework.amqp.support.converter.DefaultClassMapper;
 import org.springframework.amqp.support.converter.Jackson2JsonMessageConverter;
 import org.springframework.amqp.support.converter.MessageConverter;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-
-import java.util.HashMap;
-import java.util.Map;
 
 @Configuration
 public class RabbitMQConfig {
@@ -42,26 +37,7 @@ public class RabbitMQConfig {
 
     @Bean
     public MessageConverter jsonMessageConverter() {
-        Jackson2JsonMessageConverter converter = new Jackson2JsonMessageConverter();
-        DefaultClassMapper classMapper = new DefaultClassMapper();
-        classMapper.setTrustedPackages("com.educonnect.gamificationservice");
-
-        Map<String, Class<?>> idClassMapping = new HashMap<>();
-        idClassMapping.put(
-                "com.educonnect.authservices.dto.message.GamificationEventMessage",
-                GamificationEvent.class
-        );
-        idClassMapping.put(
-                "com.educonnect.postservice.event.GamificationEvent",
-                GamificationEvent.class
-        );
-        idClassMapping.put(
-                "com.educonnect.userservice.dto.message.GamificationEventMessage",
-                GamificationEvent.class
-        );
-        classMapper.setIdClassMapping(idClassMapping);
-        converter.setClassMapper(classMapper);
-        return converter;
+        return new Jackson2JsonMessageConverter();
     }
 
     @Bean

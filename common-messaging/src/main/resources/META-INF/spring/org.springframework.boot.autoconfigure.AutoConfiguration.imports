@@ -1,2 +1,3 @@
 com.educonnect.common.messaging.MessagingAutoConfiguration
 com.educonnect.common.messaging.outbox.OutboxAutoConfiguration
+com.educonnect.common.messaging.dedup.DeduplicationAutoConfiguration

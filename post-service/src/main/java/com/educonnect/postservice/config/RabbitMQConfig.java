@@ -6,6 +6,7 @@ import org.springframework.amqp.core.Queue;
 import org.springframework.amqp.core.TopicExchange;
 import org.springframework.amqp.support.converter.Jackson2JsonMessageConverter;
 import org.springframework.amqp.support.converter.MessageConverter;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
@@ -42,12 +43,14 @@ public class RabbitMQConfig {
     }
 
     @Bean
+    @ConditionalOnProperty(name = "post.moderation.mock-consumer.enabled", havingValue = "true", matchIfMissing = true)
     public Queue postModerationQueue() {
         // durable: true — broker yeniden başlatılsa bile kuyruk ve mesajları korunur
         return new Queue(POST_MODERATION_QUEUE, true);
     }
 
     @Bean
+    @ConditionalOnProperty(name = "post.moderation.mock-consumer.enabled", havingValue = "true", matchIfMissing = true)
     public Binding postModerationBinding(Queue postModerationQueue, TopicExchange postModerationExchange) {
         return BindingBuilder
                 .bind(postModerationQueue)

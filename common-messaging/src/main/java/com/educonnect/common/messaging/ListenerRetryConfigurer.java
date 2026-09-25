@@ -1,5 +1,7 @@
 package com.educonnect.common.messaging;
 
+import com.educonnect.common.messaging.dedup.DuplicateMessageFilter;
+import com.educonnect.common.messaging.dedup.ProcessedMessageStore;
 import org.springframework.amqp.AmqpRejectAndDontRequeueException;
 import org.springframework.amqp.core.AmqpTemplate;
 import org.springframework.amqp.core.Message;
@@ -19,10 +21,14 @@ public class ListenerRetryConfigurer implements BeanPostProcessor {
 
     private final MessagingProperties properties;
     private final ObjectProvider<AmqpTemplate> amqpTemplate;
+    private final ObjectProvider<ProcessedMessageStore> processedMessageStore;
 
-    public ListenerRetryConfigurer(MessagingProperties properties, ObjectProvider<AmqpTemplate> amqpTemplate) {
+    public ListenerRetryConfigurer(MessagingProperties properties,
+                                   ObjectProvider<AmqpTemplate> amqpTemplate,
+                                   ObjectProvider<ProcessedMessageStore> processedMessageStore) {
         this.properties = properties;
         this.amqpTemplate = amqpTemplate;
+        this.processedMessageStore = processedMessageStore;
     }
 
     @Override
@@ -30,10 +36,12 @@ public class ListenerRetryConfigurer implements BeanPostProcessor {
         if (properties.enabled() && bean instanceof AbstractRabbitListenerContainerFactory<?> factory) {
             factory.setDefaultRequeueRejected(false);
             if (factory.getAdviceChain() == null || factory.getAdviceChain().length == 0) {
-                factory.setAdviceChain(RetryInterceptorBuilder.stateless()
-                        .retryOperations(retryTemplate(properties))
-                        .recoverer(recoverer())
-                        .build());
+                factory.setAdviceChain(
+                        RetryInterceptorBuilder.stateless()
+                                .retryOperations(retryTemplate(properties))
+                                .recoverer(recoverer())
+                                .build(),
+                        new DuplicateMessageFilter(processedMessageStore));
             }
         }
         return bean;

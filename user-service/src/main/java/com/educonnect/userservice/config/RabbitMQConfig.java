@@ -8,13 +8,9 @@ import org.springframework.amqp.rabbit.config.SimpleRabbitListenerContainerFacto
 import org.springframework.amqp.rabbit.connection.ConnectionFactory;
 import org.springframework.amqp.support.converter.Jackson2JsonMessageConverter;
 import org.springframework.amqp.support.converter.MessageConverter;
-import org.springframework.amqp.support.converter.DefaultClassMapper;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-
-import java.util.HashMap;
-import java.util.Map;
 
 @Configuration
 public class RabbitMQConfig {
@@ -39,25 +35,7 @@ public class RabbitMQConfig {
 
     @Bean
     public MessageConverter jsonMessageConverter() {
-        Jackson2JsonMessageConverter converter = new Jackson2JsonMessageConverter();
-        DefaultClassMapper classMapper = new DefaultClassMapper();
-        classMapper.setTrustedPackages("com.educonnect.userservice");
-        Map<String, Class<?>> idClassMapping = new HashMap<>();
-        idClassMapping.put(
-                "com.educonnect.authservices.dto.message.UserRegisteredMessage",
-                com.educonnect.userservice.dto.message.UserRegisteredMessage.class
-        );
-        idClassMapping.put(
-                "com.educonnect.authservices.dto.message.AcademicianProfileMessage",
-                com.educonnect.userservice.dto.message.AcademicianProfileMessage.class
-        );
-        idClassMapping.put(
-                "com.educonnect.authservices.dto.message.UserDeletedMessage",
-                com.educonnect.userservice.dto.message.UserDeletedMessage.class
-        );
-        classMapper.setIdClassMapping(idClassMapping);
-        converter.setClassMapper(classMapper);
-        return converter;
+        return new Jackson2JsonMessageConverter();
     }
 
     @Bean
