@@ -38,6 +38,8 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -719,7 +721,16 @@ public class AuthServiceImpl {
         );
         LOGGER.info("User deletion message queued. UserID: {}, Type: {}", userId, userType);
 
-        requestRepository.findByUserId(userId).ifPresent(requestRepository::delete);
+        requestRepository.findByUserId(userId).ifPresent(request -> {
+            requestRepository.delete(request);
+            String idCardImageUrl = request.getIdCardImageUrl();
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    minioService.deleteIdCardImage(idCardImageUrl);
+                }
+            });
+        });
         studentRequestRepository.findByEmail(user.getEmail()).ifPresent(studentRequestRepository::delete);
         emailVerificationService.discardTokens(user.getEmail());
 

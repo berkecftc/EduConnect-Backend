@@ -28,6 +28,7 @@ import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -208,6 +209,7 @@ public class ProfileService {
 
         // Aktif tablodan sil
         studentRepository.delete(student);
+        minioService.deleteFilesAfterCommit(List.of(Objects.toString(student.getStudentDocumentUrl(), "")));
         LOGGER.info("Student removed from active table. ID: {}", student.getId());
     }
 
@@ -242,6 +244,7 @@ public class ProfileService {
 
         // Aktif tablodan sil
         academicianRepository.delete(academician);
+        minioService.deleteFilesAfterCommit(List.of(Objects.toString(academician.getIdCardImageUrl(), "")));
         LOGGER.info("Academician removed from active table. ID: {}", academician.getId());
     }
 

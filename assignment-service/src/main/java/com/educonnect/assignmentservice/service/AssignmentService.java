@@ -50,11 +50,13 @@ public class AssignmentService {
     private final AssignmentProducer assignmentProducer;
     private final InternalUserClient internalUserClient;
     private final CacheManager cacheManager;
+    private final AssignmentFiles assignmentFiles;
 
     public AssignmentService(AssignmentRepository repo, SubmissionRepository subRepo,
                              MinioService minio, CourseClient client, CourseInternalClient internalClient,
                              UserClient userClient, AssignmentProducer producer,
-                             InternalUserClient internalUserClient, CacheManager cacheManager) {
+                             InternalUserClient internalUserClient, CacheManager cacheManager,
+                             AssignmentFiles assignmentFiles) {
         this.internalUserClient = internalUserClient;
         this.assignmentRepository = repo;
         this.submissionRepository = subRepo;
@@ -64,6 +66,7 @@ public class AssignmentService {
         this.userClient = userClient;
         this.assignmentProducer = producer;
         this.cacheManager = cacheManager;
+        this.assignmentFiles = assignmentFiles;
     }
 
     @CacheEvict(value = STUDENT_ASSIGNMENTS, allEntries = true)
@@ -140,7 +143,10 @@ public class AssignmentService {
 
     @CacheEvict(value = STUDENT_ASSIGNMENTS, allEntries = true)
     public void deleteAssignment(UUID id) {
+        List<String> files = assignmentRepository.findById(id).map(assignment -> assignmentFiles.of(List.of(assignment)))
+                .orElse(List.of());
         assignmentRepository.deleteById(id);
+        minioService.deleteFilesAfterCommit(files);
     }
 
     // ÖĞRENCİ ÖDEV TESLİMİ (Deadline kontrolü + tekrar teslim)
@@ -165,12 +171,17 @@ public class AssignmentService {
         if (existingSubmission.isPresent()) {
             // Mevcut teslimi güncelle
             AssignmentSubmission submission = existingSubmission.get();
+            String previousFileUrl = submission.getSubmissionFileUrl();
             submission.setSubmissionFileUrl(minioService.normalizeToFullUrl(fileUrl));
             submission.setSubmittedAt(LocalDateTime.now());
             submission.setLate(isLate);
             submission.setGrade(null);
             submission.setFeedback(null);
-            return submissionRepository.save(submission);
+            AssignmentSubmission saved = submissionRepository.save(submission);
+            if (previousFileUrl != null && !previousFileUrl.equals(saved.getSubmissionFileUrl())) {
+                minioService.deleteFilesAfterCommit(List.of(previousFileUrl));
+            }
+            return saved;
         } else {
             // Yeni teslim oluştur
             AssignmentSubmission submission = new AssignmentSubmission(

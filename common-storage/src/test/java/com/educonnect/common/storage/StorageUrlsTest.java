@@ -34,6 +34,16 @@ class StorageUrlsTest {
     }
 
     @Test
+    void locate_shouldSplitBucketAndObjectForOwnStorageOnly() {
+        assertThat(urls.locate("http://localhost:9000/academician-id-cards/student-documents/u_doc.pdf"))
+                .contains(new StorageUrls.StoredObject("academician-id-cards", "student-documents/u_doc.pdf"));
+        assertThat(urls.locate("club-bucket/logos/a.png")).contains(new StorageUrls.StoredObject("club-bucket", "logos/a.png"));
+        assertThat(urls.locate("https://ui-avatars.com/api/?name=A")).isEmpty();
+        assertThat(urls.locate("a.png")).isEmpty();
+        assertThat(urls.locate(null)).isEmpty();
+    }
+
+    @Test
     void objectName_shouldResolveKeyInsideBucket() {
         assertThat(urls.objectName("http://localhost:9000/club-bucket/logos/a.png", "club-bucket")).isEqualTo("logos/a.png");
         assertThat(urls.objectName("club-bucket/logos/a.png", "club-bucket")).isEqualTo("logos/a.png");

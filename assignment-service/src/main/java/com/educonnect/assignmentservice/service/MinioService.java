@@ -10,15 +10,24 @@ import io.minio.MakeBucketArgs;
 import io.minio.MinioClient;
 import io.minio.PutObjectArgs;
 import io.minio.DeleteBucketPolicyArgs;
+import io.minio.RemoveObjectArgs;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.InputStream;
+import java.util.Collection;
+import java.util.List;
 import java.util.UUID;
 
 @Service
 public class MinioService {
+    private static final Logger log = LoggerFactory.getLogger(MinioService.class);
+
     private final MinioClient minioClient;
     private final String bucketName;
     private final StorageUrls storageUrls;
@@ -112,5 +121,37 @@ public class MinioService {
             return objectName.substring(underscoreIndex + 1);
         }
         return objectName;
+    }
+
+    public void deleteFilesAfterCommit(Collection<String> fileUrls) {
+        List<String> urls = fileUrls.stream().filter(url -> url != null && !url.isBlank()).distinct().toList();
+        if (urls.isEmpty()) {
+            return;
+        }
+        if (TransactionSynchronizationManager.isSynchronizationActive()) {
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    urls.forEach(MinioService.this::deleteQuietly);
+                }
+            });
+        } else {
+            urls.forEach(this::deleteQuietly);
+        }
+    }
+
+    private void deleteQuietly(String fileUrl) {
+        storageUrls.locate(fileUrl)
+                .filter(object -> object.bucket().equals(bucketName))
+                .ifPresent(object -> {
+                    try {
+                        minioClient.removeObject(RemoveObjectArgs.builder()
+                                .bucket(object.bucket())
+                                .object(object.objectName())
+                                .build());
+                    } catch (Exception e) {
+                        log.warn("MinIO dosyası silinemedi: {}/{} ({})", object.bucket(), object.objectName(), e.getMessage());
+                    }
+                });
     }
 }

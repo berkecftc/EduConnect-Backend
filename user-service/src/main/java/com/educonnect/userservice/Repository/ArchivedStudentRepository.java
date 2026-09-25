@@ -4,6 +4,7 @@ import com.educonnect.userservice.models.ArchivedStudent;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -16,6 +17,8 @@ public interface ArchivedStudentRepository extends JpaRepository<ArchivedStudent
 
     // Tüm arşivlenmiş öğrencileri silme tarihine göre sırala
     List<ArchivedStudent> findAllByOrderByDeletedAtDesc();
+
+    List<ArchivedStudent> findByDeletedAtBefore(LocalDateTime cutoff);
 
     // Bölüme göre arşivlenmiş öğrencileri bul
     List<ArchivedStudent> findByDepartment(String department);

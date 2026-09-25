@@ -3,6 +3,7 @@ package com.educonnect.common.storage;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 
 public class StorageUrls {
@@ -62,6 +63,25 @@ public class StorageUrls {
         String path = trimLeadingSlash(toStoredValue(urlOrPath));
         String bucketPrefix = bucket + "/";
         return path.startsWith(bucketPrefix) ? path.substring(bucketPrefix.length()) : path;
+    }
+
+    public Optional<StoredObject> locate(String urlOrPath) {
+        if (urlOrPath == null || urlOrPath.isBlank()) {
+            return Optional.empty();
+        }
+        String path = toStoredValue(urlOrPath);
+        if (isAbsolute(path)) {
+            return Optional.empty();
+        }
+        path = trimLeadingSlash(path);
+        int slash = path.indexOf('/');
+        if (slash <= 0 || slash == path.length() - 1) {
+            return Optional.empty();
+        }
+        return Optional.of(new StoredObject(path.substring(0, slash), path.substring(slash + 1)));
+    }
+
+    public record StoredObject(String bucket, String objectName) {
     }
 
     public String url(String bucket, String objectName) {
