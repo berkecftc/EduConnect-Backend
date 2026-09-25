@@ -21,6 +21,10 @@ public class RabbitMQConfig {
     // Ödev oluşturulduğunda bildirim göndermek için
     public static final String ROUTING_KEY_ASSIGNMENT_CREATED = "course.assignment.created";
 
+    public static final String USER_EXCHANGE = "user-exchange";
+    public static final String USER_DELETED_QUEUE = "assignment-service.user.deleted";
+    public static final String USER_DELETED_ROUTING_KEY = "user.delete";
+
     // 1. Exchange Tanımla (Eğer Course Service oluşturmadıysa biz oluşturalım)
     @Bean
     public TopicExchange courseExchange() {
@@ -35,8 +39,23 @@ public class RabbitMQConfig {
 
     // 3. Bağlama (Binding) Yap: Exchange -> Queue
     @Bean
-    public Binding binding(Queue queue, TopicExchange exchange) {
-        return BindingBuilder.bind(queue).to(exchange).with(ROUTING_KEY_DELETED);
+    public Binding binding(Queue assignmentQueue, TopicExchange courseExchange) {
+        return BindingBuilder.bind(assignmentQueue).to(courseExchange).with(ROUTING_KEY_DELETED);
+    }
+
+    @Bean
+    public DirectExchange userExchange() {
+        return new DirectExchange(USER_EXCHANGE);
+    }
+
+    @Bean
+    public Queue userDeletedQueue() {
+        return QueueBuilder.durable(USER_DELETED_QUEUE).build();
+    }
+
+    @Bean
+    public Binding userDeletedBinding(Queue userDeletedQueue, DirectExchange userExchange) {
+        return BindingBuilder.bind(userDeletedQueue).to(userExchange).with(USER_DELETED_ROUTING_KEY);
     }
 
     // JSON Dönüştürücü

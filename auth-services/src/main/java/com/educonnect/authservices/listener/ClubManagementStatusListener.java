@@ -42,8 +42,12 @@ public class ClubManagementStatusListener {
             return;
         }
 
-        User user = userRepository.findById(event.userId())
-                .orElseThrow(() -> new AmqpRejectAndDontRequeueException("User not found: " + event.userId()));
+        Optional<User> found = userRepository.findById(event.userId());
+        if (found.isEmpty()) {
+            log.info("Ignoring club management event {} for deleted user {}", event.eventId(), event.userId());
+            return;
+        }
+        User user = found.get();
 
         Set<Role> roles = user.getRoles() != null ? new HashSet<>(user.getRoles()) : new HashSet<>();
         if (event.managesClub()) {

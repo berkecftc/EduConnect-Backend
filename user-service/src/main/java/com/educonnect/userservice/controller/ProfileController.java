@@ -195,48 +195,10 @@ public class ProfileController {
         }
     }
 
-    /**
-     * Admin tarafından öğrenciyi siler (arşivler).
-     * Sadece ADMIN rolü erişebilir.
-     */
-    @DeleteMapping("/students/{userId}")
-    @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<String> deleteStudent(
-            @PathVariable UUID userId,
-            @RequestParam(required = false) String reason) {
-        try {
-            profileService.archiveStudent(userId, reason);
-            AuditLog.record("ARCHIVE_STUDENT", "USER", userId);
-            return ResponseEntity.ok("Öğrenci başarıyla arşivlendi ve aktif tablodan kaldırıldı.");
-        } catch (RuntimeException e) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                    .body("Error: " + e.getMessage());
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body("Unexpected error: " + e.getMessage());
-        }
-    }
-
-    /**
-     * Admin tarafından akademisyeni siler (arşivler).
-     * Sadece ADMIN rolü erişebilir.
-     */
-    @DeleteMapping("/academicians/{userId}")
-    @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<String> deleteAcademician(
-            @PathVariable UUID userId,
-            @RequestParam(required = false) String reason) {
-        try {
-            profileService.archiveAcademician(userId, reason);
-            AuditLog.record("ARCHIVE_ACADEMICIAN", "USER", userId);
-            return ResponseEntity.ok("Akademisyen başarıyla arşivlendi ve aktif tablodan kaldırıldı.");
-        } catch (RuntimeException e) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                    .body("Error: " + e.getMessage());
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body("Unexpected error: " + e.getMessage());
-        }
+    @DeleteMapping({"/students/{userId}", "/academicians/{userId}"})
+    public ResponseEntity<String> deleteProfile(@PathVariable UUID userId) {
+        return ResponseEntity.status(HttpStatus.GONE)
+                .body("Profil silme bu uçtan kapatıldı. Kullanıcıyı DELETE /api/auth/admin/users/{userId} ile silin; profil tüm servislerle birlikte temizlenir.");
     }
 
     /**

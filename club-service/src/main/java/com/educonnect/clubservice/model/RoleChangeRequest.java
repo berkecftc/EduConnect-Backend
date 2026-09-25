@@ -34,7 +34,7 @@ public class RoleChangeRequest {
     @Column(name = "requested_role", nullable = false)
     private ClubPosition requestedRole; // Talep edilen yeni rol
 
-    @Column(name = "requester_id", nullable = false)
+    @Column(name = "requester_id")
     private UUID requesterId; // Talebi oluşturan kişi (kulüp başkanı veya YK üyesi)
 
     @Enumerated(EnumType.STRING)

@@ -381,6 +381,9 @@ public class RoleChangeRequestService {
     }
 
     private String fetchUserName(UUID userId) {
+        if (userId == null) {
+            return UNKNOWN_USER_NAME;
+        }
         try {
             UserSummary user = userClient.getUserById(userId);
             if (user != null) {

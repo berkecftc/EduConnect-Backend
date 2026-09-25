@@ -52,7 +52,7 @@ public class Event {
     @Enumerated(EnumType.STRING)
     private EventStatus status = EventStatus.ACTIVE;
 
-    @Column(nullable = false)
+    @Column
     private UUID createdByStudentId;
 
     // --- Getter & Setter (Lombok yoksa manuel ekleyin) ---

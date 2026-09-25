@@ -95,7 +95,7 @@ public class CourseAnnouncementService {
                 announcements.stream().map(CourseAnnouncement::getCreatedBy).toList());
 
         return announcements.stream()
-                .map(a -> toResponse(a, course, authors.get(a.getCreatedBy())))
+                .map(a -> toResponse(a, course, a.getCreatedBy() == null ? null : authors.get(a.getCreatedBy())))
                 .collect(Collectors.toList());
     }
 

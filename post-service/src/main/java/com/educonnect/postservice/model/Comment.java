@@ -31,7 +31,7 @@ public class Comment {
     @Column(name = "post_id", nullable = false)
     private UUID postId;
 
-    @Column(name = "author_id", nullable = false)
+    @Column(name = "author_id")
     private UUID authorId;
 
     @Column(name = "parent_comment_id")

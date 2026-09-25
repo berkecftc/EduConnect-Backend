@@ -57,7 +57,7 @@ public class PostModerationService {
         postRepository.save(post);
         log.info("Post published by moderation. postId={}, eventId={}", postId, eventId);
 
-        if (post.getCategory() == PostCategory.DERS_NOTU) {
+        if (post.getCategory() == PostCategory.DERS_NOTU && post.getAuthorId() != null) {
             publishGamificationEvent(post);
         }
     }

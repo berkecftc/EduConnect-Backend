@@ -30,9 +30,28 @@ public class EventRabbitMQConfig {
     // ... mevcut sabitler ...
     public static final String ROUTING_KEY_EVENT_REGISTERED = "event.registered";
 
+    public static final String USER_EXCHANGE_NAME = "user-exchange";
+    public static final String USER_DELETED_QUEUE = "event-service.user.deleted";
+    public static final String USER_DELETED_ROUTING_KEY = "user.delete";
+
     @Bean
     public DirectExchange clubExchange() {
         return new DirectExchange(CLUB_EXCHANGE_NAME);
+    }
+
+    @Bean
+    public DirectExchange userExchange() {
+        return new DirectExchange(USER_EXCHANGE_NAME);
+    }
+
+    @Bean
+    public Queue userDeletedQueue() {
+        return new Queue(USER_DELETED_QUEUE);
+    }
+
+    @Bean
+    public Binding userDeletedBinding(Queue userDeletedQueue, DirectExchange userExchange) {
+        return BindingBuilder.bind(userDeletedQueue).to(userExchange).with(USER_DELETED_ROUTING_KEY);
     }
 
     @Bean

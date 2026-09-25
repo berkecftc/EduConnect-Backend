@@ -719,6 +719,10 @@ public class AuthServiceImpl {
         );
         LOGGER.info("User deletion message queued. UserID: {}, Type: {}", userId, userType);
 
+        requestRepository.findByUserId(userId).ifPresent(requestRepository::delete);
+        studentRequestRepository.findByEmail(user.getEmail()).ifPresent(studentRequestRepository::delete);
+        emailVerificationService.discardTokens(user.getEmail());
+
         // Auth DB'den kullanıcıyı sil
         userRepository.deleteById(userId);
         LOGGER.info("User deleted from auth_db. UserID: {}", userId);

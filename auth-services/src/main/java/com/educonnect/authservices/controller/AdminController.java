@@ -6,6 +6,7 @@ import com.educonnect.authservices.models.Role;
 import com.educonnect.authservices.models.User;
 import com.educonnect.authservices.dto.request.SuspendAccountRequest;
 import com.educonnect.authservices.service.AccountStatusService;
+import com.educonnect.authservices.service.AcademicianAssignmentGuard;
 import com.educonnect.authservices.service.AdminAuditService;
 import com.educonnect.authservices.dto.response.AdminAuditPage;
 import com.educonnect.authservices.service.AuthServiceImpl;
@@ -35,6 +36,9 @@ public class AdminController {
 
     @Autowired
     private AdminAuditService adminAuditService;
+
+    @Autowired
+    private AcademicianAssignmentGuard academicianAssignmentGuard;
 
 
 
@@ -124,6 +128,7 @@ public class AdminController {
     @DeleteMapping("/users/{userId}")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<String> deleteUser(@PathVariable UUID userId) {
+        academicianAssignmentGuard.requireNoActiveAssignments(userId);
         authService.deleteUser(userId);
         adminAuditService.record("DELETE_USER", "USER", userId, null);
         return ResponseEntity.ok("Kullanıcı başarıyla silindi.");

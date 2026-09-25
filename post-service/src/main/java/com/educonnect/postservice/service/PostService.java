@@ -27,6 +27,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -179,10 +180,7 @@ public class PostService {
                 .distinct()
                 .toList();
 
-        Map<UUID, UserSummaryDto> userCache = uniqueAuthorIds.stream()
-                .map(id -> Map.entry(id, fetchUserSafely(id)))
-                .filter(entry -> entry.getValue() != null)
-                .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
+        Map<UUID, UserSummaryDto> userCache = fetchUsersSafely(uniqueAuthorIds);
 
         return postPage.map(post -> mapToResponseWithUser(post, userCache.get(post.getAuthorId()), currentUserId));
     }
@@ -207,10 +205,7 @@ public class PostService {
                 .distinct()
                 .toList();
 
-        Map<UUID, UserSummaryDto> userCache = uniqueAuthorIds.stream()
-                .map(id -> Map.entry(id, fetchUserSafely(id)))
-                .filter(entry -> entry.getValue() != null)
-                .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
+        Map<UUID, UserSummaryDto> userCache = fetchUsersSafely(uniqueAuthorIds);
 
         List<PostResponse> responses = bookmarkPage.getContent().stream()
                 .filter(bookmark -> postMap.containsKey(bookmark.getPostId()))
@@ -263,7 +258,7 @@ public class PostService {
      * Eşleşmezse UnauthorizedPostAccessException fırlatılır.
      */
     private void validateAuthor(Post post, UUID authorId) {
-        if (!post.getAuthorId().equals(authorId)) {
+        if (!authorId.equals(post.getAuthorId())) {
             throw new UnauthorizedPostAccessException(
                     "Bu işlemi sadece post'un yazarı yapabilir. postId: " + post.getId()
             );
@@ -285,7 +280,9 @@ public class PostService {
         String authorName = null;
         String authorDepartment = null;
 
-        if (user != null) {
+        if (post.getAuthorId() == null) {
+            authorName = DeletedUser.DISPLAY_NAME;
+        } else if (user != null) {
             authorName = user.getFirstName() + " " + user.getLastName();
             authorDepartment = user.getDepartment();
         }
@@ -317,7 +314,21 @@ public class PostService {
      * user-service'ten kullanıcı bilgilerini güvenli şekilde çeker.
      * Servis erişilemezse veya hata olursa null döner — post response'u yine de oluşturulur.
      */
+    private Map<UUID, UserSummaryDto> fetchUsersSafely(List<UUID> userIds) {
+        Map<UUID, UserSummaryDto> users = new HashMap<>();
+        for (UUID userId : userIds) {
+            UserSummaryDto user = fetchUserSafely(userId);
+            if (user != null) {
+                users.put(userId, user);
+            }
+        }
+        return users;
+    }
+
     private UserSummaryDto fetchUserSafely(UUID userId) {
+        if (userId == null) {
+            return null;
+        }
         try {
             return userClient.getUserById(userId);
         } catch (Exception e) {

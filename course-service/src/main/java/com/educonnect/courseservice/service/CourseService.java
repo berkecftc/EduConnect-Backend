@@ -231,6 +231,10 @@ public class CourseService {
         }).collect(Collectors.toList());
     }
 
+    public List<UUID> getInstructorCourseIds(UUID instructorId) {
+        return courseRepository.findByInstructorId(instructorId).stream().map(Course::getId).toList();
+    }
+
     public List<UUID> getActiveCourseIds(UUID studentId) {
         return enrollmentRepository.findByStudentIdAndIsActive(studentId, true).stream()
                 .map(StudentCourseEnrollment::getCourseId)

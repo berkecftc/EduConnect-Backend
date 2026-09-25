@@ -96,10 +96,16 @@ class ClubManagementStatusListenerTest {
     }
 
     @Test
-    void rejectsUnknownUserAndUnsupportedVersionsWithoutRequeue() {
+    void ignoresDeletedUser() {
         when(userRepository.findById(userId)).thenReturn(Optional.empty());
-        assertThatThrownBy(() -> listener.handle(event(true, now))).isInstanceOf(AmqpRejectAndDontRequeueException.class);
 
+        listener.handle(event(true, now));
+
+        verify(userRepository, never()).save(any());
+    }
+
+    @Test
+    void rejectsUnsupportedVersionsWithoutRequeue() {
         ClubManagementStatusChangedEvent v2 = new ClubManagementStatusChangedEvent(UUID.randomUUID(),
                 ClubManagementStatusChangedEvent.EVENT_TYPE, 2, now, userId, true);
         assertThatThrownBy(() -> listener.handle(v2)).isInstanceOf(AmqpRejectAndDontRequeueException.class);

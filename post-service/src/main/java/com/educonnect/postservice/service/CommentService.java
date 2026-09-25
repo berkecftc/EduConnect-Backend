@@ -20,7 +20,10 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Collection;
 import java.util.Collections;
+import java.util.HashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -125,7 +128,7 @@ public class CommentService {
             throw new IllegalArgumentException("Yorum bu post'a ait değil.");
         }
 
-        if (!comment.getAuthorId().equals(authorId)) {
+        if (!authorId.equals(comment.getAuthorId())) {
             throw new UnauthorizedPostAccessException(
                     "Bu yorumu sadece yazarı silebilir. commentId: " + commentId);
         }
@@ -172,13 +175,7 @@ public class CommentService {
                 .forEach(allAuthorIds::add);
 
         // Benzersiz author bilgilerini batch olarak çek
-        Map<UUID, UserSummaryDto> userCache = allAuthorIds.stream()
-                .distinct()
-                .collect(Collectors.toMap(
-                        Function.identity(),
-                        this::fetchUserSafely,
-                        (existing, replacement) -> existing
-                ));
+        Map<UUID, UserSummaryDto> userCache = fetchUsersSafely(allAuthorIds);
 
         return topLevelComments.map(comment -> {
             List<Comment> replies = repliesMap.getOrDefault(comment.getId(), Collections.emptyList());
@@ -247,14 +244,7 @@ public class CommentService {
         List<Comment> replies = commentRepository.findByParentCommentIdAndStatus(commentId, CommentStatus.PUBLISHED);
 
         // Benzersiz author bilgilerini batch olarak çek
-        Map<UUID, UserSummaryDto> userCache = replies.stream()
-                .map(Comment::getAuthorId)
-                .distinct()
-                .collect(Collectors.toMap(
-                        Function.identity(),
-                        this::fetchUserSafely,
-                        (existing, replacement) -> existing
-                ));
+        Map<UUID, UserSummaryDto> userCache = fetchUsersSafely(replies.stream().map(Comment::getAuthorId).toList());
 
         return replies.stream()
                 .map(reply -> mapToResponse(reply, userCache.get(reply.getAuthorId()), Collections.emptyList()))
@@ -267,7 +257,9 @@ public class CommentService {
 
     private CommentResponse mapToResponse(Comment comment, UserSummaryDto user, List<CommentResponse> replies) {
         String authorName = null;
-        if (user != null) {
+        if (comment.getAuthorId() == null) {
+            authorName = DeletedUser.DISPLAY_NAME;
+        } else if (user != null) {
             authorName = user.getFirstName() + " " + user.getLastName();
         }
 
@@ -285,7 +277,21 @@ public class CommentService {
         );
     }
 
+    private Map<UUID, UserSummaryDto> fetchUsersSafely(Collection<UUID> userIds) {
+        Map<UUID, UserSummaryDto> users = new HashMap<>();
+        for (UUID userId : new LinkedHashSet<>(userIds)) {
+            UserSummaryDto user = fetchUserSafely(userId);
+            if (user != null) {
+                users.put(userId, user);
+            }
+        }
+        return users;
+    }
+
     private UserSummaryDto fetchUserSafely(UUID userId) {
+        if (userId == null) {
+            return null;
+        }
         try {
             return userClient.getUserById(userId);
         } catch (Exception e) {

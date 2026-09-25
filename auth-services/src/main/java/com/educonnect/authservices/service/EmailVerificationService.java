@@ -129,6 +129,11 @@ public class EmailVerificationService {
         return links.frontendBaseUrl() + "/login?emailVerified=" + verified;
     }
 
+    @Transactional
+    public void discardTokens(String email) {
+        tokenRepository.deleteByEmail(email);
+    }
+
     @Scheduled(cron = "0 30 3 * * ?")
     @Transactional
     public void cleanupExpiredTokens() {

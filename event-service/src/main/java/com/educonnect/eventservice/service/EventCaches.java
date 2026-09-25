@@ -33,6 +33,11 @@ public class EventCaches {
         evict(STUDENT_EVENT_REGISTRATIONS, studentId);
     }
 
+    public void evictUser(UUID userId) {
+        evictStudentRegistrations(userId);
+        evict(CLUB_OFFICIAL_CREATED_EVENTS, userId);
+    }
+
     public void evictEventListings(Event event) {
         evict(CLUB_EVENTS, event.getClubId());
         evict(CLUB_OFFICIAL_CREATED_EVENTS, event.getCreatedByStudentId());
