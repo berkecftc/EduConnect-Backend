@@ -14,7 +14,6 @@ import com.educonnect.courseservice.repository.CourseRepository;
 import com.educonnect.courseservice.repository.EnrollmentRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -34,15 +33,18 @@ public class CourseApplicationService {
     private final CourseRepository courseRepository;
     private final EnrollmentRepository enrollmentRepository;
     private final UserClient userClient;
+    private final CourseCaches courseCaches;
 
     public CourseApplicationService(CourseApplicationRepository applicationRepository,
                                      CourseRepository courseRepository,
                                      EnrollmentRepository enrollmentRepository,
-                                     UserClient userClient) {
+                                     UserClient userClient,
+                                     CourseCaches courseCaches) {
         this.applicationRepository = applicationRepository;
         this.courseRepository = courseRepository;
         this.enrollmentRepository = enrollmentRepository;
         this.userClient = userClient;
+        this.courseCaches = courseCaches;
     }
 
     /**
@@ -61,7 +63,9 @@ public class CourseApplicationService {
         }
 
         // 3. Öğrencinin zaten bekleyen başvurusu var mı?
-        if (applicationRepository.existsByCourseIdAndStudentIdAndStatus(courseId, studentId, CourseApplicationStatus.PENDING)) {
+        CourseApplication application = applicationRepository.findByCourseIdAndStudentId(courseId, studentId)
+                .orElse(null);
+        if (application != null && application.getStatus() == CourseApplicationStatus.PENDING) {
             throw new DuplicateApplicationException("Bu derse zaten bekleyen bir başvurunuz var.");
         }
 
@@ -72,8 +76,17 @@ public class CourseApplicationService {
         }
 
         // 5. Başvuru oluştur
-        CourseApplication application = new CourseApplication(courseId, studentId);
+        if (application == null) {
+            application = new CourseApplication(courseId, studentId);
+        } else {
+            application.setStatus(CourseApplicationStatus.PENDING);
+            application.setApplicationDate(LocalDateTime.now());
+            application.setProcessedDate(null);
+            application.setProcessedBy(null);
+            application.setRejectionReason(null);
+        }
         CourseApplication saved = applicationRepository.save(application);
+        courseCaches.evictInstructorCourses(course.getInstructorId());
 
         log.info("📝 Yeni ders başvurusu: Öğrenci {} -> Ders {} ({})", studentId, course.getTitle(), course.getCode());
 
@@ -107,12 +120,11 @@ public class CourseApplicationService {
      * Onay sırasında kapasite tekrar kontrol edilir.
      */
     @Transactional
-    @CacheEvict(value = "studentCourses", allEntries = true)
     public CourseApplicationResponse approveApplication(UUID applicationId, UUID instructorId) {
         CourseApplication application = applicationRepository.findById(applicationId)
                 .orElseThrow(() -> new ApplicationNotFoundException("Başvuru bulunamadı: " + applicationId));
 
-        Course course = courseRepository.findById(application.getCourseId())
+        Course course = courseRepository.findByIdForUpdate(application.getCourseId())
                 .orElseThrow(() -> new CourseNotFoundException("Ders bulunamadı: " + application.getCourseId()));
 
         // Dersin hocası mı kontrol et
@@ -138,8 +150,19 @@ public class CourseApplicationService {
         applicationRepository.save(application);
 
         // Enrollment oluştur
-        StudentCourseEnrollment enrollment = new StudentCourseEnrollment(course.getId(), application.getStudentId());
+        StudentCourseEnrollment enrollment = enrollmentRepository
+                .findByCourseIdAndStudentId(course.getId(), application.getStudentId())
+                .orElseGet(() -> new StudentCourseEnrollment(course.getId(), application.getStudentId()));
+        if (enrollment.getId() != null) {
+            if (enrollment.isActive()) {
+                throw new AlreadyEnrolledException("Öğrenci bu derse zaten kayıtlı.");
+            }
+            enrollment.setActive(true);
+            enrollment.setEnrollmentDate(LocalDateTime.now());
+        }
         enrollmentRepository.save(enrollment);
+        courseCaches.evictStudentCourses(application.getStudentId());
+        courseCaches.evictInstructorCourses(course.getInstructorId());
 
         log.info("✅ Başvuru onaylandı: Öğrenci {} -> Ders {} ({})",
                 application.getStudentId(), course.getTitle(), course.getCode());
@@ -174,6 +197,7 @@ public class CourseApplicationService {
         application.setProcessedBy(instructorId);
         application.setRejectionReason(rejectionReason);
         applicationRepository.save(application);
+        courseCaches.evictInstructorCourses(course.getInstructorId());
 
         log.info("❌ Başvuru reddedildi: Öğrenci {} -> Ders {} ({}). Sebep: {}",
                 application.getStudentId(), course.getTitle(), course.getCode(), rejectionReason);

@@ -13,6 +13,8 @@ import com.educonnect.assignmentservice.repository.AssignmentRepository;
 import com.educonnect.assignmentservice.repository.SubmissionRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.cache.Cache;
+import org.springframework.cache.CacheManager;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.core.io.InputStreamResource;
@@ -37,6 +39,8 @@ public class AssignmentService {
 
     private static final Logger log = LoggerFactory.getLogger(AssignmentService.class);
 
+    public static final String STUDENT_ASSIGNMENTS = "studentAssignments";
+
     private final AssignmentRepository assignmentRepository;
     private final SubmissionRepository submissionRepository;
     private final MinioService minioService;
@@ -45,11 +49,12 @@ public class AssignmentService {
     private final UserClient userClient;
     private final AssignmentProducer assignmentProducer;
     private final InternalUserClient internalUserClient;
+    private final CacheManager cacheManager;
 
     public AssignmentService(AssignmentRepository repo, SubmissionRepository subRepo,
                              MinioService minio, CourseClient client, CourseInternalClient internalClient,
                              UserClient userClient, AssignmentProducer producer,
-                             InternalUserClient internalUserClient) {
+                             InternalUserClient internalUserClient, CacheManager cacheManager) {
         this.internalUserClient = internalUserClient;
         this.assignmentRepository = repo;
         this.submissionRepository = subRepo;
@@ -58,8 +63,10 @@ public class AssignmentService {
         this.courseInternalClient = internalClient;
         this.userClient = userClient;
         this.assignmentProducer = producer;
+        this.cacheManager = cacheManager;
     }
 
+    @CacheEvict(value = STUDENT_ASSIGNMENTS, allEntries = true)
     public AssignmentResponse createAssignment(AssignmentRequest request, MultipartFile file) {
         // 1. Önce böyle bir ders var mı diye Course Service'e sor
         Map<String, Object> courseData;
@@ -131,12 +138,13 @@ public class AssignmentService {
                 .collect(Collectors.toList());
     }
 
+    @CacheEvict(value = STUDENT_ASSIGNMENTS, allEntries = true)
     public void deleteAssignment(UUID id) {
         assignmentRepository.deleteById(id);
     }
 
     // ÖĞRENCİ ÖDEV TESLİMİ (Deadline kontrolü + tekrar teslim)
-    @CacheEvict(value = "studentAssignments", key = "#studentId")
+    @CacheEvict(value = STUDENT_ASSIGNMENTS, key = "#studentId")
     public AssignmentSubmission submitAssignment(UUID assignmentId, UUID studentId, MultipartFile file) {
         // Ödev var mı kontrol et
         Assignment assignment = assignmentRepository.findById(assignmentId)
@@ -187,10 +195,18 @@ public class AssignmentService {
         submission.setGrade(grade);
         submission.setFeedback(feedback);
         submissionRepository.save(submission);
+        evictStudentAssignments(submission.getStudentId());
+    }
 
-        // Öğrencinin cache'ini temizle
-        // @CacheEvict kullanılamaz çünkü studentId metod parametresi değil
-        // Manuel cache eviction yapılabilir ama şimdilik basit tutuyoruz
+    private void evictStudentAssignments(UUID studentId) {
+        try {
+            Cache cache = cacheManager.getCache(STUDENT_ASSIGNMENTS);
+            if (cache != null) {
+                cache.evict(studentId);
+            }
+        } catch (RuntimeException e) {
+            log.warn("{} cache temizlenemedi: {}", STUDENT_ASSIGNMENTS, e.getMessage());
+        }
     }
 
     // BİR DERSE AİT TÜM TESLİMLERİ GETİR (Akademisyen için)
@@ -211,7 +227,7 @@ public class AssignmentService {
     }
 
     // ÖĞRENCİNİN TÜM ÖDEVLERİNİ GETİR (Teslim durumuyla birlikte)
-    @Cacheable(value = "studentAssignments", key = "#studentId")
+    @Cacheable(value = STUDENT_ASSIGNMENTS, key = "#studentId")
     public List<MyAssignmentDTO> getStudentAssignments(UUID studentId) {
         // Öğrencinin teslimleri
         List<AssignmentSubmission> submissions = submissionRepository.findByStudentId(studentId);

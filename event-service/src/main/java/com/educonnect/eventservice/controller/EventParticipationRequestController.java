@@ -5,9 +5,13 @@ import com.educonnect.eventservice.dto.response.EventParticipationRequestDTO;
 import com.educonnect.eventservice.model.EventParticipationRequest;
 import com.educonnect.eventservice.model.EventRegistration;
 import com.educonnect.eventservice.service.EventParticipationRequestService;
+import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
 import java.util.Map;
@@ -52,7 +56,7 @@ public class EventParticipationRequestController {
                     "status", request.getStatus()
             ));
         } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("error", e.getMessage()));
+            return errorResponse(e);
         }
     }
 
@@ -128,7 +132,7 @@ public class EventParticipationRequestController {
                     "qrCode", registration.getQrCode()
             ));
         } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("error", e.getMessage()));
+            return errorResponse(e);
         }
     }
 
@@ -155,8 +159,22 @@ public class EventParticipationRequestController {
                     "status", request.getStatus()
             ));
         } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("error", e.getMessage()));
+            return errorResponse(e);
         }
+    }
+
+    private static ResponseEntity<Map<String, String>> errorResponse(Exception e) {
+        HttpStatusCode status = HttpStatus.BAD_REQUEST;
+        String message = e.getMessage();
+        if (e instanceof ResponseStatusException rse) {
+            status = rse.getStatusCode();
+            message = rse.getReason();
+        } else if (e instanceof DataIntegrityViolationException || e instanceof OptimisticLockingFailureException) {
+            status = HttpStatus.CONFLICT;
+            message = "Bu işlem mevcut bir kayıtla çakışıyor. Sayfayı yenileyip tekrar deneyin.";
+        }
+        String text = message != null ? message : "İşlem tamamlanamadı.";
+        return ResponseEntity.status(status).body(Map.of("error", text, "message", text));
     }
 }
 

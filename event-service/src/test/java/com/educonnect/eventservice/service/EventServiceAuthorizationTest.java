@@ -49,7 +49,8 @@ class EventServiceAuthorizationTest {
         clubClient = mock(ClubClient.class);
         authorizationService = mock(EventAuthorizationService.class);
         service = new EventService(eventRepository, mock(MinioService.class), mock(OutboxPublisher.class),
-                registrationRepository, mock(RestTemplate.class), mock(UserClient.class), clubClient, authorizationService);
+                registrationRepository, mock(RestTemplate.class), mock(UserClient.class), clubClient, authorizationService,
+                mock(EventCaches.class));
 
         event = new Event();
         event.setId(eventId);

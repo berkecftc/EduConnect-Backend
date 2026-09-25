@@ -14,6 +14,8 @@ import com.educonnect.userservice.Repository.ArchivedStudentRepository;
 import com.educonnect.userservice.Repository.StudentRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.cache.Cache;
+import org.springframework.cache.CacheManager;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
@@ -44,6 +46,7 @@ public class ProfileService {
     private final ArchivedAcademicianRepository archivedAcademicianRepository;
     private final MinioService minioService;
     private final GamificationEventPublisher gamificationEventPublisher;
+    private final CacheManager cacheManager;
 
     // Elle constructor ekleyelim
     public ProfileService(StudentRepository studentRepository,
@@ -51,13 +54,15 @@ public class ProfileService {
                          ArchivedStudentRepository archivedStudentRepository,
                          ArchivedAcademicianRepository archivedAcademicianRepository,
                          MinioService minioService,
-                         GamificationEventPublisher gamificationEventPublisher) {
+                         GamificationEventPublisher gamificationEventPublisher,
+                         CacheManager cacheManager) {
         this.studentRepository = studentRepository;
         this.academicianRepository = academicianRepository;
         this.archivedStudentRepository = archivedStudentRepository;
         this.archivedAcademicianRepository = archivedAcademicianRepository;
         this.minioService = minioService;
         this.gamificationEventPublisher = gamificationEventPublisher;
+        this.cacheManager = cacheManager;
     }
 
 
@@ -92,6 +97,7 @@ public class ProfileService {
         Optional<Student> studentOpt = studentRepository.findById(userId);
         if (studentOpt.isPresent()) {
             Student student = studentOpt.get();
+            evictStudentNumber(student.getStudentNumber());
             boolean wasComplete = isStudentProfileComplete(student);
             applyCommonProfileUpdates(student, request);
             Student saved = studentRepository.save(student);
@@ -146,6 +152,7 @@ public class ProfileService {
         // 3. Veritabanındaki kaydı güncelle
         if (studentOpt.isPresent()) {
             Student student = studentOpt.get();
+            evictStudentNumber(student.getStudentNumber());
             boolean wasComplete = isStudentProfileComplete(student);
             LOGGER.info("Updating student profile. Old profileImageUrl: {}, New: {}",
                 student.getProfileImageUrl(), objectName);
@@ -180,6 +187,7 @@ public class ProfileService {
     public void archiveStudent(UUID userId, String reason) {
         Student student = studentRepository.findById(userId)
             .orElseThrow(() -> new RuntimeException("Student not found with ID: " + userId));
+        evictStudentNumber(student.getStudentNumber());
 
         // Arşiv kaydı oluştur
         ArchivedStudent archivedStudent = new ArchivedStudent(
@@ -390,5 +398,19 @@ public class ProfileService {
 
     private boolean hasText(String value) {
         return value != null && !value.isBlank();
+    }
+
+    private void evictStudentNumber(String studentNumber) {
+        if (!hasText(studentNumber)) {
+            return;
+        }
+        try {
+            Cache cache = cacheManager.getCache(USER_PROFILE_BY_STUDENT_NUMBER_CACHE);
+            if (cache != null) {
+                cache.evict(studentNumber);
+            }
+        } catch (RuntimeException e) {
+            LOGGER.warn("{} cache temizlenemedi: {}", USER_PROFILE_BY_STUDENT_NUMBER_CACHE, e.getMessage());
+        }
     }
 }

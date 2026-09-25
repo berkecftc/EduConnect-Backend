@@ -45,6 +45,7 @@ public class EventParticipationRequestService {
     private final OutboxPublisher outboxPublisher;
     private final UserClient userClient;
     private final ClubClient clubClient;
+    private final EventCaches eventCaches;
 
     public EventParticipationRequestService(
             EventParticipationRequestRepository participationRequestRepository,
@@ -53,7 +54,8 @@ public class EventParticipationRequestService {
             EventAuthorizationService eventAuthorizationService,
             OutboxPublisher outboxPublisher,
             UserClient userClient,
-            ClubClient clubClient) {
+            ClubClient clubClient,
+            EventCaches eventCaches) {
         this.participationRequestRepository = participationRequestRepository;
         this.eventRepository = eventRepository;
         this.eventRegistrationRepository = eventRegistrationRepository;
@@ -61,6 +63,7 @@ public class EventParticipationRequestService {
         this.outboxPublisher = outboxPublisher;
         this.userClient = userClient;
         this.clubClient = clubClient;
+        this.eventCaches = eventCaches;
     }
 
     /**
@@ -159,6 +162,7 @@ public class EventParticipationRequestService {
         registration.setStudentNumber(studentNumber);
         registration.setQrCode(UUID.randomUUID().toString());
         EventRegistration savedRegistration = eventRegistrationRepository.save(registration);
+        eventCaches.evictStudentRegistrations(savedRegistration.getStudentId());
 
         // 8. RabbitMQ ile bildirim gönder (mail için)
         EventRegistrationMessage message = new EventRegistrationMessage(

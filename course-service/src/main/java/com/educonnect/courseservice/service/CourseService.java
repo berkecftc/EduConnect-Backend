@@ -14,7 +14,7 @@ import com.educonnect.courseservice.repository.CourseRepository;
 import com.educonnect.courseservice.repository.EnrollmentRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.cache.CacheManager;
+
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.cache.annotation.Caching;
@@ -44,19 +44,19 @@ public class CourseService {
     private final UserClient userClient;
     private final MinioService minioService;
     private final CourseProducer courseProducer;
-    private final CacheManager cacheManager;
+    private final CourseCaches courseCaches;
 
     public CourseService(CourseRepository repo, EnrollmentRepository enrollRepo,
                          CourseApplicationRepository appRepo,
                          UserClient user, MinioService minio, CourseProducer producer,
-                         CacheManager cacheManager) {
+                         CourseCaches courseCaches) {
         this.courseRepository = repo;
         this.enrollmentRepository = enrollRepo;
         this.applicationRepository = appRepo;
         this.userClient = user;
         this.minioService = minio;
         this.courseProducer = producer;
-        this.cacheManager = cacheManager;
+        this.courseCaches = courseCaches;
     }
 
     // 1. DERS OLUŞTUR (Resim + Veri + RabbitMQ)
@@ -84,7 +84,7 @@ public class CourseService {
         Course savedCourse = courseRepository.save(course);
 
         // instructorCourses cache'ini temizle
-        evictInstructorCoursesCache(request.getInstructorId());
+        courseCaches.evictInstructorCourses(request.getInstructorId());
 
         return mapToResponse(savedCourse);
     }
@@ -115,13 +115,14 @@ public class CourseService {
     public void deleteCourse(UUID id) {
         Course course = courseRepository.findById(id)
                 .orElseThrow(() -> new CourseNotFoundException("Ders bulunamadı: " + id));
+        courseCaches.evictStudentCourses(getEnrolledStudentIds(id));
         courseRepository.deleteById(id);
 
         CourseEvent event = new CourseEvent(course.getId(), course.getTitle(), course.getCode(), "DELETED");
         courseProducer.sendCourseDeletedEvent(event);
 
         // instructorCourses cache'ini temizle
-        evictInstructorCoursesCache(course.getInstructorId());
+        courseCaches.evictInstructorCourses(course.getInstructorId());
     }
 
     private void ensureStudent(UUID userId) {
@@ -142,7 +143,7 @@ public class CourseService {
             @CacheEvict(value = "studentCourses", key = "#studentId")
     })
     public void enrollStudent(UUID courseId, UUID studentId, UUID instructorId) {
-        Course course = courseRepository.findById(courseId)
+        Course course = courseRepository.findByIdForUpdate(courseId)
                 .orElseThrow(() -> new CourseNotFoundException("Ders bulunamadı: " + courseId));
 
         if (!course.getInstructorId().equals(instructorId)) {
@@ -165,7 +166,7 @@ public class CourseService {
         enrollmentRepository.save(enrollment);
 
         // instructorCourses cache'ini temizle (öğrenci sayısı değişti)
-        evictInstructorCoursesCache(course.getInstructorId());
+        courseCaches.evictInstructorCourses(course.getInstructorId());
     }
 
     // 7. ÖĞRENCİNİN KAYITLI OLDUĞU KURSLARI GETİR (Cache'li)
@@ -211,7 +212,7 @@ public class CourseService {
         // instructorCourses cache'ini temizle (öğrenci sayısı değişti)
         Course course = courseRepository.findById(courseId).orElse(null);
         if (course != null) {
-            evictInstructorCoursesCache(course.getInstructorId());
+            courseCaches.evictInstructorCourses(course.getInstructorId());
         }
     }
 
@@ -358,21 +359,5 @@ public class CourseService {
             res.setInstructorName("Bilinmiyor");
         }
         return res;
-    }
-
-    /**
-     * instructorCourses cache'ini programatik olarak temizler.
-     * Ders oluşturma, silme, öğrenci kayıt/çıkış işlemlerinde kullanılır.
-     */
-    private void evictInstructorCoursesCache(UUID instructorId) {
-        try {
-            var cache = cacheManager.getCache("instructorCourses");
-            if (cache != null) {
-                cache.evict(instructorId);
-                log.debug("instructorCourses cache temizlendi: {}", instructorId);
-            }
-        } catch (Exception e) {
-            log.warn("instructorCourses cache temizleme hatası: {}", e.getMessage());
-        }
     }
 }

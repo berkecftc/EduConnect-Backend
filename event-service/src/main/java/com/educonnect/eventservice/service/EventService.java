@@ -53,6 +53,7 @@ public class EventService {
     private final UserClient userClient;
     private final ClubClient clubClient;
     private final EventAuthorizationService eventAuthorizationService;
+    private final EventCaches eventCaches;
 
     public EventService(EventRepository eventRepository,
                        MinioService minioService,
@@ -61,7 +62,8 @@ public class EventService {
                        RestTemplate restTemplate,
                        UserClient userClient,
                        ClubClient clubClient,
-                       EventAuthorizationService eventAuthorizationService) {
+                       EventAuthorizationService eventAuthorizationService,
+                       EventCaches eventCaches) {
         this.eventRepository = eventRepository;
         this.minioService = minioService;
         this.outboxPublisher = outboxPublisher;
@@ -70,6 +72,7 @@ public class EventService {
         this.userClient = userClient;
         this.clubClient = clubClient;
         this.eventAuthorizationService = eventAuthorizationService;
+        this.eventCaches = eventCaches;
     }
 
     /**
@@ -127,6 +130,7 @@ public class EventService {
         savedEvent.setImageUrl(objectName);
         savedEvent = eventRepository.save(savedEvent); // URL ile tekrar güncelle ve sonucu al
         log.info("Event saved with imageUrl: {}", savedEvent.getImageUrl());
+        eventCaches.evictEventListings(savedEvent);
 
         return savedEvent;
     }
@@ -192,6 +196,7 @@ public class EventService {
         // Durumu ACTIVE yap
         event.setStatus(EventStatus.ACTIVE);
         Event savedEvent = eventRepository.save(event);
+        eventCaches.evictEvent(savedEvent);
 
         // --- RABBITMQ MESAJI ---
         // Artık etkinlik yayında olduğu için bildirimi şimdi yapıyoruz.
@@ -239,7 +244,9 @@ public class EventService {
         event.setStatus(EventStatus.REJECTED);
         log.info("Etkinlik reddedildi: {} (Reddeden: {})", event.getTitle(), rejectorId);
 
-        return eventRepository.save(event);
+        Event savedEvent = eventRepository.save(event);
+        eventCaches.evictEvent(savedEvent);
+        return savedEvent;
     }
 
     /**
@@ -306,6 +313,7 @@ public class EventService {
             event.setStatus(EventStatus.CANCELLED);
             eventRepository.save(event);
         }
+        eventCaches.evictEvents(clubEvents);
 
         System.out.println("Cancelled/Deleted " + clubEvents.size() + " events for club: " + clubId);
     }
@@ -328,6 +336,7 @@ public class EventService {
 
         // 3. Toplu kaydet
         eventRepository.saveAll(clubEvents);
+        eventCaches.evictEvents(clubEvents);
 
         System.out.println("Updated club name for " + clubEvents.size() + " events.");
     }
@@ -335,7 +344,7 @@ public class EventService {
     /**
      * Öğrenciyi etkinliğe kaydeder ve benzersiz bir QR bilet oluşturur.
      */
-    @CacheEvict(value = {"studentEventRegistrations", "eventRegistrants"}, key = "#studentId", allEntries = false)
+    @CacheEvict(value = EventCaches.STUDENT_EVENT_REGISTRATIONS, key = "#studentId")
     public EventRegistration registerForEvent(UUID eventId, UUID studentId) {
         // 1. Etkinlik var mı?
         Event event = getEventDetails(eventId);
@@ -414,6 +423,7 @@ public class EventService {
         // 3. Kullanıldı olarak işaretle
         registration.setAttended(true);
         eventRegistrationRepository.save(registration);
+        eventCaches.evictStudentRegistrations(registration.getStudentId());
 
         return true; // Giriş başarılı
     }

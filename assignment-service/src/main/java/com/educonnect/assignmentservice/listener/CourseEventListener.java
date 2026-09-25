@@ -3,7 +3,9 @@ package com.educonnect.assignmentservice.listener;
 import com.educonnect.assignmentservice.config.RabbitMQConfig;
 import com.educonnect.assignmentservice.event.CourseEvent;
 import com.educonnect.assignmentservice.repository.AssignmentRepository;
+import com.educonnect.assignmentservice.service.AssignmentService;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
+import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -19,6 +21,7 @@ public class CourseEventListener {
     // 👇 KUYRUĞU DİNLEYEN METOT
     @RabbitListener(queues = RabbitMQConfig.ASSIGNMENT_QUEUE)
     @Transactional
+    @CacheEvict(value = AssignmentService.STUDENT_ASSIGNMENTS, allEntries = true)
     public void handleCourseDeletedEvent(CourseEvent event) {
         System.out.println("📢 RabbitMQ Mesajı Alındı: Ders Silindi -> " + event.getCourseId());
 

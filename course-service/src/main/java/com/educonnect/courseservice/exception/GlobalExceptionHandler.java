@@ -2,6 +2,7 @@ package com.educonnect.courseservice.exception;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -23,6 +24,12 @@ public class GlobalExceptionHandler {
     public ResponseEntity<Map<String, Object>> handleConcurrentUpdate(OptimisticLockingFailureException ex) {
         log.warn("Eşzamanlı güncelleme çakışması: {}", ex.getMessage());
         return buildResponse(HttpStatus.CONFLICT, "Kayıt başka bir işlem tarafından değiştirildi. Sayfayı yenileyip tekrar deneyin.");
+    }
+
+    @ExceptionHandler(DataIntegrityViolationException.class)
+    public ResponseEntity<Map<String, Object>> handleDataIntegrityViolation(DataIntegrityViolationException ex) {
+        log.warn("Veri bütünlüğü çakışması: {}", ex.getMostSpecificCause().getMessage());
+        return buildResponse(HttpStatus.CONFLICT, "Bu işlem mevcut bir kayıtla çakışıyor. Sayfayı yenileyip tekrar deneyin.");
     }
 
     @ExceptionHandler(CourseNotFoundException.class)

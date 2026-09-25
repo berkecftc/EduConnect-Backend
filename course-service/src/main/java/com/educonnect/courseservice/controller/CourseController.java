@@ -127,13 +127,8 @@ public class CourseController {
             @PathVariable UUID courseId,
             @RequestHeader("X-Authenticated-User-Id") String studentIdHeader
     ) {
-        try {
-            UUID studentId = UUID.fromString(studentIdHeader);
-            courseService.withdrawStudent(courseId, studentId);
-            return ResponseEntity.ok("Kurstan başarıyla çıkıldı");
-        } catch (RuntimeException e) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
-        }
+        courseService.withdrawStudent(courseId, UUID.fromString(studentIdHeader));
+        return ResponseEntity.ok("Kurstan başarıyla çıkıldı");
     }
 
     // AKADEMİSYENİN DERSLERİNİ GETİR (Öğrenci sayılarıyla + kapasite + bekleyen başvuru sayısı)
@@ -157,13 +152,8 @@ public class CourseController {
         if (!hasRole(roles, "ROLE_STUDENT")) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Derse yalnızca öğrenciler başvurabilir.");
         }
-        try {
-            UUID studentId = UUID.fromString(studentIdHeader);
-            CourseApplicationResponse response = applicationService.applyToCourse(courseId, studentId);
-            return ResponseEntity.status(HttpStatus.CREATED).body(response);
-        } catch (RuntimeException e) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
-        }
+        CourseApplicationResponse response = applicationService.applyToCourse(courseId, UUID.fromString(studentIdHeader));
+        return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
     // HOCA BEKLEYEN BAŞVURULARI LİSTELER (Tarih sırasına göre - FCFS)
@@ -172,13 +162,7 @@ public class CourseController {
             @PathVariable UUID courseId,
             @RequestHeader("X-Authenticated-User-Id") String instructorIdHeader
     ) {
-        try {
-            UUID instructorId = UUID.fromString(instructorIdHeader);
-            List<CourseApplicationResponse> applications = applicationService.getPendingApplications(courseId, instructorId);
-            return ResponseEntity.ok(applications);
-        } catch (RuntimeException e) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
-        }
+        return ResponseEntity.ok(applicationService.getPendingApplications(courseId, UUID.fromString(instructorIdHeader)));
     }
 
     // HOCA TEK TEK BAŞVURU ONAYLAR
@@ -187,13 +171,7 @@ public class CourseController {
             @PathVariable UUID applicationId,
             @RequestHeader("X-Authenticated-User-Id") String instructorIdHeader
     ) {
-        try {
-            UUID instructorId = UUID.fromString(instructorIdHeader);
-            CourseApplicationResponse response = applicationService.approveApplication(applicationId, instructorId);
-            return ResponseEntity.ok(response);
-        } catch (RuntimeException e) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
-        }
+        return ResponseEntity.ok(applicationService.approveApplication(applicationId, UUID.fromString(instructorIdHeader)));
     }
 
     // HOCA BAŞVURU REDDEDER
@@ -203,14 +181,8 @@ public class CourseController {
             @RequestBody(required = false) RejectApplicationRequest request,
             @RequestHeader("X-Authenticated-User-Id") String instructorIdHeader
     ) {
-        try {
-            UUID instructorId = UUID.fromString(instructorIdHeader);
-            String reason = (request != null) ? request.getRejectionReason() : null;
-            CourseApplicationResponse response = applicationService.rejectApplication(applicationId, instructorId, reason);
-            return ResponseEntity.ok(response);
-        } catch (RuntimeException e) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
-        }
+        String reason = (request != null) ? request.getRejectionReason() : null;
+        return ResponseEntity.ok(applicationService.rejectApplication(applicationId, UUID.fromString(instructorIdHeader), reason));
     }
 
     // ÖĞRENCİ KENDİ BAŞVURULARINI GÖRÜNTÜLER
