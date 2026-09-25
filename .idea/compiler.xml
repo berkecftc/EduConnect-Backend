@@ -7,7 +7,10 @@
         <sourceOutputDir name="target/generated-sources/annotations" />
         <sourceTestOutputDir name="target/generated-test-sources/test-annotations" />
         <outputRelativeToContentRoot value="true" />
+        <module name="common-security" />
+        <module name="common-storage" />
         <module name="llm-service" />
+        <module name="common-messaging" />
         <module name="auth-services" />
         <module name="user-service" />
         <module name="eureka-server" />
@@ -30,6 +33,9 @@
       <module name="assignment-service" options="-parameters" />
       <module name="auth-services" options="-parameters" />
       <module name="club-service" options="-parameters" />
+      <module name="common-messaging" options="-parameters" />
+      <module name="common-security" options="-parameters" />
+      <module name="common-storage" options="-parameters" />
       <module name="config-server" options="-parameters" />
       <module name="course-service" options="-parameters" />
       <module name="educonnect-parent" options="-parameters" />

@@ -8,6 +8,10 @@ encrypt:
 spring:
   application:
     name: config-server
+  security:
+    user:
+      name: ${CONFIG_SERVER_USER:educonnect}
+      password: ${CONFIG_SERVER_PASSWORD}
   cloud:
     config:
       server:

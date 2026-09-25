@@ -4,6 +4,10 @@ server:
 spring:
   application:
     name: discovery-server
+  security:
+    user:
+      name: ${EUREKA_USER:educonnect}
+      password: ${EUREKA_PASSWORD}
 eureka:
   client:
     register-with-eureka: false

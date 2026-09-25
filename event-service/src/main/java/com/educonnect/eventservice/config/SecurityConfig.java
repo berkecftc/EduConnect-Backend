@@ -31,6 +31,7 @@ public class SecurityConfig {
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
                         .dispatcherTypeMatchers(DispatcherType.ERROR).permitAll()
+                        .requestMatchers("/actuator/health", "/actuator/health/**", "/actuator/info").permitAll()
                         .requestMatchers("/api/*/internal/**").hasRole(ServiceIdentity.ROLE)
                         // ===== ACADEMICIAN (Advisor) endpoints - EN ÖNCE! =====
                         .requestMatchers(HttpMethod.GET, "/api/events/advisor/**").hasRole("ACADEMICIAN")

@@ -52,6 +52,7 @@ public class SecurityConfig {
                 .csrf(csrf -> csrf.disable())
                 .authorizeHttpRequests(auth -> auth
                         .dispatcherTypeMatchers(DispatcherType.ERROR).permitAll()
+                        .requestMatchers("/actuator/health", "/actuator/health/**", "/actuator/info").permitAll()
                         .requestMatchers("/.well-known/jwks.json").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/auth/internal/token").permitAll()
                         .requestMatchers("/api/auth/internal/**").hasRole("SERVICE")
