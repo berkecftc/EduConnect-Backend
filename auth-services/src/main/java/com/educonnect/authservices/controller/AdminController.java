@@ -11,6 +11,7 @@ import com.educonnect.authservices.service.AdminAuditService;
 import com.educonnect.authservices.dto.response.AdminAuditPage;
 import com.educonnect.authservices.service.AuthServiceImpl;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
@@ -42,22 +43,11 @@ public class AdminController {
 
 
 
-    // Kullanıcıyı admin yap
     @PreAuthorize("hasRole('ADMIN')")
-    @PostMapping("/promote/{userId}")
-    public ResponseEntity<String> promoteToAdmin(@PathVariable UUID userId) {
-        authService.promoteToAdmin(userId);
-        adminAuditService.record("PROMOTE_ADMIN", "USER", userId, null);
-        return ResponseEntity.ok("User promoted to ROLE_ADMIN.");
-    }
-
-    // Kullanıcıdan admin rolünü al
-    @PreAuthorize("hasRole('ADMIN')")
-    @PostMapping("/revoke/{userId}")
-    public ResponseEntity<String> revokeAdmin(@PathVariable UUID userId) {
-        authService.revokeAdmin(userId);
-        adminAuditService.record("REVOKE_ADMIN", "USER", userId, null);
-        return ResponseEntity.ok("User admin role revoked.");
+    @PostMapping({"/promote/{userId}", "/revoke/{userId}"})
+    public ResponseEntity<String> changeAdminRole(@PathVariable UUID userId) {
+        return ResponseEntity.status(HttpStatus.GONE)
+                .body("Admin rolü mevcut hesaplara verilip alınamaz. Admin hesapları ayrı platform hesaplarıdır ve yalnız ilk kurulumda (educonnect.auth.bootstrap-admin) açılır.");
     }
 
     // --- AKADEMİSYEN İŞLEMLERİ ---

@@ -512,35 +512,6 @@ public class AuthServiceImpl {
         userRepository.save(user);
     }
 
-    // ---- Admin Yönetimi ----
-    public void promoteToAdmin(UUID userId) {
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new NoSuchElementException("User not found"));
-
-        // Admin rolü sadece tek başına olmalı - diğer rolleri temizle
-        Set<Role> roles = Stream.of(Role.ROLE_ADMIN).collect(Collectors.toSet());
-        user.setRoles(roles);
-        userRepository.save(user);
-
-        LOGGER.info("User promoted to ADMIN (all other roles removed). UserID: {}", userId);
-    }
-
-    public void revokeAdmin(UUID userId) {
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new NoSuchElementException("User not found"));
-        Set<Role> roles = user.getRoles();
-        if (roles.contains(Role.ROLE_ADMIN)) {
-            roles.remove(Role.ROLE_ADMIN);
-            // Admin rolü kaldırılınca kullanıcının hiç rolü kalmazsa STUDENT yap
-            if (roles.isEmpty()) {
-                roles.add(Role.ROLE_STUDENT);
-                LOGGER.info("Admin role revoked, user set to ROLE_STUDENT. UserID: {}", userId);
-            }
-            user.setRoles(roles);
-            userRepository.save(user);
-        }
-    }
-
     // --- YENİ METOT: ŞİFRE DEĞİŞTİRME ---
     /**
      * Giriş yapmış kullanıcının şifresini değiştirir.
@@ -698,6 +669,10 @@ public class AuthServiceImpl {
     public void deleteUser(UUID userId) {
         User user = userRepository.findById(userId)
             .orElseThrow(() -> new NoSuchElementException("Kullanıcı bulunamadı"));
+        if (user.getRoles().contains(Role.ROLE_ADMIN)
+                && userRepository.findAllByRolesContaining(Role.ROLE_ADMIN).size() <= 1) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Son admin hesabı silinemez.");
+        }
 
         // Kullanıcının rolüne göre mesaj tipini belirle
         String userType = "UNKNOWN";

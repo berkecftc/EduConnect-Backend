@@ -57,7 +57,7 @@ public class AccountStatusService {
         }
         if (user.getRoles() != null && user.getRoles().contains(Role.ROLE_ADMIN)) {
             throw new ResponseStatusException(HttpStatus.CONFLICT,
-                    "Admin hesapları askıya alınamaz. Önce admin yetkisini kaldırın.");
+                    "Admin hesapları askıya alınamaz.");
         }
         if (user.isSuspended()) {
             return;

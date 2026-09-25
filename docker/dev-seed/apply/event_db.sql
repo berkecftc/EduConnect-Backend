@@ -6,11 +6,11 @@ INSERT INTO event_db.events (id, club_id, club_name, created_by_student_id, titl
     ('5eed0000-0000-4000-8000-00000000e005', '5eed0000-0000-4000-8000-00000000c003', 'Satranç Kulübü', '5eed0000-0000-4000-8000-00000000b008', 'Satranç Turnuvası', 'İsviçre sistemi, 5 tur.', date_trunc('hour', now()) + interval '14 days', 'Öğrenci Merkezi', 'ACTIVE')
 ON CONFLICT DO NOTHING;
 
-INSERT INTO event_db.event_registrations (id, event_id, student_id, student_email, student_number, qr_code, registration_time, attended) VALUES
-    ('5eed0000-0000-4000-8000-00000000e101', '5eed0000-0000-4000-8000-00000000e001', '5eed0000-0000-4000-8000-00000000b003', 'ogrenci3@seed.educonnect.local', '2026000003', 'seed-ticket-e101', now() - interval '2 days', false),
-    ('5eed0000-0000-4000-8000-00000000e102', '5eed0000-0000-4000-8000-00000000e001', '5eed0000-0000-4000-8000-00000000b004', 'ogrenci4@seed.educonnect.local', '2026000004', 'seed-ticket-e102', now() - interval '1 day', false),
-    ('5eed0000-0000-4000-8000-00000000e103', '5eed0000-0000-4000-8000-00000000e001', '5eed0000-0000-4000-8000-00000000b006', 'ogrenci6@seed.educonnect.local', '2026000006', 'seed-ticket-e103', now() - interval '5 hours', false),
-    ('5eed0000-0000-4000-8000-00000000e104', '5eed0000-0000-4000-8000-00000000e004', '5eed0000-0000-4000-8000-00000000b006', 'ogrenci6@seed.educonnect.local', '2026000006', 'seed-ticket-e104', now() - interval '3 days', false)
+INSERT INTO event_db.event_registrations (id, event_id, student_id, qr_code, registration_time, attended) VALUES
+    ('5eed0000-0000-4000-8000-00000000e101', '5eed0000-0000-4000-8000-00000000e001', '5eed0000-0000-4000-8000-00000000b003', 'seed-ticket-e101', now() - interval '2 days', false),
+    ('5eed0000-0000-4000-8000-00000000e102', '5eed0000-0000-4000-8000-00000000e001', '5eed0000-0000-4000-8000-00000000b004', 'seed-ticket-e102', now() - interval '1 day', false),
+    ('5eed0000-0000-4000-8000-00000000e103', '5eed0000-0000-4000-8000-00000000e001', '5eed0000-0000-4000-8000-00000000b006', 'seed-ticket-e103', now() - interval '5 hours', false),
+    ('5eed0000-0000-4000-8000-00000000e104', '5eed0000-0000-4000-8000-00000000e004', '5eed0000-0000-4000-8000-00000000b006', 'seed-ticket-e104', now() - interval '3 days', false)
 ON CONFLICT DO NOTHING;
 
 INSERT INTO event_db.event_participation_requests (id, event_id, student_id, status, message, request_date) VALUES
