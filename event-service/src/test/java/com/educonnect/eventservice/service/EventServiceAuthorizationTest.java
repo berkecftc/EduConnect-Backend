@@ -122,23 +122,4 @@ class EventServiceAuthorizationTest {
                 .hasMessageContaining("403");
         assertThat(registration.isAttended()).isFalse();
     }
-
-    @Test
-    void registrationRequiresClubMembership() {
-        when(clubClient.isStudentMemberOfClub(clubId, userId)).thenReturn(false);
-
-        assertThatThrownBy(() -> service.registerForEvent(eventId, userId))
-                .isInstanceOf(ResponseStatusException.class)
-                .hasMessageContaining("403");
-    }
-
-    @Test
-    void cannotRegisterForPendingOrPastEvents() {
-        event.setStatus(EventStatus.PENDING);
-        assertThatThrownBy(() -> service.registerForEvent(eventId, userId)).isInstanceOf(IllegalStateException.class);
-
-        event.setStatus(EventStatus.ACTIVE);
-        event.setEventTime(LocalDateTime.now().minusDays(1));
-        assertThatThrownBy(() -> service.registerForEvent(eventId, userId)).isInstanceOf(IllegalStateException.class);
-    }
 }

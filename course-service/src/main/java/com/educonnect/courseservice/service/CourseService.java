@@ -17,7 +17,6 @@ import org.slf4j.LoggerFactory;
 
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
-import org.springframework.cache.annotation.Caching;
 import org.springframework.core.io.InputStreamResource;
 import org.springframework.core.io.Resource;
 import org.springframework.data.domain.Page;
@@ -122,50 +121,6 @@ public class CourseService {
         courseProducer.sendCourseDeletedEvent(event);
 
         // instructorCourses cache'ini temizle
-        courseCaches.evictInstructorCourses(course.getInstructorId());
-    }
-
-    private void ensureStudent(UUID userId) {
-        UserSummaryDto user;
-        try {
-            user = userClient.getUserById(userId);
-        } catch (Exception e) {
-            throw new IllegalArgumentException("Öğrenci bulunamadı: " + userId);
-        }
-        if (user == null || !"Student".equalsIgnoreCase(user.getRole())) {
-            throw new IllegalArgumentException("Derse yalnızca öğrenciler kaydedilebilir.");
-        }
-    }
-
-    // 6. ÖĞRENCİ KURSA KAYDET (Akademisyen tarafından - doğrudan ekleme)
-    @Transactional
-    @Caching(evict = {
-            @CacheEvict(value = "studentCourses", key = "#studentId")
-    })
-    public void enrollStudent(UUID courseId, UUID studentId, UUID instructorId) {
-        Course course = courseRepository.findByIdForUpdate(courseId)
-                .orElseThrow(() -> new CourseNotFoundException("Ders bulunamadı: " + courseId));
-
-        if (!course.getInstructorId().equals(instructorId)) {
-            throw new UnauthorizedCourseAccessException("Bu dersin hocası değilsiniz, öğrenci ekleyemezsiniz");
-        }
-
-        if (enrollmentRepository.existsByCourseIdAndStudentIdAndIsActive(courseId, studentId, true)) {
-            throw new AlreadyEnrolledException("Öğrenci bu derse zaten kayıtlı");
-        }
-
-        // Kapasite kontrolü
-        long enrolledCount = enrollmentRepository.countActiveByCourseId(courseId);
-        if (enrolledCount >= course.getCapacity()) {
-            throw new CourseCapacityFullException("Ders kapasitesi dolmuş. Öğrenci eklenemez.");
-        }
-
-        ensureStudent(studentId);
-
-        StudentCourseEnrollment enrollment = new StudentCourseEnrollment(courseId, studentId);
-        enrollmentRepository.save(enrollment);
-
-        // instructorCourses cache'ini temizle (öğrenci sayısı değişti)
         courseCaches.evictInstructorCourses(course.getInstructorId());
     }
 

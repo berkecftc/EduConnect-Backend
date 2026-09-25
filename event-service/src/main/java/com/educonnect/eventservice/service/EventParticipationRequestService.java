@@ -83,6 +83,9 @@ public class EventParticipationRequestService {
         if (event.getStatus() != EventStatus.ACTIVE) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Bu etkinlik artık aktif değil");
         }
+        if (event.getEventTime() != null && event.getEventTime().isBefore(LocalDateTime.now())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Geçmiş bir etkinliğe katılım isteği gönderilemez");
+        }
 
         // 3. Öğrenci kulübün üyesi mi? (Club-service'e REST çağrısı)
         if (!isStudentMemberOfClub(studentId, event.getClubId())) {
@@ -96,12 +99,22 @@ public class EventParticipationRequestService {
         }
 
         // 5. Daha önce başvuru yapmış mı?
-        if (participationRequestRepository.existsByEventIdAndStudentId(eventId, studentId)) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "Bu etkinlik için zaten bir başvurunuz bulunuyor");
+        EventParticipationRequest request = participationRequestRepository.findByEventIdAndStudentId(eventId, studentId)
+                .orElse(null);
+        if (request != null && request.getStatus() == ParticipationRequestStatus.PENDING) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Bu etkinlik için zaten bekleyen bir başvurunuz bulunuyor");
         }
 
         // 6. Yeni başvuru oluştur
-        EventParticipationRequest request = new EventParticipationRequest(eventId, studentId);
+        if (request == null) {
+            request = new EventParticipationRequest(eventId, studentId);
+        } else {
+            request.setStatus(ParticipationRequestStatus.PENDING);
+            request.setRequestDate(LocalDateTime.now());
+            request.setProcessedDate(null);
+            request.setProcessedBy(null);
+            request.setRejectionReason(null);
+        }
         request.setMessage(message);
 
         EventParticipationRequest savedRequest = participationRequestRepository.save(request);

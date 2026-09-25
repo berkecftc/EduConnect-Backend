@@ -3,13 +3,11 @@ package com.educonnect.eventservice.controller;
 import com.educonnect.eventservice.dto.MyEventRegistrationDTO;
 import com.educonnect.eventservice.dto.response.PageResponse;
 import com.educonnect.eventservice.model.Event;
-import com.educonnect.eventservice.model.EventRegistration;
 import com.educonnect.eventservice.service.EventService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
 import java.util.UUID;
@@ -58,29 +56,10 @@ public class EventController {
         return ResponseEntity.ok(eventService.getEventDetailsForViewer(eventId, viewerId));
     }
 
-    /**
-     * Öğrenci: Etkinliğe Kayıt Ol (Bilet Al).
-     */
     @PostMapping("/{eventId}/register")
-    public ResponseEntity<?> registerForEvent(
-            @PathVariable UUID eventId,
-            @RequestHeader("X-Authenticated-User-Id") String userIdHeader
-    ) {
-        try {
-            UUID studentId = UUID.fromString(userIdHeader);
-            EventRegistration registration = eventService.registerForEvent(eventId, studentId);
-
-            // Başarılı kayıtta bilet bilgisini (QR kod stringini) dönüyoruz
-            return ResponseEntity.status(HttpStatus.CREATED).body(registration);
-
-        } catch (IllegalStateException e) {
-            // "Zaten kayıtlı" veya "İptal edilmiş" hatası
-            return ResponseEntity.status(HttpStatus.CONFLICT).body(e.getMessage());
-        } catch (ResponseStatusException e) {
-            return ResponseEntity.status(e.getStatusCode()).body(e.getReason());
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Registration failed.");
-        }
+    public ResponseEntity<String> registerForEvent(@PathVariable UUID eventId) {
+        return ResponseEntity.status(HttpStatus.GONE)
+                .body("Etkinliğe doğrudan kayıt kapatıldı. Katılım için POST /api/events/{eventId}/participation-request kullanın.");
     }
 
     /**

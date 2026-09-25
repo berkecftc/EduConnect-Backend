@@ -8,7 +8,6 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Sort;
 import com.educonnect.eventservice.config.EventRabbitMQConfig;
 import com.educonnect.eventservice.dto.message.EventCreatedMessage;
-import com.educonnect.eventservice.dto.message.EventRegistrationMessage;
 import com.educonnect.eventservice.dto.MyEventRegistrationDTO;
 import com.educonnect.eventservice.dto.request.CreateEventRequest;
 import com.educonnect.eventservice.dto.response.EventRegistrantDTO;
@@ -22,7 +21,6 @@ import com.educonnect.eventservice.security.EventAuthorizationService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import com.educonnect.common.messaging.outbox.OutboxPublisher;
-import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -340,66 +338,6 @@ public class EventService {
 
         System.out.println("Updated club name for " + clubEvents.size() + " events.");
     }
-
-    /**
-     * Öğrenciyi etkinliğe kaydeder ve benzersiz bir QR bilet oluşturur.
-     */
-    @CacheEvict(value = EventCaches.STUDENT_EVENT_REGISTRATIONS, key = "#studentId")
-    public EventRegistration registerForEvent(UUID eventId, UUID studentId) {
-        // 1. Etkinlik var mı?
-        Event event = getEventDetails(eventId);
-
-        // 2. Etkinlik kayda açık mı?
-        if (event.getStatus() != EventStatus.ACTIVE) {
-            throw new IllegalStateException("Bu etkinlik kayda açık değil.");
-        }
-        if (event.getEventTime() != null && event.getEventTime().isBefore(java.time.LocalDateTime.now())) {
-            throw new IllegalStateException("Geçmiş bir etkinliğe kayıt olunamaz.");
-        }
-        if (!Boolean.TRUE.equals(clubClient.isStudentMemberOfClub(event.getClubId(), studentId))) {
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Bu etkinliğe kayıt için kulübe üye olmalısınız.");
-        }
-
-        // 3. Zaten kayıtlı mı?
-        if (eventRegistrationRepository.existsByEventIdAndStudentId(eventId, studentId)) {
-            throw new IllegalStateException("Student is already registered for this event.");
-        }
-
-        // 4. Kayıt nesnesini hazırla
-        EventRegistration registration = new EventRegistration();
-        registration.setEventId(eventId);
-        registration.setStudentId(studentId);
-        registration.setQrCode(UUID.randomUUID().toString());
-
-        // --- HATAYI ÇÖZEN KISIM BURASI ---
-        // Kaydetme işlemini yapıp sonucunu 'savedRegistration' değişkenine atıyoruz.
-        // Eskiden muhtemelen "return registrationRepository.save(registration);" şeklindeydi.
-        EventRegistration savedRegistration = eventRegistrationRepository.save(registration);
-        // ----------------------------------
-
-        // 5. RabbitMQ Mesajı Gönder (Artık savedRegistration değişkeni var!)
-        EventRegistrationMessage message = new EventRegistrationMessage(
-                studentId,
-                event.getTitle(),
-                event.getEventTime(),
-                event.getLocation(),
-                savedRegistration.getQrCode() // Burası hata veriyordu
-        );
-
-        outboxPublisher.publish(
-                EventRabbitMQConfig.CLUB_EXCHANGE_NAME,
-                EventRabbitMQConfig.ROUTING_KEY_EVENT_REGISTERED,
-                message
-        );
-
-        System.out.println("Registration notification sent for student: " + studentId);
-
-        // 6. Kaydedilen nesneyi döndür
-        return savedRegistration;
-    }
-
-
-
 
     /**
      * QR Kodu okutarak katılımı doğrular (Check-in).

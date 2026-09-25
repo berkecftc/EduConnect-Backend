@@ -54,38 +54,24 @@ public class EventManagementController {
         return ResponseEntity.status(HttpStatus.CREATED).body(createdEvent);
     }
 
-    // --- Bekleyen Etkinlikleri Listele (Danışman Akademisyen İçin) ---
     @GetMapping("/pending")
-    @PreAuthorize("hasRole('ACADEMICIAN')") // Sadece Akademisyen görebilir
-    public ResponseEntity<List<Event>> getPendingEvents(
-            @RequestHeader("X-Authenticated-User-Id") String userIdHeader
-    ) {
-        UUID advisorId = UUID.fromString(userIdHeader);
-        return ResponseEntity.ok(eventService.getPendingEventsForAdvisor(advisorId));
+    public ResponseEntity<String> getPendingEvents() {
+        return advisorFlowOnly();
     }
 
-    // --- Etkinliği Onayla (Danışman Akademisyen İçin) ---
     @PostMapping("/{eventId}/approve")
-    @PreAuthorize("hasRole('ACADEMICIAN')") // Sadece Akademisyen onaylayabilir
-    public ResponseEntity<Event> approveEvent(
-            @PathVariable UUID eventId,
-            @RequestHeader("X-Authenticated-User-Id") String userIdHeader
-    ) {
-        UUID approverId = UUID.fromString(userIdHeader);
-        Event approvedEvent = eventService.approveEvent(eventId, approverId);
-        return ResponseEntity.ok(approvedEvent);
+    public ResponseEntity<String> approveEvent(@PathVariable UUID eventId) {
+        return advisorFlowOnly();
     }
 
-    // --- Etkinliği Reddet (Danışman Akademisyen İçin) ---
     @PostMapping("/{eventId}/reject")
-    @PreAuthorize("hasRole('ACADEMICIAN')") // Sadece Akademisyen reddedebilir
-    public ResponseEntity<Event> rejectEvent(
-            @PathVariable UUID eventId,
-            @RequestHeader("X-Authenticated-User-Id") String userIdHeader
-    ) {
-        UUID rejectorId = UUID.fromString(userIdHeader);
-        Event rejectedEvent = eventService.rejectEvent(eventId, rejectorId);
-        return ResponseEntity.ok(rejectedEvent);
+    public ResponseEntity<String> rejectEvent(@PathVariable UUID eventId) {
+        return advisorFlowOnly();
+    }
+
+    private static ResponseEntity<String> advisorFlowOnly() {
+        return ResponseEntity.status(HttpStatus.GONE)
+                .body("Bu uç kapatıldı. Etkinlik onayı için /api/events/advisor/pending, /api/events/advisor/{eventId}/approve ve /reject kullanın.");
     }
 
     /**

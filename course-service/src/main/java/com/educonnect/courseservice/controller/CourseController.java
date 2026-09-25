@@ -98,18 +98,9 @@ public class CourseController {
     // ===================== ÖĞRENCİ KAYIT (DOĞRUDAN - Akademisyen) =====================
 
     @PostMapping("/{courseId}/enroll-student")
-    public ResponseEntity<String> enrollStudent(
-            @PathVariable UUID courseId,
-            @RequestBody EnrollStudentRequest request,
-            @RequestHeader("X-Authenticated-User-Id") String instructorIdHeader
-    ) {
-        try {
-            UUID instructorId = UUID.fromString(instructorIdHeader);
-            courseService.enrollStudent(courseId, request.getStudentId(), instructorId);
-            return ResponseEntity.ok("Öğrenci başarıyla kursa kaydedildi");
-        } catch (RuntimeException e) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
-        }
+    public ResponseEntity<String> enrollStudent(@PathVariable UUID courseId) {
+        return ResponseEntity.status(HttpStatus.GONE)
+                .body("Derse doğrudan öğrenci ekleme kapatıldı. Öğrenci POST /api/courses/{courseId}/apply ile başvurur, hoca onaylar.");
     }
 
     // ÖĞRENCİNİN KAYITLI OLDUĞU KURSLARI GETİR
