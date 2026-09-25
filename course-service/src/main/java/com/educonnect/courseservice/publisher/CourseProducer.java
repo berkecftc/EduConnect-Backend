@@ -14,10 +14,6 @@ public class CourseProducer {
         this.outboxPublisher = outboxPublisher;
     }
 
-    public void sendCourseCreatedEvent(CourseEvent event) {
-        outboxPublisher.publish(RabbitMQConfig.COURSE_EXCHANGE, RabbitMQConfig.ROUTING_KEY_CREATED, event);
-    }
-
     public void sendCourseDeletedEvent(CourseEvent event) {
         outboxPublisher.publish(RabbitMQConfig.COURSE_EXCHANGE, RabbitMQConfig.ROUTING_KEY_DELETED, event);
     }

@@ -83,10 +83,6 @@ public class CourseService {
 
         Course savedCourse = courseRepository.save(course);
 
-        // RabbitMQ Bildirimi
-        CourseEvent event = new CourseEvent(savedCourse.getId(), savedCourse.getTitle(), savedCourse.getCode(), "CREATED");
-        courseProducer.sendCourseCreatedEvent(event);
-
         // instructorCourses cache'ini temizle
         evictInstructorCoursesCache(request.getInstructorId());
 
