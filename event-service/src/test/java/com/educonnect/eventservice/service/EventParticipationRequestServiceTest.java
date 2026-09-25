@@ -36,6 +36,7 @@ class EventParticipationRequestServiceTest {
     private EventParticipationRequestRepository requestRepository;
     private EventRegistrationRepository registrationRepository;
     private ClubClient clubClient;
+    private EventAuthorizationService authorizationService;
     private EventParticipationRequestService service;
     private Event event;
 
@@ -45,8 +46,9 @@ class EventParticipationRequestServiceTest {
         registrationRepository = mock(EventRegistrationRepository.class);
         EventRepository eventRepository = mock(EventRepository.class);
         clubClient = mock(ClubClient.class);
+        authorizationService = mock(EventAuthorizationService.class);
         service = new EventParticipationRequestService(requestRepository, eventRepository, registrationRepository,
-                mock(EventAuthorizationService.class), mock(OutboxPublisher.class), mock(UserClient.class), clubClient,
+                authorizationService, mock(OutboxPublisher.class), mock(UserClient.class), clubClient,
                 mock(EventCaches.class));
 
         event = new Event();
@@ -91,6 +93,32 @@ class EventParticipationRequestServiceTest {
         assertThatThrownBy(() -> service.createParticipationRequest(eventId, studentId, null))
                 .isInstanceOf(ResponseStatusException.class)
                 .hasMessageContaining("409");
+    }
+
+    @Test
+    void approvalIsRefusedForCancelledOrPastEventOrFormerMember() {
+        UUID approverId = UUID.randomUUID();
+        EventParticipationRequest pending = new EventParticipationRequest(eventId, studentId);
+        UUID requestId = UUID.randomUUID();
+        when(requestRepository.findById(requestId)).thenReturn(Optional.of(pending));
+        when(authorizationService.canManageEvent(event, approverId)).thenReturn(true);
+
+        event.setStatus(EventStatus.CANCELLED);
+        assertThatThrownBy(() -> service.approveParticipationRequest(requestId, approverId))
+                .isInstanceOf(ResponseStatusException.class).hasMessageContaining("409");
+
+        event.setStatus(EventStatus.ACTIVE);
+        event.setEventTime(LocalDateTime.now().minusHours(1));
+        assertThatThrownBy(() -> service.approveParticipationRequest(requestId, approverId))
+                .isInstanceOf(ResponseStatusException.class).hasMessageContaining("409");
+
+        event.setEventTime(LocalDateTime.now().plusDays(1));
+        when(clubClient.isStudentMemberOfClub(clubId, studentId)).thenReturn(false);
+        assertThatThrownBy(() -> service.approveParticipationRequest(requestId, approverId))
+                .isInstanceOf(ResponseStatusException.class).hasMessageContaining("409");
+
+        assertThat(pending.getStatus()).isEqualTo(ParticipationRequestStatus.PENDING);
+        verify(registrationRepository, never()).save(any());
     }
 
     @Test

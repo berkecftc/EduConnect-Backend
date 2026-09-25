@@ -3,6 +3,7 @@ package com.educonnect.eventservice.service;
 import com.educonnect.eventservice.client.ClubClient;
 import com.educonnect.eventservice.client.UserClient;
 import com.educonnect.eventservice.client.UserLookup;
+import com.educonnect.eventservice.dto.response.ClubAccess;
 import com.educonnect.eventservice.dto.response.PageResponse;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Sort;
@@ -29,6 +30,7 @@ import org.springframework.web.client.RestTemplate;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.util.UriComponentsBuilder;
 import java.net.URI;
+import java.time.LocalDateTime;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
@@ -300,20 +302,16 @@ public class EventService {
      * RABBITMQ İÇİN: Bir kulüp silindiğinde o kulübün etkinliklerini iptal et/sil.
      */
     public void deleteEventsByClubId(UUID clubId) {
-        List<Event> clubEvents = eventRepository.findByClubId(clubId);
-
-        for (Event event : clubEvents) {
-            // Seçenek A: Tamamen silmek
-            // if (event.getImageUrl() != null) minioService.deleteFile(event.getImageUrl());
-            // eventRepository.delete(event);
-
-            // Seçenek B: İPTAL EDİLDİ olarak işaretlemek (Daha güvenli)
-            event.setStatus(EventStatus.CANCELLED);
-            eventRepository.save(event);
-        }
-        eventCaches.evictEvents(clubEvents);
-
-        System.out.println("Cancelled/Deleted " + clubEvents.size() + " events for club: " + clubId);
+        LocalDateTime now = LocalDateTime.now();
+        List<Event> cancelled = eventRepository.findByClubId(clubId).stream()
+                .filter(event -> event.getStatus() == EventStatus.PENDING
+                        || (event.getStatus() == EventStatus.ACTIVE
+                            && (event.getEventTime() == null || event.getEventTime().isAfter(now))))
+                .toList();
+        cancelled.forEach(event -> event.setStatus(EventStatus.CANCELLED));
+        eventRepository.saveAll(cancelled);
+        eventCaches.evictEvents(cancelled);
+        log.info("Kapanan kulübün {} gelecek etkinliği iptal edildi: clubId={}", cancelled.size(), clubId);
     }
 
     /**
@@ -406,9 +404,13 @@ public class EventService {
      * @param creatorId Etkinliği oluşturan kulüp yetkilisinin ID'si
      * @return Oluşturulan etkinliklerin listesi
      */
-    @Cacheable(value = "clubOfficialCreatedEvents", key = "#creatorId")
-    public List<Event> getEventsCreatedByUser(UUID creatorId) {
-        return eventRepository.findByCreatedByStudentId(creatorId);
+    public List<Event> getEventsOfManagedClubs(UUID userId) {
+        List<UUID> clubIds = eventAuthorizationService.accessesOf(userId).stream()
+                .filter(access -> access.has(EventAuthorizationService.MANAGE_EVENT_OPERATIONS))
+                .map(ClubAccess::clubId)
+                .distinct()
+                .toList();
+        return clubIds.isEmpty() ? List.of() : eventRepository.findByClubIdIn(clubIds);
     }
 
     /**

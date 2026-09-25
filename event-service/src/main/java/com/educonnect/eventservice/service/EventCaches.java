@@ -16,7 +16,6 @@ import java.util.UUID;
 public class EventCaches {
 
     public static final String STUDENT_EVENT_REGISTRATIONS = "studentEventRegistrations";
-    public static final String CLUB_OFFICIAL_CREATED_EVENTS = "clubOfficialCreatedEvents";
     public static final String CLUB_EVENTS = "clubEvents";
 
     private static final Logger log = LoggerFactory.getLogger(EventCaches.class);
@@ -35,12 +34,10 @@ public class EventCaches {
 
     public void evictUser(UUID userId) {
         evictStudentRegistrations(userId);
-        evict(CLUB_OFFICIAL_CREATED_EVENTS, userId);
     }
 
     public void evictEventListings(Event event) {
         evict(CLUB_EVENTS, event.getClubId());
-        evict(CLUB_OFFICIAL_CREATED_EVENTS, event.getCreatedByStudentId());
     }
 
     public void evictEvent(Event event) {

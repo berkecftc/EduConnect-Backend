@@ -19,8 +19,10 @@ import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.core.io.InputStreamResource;
 import org.springframework.core.io.Resource;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.io.InputStream;
 import java.time.LocalDateTime;
@@ -71,6 +73,9 @@ public class AssignmentService {
 
     @CacheEvict(value = STUDENT_ASSIGNMENTS, allEntries = true)
     public AssignmentResponse createAssignment(AssignmentRequest request, MultipartFile file) {
+        if (request.getDueDate() == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Son teslim tarihi zorunludur.");
+        }
         // 1. Önce böyle bir ders var mı diye Course Service'e sor
         Map<String, Object> courseData;
         try {
@@ -157,16 +162,24 @@ public class AssignmentService {
                 .orElseThrow(() -> new RuntimeException("Ödev bulunamadı"));
 
         // Deadline kontrolü
-        boolean isLate = LocalDateTime.now().isAfter(assignment.getDueDate());
+        boolean isLate = assignment.getDueDate() != null && LocalDateTime.now().isAfter(assignment.getDueDate());
+
+        // Daha önce teslim var mı kontrol et (tekrar teslim)
+        Optional<AssignmentSubmission> existingSubmission = submissionRepository.findByAssignmentIdAndStudentId(assignmentId, studentId);
+        existingSubmission.ifPresent(previous -> {
+            if (previous.getGrade() != null) {
+                throw new ResponseStatusException(HttpStatus.CONFLICT, "Notlanmış bir teslim değiştirilemez.");
+            }
+            if (isLate) {
+                throw new ResponseStatusException(HttpStatus.CONFLICT, "Son teslim tarihi geçtikten sonra teslim değiştirilemez.");
+            }
+        });
 
         // Dosya yükle
         String fileUrl = null;
         if (file != null && !file.isEmpty()) {
             fileUrl = minioService.uploadFile(file);
         }
-
-        // Daha önce teslim var mı kontrol et (tekrar teslim)
-        Optional<AssignmentSubmission> existingSubmission = submissionRepository.findByAssignmentIdAndStudentId(assignmentId, studentId);
 
         if (existingSubmission.isPresent()) {
             // Mevcut teslimi güncelle

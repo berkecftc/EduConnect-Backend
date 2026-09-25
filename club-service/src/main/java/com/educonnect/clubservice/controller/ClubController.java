@@ -17,6 +17,7 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.util.Arrays;
 import java.util.List;
 import java.util.UUID;
 
@@ -145,13 +146,17 @@ public class ClubController {
     }
 
     @PostMapping("/request-creation")
-    @PreAuthorize("isAuthenticated()") // Herhangi bir öğrenci yapabilir
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<String> requestClubCreation(
             @RequestBody SubmitClubRequest request,
-            @RequestHeader("X-Authenticated-User-Id") String userIdHeader
+            @RequestHeader("X-Authenticated-User-Id") String userIdHeader,
+            @RequestHeader(value = "X-Authenticated-User-Roles", required = false) String roles
     ) {
         UUID studentId = UUID.fromString(userIdHeader);
-        clubService.submitClubCreationRequest(request, studentId);
+        boolean requesterIsStudent = roles != null && Arrays.stream(roles.split(","))
+                .map(String::trim)
+                .anyMatch("ROLE_STUDENT"::equals);
+        clubService.submitClubCreationRequest(request, studentId, requesterIsStudent);
         return ResponseEntity.ok("Club creation request submitted. Pending advisor approval.");
     }
 

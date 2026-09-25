@@ -50,6 +50,14 @@ public class AdminController {
                 .body("Admin rolü mevcut hesaplara verilip alınamaz. Admin hesapları ayrı platform hesaplarıdır ve yalnız ilk kurulumda (educonnect.auth.bootstrap-admin) açılır.");
     }
 
+    @PreAuthorize("hasRole('ADMIN')")
+    @RequestMapping(value = {"/pending/club-official", "/approve/club-official/{userId}", "/reject/club-official/{userId}"},
+            method = {RequestMethod.GET, RequestMethod.POST})
+    public ResponseEntity<String> clubOfficialRequests() {
+        return ResponseEntity.status(HttpStatus.GONE)
+                .body("Genel kulüp yetkilisi başvurusu kapatıldı. Kulüp görevleri kulüp kuruluş başvurusu ve danışman onaylı görev atamasıyla verilir.");
+    }
+
     // --- AKADEMİSYEN İŞLEMLERİ ---
 
     @GetMapping("/requests/academicians")

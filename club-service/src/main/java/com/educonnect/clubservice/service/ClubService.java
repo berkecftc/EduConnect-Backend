@@ -310,11 +310,7 @@ public class ClubService {
         // 5. RabbitMQ ile event-service'e haber ver
         // Bu kulübün etkinliklerinin iptal edilmesi için
         try {
-            ClubUpdateMessage message = new ClubUpdateMessage(
-                clubId,
-                "CLUB_DELETED",
-                club.getName()
-            );
+            ClubUpdateMessage message = new ClubUpdateMessage(clubId, club.getName(), null);
 
             String routingKey = "club.deleted";
             outboxPublisher.publish(
@@ -495,9 +491,15 @@ public class ClubService {
     }
 
     // --- 1. ÖĞRENCİ: Talep Oluşturma ---
-    public ClubCreationRequest submitClubCreationRequest(SubmitClubRequest request, UUID studentId) {
+    public ClubCreationRequest submitClubCreationRequest(SubmitClubRequest request, UUID studentId, boolean requesterIsStudent) {
+        if (!requesterIsStudent) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Kulüp kuruluş başvurusunu yalnızca öğrenciler yapabilir.");
+        }
         if (request.getName() == null || request.getName().isBlank()) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Kulüp adı zorunludur.");
+        }
+        if (studentId.equals(request.getAcademicAdvisorId())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Başvuru sahibi kulübün danışmanı olamaz.");
         }
         ensureValidAdvisor(request.getAcademicAdvisorId());
         ensureEligibleForManagement(studentId);
@@ -566,6 +568,9 @@ public class ClubService {
     private Club approveCreationRequest(ClubCreationRequest request, UUID approverId) {
         if (request.getStatus() != ClubCreationRequestStatus.PENDING) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Bu başvuru zaten işlenmiş.");
+        }
+        if (request.getRequestingStudentId().equals(request.getSuggestedAdvisorId())) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Başvuru sahibi kendi kulübünün danışmanı olamaz.");
         }
 
         CreateClubRequest createDto = new CreateClubRequest();

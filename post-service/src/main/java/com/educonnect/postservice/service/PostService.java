@@ -222,8 +222,18 @@ public class PostService {
      * Tek bir post'u ID'sine göre getirir.
      */
     @Transactional(readOnly = true)
+    public Page<PostResponse> getMyPosts(UUID authorId, Pageable pageable) {
+        Page<Post> postPage = postRepository.findByAuthorId(authorId, pageable);
+        UserSummaryDto author = postPage.isEmpty() ? null : fetchUserSafely(authorId);
+        return postPage.map(post -> mapToResponseWithUser(post, author, authorId));
+    }
+
+    @Transactional(readOnly = true)
     public PostResponse getPostById(UUID postId, UUID currentUserId) {
         Post post = findPostOrThrow(postId);
+        if (post.getStatus() != PostStatus.PUBLISHED && !currentUserId.equals(post.getAuthorId())) {
+            throw new PostNotFoundException("Post bulunamadı: " + postId);
+        }
         UserSummaryDto user = fetchUserSafely(post.getAuthorId());
         return mapToResponseWithUser(post, user, currentUserId);
     }

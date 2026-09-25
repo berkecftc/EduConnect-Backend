@@ -147,6 +147,15 @@ public class EventParticipationRequestService {
         if (!isAuthorizedToManageEvent(approverId, event)) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Bu isteği onaylama yetkiniz yok");
         }
+        if (event.getStatus() != EventStatus.ACTIVE) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Etkinlik artık aktif değil; istek onaylanamaz");
+        }
+        if (event.getEventTime() != null && event.getEventTime().isBefore(LocalDateTime.now())) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Geçmiş bir etkinlik için istek onaylanamaz");
+        }
+        if (!isStudentMemberOfClub(request.getStudentId(), event.getClubId())) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Öğrenci artık kulüp üyesi değil; istek onaylanamaz");
+        }
 
         // 5. İsteği onayla
         request.setStatus(ParticipationRequestStatus.APPROVED);

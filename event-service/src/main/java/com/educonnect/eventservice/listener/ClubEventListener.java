@@ -9,8 +9,6 @@ import org.springframework.amqp.AmqpRejectAndDontRequeueException;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
 import org.springframework.stereotype.Component;
 
-import java.util.UUID;
-
 @Component
 public class ClubEventListener {
 
@@ -23,10 +21,12 @@ public class ClubEventListener {
     }
 
     @RabbitListener(queues = EventRabbitMQConfig.DELETE_EVENTS_QUEUE)
-    public void handleClubDeleted(String clubIdString) {
-        UUID clubId = parseClubId(clubIdString);
-        log.info("Received club delete event for club {}", clubId);
-        eventService.deleteEventsByClubId(clubId);
+    public void handleClubDeleted(ClubUpdateMessage message) {
+        if (message == null || message.getClubId() == null) {
+            throw new AmqpRejectAndDontRequeueException("Club delete message without club id");
+        }
+        log.info("Received club delete event for club {}", message.getClubId());
+        eventService.deleteEventsByClubId(message.getClubId());
     }
 
     @RabbitListener(queues = EventRabbitMQConfig.UPDATE_CLUB_QUEUE)
@@ -36,16 +36,5 @@ public class ClubEventListener {
         }
         log.info("Received club update event for club {}", message.getClubId());
         eventService.updateClubInfoForEvents(message.getClubId(), message.getNewName());
-    }
-
-    static UUID parseClubId(String clubIdString) {
-        if (clubIdString == null) {
-            throw new AmqpRejectAndDontRequeueException("Club delete message without club id");
-        }
-        try {
-            return UUID.fromString(clubIdString.replace("\"", "").trim());
-        } catch (IllegalArgumentException e) {
-            throw new AmqpRejectAndDontRequeueException("Invalid club id in delete message", e);
-        }
     }
 }

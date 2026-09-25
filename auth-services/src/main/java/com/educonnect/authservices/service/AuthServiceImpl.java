@@ -473,45 +473,6 @@ public class AuthServiceImpl {
         return buildAuthResponse(jwt, refreshToken, "Login successful", user);
     }
 
-    // ---- Kulüp Görevlisi Başvuru Akışı ----
-
-    /**
-     * Admin kulüp görevlisi talebini kabul eder.
-     * ROLE_PENDING_CLUB_OFFICIAL kaldırılır, ROLE_CLUB_OFFICIAL eklenir.
-     * Onaydan sonra profil senkronizasyonu için mesaj gönderilebilir (opsiyonel).
-     */
-    public void approveClubOfficial(UUID userId) {
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new NoSuchElementException("User not found"));
-
-        Set<Role> roles = user.getRoles();
-        if (!roles.contains(Role.ROLE_PENDING_CLUB_OFFICIAL)) {
-            throw new IllegalStateException("User does not have a pending club official request");
-        }
-        roles.remove(Role.ROLE_PENDING_CLUB_OFFICIAL);
-        roles.add(Role.ROLE_CLUB_OFFICIAL);
-        user.setRoles(roles);
-        userRepository.save(user);
-    }
-
-    /**
-     * Admin kulüp görevlisi talebini reddeder.
-     * ROLE_PENDING_CLUB_OFFICIAL rolü kaldırılır, diğer roller korunur.
-     */
-    public void rejectClubOfficial(UUID userId) {
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new NoSuchElementException("User not found"));
-
-        Set<Role> roles = user.getRoles();
-        if (!roles.contains(Role.ROLE_PENDING_CLUB_OFFICIAL)) {
-            // İstemciye bilgi; idempotent de davranılabilir
-            throw new IllegalStateException("User does not have a pending club official request");
-        }
-        roles.remove(Role.ROLE_PENDING_CLUB_OFFICIAL);
-        user.setRoles(roles);
-        userRepository.save(user);
-    }
-
     // --- YENİ METOT: ŞİFRE DEĞİŞTİRME ---
     /**
      * Giriş yapmış kullanıcının şifresini değiştirir.

@@ -112,17 +112,12 @@ public class EventManagementController {
 
     // ==================== CLUB OFFICIAL DASHBOARD ENDPOINTS ====================
 
-    /**
-     * Kulüp yetkilisinin oluşturduğu tüm etkinlikleri getirir.
-     * Cache: 5 dakika TTL
-     */
     @GetMapping("/my-events")
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<List<Event>> getMyCreatedEvents(
             @RequestHeader("X-Authenticated-User-Id") String userIdHeader
     ) {
-        UUID creatorId = UUID.fromString(userIdHeader);
-        List<Event> events = eventService.getEventsCreatedByUser(creatorId);
+        List<Event> events = eventService.getEventsOfManagedClubs(UUID.fromString(userIdHeader));
         return ResponseEntity.ok(events);
     }
 

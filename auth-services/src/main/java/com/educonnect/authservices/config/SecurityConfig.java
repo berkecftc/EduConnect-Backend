@@ -3,6 +3,7 @@ package com.educonnect.authservices.config;
 import com.educonnect.authservices.Repository.UserRepository;
 import com.educonnect.authservices.security.JwtAuthenticationFilter;
 import com.educonnect.authservices.service.JWTService;
+import jakarta.servlet.DispatcherType;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
@@ -50,6 +51,7 @@ public class SecurityConfig {
         http
                 .csrf(csrf -> csrf.disable())
                 .authorizeHttpRequests(auth -> auth
+                        .dispatcherTypeMatchers(DispatcherType.ERROR).permitAll()
                         .requestMatchers("/.well-known/jwks.json").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/auth/internal/token").permitAll()
                         .requestMatchers("/api/auth/internal/**").hasRole("SERVICE")

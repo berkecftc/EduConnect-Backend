@@ -22,6 +22,8 @@ public interface PostRepository extends JpaRepository<Post, UUID> {
 
     List<Post> findTop5ByAuthorIdAndStatusOrderByCreatedAtDesc(UUID authorId, PostStatus status);
 
+    Page<Post> findByAuthorId(UUID authorId, Pageable pageable);
+
     /**
      * Verilen post'un belirtilen yazara ait olup olmadığını kontrol eder.
      * Service katmanında yetki doğrulaması için kullanılır.
