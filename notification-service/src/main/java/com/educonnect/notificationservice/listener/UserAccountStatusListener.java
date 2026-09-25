@@ -28,36 +28,32 @@ public class UserAccountStatusListener {
         log.info("Kullanıcı hesap durumu mesajı alındı: email={}, status={}, userType={}",
                 LogMasking.email(message.getEmail()), message.getStatus(), message.getUserType());
 
-        try {
-            String subject;
-            String htmlBody;
+        String subject;
+        String htmlBody;
 
-            if ("APPROVED".equals(message.getStatus())) {
-                subject = "EduConnect - Hesabınız Onaylandı!";
-                htmlBody = buildApprovalEmail(message);
-            } else if ("REJECTED".equals(message.getStatus())) {
-                subject = "EduConnect - Başvurunuz Hakkında Bilgilendirme";
-                htmlBody = buildRejectionEmail(message);
-            } else if ("SUSPENDED".equals(message.getStatus())) {
-                subject = "EduConnect - Hesabınız Askıya Alındı";
-                htmlBody = buildStatusChangeEmail("Hesabınız askıya alındı",
-                        "EduConnect hesabınız bir yönetici tarafından askıya alındı. Bu süre boyunca giriş yapamazsınız.",
-                        message.getRejectionReason());
-            } else if ("REACTIVATED".equals(message.getStatus())) {
-                subject = "EduConnect - Hesabınız Yeniden Etkinleştirildi";
-                htmlBody = buildStatusChangeEmail("Hesabınız yeniden etkin",
-                        "EduConnect hesabınız yeniden etkinleştirildi. Artık giriş yapabilirsiniz.", null);
-            } else {
-                log.warn("Bilinmeyen durum: {}", message.getStatus());
-                return;
-            }
-
-            emailService.sendHtmlEmail(message.getEmail(), subject, htmlBody);
-            log.info("Hesap durumu e-postası gönderildi: {}", LogMasking.email(message.getEmail()));
-
-        } catch (Exception e) {
-            log.error("Hesap durumu e-postası gönderilemedi: {}", e.getMessage(), e);
+        if ("APPROVED".equals(message.getStatus())) {
+            subject = "EduConnect - Hesabınız Onaylandı!";
+            htmlBody = buildApprovalEmail(message);
+        } else if ("REJECTED".equals(message.getStatus())) {
+            subject = "EduConnect - Başvurunuz Hakkında Bilgilendirme";
+            htmlBody = buildRejectionEmail(message);
+        } else if ("SUSPENDED".equals(message.getStatus())) {
+            subject = "EduConnect - Hesabınız Askıya Alındı";
+            htmlBody = buildStatusChangeEmail("Hesabınız askıya alındı",
+                    "EduConnect hesabınız bir yönetici tarafından askıya alındı. Bu süre boyunca giriş yapamazsınız.",
+                    message.getRejectionReason());
+        } else if ("REACTIVATED".equals(message.getStatus())) {
+            subject = "EduConnect - Hesabınız Yeniden Etkinleştirildi";
+            htmlBody = buildStatusChangeEmail("Hesabınız yeniden etkin",
+                    "EduConnect hesabınız yeniden etkinleştirildi. Artık giriş yapabilirsiniz.", null);
+        } else {
+            log.warn("Bilinmeyen durum: {}", message.getStatus());
+            return;
         }
+
+        emailService.sendHtmlEmail(message.getEmail(), subject, htmlBody);
+        log.info("Hesap durumu e-postası gönderildi: {}", LogMasking.email(message.getEmail()));
+
     }
 
     static String buildStatusChangeEmail(String title, String body, String reason) {

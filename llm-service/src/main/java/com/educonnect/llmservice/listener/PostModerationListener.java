@@ -66,10 +66,6 @@ public class PostModerationListener {
     }
 
     private void sendToReview(PostModerationEvent event) {
-        try {
-            rabbitTemplate.convertAndSend(RabbitMQConfig.POST_MODERATION_REVIEW_QUEUE, event);
-        } catch (Exception ex) {
-            log.error("Could not queue post for manual review. postId={}", event.postId(), ex);
-        }
+        rabbitTemplate.convertAndSend(RabbitMQConfig.POST_MODERATION_REVIEW_QUEUE, event);
     }
 }

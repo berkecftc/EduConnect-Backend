@@ -5,6 +5,7 @@ import com.educonnect.notificationservice.dto.message.EmailVerificationMessage;
 import com.educonnect.notificationservice.service.EmailService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.amqp.AmqpRejectAndDontRequeueException;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
 import org.springframework.stereotype.Component;
 
@@ -22,15 +23,10 @@ public class EmailVerificationListener {
     @RabbitListener(queues = NotificationRabbitMQConfig.EMAIL_VERIFICATION_QUEUE)
     public void handleEmailVerification(EmailVerificationMessage message) {
         if (message == null || message.email() == null || message.verificationLink() == null) {
-            log.warn("Geçersiz e-posta doğrulama mesajı alındı");
-            return;
+            throw new AmqpRejectAndDontRequeueException("Geçersiz e-posta doğrulama mesajı");
         }
-        try {
-            emailService.sendHtmlEmail(message.email(), "EduConnect - E-posta Adresinizi Doğrulayın", buildEmail(message));
-            log.info("E-posta doğrulama bağlantısı gönderildi");
-        } catch (Exception e) {
-            log.error("E-posta doğrulama bağlantısı gönderilemedi: {}", e.getMessage(), e);
-        }
+        emailService.sendHtmlEmail(message.email(), "EduConnect - E-posta Adresinizi Doğrulayın", buildEmail(message));
+        log.info("E-posta doğrulama bağlantısı gönderildi");
     }
 
     static String buildEmail(EmailVerificationMessage message) {

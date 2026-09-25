@@ -22,6 +22,7 @@
     <modules>
         <module>common-security</module>
         <module>common-storage</module>
+        <module>common-messaging</module>
         <module>config-server</module>
         <module>eureka-server</module>
         <module>api-gateway</module>
@@ -62,6 +63,11 @@
             <dependency>
                 <groupId>com.educonnect</groupId>
                 <artifactId>common-storage</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.educonnect</groupId>
+                <artifactId>common-messaging</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>

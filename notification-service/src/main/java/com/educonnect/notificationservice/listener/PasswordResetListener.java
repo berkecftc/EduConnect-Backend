@@ -27,23 +27,19 @@ public class PasswordResetListener {
     public void handlePasswordReset(PasswordResetMessage message) {
         log.info("Şifre sıfırlama mesajı alındı: email={}", LogMasking.email(message.getEmail()));
 
-        try {
-            String subject = "EduConnect - Şifre Sıfırlama Talebi";
-            String htmlBody = buildPasswordResetEmail(message);
+        String subject = "EduConnect - Şifre Sıfırlama Talebi";
+        String htmlBody = buildPasswordResetEmail(message);
 
-            emailService.sendHtmlEmail(message.getEmail(), subject, htmlBody);
-            log.info("Şifre sıfırlama e-postası gönderildi: {}", LogMasking.email(message.getEmail()));
-
-        } catch (Exception e) {
-            log.error("Şifre sıfırlama e-postası gönderilemedi: {}", e.getMessage(), e);
-        }
+        emailService.sendHtmlEmail(message.getEmail(), subject, htmlBody);
+        log.info("Şifre sıfırlama e-postası gönderildi: {}", LogMasking.email(message.getEmail()));
     }
 
     private String buildPasswordResetEmail(PasswordResetMessage message) {
         // Kullanıcı adı varsa kullan, yoksa "Sayın Kullanıcı" yaz
         String greeting;
         if (message.getFirstName() != null && message.getLastName() != null) {
-            greeting = String.format("Sayın <strong>%s %s</strong>,", message.getFirstName(), message.getLastName());
+            greeting = String.format("Sayın <strong>%s %s</strong>,",
+                    HtmlText.escape(message.getFirstName()), HtmlText.escape(message.getLastName()));
         } else {
             greeting = "Sayın Kullanıcı,";
         }

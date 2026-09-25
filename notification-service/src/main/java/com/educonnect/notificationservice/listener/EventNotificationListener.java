@@ -41,56 +41,57 @@ public class EventNotificationListener {
 
         log.info("📢 Handling event notification for: {} | Club: {} | ClubId: {}", eventTitle, clubName, clubId);
 
-        try {
-            // 1. ADIM: club-service'ten üye ID'lerini çek
-            String clubServiceUrl = "http://CLUB-SERVICE/api/clubs/internal/" + clubId + "/members/ids";
-            log.info("🔍 Fetching member IDs from: {}", clubServiceUrl);
+        // 1. ADIM: club-service'ten üye ID'lerini çek
+        String clubServiceUrl = "http://CLUB-SERVICE/api/clubs/internal/" + clubId + "/members/ids";
+        log.info("🔍 Fetching member IDs from: {}", clubServiceUrl);
 
-            ResponseEntity<List<UUID>> memberIdsResponse = restTemplate.exchange(
-                    clubServiceUrl,
-                    HttpMethod.GET,
-                    null,
-                    new ParameterizedTypeReference<List<UUID>>() {}
-            );
-            List<UUID> memberIds = memberIdsResponse.getBody();
+        ResponseEntity<List<UUID>> memberIdsResponse = restTemplate.exchange(
+                clubServiceUrl,
+                HttpMethod.GET,
+                null,
+                new ParameterizedTypeReference<List<UUID>>() {}
+        );
+        List<UUID> memberIds = memberIdsResponse.getBody();
 
-            log.info("👥 Member IDs received: {}", memberIds);
+        log.info("👥 Member IDs received: {}", memberIds);
 
-            if (memberIds == null || memberIds.isEmpty()) {
-                log.warn("⚠️ No members found for club '{}' (ID: {}). Skipping emails.", clubName, clubId);
-                return;
-            }
+        if (memberIds == null || memberIds.isEmpty()) {
+            log.warn("⚠️ No members found for club '{}' (ID: {}). Skipping emails.", clubName, clubId);
+            return;
+        }
 
-            // 2. ADIM: auth-services'ten bu ID'lerin e-postalarını çek
-            String authServiceUrl = "http://AUTH-SERVICES/api/auth/internal/users/emails";
-            log.info("🔍 Fetching emails from auth-services for {} member(s)", memberIds.size());
+        // 2. ADIM: auth-services'ten bu ID'lerin e-postalarını çek
+        String authServiceUrl = "http://AUTH-SERVICES/api/auth/internal/users/emails";
+        log.info("🔍 Fetching emails from auth-services for {} member(s)", memberIds.size());
 
-            HttpEntity<List<UUID>> request = new HttpEntity<>(memberIds);
-            ResponseEntity<List<String>> emailsResponse = restTemplate.exchange(
-                    authServiceUrl,
-                    HttpMethod.POST,
-                    request,
-                    new ParameterizedTypeReference<List<String>>() {}
-            );
-            List<String> emails = emailsResponse.getBody();
+        HttpEntity<List<UUID>> request = new HttpEntity<>(memberIds);
+        ResponseEntity<List<String>> emailsResponse = restTemplate.exchange(
+                authServiceUrl,
+                HttpMethod.POST,
+                request,
+                new ParameterizedTypeReference<List<String>>() {}
+        );
+        List<String> emails = emailsResponse.getBody();
 
-            log.info("📧 {} e-posta adresi alındı.", emails != null ? emails.size() : 0);
+        log.info("📧 {} e-posta adresi alındı.", emails != null ? emails.size() : 0);
 
-            // 3. ADIM: Herkese mail gönder
-            if (emails != null && !emails.isEmpty()) {
-                for (String email : emails) {
-                    String subject = "Yeni Etkinlik: " + eventTitle;
-                    String body = String.format("Merhaba,\n\n%s kulübü '%s' etkinliğini duyurdu!\nZaman: %s\n\nKaçırma!", clubName, eventTitle, eventTime);
+        // 3. ADIM: Herkese mail gönder
+        if (emails != null && !emails.isEmpty()) {
+            int failed = 0;
+            for (String email : emails) {
+                String subject = "Yeni Etkinlik: " + eventTitle;
+                String body = String.format("Merhaba,\n\n%s kulübü '%s' etkinliğini duyurdu!\nZaman: %s\n\nKaçırma!", clubName, eventTitle, eventTime);
 
+                try {
                     emailService.sendSimpleEmail(email, subject, body);
+                } catch (RuntimeException e) {
+                    failed++;
+                    log.warn("Event notification could not be sent to one member: {}", e.getMessage());
                 }
-                log.info("✅ Sent notifications to {} members.", emails.size());
-            } else {
-                log.warn("⚠️ No emails found for the member IDs. Check auth-services.");
             }
-
-        } catch (Exception e) {
-            log.error("❌ Failed to send notifications: {}", e.getMessage(), e);
+            log.info("✅ Sent notifications to {} of {} members.", emails.size() - failed, emails.size());
+        } else {
+            log.warn("⚠️ No emails found for the member IDs. Check auth-services.");
         }
     }
 }

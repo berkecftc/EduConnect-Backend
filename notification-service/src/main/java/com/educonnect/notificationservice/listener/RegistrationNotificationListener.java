@@ -61,54 +61,50 @@ public class RegistrationNotificationListener {
         // İstek gövdesi olarak ID listesi hazırlıyoruz
         List<UUID> ids = List.of(studentId);
 
-        try {
-            // RestTemplate ile POST isteği atıyoruz.
-            // ParameterizedTypeReference kullanarak dönen cevabın List<String> olduğunu garanti ediyoruz.
-            ResponseEntity<List<String>> response = restTemplate.exchange(
-                    authServiceUrl,
-                    HttpMethod.POST,
-                    new HttpEntity<>(ids),
-                    new ParameterizedTypeReference<List<String>>() {}
-            );
+        // RestTemplate ile POST isteği atıyoruz.
+        // ParameterizedTypeReference kullanarak dönen cevabın List<String> olduğunu garanti ediyoruz.
+        ResponseEntity<List<String>> response = restTemplate.exchange(
+                authServiceUrl,
+                HttpMethod.POST,
+                new HttpEntity<>(ids),
+                new ParameterizedTypeReference<List<String>>() {}
+        );
 
-            List<String> emails = response.getBody();
+        List<String> emails = response.getBody();
 
-            // E-posta bulunduysa işlemi yap
-            if (emails != null && !emails.isEmpty()) {
-                String studentEmail = emails.get(0);
-                String qrImageUrl = "cid:" + QR_CONTENT_ID;
+        // E-posta bulunduysa işlemi yap
+        if (emails != null && !emails.isEmpty()) {
+            String studentEmail = emails.get(0);
+            String qrImageUrl = "cid:" + QR_CONTENT_ID;
 
-                // HTML Mail İçeriğini Hazırlama
-                String htmlBody = String.format("""
-                    <html>
-                    <body style="font-family: Arial, sans-serif; color: #333;">
-                        <div style="background-color: #f4f4f4; padding: 20px; text-align: center;">
-                            <h2 style="color: #2c3e50;">Tebrikler! Kaydınız Alındı.</h2>
-                            <p><strong>%s</strong> etkinliğine başarıyla kaydoldunuz.</p>
-                            
-                            <div style="background-color: white; padding: 20px; border-radius: 8px; display: inline-block; margin-top: 10px;">
-                                <p style="margin: 5px 0;">📅 <strong>Zaman:</strong> %s</p>
-                                <p style="margin: 5px 0;">📍 <strong>Konum:</strong> %s</p>
-                                <hr style="border: 0; border-top: 1px solid #eee; margin: 15px 0;">
-                                <p>Giriş için aşağıdaki QR kodu görevliye gösteriniz:</p>
-                                <img src="%s" alt="Bilet QR Kodu" style="border: 2px solid #333; padding: 5px; border-radius: 4px;"/>
-                                <p style="font-size: 12px; color: #777; margin-top: 10px;">Bilet Kodu: %s</p>
-                            </div>
+            // HTML Mail İçeriğini Hazırlama
+            String htmlBody = String.format("""
+                <html>
+                <body style="font-family: Arial, sans-serif; color: #333;">
+                    <div style="background-color: #f4f4f4; padding: 20px; text-align: center;">
+                        <h2 style="color: #2c3e50;">Tebrikler! Kaydınız Alındı.</h2>
+                        <p><strong>%s</strong> etkinliğine başarıyla kaydoldunuz.</p>
+                        
+                        <div style="background-color: white; padding: 20px; border-radius: 8px; display: inline-block; margin-top: 10px;">
+                            <p style="margin: 5px 0;">📅 <strong>Zaman:</strong> %s</p>
+                            <p style="margin: 5px 0;">📍 <strong>Konum:</strong> %s</p>
+                            <hr style="border: 0; border-top: 1px solid #eee; margin: 15px 0;">
+                            <p>Giriş için aşağıdaki QR kodu görevliye gösteriniz:</p>
+                            <img src="%s" alt="Bilet QR Kodu" style="border: 2px solid #333; padding: 5px; border-radius: 4px;"/>
+                            <p style="font-size: 12px; color: #777; margin-top: 10px;">Bilet Kodu: %s</p>
                         </div>
-                    </body>
-                    </html>
-                    """, HtmlText.escape(eventTitle), HtmlText.escape(eventTime), HtmlText.escape(location), qrImageUrl, HtmlText.escape(qrCode));
+                    </div>
+                </body>
+                </html>
+                """, HtmlText.escape(eventTitle), HtmlText.escape(eventTime), HtmlText.escape(location), qrImageUrl, HtmlText.escape(qrCode));
 
-                // Maili Gönder
-                emailService.sendHtmlEmailWithInlineImage(studentEmail, "Biletiniz: " + eventTitle, htmlBody,
-                        QR_CONTENT_ID, qrCodeRenderer.renderPng(qrCode), "image/png");
+            // Maili Gönder
+            emailService.sendHtmlEmailWithInlineImage(studentEmail, "Biletiniz: " + eventTitle, htmlBody,
+                    QR_CONTENT_ID, qrCodeRenderer.renderPng(qrCode), "image/png");
 
-                log.info("Registration email sent to: {}", LogMasking.email(studentEmail));
-            } else {
-                log.warn("No email found for student ID: {}", studentId);
-            }
-        } catch (Exception e) {
-            log.error("Failed to send registration email for student ID {}: {}", studentId, e.getMessage());
+            log.info("Registration email sent to: {}", LogMasking.email(studentEmail));
+        } else {
+            log.warn("No email found for student ID: {}", studentId);
         }
     }
 }

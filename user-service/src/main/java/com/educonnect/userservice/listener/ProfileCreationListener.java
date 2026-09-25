@@ -9,6 +9,7 @@ import com.educonnect.userservice.Repository.AcademicianRepository;
 import com.educonnect.userservice.Repository.StudentRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.amqp.AmqpRejectAndDontRequeueException;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
 import org.springframework.stereotype.Component;
 
@@ -33,38 +34,38 @@ public class ProfileCreationListener {
         LOGGER.info("Received new user registration message for user ID: {} | roles: {} | dept: {} | studentNo: {}",
                 message.getUserId(), message.getRoles(), message.getDepartment(), message.getStudentNumber());
 
-        try {
-            if (studentRepository.existsById(message.getUserId())
-                    || academicianRepository.existsById(message.getUserId())) {
-                LOGGER.info("Profile already exists for user ID: {}. Registration message ignored.", message.getUserId());
-                return;
-            }
+        if (message.getUserId() == null) {
+            throw new AmqpRejectAndDontRequeueException("Registration message without user id");
+        }
 
-            if (message.getRoles() != null && message.getRoles().contains("ROLE_STUDENT")) {
-                // Guvenli degerler
-                String firstName = message.getFirstName();
-                if (firstName == null || firstName.isBlank()) firstName = "Student";
-                else firstName = firstName.trim();
-                String lastName = message.getLastName();
-                if (lastName == null || lastName.isBlank()) lastName = "User";
-                else lastName = lastName.trim();
+        if (studentRepository.existsById(message.getUserId())
+                || academicianRepository.existsById(message.getUserId())) {
+            LOGGER.info("Profile already exists for user ID: {}. Registration message ignored.", message.getUserId());
+            return;
+        }
 
-                Student newStudent = new Student();
-                newStudent.setId(message.getUserId());
-                newStudent.setFirstName(firstName);
-                newStudent.setLastName(lastName);
-                newStudent.setEmail(message.getEmail()); // Email'i kaydet
-                // Ek alanlar
-                newStudent.setStudentNumber(message.getStudentNumber());
-                newStudent.setDepartment(message.getDepartment());
-                newStudent.setStudentDocumentUrl(message.getStudentDocumentUrl()); // Öğrenci belgesi URL'si
+        if (message.getRoles() != null && message.getRoles().contains("ROLE_STUDENT")) {
+            // Guvenli degerler
+            String firstName = message.getFirstName();
+            if (firstName == null || firstName.isBlank()) firstName = "Student";
+            else firstName = firstName.trim();
+            String lastName = message.getLastName();
+            if (lastName == null || lastName.isBlank()) lastName = "User";
+            else lastName = lastName.trim();
 
-                studentRepository.save(newStudent);
-                LOGGER.info("Student profile created successfully for user ID: {} | dept: {} | studentNo: {}",
-                        newStudent.getId(), newStudent.getDepartment(), newStudent.getStudentNumber());
-            }
-        } catch (Exception e) {
-            LOGGER.error("Failed to create student profile for user ID: {}. Error: {}", message.getUserId(), e.getMessage());
+            Student newStudent = new Student();
+            newStudent.setId(message.getUserId());
+            newStudent.setFirstName(firstName);
+            newStudent.setLastName(lastName);
+            newStudent.setEmail(message.getEmail()); // Email'i kaydet
+            // Ek alanlar
+            newStudent.setStudentNumber(message.getStudentNumber());
+            newStudent.setDepartment(message.getDepartment());
+            newStudent.setStudentDocumentUrl(message.getStudentDocumentUrl()); // Öğrenci belgesi URL'si
+
+            studentRepository.save(newStudent);
+            LOGGER.info("Student profile created successfully for user ID: {} | dept: {} | studentNo: {}",
+                    newStudent.getId(), newStudent.getDepartment(), newStudent.getStudentNumber());
         }
     }
 
@@ -76,34 +77,33 @@ public class ProfileCreationListener {
 
         LOGGER.info("Received new academician profile creation message for user ID: {}", message.getUserId());
 
-        try {
-            if (academicianRepository.existsById(message.getUserId())) {
-                LOGGER.info("Academician profile already exists for user ID: {}. Message ignored.", message.getUserId());
-                return;
-            }
-
-            // Akademisyen profili oluştur
-            Academician newAcademician = new Academician();
-
-            // ID'yi auth-service'ten gelen ID ile set et (ÇOK ÖNEMLİ)
-            newAcademician.setId(message.getUserId());
-
-            // DTO'dan gelen TÜM BİLGİLERİ doldur
-            newAcademician.setFirstName(message.getFirstName());
-            newAcademician.setLastName(message.getLastName());
-            newAcademician.setEmail(message.getEmail());
-            newAcademician.setTitle(message.getTitle());
-            newAcademician.setDepartment(message.getDepartment());
-            newAcademician.setOfficeNumber(message.getOfficeNumber());
-            newAcademician.setIdCardImageUrl(message.getIdCardImageUrl()); // Kimlik kartı fotoğrafı URL'si
-            // newAcademician.setActive(false); // (Opsiyonel: Aktivasyon için)
-
-            academicianRepository.save(newAcademician);
-
-            LOGGER.info("Academician profile created successfully (pending admin approval) for user ID: {}", newAcademician.getId());
-
-        } catch (Exception e) {
-            LOGGER.error("Failed to create academician profile for user ID: {}. Error: {}", message.getUserId(), e.getMessage());
+        if (message.getUserId() == null) {
+            throw new AmqpRejectAndDontRequeueException("Academician profile message without user id");
         }
+
+        if (academicianRepository.existsById(message.getUserId())) {
+            LOGGER.info("Academician profile already exists for user ID: {}. Message ignored.", message.getUserId());
+            return;
+        }
+
+        // Akademisyen profili oluştur
+        Academician newAcademician = new Academician();
+
+        // ID'yi auth-service'ten gelen ID ile set et (ÇOK ÖNEMLİ)
+        newAcademician.setId(message.getUserId());
+
+        // DTO'dan gelen TÜM BİLGİLERİ doldur
+        newAcademician.setFirstName(message.getFirstName());
+        newAcademician.setLastName(message.getLastName());
+        newAcademician.setEmail(message.getEmail());
+        newAcademician.setTitle(message.getTitle());
+        newAcademician.setDepartment(message.getDepartment());
+        newAcademician.setOfficeNumber(message.getOfficeNumber());
+        newAcademician.setIdCardImageUrl(message.getIdCardImageUrl()); // Kimlik kartı fotoğrafı URL'si
+        // newAcademician.setActive(false); // (Opsiyonel: Aktivasyon için)
+
+        academicianRepository.save(newAcademician);
+
+        LOGGER.info("Academician profile created successfully (pending admin approval) for user ID: {}", newAcademician.getId());
     }
 }

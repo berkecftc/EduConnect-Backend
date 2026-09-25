@@ -66,40 +66,41 @@ public class CourseNotificationListener {
             return;
         }
 
-        try {
-            // auth-services'ten öğrenci e-postalarını çek
-            String authServiceUrl = "http://AUTH-SERVICES/api/auth/internal/users/emails";
-            log.info("🔍 {} öğrenci için e-posta adresleri çekiliyor...", studentIds.size());
+        // auth-services'ten öğrenci e-postalarını çek
+        String authServiceUrl = "http://AUTH-SERVICES/api/auth/internal/users/emails";
+        log.info("🔍 {} öğrenci için e-posta adresleri çekiliyor...", studentIds.size());
 
-            HttpEntity<List<UUID>> request = new HttpEntity<>(studentIds);
-            ResponseEntity<List<String>> emailsResponse = restTemplate.exchange(
-                    authServiceUrl,
-                    HttpMethod.POST,
-                    request,
-                    new ParameterizedTypeReference<List<String>>() {}
-            );
-            List<String> emails = emailsResponse.getBody();
+        HttpEntity<List<UUID>> request = new HttpEntity<>(studentIds);
+        ResponseEntity<List<String>> emailsResponse = restTemplate.exchange(
+                authServiceUrl,
+                HttpMethod.POST,
+                request,
+                new ParameterizedTypeReference<List<String>>() {}
+        );
+        List<String> emails = emailsResponse.getBody();
 
-            log.info("📧 {} e-posta adresi alındı.", emails != null ? emails.size() : 0);
+        log.info("📧 {} e-posta adresi alındı.", emails != null ? emails.size() : 0);
 
-            if (emails != null && !emails.isEmpty()) {
-                String subject = String.format("[%s] %s: %s",
-                        message.getCourseCode(), typeLabel, message.getContentTitle());
+        if (emails != null && !emails.isEmpty()) {
+            String subject = String.format("[%s] %s: %s",
+                    message.getCourseCode(), typeLabel, message.getContentTitle());
 
-                String body = buildEmailBody(message, typeLabel);
+            String body = buildEmailBody(message, typeLabel);
 
-                for (String email : emails) {
+            int failed = 0;
+            for (String email : emails) {
+                try {
                     emailService.sendSimpleEmail(email, subject, body);
+                } catch (RuntimeException e) {
+                    failed++;
+                    log.warn("Course notification could not be sent to one student: {}", e.getMessage());
                 }
-
-                log.info("✅ {} öğrenciye '{}' e-postası gönderildi. Ders: {} ({})",
-                        emails.size(), typeLabel, message.getCourseTitle(), message.getCourseCode());
-            } else {
-                log.warn("⚠️ Öğrenci e-postaları bulunamadı.");
             }
 
-        } catch (Exception e) {
-            log.error("❌ Toplu e-posta gönderme hatası: {}", e.getMessage(), e);
+            log.info("✅ {}/{} öğrenciye '{}' e-postası gönderildi. Ders: {} ({})",
+                    emails.size() - failed, emails.size(), typeLabel, message.getCourseTitle(), message.getCourseCode());
+        } else {
+            log.warn("⚠️ Öğrenci e-postaları bulunamadı.");
         }
     }
 

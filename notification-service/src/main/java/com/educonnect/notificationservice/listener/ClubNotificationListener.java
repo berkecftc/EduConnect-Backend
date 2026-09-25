@@ -70,22 +70,17 @@ public class ClubNotificationListener {
         if (userId == null) {
             return Optional.empty();
         }
-        try {
-            ResponseEntity<List<String>> response = restTemplate.exchange(
-                    AUTH_EMAILS_URL,
-                    HttpMethod.POST,
-                    new HttpEntity<>(List.of(userId)),
-                    new ParameterizedTypeReference<List<String>>() {}
-            );
-            List<String> emails = response.getBody();
-            if (emails == null || emails.isEmpty()) {
-                log.warn("No email found for userId={}", userId);
-                return Optional.empty();
-            }
-            return Optional.of(emails.get(0));
-        } catch (Exception e) {
-            log.error("Email lookup failed for userId={}: {}", userId, e.getMessage());
+        ResponseEntity<List<String>> response = restTemplate.exchange(
+                AUTH_EMAILS_URL,
+                HttpMethod.POST,
+                new HttpEntity<>(List.of(userId)),
+                new ParameterizedTypeReference<List<String>>() {}
+        );
+        List<String> emails = response.getBody();
+        if (emails == null || emails.isEmpty()) {
+            log.warn("No email found for userId={}", userId);
             return Optional.empty();
         }
+        return Optional.of(emails.get(0));
     }
 }
