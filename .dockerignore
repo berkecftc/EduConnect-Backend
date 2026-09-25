@@ -1,0 +1,15 @@
+**/target/
+.git/
+.idea/
+.vscode/
+.claude/
+docs/
+data/
+docker/
+*.iml
+*.log
+/*.sql
+.env
+.env.*
+Dockerfile
+docker-compose*.yml

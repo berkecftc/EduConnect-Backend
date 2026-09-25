@@ -1,8 +1,42 @@
+x-app: &app
+  restart: unless-stopped
+  profiles: ["app"]
+  networks:
+    - educonnect-network
+  mem_limit: ${APP_MEM_LIMIT:-768m}
+  environment:
+    SPRING_PROFILES_ACTIVE: docker
+    CONFIG_SERVER_URL: http://config-server:8888
+    CONFIG_SERVER_PASSWORD: ${CONFIG_SERVER_PASSWORD:-}
+    EDUCONNECT_FRONTEND_URL: ${EDUCONNECT_FRONTEND_URL:-http://localhost:5173}
+    EDUCONNECT_API_URL: ${EDUCONNECT_API_URL:-http://localhost:8080}
+    EDUCONNECT_STORAGE_URL: ${EDUCONNECT_STORAGE_URL:-http://localhost:9000}
+  depends_on: &app-deps
+    config-server:
+      condition: service_healthy
+    eureka-server:
+      condition: service_healthy
+    postgres:
+      condition: service_healthy
+    rabbitmq:
+      condition: service_healthy
+    redis:
+      condition: service_healthy
+    minio:
+      condition: service_healthy
+
+x-health: &health
+  interval: 10s
+  timeout: 5s
+  retries: 12
+  start_period: 120s
+
 services:
   # PostgreSQL veritabanı servisi
   postgres:
-    image: postgres:14
+    image: postgres:14.24-trixie
     container_name: educonnect-postgres
+    restart: unless-stopped
     environment:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
@@ -20,28 +54,40 @@ services:
     volumes:
       - postgres-data:/var/lib/postgresql/data # Verilerin yeniden başlatmalarda kaybolmamasını sağlar
       - ./docker/postgres-init:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U \"$${POSTGRES_USER}\" -d educonnect"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
     networks:
       - educonnect-network
 
   # Redis cache ve oturum yönetimi servisi
   redis:
-    image: redis/redis-stack:latest
+    image: redis/redis-stack@sha256:5d5154123426693540ea6c1d9e638eae2bf2024879c839db6fcfdd7717e817c7
     container_name: educonnect-redis
+    restart: unless-stopped
     environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD:?REDIS_PASSWORD .env içinde tanımlı olmalı}
       REDIS_ARGS: "--requirepass ${REDIS_PASSWORD:?REDIS_PASSWORD .env içinde tanımlı olmalı}"
     ports:
       - "127.0.0.1:6379:6379"
-      - "127.0.0.1:8001:8001" # RedisInsight için
     volumes:
       - redis-data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli -a \"$${REDIS_PASSWORD}\" --no-auth-warning ping | grep -q PONG"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
     networks:
       - educonnect-network
 
   # RabbitMQ mesaj kuyruğu servisi
   rabbitmq:
-    image: rabbitmq:3-management
+    image: rabbitmq:3.13.7-management
     container_name: educonnect-rabbitmq
     hostname: educonnect-rabbitmq
+    restart: unless-stopped
     ports:
       - "127.0.0.1:5672:5672"   # Mikroservislerin bağlanacağı AMQP portu
       - "127.0.0.1:15672:15672" # Yönetim arayüzü (http://localhost:15672)
@@ -50,12 +96,18 @@ services:
       RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD}
     volumes:
       - rabbitmq-data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 10s
+      retries: 20
     networks:
       - educonnect-network
 
   minio:
-    image: quay.io/minio/minio
+    image: quay.io/minio/minio@sha256:14cea493d9a34af32f524e538b8346cf79f3321eff8e708c1e2960462bd8936e
     container_name: educonnect-minio
+    restart: unless-stopped
     ports:
       - "127.0.0.1:9000:9000"   # API portu (Servislerinizin bağlanacağı port)
       - "127.0.0.1:9001:9001"   # Web Konsolu portu (Yönetim arayüzü)
@@ -65,14 +117,19 @@ services:
     volumes:
       - minio-data:/data # Resimlerin ve dosyaların kalıcı olarak saklanması için
     command: server /data --console-address ":9001"
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
     networks:
       - educonnect-network
 
   # Mailpit - Development için fake mail server
   mailpit:
-    image: axllent/mailpit
+    image: axllent/mailpit:v1.31.2
     container_name: educonnect-mailpit
-    restart: always
+    restart: unless-stopped
     ports:
       - "127.0.0.1:8025:8025"  # Web UI (http://localhost:8025)
       - "127.0.0.1:1025:1025"  # SMTP (Java uygulaması buraya istek atacak)
@@ -80,23 +137,205 @@ services:
       MP_MAX_MESSAGES: 5000
       MP_SMTP_AUTH_ACCEPT_ANY: 1
       MP_SMTP_AUTH_ALLOW_INSECURE: 1
+    healthcheck:
+      test: ["CMD", "/mailpit", "readyz"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
     networks:
       - educonnect-network
 
   ollama:
-    image: ollama/ollama:latest
+    image: ollama/ollama:0.34.3
     container_name: ollama
+    restart: unless-stopped
     ports:
       - "127.0.0.1:11434:11434"
     volumes:
       - ollama_data:/root/.ollama
+    healthcheck:
+      test: ["CMD", "ollama", "list"]
+      interval: 10s
+      timeout: 10s
+      retries: 10
     networks:
       - educonnect-network
-    restart: unless-stopped
 
+  config-server:
+    image: ${IMAGE_REGISTRY:-educonnect}/config-server:${IMAGE_TAG:-local}
+    build:
+      context: .
+      args:
+        MODULE: config-server
+    restart: unless-stopped
+    profiles: ["app"]
+    mem_limit: ${APP_MEM_LIMIT:-768m}
+    environment:
+      SERVER_ADDRESS: 0.0.0.0
+      ENCRYPT_KEY: ${ENCRYPT_KEY:-}
+      CONFIG_GIT_USERNAME: ${CONFIG_GIT_USERNAME:-}
+      CONFIG_GIT_TOKEN: ${CONFIG_GIT_TOKEN:-}
+      CONFIG_SERVER_PASSWORD: ${CONFIG_SERVER_PASSWORD:-}
+    ports:
+      - "127.0.0.1:8888:8888"
+    healthcheck:
+      <<: *health
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8888/actuator/health | grep -q UP"]
+    networks:
+      - educonnect-network
+
+  eureka-server:
+    image: ${IMAGE_REGISTRY:-educonnect}/eureka-server:${IMAGE_TAG:-local}
+    build:
+      context: .
+      args:
+        MODULE: eureka-server
+    restart: unless-stopped
+    profiles: ["app"]
+    mem_limit: ${APP_MEM_LIMIT:-768m}
+    environment:
+      SERVER_ADDRESS: 0.0.0.0
+      EUREKA_PASSWORD: ${EUREKA_PASSWORD:-}
+    ports:
+      - "127.0.0.1:8761:8761"
+    healthcheck:
+      <<: *health
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8761/actuator/health | grep -q UP"]
+    networks:
+      - educonnect-network
+
+  api-gateway:
+    <<: *app
+    image: ${IMAGE_REGISTRY:-educonnect}/api-gateway:${IMAGE_TAG:-local}
+    build:
+      context: .
+      args:
+        MODULE: api-gateway
+    ports:
+      - "127.0.0.1:8080:8080"
+    healthcheck:
+      <<: *health
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8080/actuator/health | grep -q UP"]
+
+  auth-services:
+    <<: *app
+    image: ${IMAGE_REGISTRY:-educonnect}/auth-services:${IMAGE_TAG:-local}
+    build:
+      context: .
+      args:
+        MODULE: auth-services
+    healthcheck:
+      <<: *health
+      test: ["CMD-SHELL", "wget -qO- http://localhost:9002/actuator/health | grep -q UP"]
+
+  user-service:
+    <<: *app
+    image: ${IMAGE_REGISTRY:-educonnect}/user-service:${IMAGE_TAG:-local}
+    build:
+      context: .
+      args:
+        MODULE: user-service
+    healthcheck:
+      <<: *health
+      test: ["CMD-SHELL", "wget -qO- http://localhost:9003/actuator/health | grep -q UP"]
+
+  club-service:
+    <<: *app
+    image: ${IMAGE_REGISTRY:-educonnect}/club-service:${IMAGE_TAG:-local}
+    build:
+      context: .
+      args:
+        MODULE: club-service
+    healthcheck:
+      <<: *health
+      test: ["CMD-SHELL", "wget -qO- http://localhost:9005/actuator/health | grep -q UP"]
+
+  event-service:
+    <<: *app
+    image: ${IMAGE_REGISTRY:-educonnect}/event-service:${IMAGE_TAG:-local}
+    build:
+      context: .
+      args:
+        MODULE: event-service
+    healthcheck:
+      <<: *health
+      test: ["CMD-SHELL", "wget -qO- http://localhost:9006/actuator/health | grep -q UP"]
+
+  course-service:
+    <<: *app
+    image: ${IMAGE_REGISTRY:-educonnect}/course-service:${IMAGE_TAG:-local}
+    build:
+      context: .
+      args:
+        MODULE: course-service
+    healthcheck:
+      <<: *health
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8084/actuator/health | grep -q UP"]
+
+  assignment-service:
+    <<: *app
+    image: ${IMAGE_REGISTRY:-educonnect}/assignment-service:${IMAGE_TAG:-local}
+    build:
+      context: .
+      args:
+        MODULE: assignment-service
+    healthcheck:
+      <<: *health
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8085/actuator/health | grep -q UP"]
+
+  post-service:
+    <<: *app
+    image: ${IMAGE_REGISTRY:-educonnect}/post-service:${IMAGE_TAG:-local}
+    build:
+      context: .
+      args:
+        MODULE: post-service
+    healthcheck:
+      <<: *health
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8086/actuator/health | grep -q UP"]
+
+  gamification-service:
+    <<: *app
+    image: ${IMAGE_REGISTRY:-educonnect}/gamification-service:${IMAGE_TAG:-local}
+    build:
+      context: .
+      args:
+        MODULE: gamification-service
+    healthcheck:
+      <<: *health
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8091/actuator/health | grep -q UP"]
+
+  notification-service:
+    <<: *app
+    image: ${IMAGE_REGISTRY:-educonnect}/notification-service:${IMAGE_TAG:-local}
+    build:
+      context: .
+      args:
+        MODULE: notification-service
+    healthcheck:
+      <<: *health
+      test: ["CMD-SHELL", "wget -qO- http://localhost:9008/actuator/health | grep -q UP"]
+
+  llm-service:
+    <<: *app
+    image: ${IMAGE_REGISTRY:-educonnect}/llm-service:${IMAGE_TAG:-local}
+    build:
+      context: .
+      args:
+        MODULE: llm-service
+    mem_limit: ${LLM_MEM_LIMIT:-1g}
+    volumes:
+      - llm-data:/app/data
+    depends_on:
+      <<: *app-deps
+      ollama:
+        condition: service_healthy
+    healthcheck:
+      <<: *health
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8089/actuator/health | grep -q UP"]
 
 networks:
-   educonnect-network:
+  educonnect-network:
     driver: bridge
 
 volumes:
@@ -105,3 +344,4 @@ volumes:
   rabbitmq-data:
   minio-data:
   ollama_data:
+  llm-data:
