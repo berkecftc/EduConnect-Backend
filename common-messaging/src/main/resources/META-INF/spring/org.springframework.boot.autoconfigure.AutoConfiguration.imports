@@ -1,1 +1,2 @@
 com.educonnect.common.messaging.MessagingAutoConfiguration
+com.educonnect.common.messaging.outbox.OutboxAutoConfiguration

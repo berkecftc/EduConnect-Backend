@@ -12,7 +12,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.amqp.rabbit.core.RabbitTemplate;
+import com.educonnect.common.messaging.outbox.OutboxPublisher;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.time.Clock;
@@ -43,7 +43,7 @@ class AccountStatusServiceTest {
     @Mock
     private RefreshTokenService refreshTokenService;
     @Mock
-    private RabbitTemplate rabbitTemplate;
+    private OutboxPublisher outboxPublisher;
 
     private AccountStatusService service;
     private final UUID userId = UUID.randomUUID();
@@ -51,7 +51,7 @@ class AccountStatusServiceTest {
 
     @BeforeEach
     void setUp() {
-        service = new AccountStatusService(userRepository, refreshTokenService, rabbitTemplate, Clock.fixed(NOW, ZoneOffset.UTC));
+        service = new AccountStatusService(userRepository, refreshTokenService, outboxPublisher, Clock.fixed(NOW, ZoneOffset.UTC));
         student = new User("ayse@example.edu", "hash", new HashSet<>(Set.of(Role.ROLE_STUDENT)));
         student.setId(userId);
     }
@@ -68,7 +68,7 @@ class AccountStatusServiceTest {
         verify(userRepository).save(student);
         verify(refreshTokenService).revokeAllSessions(userId);
         ArgumentCaptor<UserAccountStatusMessage> message = ArgumentCaptor.forClass(UserAccountStatusMessage.class);
-        verify(rabbitTemplate).convertAndSend(eq(RabbitMQConfig.EXCHANGE_NAME),
+        verify(outboxPublisher).publish(eq(RabbitMQConfig.EXCHANGE_NAME),
                 eq(RabbitMQConfig.USER_ACCOUNT_STATUS_ROUTING_KEY), message.capture());
         assertThat(message.getValue().getStatus()).isEqualTo(AccountStatusService.STATUS_SUSPENDED);
         assertThat(message.getValue().getRejectionReason()).isEqualTo("Kural ihlali");
@@ -102,7 +102,7 @@ class AccountStatusServiceTest {
         service.suspend(userId, ADMIN_EMAIL, "yeni");
 
         assertThat(student.getStatusReason()).isEqualTo("eski");
-        verifyNoInteractions(refreshTokenService, rabbitTemplate);
+        verifyNoInteractions(refreshTokenService, outboxPublisher);
     }
 
     @Test
@@ -115,7 +115,7 @@ class AccountStatusServiceTest {
         assertThat(student.getStatus()).isEqualTo(AccountStatus.ACTIVE);
         assertThat(student.getStatusReason()).isNull();
         ArgumentCaptor<UserAccountStatusMessage> message = ArgumentCaptor.forClass(UserAccountStatusMessage.class);
-        verify(rabbitTemplate).convertAndSend(eq(RabbitMQConfig.EXCHANGE_NAME),
+        verify(outboxPublisher).publish(eq(RabbitMQConfig.EXCHANGE_NAME),
                 eq(RabbitMQConfig.USER_ACCOUNT_STATUS_ROUTING_KEY), message.capture());
         assertThat(message.getValue().getStatus()).isEqualTo(AccountStatusService.STATUS_REACTIVATED);
     }

@@ -21,7 +21,7 @@ import com.educonnect.eventservice.Repository.EventRegistrationRepository;
 import com.educonnect.eventservice.security.EventAuthorizationService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.amqp.rabbit.core.RabbitTemplate;
+import com.educonnect.common.messaging.outbox.OutboxPublisher;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.http.HttpStatus;
@@ -47,7 +47,7 @@ public class EventService {
 
     private final EventRepository eventRepository;
     private final MinioService minioService;
-    private final RabbitTemplate rabbitTemplate;
+    private final OutboxPublisher outboxPublisher;
     private final EventRegistrationRepository eventRegistrationRepository;
     private final RestTemplate restTemplate;
     private final UserClient userClient;
@@ -56,7 +56,7 @@ public class EventService {
 
     public EventService(EventRepository eventRepository,
                        MinioService minioService,
-                       RabbitTemplate rabbitTemplate,
+                       OutboxPublisher outboxPublisher,
                        EventRegistrationRepository eventRegistrationRepository,
                        RestTemplate restTemplate,
                        UserClient userClient,
@@ -64,7 +64,7 @@ public class EventService {
                        EventAuthorizationService eventAuthorizationService) {
         this.eventRepository = eventRepository;
         this.minioService = minioService;
-        this.rabbitTemplate = rabbitTemplate;
+        this.outboxPublisher = outboxPublisher;
         this.eventRegistrationRepository = eventRegistrationRepository;
         this.restTemplate = restTemplate;
         this.userClient = userClient;
@@ -205,7 +205,7 @@ public class EventService {
                 savedEvent.getClubName()
         );
 
-        rabbitTemplate.convertAndSend(
+        outboxPublisher.publish(
                 EventRabbitMQConfig.CLUB_EXCHANGE_NAME,
                 EventRabbitMQConfig.ROUTING_KEY_EVENT_CREATED,
                 message
@@ -377,7 +377,7 @@ public class EventService {
                 savedRegistration.getQrCode() // Burası hata veriyordu
         );
 
-        rabbitTemplate.convertAndSend(
+        outboxPublisher.publish(
                 EventRabbitMQConfig.CLUB_EXCHANGE_NAME,
                 EventRabbitMQConfig.ROUTING_KEY_EVENT_REGISTERED,
                 message

@@ -11,13 +11,11 @@ import com.educonnect.authservices.models.StudentRegistrationRequest;
 import com.educonnect.authservices.models.User;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.amqp.rabbit.core.RabbitTemplate;
+import com.educonnect.common.messaging.outbox.OutboxPublisher;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.transaction.support.TransactionSynchronization;
-import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.time.Clock;
 import java.time.Instant;
@@ -31,7 +29,7 @@ public class EmailVerificationService {
     private final EmailVerificationTokenRepository tokenRepository;
     private final UserRepository userRepository;
     private final StudentRequestRepository studentRequestRepository;
-    private final RabbitTemplate rabbitTemplate;
+    private final OutboxPublisher outboxPublisher;
     private final AuthSecurityProperties.EmailVerification settings;
     private final AuthSecurityProperties.Links links;
     private final Clock clock;
@@ -40,21 +38,21 @@ public class EmailVerificationService {
     public EmailVerificationService(EmailVerificationTokenRepository tokenRepository,
                                     UserRepository userRepository,
                                     StudentRequestRepository studentRequestRepository,
-                                    RabbitTemplate rabbitTemplate,
+                                    OutboxPublisher outboxPublisher,
                                     AuthSecurityProperties properties) {
-        this(tokenRepository, userRepository, studentRequestRepository, rabbitTemplate, properties, Clock.systemUTC());
+        this(tokenRepository, userRepository, studentRequestRepository, outboxPublisher, properties, Clock.systemUTC());
     }
 
     EmailVerificationService(EmailVerificationTokenRepository tokenRepository,
                              UserRepository userRepository,
                              StudentRequestRepository studentRequestRepository,
-                             RabbitTemplate rabbitTemplate,
+                             OutboxPublisher outboxPublisher,
                              AuthSecurityProperties properties,
                              Clock clock) {
         this.tokenRepository = tokenRepository;
         this.userRepository = userRepository;
         this.studentRequestRepository = studentRequestRepository;
-        this.rabbitTemplate = rabbitTemplate;
+        this.outboxPublisher = outboxPublisher;
         this.settings = properties.emailVerification();
         this.links = properties.links();
         this.clock = clock;
@@ -85,8 +83,7 @@ public class EmailVerificationService {
         EmailVerificationMessage message = new EmailVerificationMessage(email, firstName,
                 links.publicApiBaseUrl() + "/api/auth/verify-email?token=" + rawToken,
                 settings.tokenTtl().toHours());
-        afterCommit(() -> rabbitTemplate.convertAndSend(RabbitMQConfig.EXCHANGE_NAME,
-                RabbitMQConfig.EMAIL_VERIFICATION_ROUTING_KEY, message));
+        outboxPublisher.publish(RabbitMQConfig.EXCHANGE_NAME, RabbitMQConfig.EMAIL_VERIFICATION_ROUTING_KEY, message);
     }
 
     @Transactional
@@ -138,19 +135,6 @@ public class EmailVerificationService {
         int deleted = tokenRepository.deleteExpired(clock.instant());
         if (deleted > 0) {
             LOGGER.info("Cleaned up {} expired email verification tokens", deleted);
-        }
-    }
-
-    private static void afterCommit(Runnable action) {
-        if (TransactionSynchronizationManager.isSynchronizationActive()) {
-            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
-                @Override
-                public void afterCommit() {
-                    action.run();
-                }
-            });
-        } else {
-            action.run();
         }
     }
 }

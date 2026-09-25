@@ -28,7 +28,7 @@ import com.educonnect.authservices.Repository.PasswordResetTokenRepository;
 import com.educonnect.authservices.Repository.StudentRequestRepository; // ÖĞRENCİ REPOSITORY
 import com.educonnect.authservices.Repository.UserRepository;
 import jakarta.transaction.Transactional; // Transaction yönetimi için
-import org.springframework.amqp.rabbit.core.RabbitTemplate;
+import com.educonnect.common.messaging.outbox.OutboxPublisher;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.BadCredentialsException;
@@ -70,7 +70,7 @@ public class AuthServiceImpl {
     private final PasswordEncoder passwordEncoder;
     private final JWTService jwtService;
     private final AuthenticationManager authenticationManager;
-    private final RabbitTemplate rabbitTemplate;
+    private final OutboxPublisher outboxPublisher;
     private final RefreshTokenService refreshTokenService;
     private final MinioService minioService; // Akademisyen kimlik kartı yüklemesi için
     private final PasswordPolicy passwordPolicy;
@@ -86,7 +86,7 @@ public class AuthServiceImpl {
                            PasswordEncoder passwordEncoder,
                            JWTService jwtService,
                            AuthenticationManager authenticationManager,
-                           RabbitTemplate rabbitTemplate,
+                           OutboxPublisher outboxPublisher,
                            RefreshTokenService refreshTokenService,
                            MinioService minioService,
                            PasswordPolicy passwordPolicy,
@@ -104,11 +104,12 @@ public class AuthServiceImpl {
         this.passwordEncoder = passwordEncoder;
         this.jwtService = jwtService;
         this.authenticationManager = authenticationManager;
-        this.rabbitTemplate = rabbitTemplate;
+        this.outboxPublisher = outboxPublisher;
         this.refreshTokenService = refreshTokenService;
         this.minioService = minioService;
     }
 
+    @Transactional
     public AuthResponse register(RegisterRequest request) {
         if (request.getEmail() == null || request.getPassword() == null
                 || request.getFirstName() == null || request.getLastName() == null) {
@@ -140,7 +141,7 @@ public class AuthServiceImpl {
                 request.getDepartment()
         );
 
-        rabbitTemplate.convertAndSend(
+        outboxPublisher.publish(
                 RabbitMQConfig.EXCHANGE_NAME,
                 RabbitMQConfig.ROUTING_KEY,
                 message
@@ -225,7 +226,7 @@ public class AuthServiceImpl {
                 req.getStudentDocumentUrl()
         );
 
-        rabbitTemplate.convertAndSend(
+        outboxPublisher.publish(
                 RabbitMQConfig.EXCHANGE_NAME,
                 RabbitMQConfig.ROUTING_KEY,
                 message
@@ -240,7 +241,7 @@ public class AuthServiceImpl {
                 "STUDENT",
                 null
         );
-        rabbitTemplate.convertAndSend(
+        outboxPublisher.publish(
                 RabbitMQConfig.EXCHANGE_NAME,
                 RabbitMQConfig.USER_ACCOUNT_STATUS_ROUTING_KEY,
                 statusMessage
@@ -268,7 +269,7 @@ public class AuthServiceImpl {
                 "STUDENT",
                 rejectionReason
         );
-        rabbitTemplate.convertAndSend(
+        outboxPublisher.publish(
                 RabbitMQConfig.EXCHANGE_NAME,
                 RabbitMQConfig.USER_ACCOUNT_STATUS_ROUTING_KEY,
                 statusMessage
@@ -386,7 +387,7 @@ public class AuthServiceImpl {
                 req.getIdCardImageUrl() // Kimlik kartı fotoğrafı URL'si
         );
 
-        rabbitTemplate.convertAndSend(EXCHANGE_NAME, ACADEMICIAN_ROUTING_KEY, profileMessage);
+        outboxPublisher.publish(EXCHANGE_NAME, ACADEMICIAN_ROUTING_KEY, profileMessage);
 
         // 5. E-posta bildirimi gönder (onay)
         UserAccountStatusMessage statusMessage = new UserAccountStatusMessage(
@@ -397,7 +398,7 @@ public class AuthServiceImpl {
                 "ACADEMICIAN",
                 null
         );
-        rabbitTemplate.convertAndSend(
+        outboxPublisher.publish(
                 RabbitMQConfig.EXCHANGE_NAME,
                 RabbitMQConfig.USER_ACCOUNT_STATUS_ROUTING_KEY,
                 statusMessage
@@ -460,7 +461,7 @@ public class AuthServiceImpl {
                 OffsetDateTime.now(ZoneId.of("Europe/Istanbul"))
         );
         if (user.getRoles().contains(Role.ROLE_STUDENT)) {
-            rabbitTemplate.convertAndSend(
+            outboxPublisher.publish(
                     RabbitMQConfig.GAMIFICATION_EXCHANGE,
                     RabbitMQConfig.GAMIFICATION_USER_LOGIN_ROUTING_KEY,
                     gamificationEvent
@@ -655,7 +656,7 @@ public class AuthServiceImpl {
                 "ACADEMICIAN",
                 rejectionReason
         );
-        rabbitTemplate.convertAndSend(
+        outboxPublisher.publish(
                 RabbitMQConfig.EXCHANGE_NAME,
                 RabbitMQConfig.USER_ACCOUNT_STATUS_ROUTING_KEY,
                 statusMessage
@@ -711,16 +712,12 @@ public class AuthServiceImpl {
             "Admin tarafından silindi"
         );
 
-        try {
-            rabbitTemplate.convertAndSend(
-                RabbitMQConfig.EXCHANGE_NAME,
-                RabbitMQConfig.USER_DELETE_ROUTING_KEY,
-                message
-            );
-            LOGGER.info("User deletion message sent to queue. UserID: {}, Type: {}", userId, userType);
-        } catch (Exception e) {
-            LOGGER.error("Failed to send user deletion message for UserID: {}. Error: {}", userId, e.getMessage());
-        }
+        outboxPublisher.publish(
+            RabbitMQConfig.EXCHANGE_NAME,
+            RabbitMQConfig.USER_DELETE_ROUTING_KEY,
+            message
+        );
+        LOGGER.info("User deletion message queued. UserID: {}, Type: {}", userId, userType);
 
         // Auth DB'den kullanıcıyı sil
         userRepository.deleteById(userId);
@@ -759,7 +756,7 @@ public class AuthServiceImpl {
                 resetLink
         );
 
-        rabbitTemplate.convertAndSend(
+        outboxPublisher.publish(
                 RabbitMQConfig.EXCHANGE_NAME,
                 RabbitMQConfig.PASSWORD_RESET_ROUTING_KEY,
                 message

@@ -14,7 +14,7 @@ import com.educonnect.eventservice.model.*;
 import com.educonnect.eventservice.security.EventAuthorizationService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.amqp.rabbit.core.RabbitTemplate;
+import com.educonnect.common.messaging.outbox.OutboxPublisher;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -42,7 +42,7 @@ public class EventParticipationRequestService {
     private final EventRepository eventRepository;
     private final EventRegistrationRepository eventRegistrationRepository;
     private final EventAuthorizationService eventAuthorizationService;
-    private final RabbitTemplate rabbitTemplate;
+    private final OutboxPublisher outboxPublisher;
     private final UserClient userClient;
     private final ClubClient clubClient;
 
@@ -51,14 +51,14 @@ public class EventParticipationRequestService {
             EventRepository eventRepository,
             EventRegistrationRepository eventRegistrationRepository,
             EventAuthorizationService eventAuthorizationService,
-            RabbitTemplate rabbitTemplate,
+            OutboxPublisher outboxPublisher,
             UserClient userClient,
             ClubClient clubClient) {
         this.participationRequestRepository = participationRequestRepository;
         this.eventRepository = eventRepository;
         this.eventRegistrationRepository = eventRegistrationRepository;
         this.eventAuthorizationService = eventAuthorizationService;
-        this.rabbitTemplate = rabbitTemplate;
+        this.outboxPublisher = outboxPublisher;
         this.userClient = userClient;
         this.clubClient = clubClient;
     }
@@ -169,7 +169,7 @@ public class EventParticipationRequestService {
                 savedRegistration.getQrCode()
         );
 
-        rabbitTemplate.convertAndSend(
+        outboxPublisher.publish(
                 EventRabbitMQConfig.CLUB_EXCHANGE_NAME,
                 EventRabbitMQConfig.ROUTING_KEY_EVENT_REGISTERED,
                 message

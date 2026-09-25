@@ -24,8 +24,6 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.support.TransactionSynchronization;
-import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Arrays;
@@ -102,13 +100,7 @@ public class PostService {
     /**
      * Yeni post oluşturur.
      * - Status başlangıçta PENDING olarak kaydedilir.
-     * - Moderasyon olayı transaction commit'inden sonra RabbitMQ'ya fırlatılır.
-     *
-     * Mesaj kaybı analizi:
-     * - @Transactional sayesinde DB kaydı garanti altındadır.
-     * - Event, DB commit'inden sonra fırlatılır. Eğer publish sırasında hata olursa
-     *   post PENDING kalır ve manuel moderasyon ile çözülebilir.
-     * - Kuyruk durable olduğu için broker tarafında mesaj kaybı olmaz.
+     * - Moderasyon olayı aynı transaction'da outbox tablosuna yazılır, commit sonrası RabbitMQ'ya gönderilir.
      */
     @Transactional
     public PostResponse createPost(CreatePostRequest request, UUID authorId) {
@@ -285,18 +277,6 @@ public class PostService {
                 post.getContent(),
                 UUID.randomUUID() // Her olay için benzersiz eventId
         );
-
-        // Consumer aynı serviste çalıştığı için commit öncesi publish edilirse
-        // listener post'u henüz göremeyebilir; bu nedenle publish'i commit sonrasına erteliyoruz.
-        if (TransactionSynchronizationManager.isActualTransactionActive()) {
-            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
-                @Override
-                public void afterCommit() {
-                    eventPublisher.publishModerationEvent(event);
-                }
-            });
-            return;
-        }
 
         eventPublisher.publishModerationEvent(event);
     }

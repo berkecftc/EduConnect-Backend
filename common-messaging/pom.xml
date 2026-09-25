@@ -14,7 +14,7 @@
     <packaging>jar</packaging>
 
     <name>Common Messaging</name>
-    <description>RabbitMQ dinleyicileri için sınırlı yeniden deneme ve dead letter kuyrukları</description>
+    <description>RabbitMQ dinleyicileri için sınırlı yeniden deneme, dead letter kuyrukları ve transactional outbox</description>
 
     <dependencies>
         <dependency>
@@ -28,6 +28,16 @@
         <dependency>
             <groupId>org.springframework.retry</groupId>
             <artifactId>spring-retry</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework</groupId>
+            <artifactId>spring-jdbc</artifactId>
+            <optional>true</optional>
+        </dependency>
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-databind</artifactId>
+            <optional>true</optional>
         </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>

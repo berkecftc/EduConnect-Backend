@@ -29,7 +29,7 @@ import com.educonnect.clubservice.security.ClubAuthorizationService;
 import com.educonnect.clubservice.security.ClubPermission;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.amqp.rabbit.core.RabbitTemplate;
+import com.educonnect.common.messaging.outbox.OutboxPublisher;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Sort;
@@ -56,7 +56,7 @@ public class ClubService {
     // Gerekli bağımlılıklar
     private final ClubRepository clubRepository;
     private final ClubMembershipRepository membershipRepository;
-    private final RabbitTemplate rabbitTemplate; // RabbitMQ ile konuşmak için
+    private final OutboxPublisher outboxPublisher;
     private final MinioService minioService;
     private final ClubCreationRequestRepository requestRepository; // Kulüp talepleri
     private final UserClient userClient;
@@ -69,7 +69,7 @@ public class ClubService {
 
     public ClubService(ClubRepository clubRepository,
                        ClubMembershipRepository membershipRepository,
-                       RabbitTemplate rabbitTemplate,
+                       OutboxPublisher outboxPublisher,
                        MinioService minioService,
                        ClubCreationRequestRepository requestRepository,
                        UserClient userClient,
@@ -81,7 +81,7 @@ public class ClubService {
                        UserLookup userLookup) {
         this.clubRepository = clubRepository;
         this.membershipRepository = membershipRepository;
-        this.rabbitTemplate = rabbitTemplate;
+        this.outboxPublisher = outboxPublisher;
         this.minioService = minioService;
         this.requestRepository = requestRepository;
         this.userClient = userClient;
@@ -317,7 +317,7 @@ public class ClubService {
             );
 
             String routingKey = "club.deleted";
-            rabbitTemplate.convertAndSend(
+            outboxPublisher.publish(
                 ClubRabbitMQConfig.CLUB_EXCHANGE_NAME,
                 routingKey,
                 message
@@ -364,7 +364,7 @@ public class ClubService {
             );
 
             String routingKey = "club.updated"; // YENİ ROUTING KEY
-            rabbitTemplate.convertAndSend(ClubRabbitMQConfig.CLUB_EXCHANGE_NAME, routingKey, message);
+            outboxPublisher.publish(ClubRabbitMQConfig.CLUB_EXCHANGE_NAME, routingKey, message);
 
             System.out.println("Club updated message sent: " + updatedClub.getName());
         }

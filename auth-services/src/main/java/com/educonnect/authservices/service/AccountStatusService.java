@@ -7,13 +7,11 @@ import com.educonnect.authservices.models.Role;
 import com.educonnect.authservices.models.User;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.amqp.rabbit.core.RabbitTemplate;
+import com.educonnect.common.messaging.outbox.OutboxPublisher;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.transaction.support.TransactionSynchronization;
-import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.time.Clock;
@@ -31,23 +29,23 @@ public class AccountStatusService {
 
     private final UserRepository userRepository;
     private final RefreshTokenService refreshTokenService;
-    private final RabbitTemplate rabbitTemplate;
+    private final OutboxPublisher outboxPublisher;
     private final Clock clock;
 
     @Autowired
     public AccountStatusService(UserRepository userRepository,
                                 RefreshTokenService refreshTokenService,
-                                RabbitTemplate rabbitTemplate) {
-        this(userRepository, refreshTokenService, rabbitTemplate, Clock.systemUTC());
+                                OutboxPublisher outboxPublisher) {
+        this(userRepository, refreshTokenService, outboxPublisher, Clock.systemUTC());
     }
 
     AccountStatusService(UserRepository userRepository,
                          RefreshTokenService refreshTokenService,
-                         RabbitTemplate rabbitTemplate,
+                         OutboxPublisher outboxPublisher,
                          Clock clock) {
         this.userRepository = userRepository;
         this.refreshTokenService = refreshTokenService;
-        this.rabbitTemplate = rabbitTemplate;
+        this.outboxPublisher = outboxPublisher;
         this.clock = clock;
     }
 
@@ -103,17 +101,6 @@ public class AccountStatusService {
     private void notifyUser(User user, String status, String reason) {
         String userType = user.getRoles() != null && user.getRoles().contains(Role.ROLE_ACADEMICIAN) ? "ACADEMICIAN" : "STUDENT";
         UserAccountStatusMessage message = new UserAccountStatusMessage(user.getEmail(), null, null, status, userType, reason);
-        Runnable send = () -> rabbitTemplate.convertAndSend(RabbitMQConfig.EXCHANGE_NAME,
-                RabbitMQConfig.USER_ACCOUNT_STATUS_ROUTING_KEY, message);
-        if (TransactionSynchronizationManager.isSynchronizationActive()) {
-            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
-                @Override
-                public void afterCommit() {
-                    send.run();
-                }
-            });
-        } else {
-            send.run();
-        }
+        outboxPublisher.publish(RabbitMQConfig.EXCHANGE_NAME, RabbitMQConfig.USER_ACCOUNT_STATUS_ROUTING_KEY, message);
     }
 }

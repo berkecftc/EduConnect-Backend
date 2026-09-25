@@ -10,7 +10,7 @@ import com.educonnect.postservice.model.PostStatus;
 import com.educonnect.postservice.repository.PostRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.amqp.rabbit.core.RabbitTemplate;
+import com.educonnect.common.messaging.outbox.OutboxPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -24,11 +24,11 @@ public class PostModerationService {
     private static final Logger log = LoggerFactory.getLogger(PostModerationService.class);
 
     private final PostRepository postRepository;
-    private final RabbitTemplate rabbitTemplate;
+    private final OutboxPublisher outboxPublisher;
 
-    public PostModerationService(PostRepository postRepository, RabbitTemplate rabbitTemplate) {
+    public PostModerationService(PostRepository postRepository, OutboxPublisher outboxPublisher) {
         this.postRepository = postRepository;
-        this.rabbitTemplate = rabbitTemplate;
+        this.outboxPublisher = outboxPublisher;
     }
 
     @Transactional
@@ -58,11 +58,11 @@ public class PostModerationService {
         log.info("Post published by moderation. postId={}, eventId={}", postId, eventId);
 
         if (post.getCategory() == PostCategory.DERS_NOTU) {
-            publishGamificationEventSafely(post);
+            publishGamificationEvent(post);
         }
     }
 
-    private void publishGamificationEventSafely(Post post) {
+    private void publishGamificationEvent(Post post) {
         GamificationEvent gamificationEvent = new GamificationEvent(
                 post.getAuthorId(),
                 ActionType.POST_PUBLISHED,
@@ -70,16 +70,12 @@ public class PostModerationService {
                 OffsetDateTime.now()
         );
 
-        try {
-            rabbitTemplate.convertAndSend(
-                    RabbitMQConfig.GAMIFICATION_EXCHANGE,
-                    RabbitMQConfig.ROUTING_KEY_GAMIFICATION_POST_PUBLISHED,
-                    gamificationEvent
-            );
-            log.info("Gamification event published. postId={}", post.getId());
-        } catch (Exception ex) {
-            log.error("Gamification event publish failed, moderation result kept. postId={}", post.getId(), ex);
-        }
+        outboxPublisher.publish(
+                RabbitMQConfig.GAMIFICATION_EXCHANGE,
+                RabbitMQConfig.ROUTING_KEY_GAMIFICATION_POST_PUBLISHED,
+                gamificationEvent
+        );
+        log.info("Gamification event queued. postId={}", post.getId());
     }
 }
 

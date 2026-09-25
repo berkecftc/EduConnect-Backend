@@ -15,7 +15,7 @@ import com.educonnect.clubservice.security.ClubPermission;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
-import org.springframework.amqp.rabbit.core.RabbitTemplate;
+import com.educonnect.common.messaging.outbox.OutboxPublisher;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.server.ResponseStatusException;
 
@@ -43,7 +43,7 @@ class RoleChangeRequestServiceTest {
     private RoleChangeRequestRepository requestRepository;
     private ClubMembershipRepository membershipRepository;
     private ClubAuthorizationService authorizationService;
-    private RabbitTemplate rabbitTemplate;
+    private OutboxPublisher outboxPublisher;
     private ClubManagementStatusPublisher managementStatusPublisher;
     private RoleChangeRequestService service;
 
@@ -53,10 +53,10 @@ class RoleChangeRequestServiceTest {
         membershipRepository = mock(ClubMembershipRepository.class);
         ClubRepository clubRepository = mock(ClubRepository.class);
         authorizationService = mock(ClubAuthorizationService.class);
-        rabbitTemplate = mock(RabbitTemplate.class);
+        outboxPublisher = mock(OutboxPublisher.class);
         managementStatusPublisher = mock(ClubManagementStatusPublisher.class);
         service = new RoleChangeRequestService(requestRepository, membershipRepository, clubRepository,
-                mock(UserClient.class), rabbitTemplate, authorizationService, mock(ClubCacheEvictor.class), managementStatusPublisher);
+                mock(UserClient.class), outboxPublisher, authorizationService, mock(ClubCacheEvictor.class), managementStatusPublisher);
 
         Club club = new Club();
         club.setId(clubId);

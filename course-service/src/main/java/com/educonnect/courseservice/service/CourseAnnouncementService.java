@@ -19,6 +19,7 @@ import com.educonnect.courseservice.repository.EnrollmentRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Map;
@@ -51,6 +52,7 @@ public class CourseAnnouncementService {
     /**
      * Hoca duyuru oluşturur ve kayıtlı öğrencilere bildirim gönderir.
      */
+    @Transactional
     public AnnouncementResponse createAnnouncement(UUID courseId, AnnouncementRequest request, UUID instructorId) {
         Course course = courseRepository.findById(courseId)
                 .orElseThrow(() -> new CourseNotFoundException("Ders bulunamadı: " + courseId));
@@ -119,32 +121,28 @@ public class CourseAnnouncementService {
      * Kayıtlı öğrencilere RabbitMQ üzerinden bildirim gönderir.
      */
     private void sendNotificationToEnrolledStudents(Course course, String type, String title, String description) {
-        try {
-            List<StudentCourseEnrollment> enrollments = enrollmentRepository.findByCourseIdAndIsActive(course.getId(), true);
-            List<UUID> studentIds = enrollments.stream()
-                    .map(StudentCourseEnrollment::getStudentId)
-                    .collect(Collectors.toList());
+        List<StudentCourseEnrollment> enrollments = enrollmentRepository.findByCourseIdAndIsActive(course.getId(), true);
+        List<UUID> studentIds = enrollments.stream()
+                .map(StudentCourseEnrollment::getStudentId)
+                .collect(Collectors.toList());
 
-            if (studentIds.isEmpty()) {
-                log.info("📭 Derste kayıtlı öğrenci yok, bildirim gönderilmedi.");
-                return;
-            }
-
-            CourseNotificationEvent event = new CourseNotificationEvent(
-                    course.getId(),
-                    course.getTitle(),
-                    course.getCode(),
-                    type,
-                    title,
-                    description,
-                    studentIds
-            );
-
-            courseProducer.sendAnnouncementNotification(event);
-            log.info("📤 Bildirim event'i gönderildi: {} öğrenciye {} bildirimi", studentIds.size(), type);
-        } catch (Exception e) {
-            log.error("❌ Bildirim gönderme hatası: {}", e.getMessage());
+        if (studentIds.isEmpty()) {
+            log.info("📭 Derste kayıtlı öğrenci yok, bildirim gönderilmedi.");
+            return;
         }
+
+        CourseNotificationEvent event = new CourseNotificationEvent(
+                course.getId(),
+                course.getTitle(),
+                course.getCode(),
+                type,
+                title,
+                description,
+                studentIds
+        );
+
+        courseProducer.sendAnnouncementNotification(event);
+        log.info("📤 Bildirim event'i kuyruğa alındı: {} öğrenciye {} bildirimi", studentIds.size(), type);
     }
 
     private AnnouncementResponse mapToResponse(CourseAnnouncement announcement, Course course) {

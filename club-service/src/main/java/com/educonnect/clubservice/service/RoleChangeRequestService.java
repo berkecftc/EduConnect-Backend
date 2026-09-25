@@ -16,7 +16,7 @@ import com.educonnect.clubservice.security.ClubPermission;
 import feign.FeignException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.amqp.rabbit.core.RabbitTemplate;
+import com.educonnect.common.messaging.outbox.OutboxPublisher;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -49,7 +49,7 @@ public class RoleChangeRequestService {
     private final ClubMembershipRepository membershipRepository;
     private final ClubRepository clubRepository;
     private final UserClient userClient;
-    private final RabbitTemplate rabbitTemplate;
+    private final OutboxPublisher outboxPublisher;
     private final ClubAuthorizationService clubAuthorizationService;
     private final ClubCacheEvictor cacheEvictor;
     private final ClubManagementStatusPublisher managementStatusPublisher;
@@ -58,7 +58,7 @@ public class RoleChangeRequestService {
                                      ClubMembershipRepository membershipRepository,
                                      ClubRepository clubRepository,
                                      UserClient userClient,
-                                     RabbitTemplate rabbitTemplate,
+                                     OutboxPublisher outboxPublisher,
                                      ClubAuthorizationService clubAuthorizationService,
                                      ClubCacheEvictor cacheEvictor,
                                      ClubManagementStatusPublisher managementStatusPublisher) {
@@ -66,7 +66,7 @@ public class RoleChangeRequestService {
         this.membershipRepository = membershipRepository;
         this.clubRepository = clubRepository;
         this.userClient = userClient;
-        this.rabbitTemplate = rabbitTemplate;
+        this.outboxPublisher = outboxPublisher;
         this.clubAuthorizationService = clubAuthorizationService;
         this.cacheEvictor = cacheEvictor;
         this.managementStatusPublisher = managementStatusPublisher;
@@ -450,7 +450,7 @@ public class RoleChangeRequestService {
                     notificationType
             );
 
-            rabbitTemplate.convertAndSend(
+            outboxPublisher.publish(
                     ClubRabbitMQConfig.CLUB_EXCHANGE_NAME,
                     ROUTING_KEY_ROLE_CHANGE_NOTIFICATION,
                     notificationMessage

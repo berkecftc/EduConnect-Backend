@@ -10,7 +10,7 @@ import com.educonnect.eventservice.model.EventStatus;
 import com.educonnect.eventservice.security.EventAuthorizationService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.springframework.amqp.rabbit.core.RabbitTemplate;
+import com.educonnect.common.messaging.outbox.OutboxPublisher;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.server.ResponseStatusException;
@@ -48,7 +48,7 @@ class EventServiceAuthorizationTest {
         registrationRepository = mock(EventRegistrationRepository.class);
         clubClient = mock(ClubClient.class);
         authorizationService = mock(EventAuthorizationService.class);
-        service = new EventService(eventRepository, mock(MinioService.class), mock(RabbitTemplate.class),
+        service = new EventService(eventRepository, mock(MinioService.class), mock(OutboxPublisher.class),
                 registrationRepository, mock(RestTemplate.class), mock(UserClient.class), clubClient, authorizationService);
 
         event = new Event();

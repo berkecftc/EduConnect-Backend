@@ -13,7 +13,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.amqp.rabbit.core.RabbitTemplate;
+import com.educonnect.common.messaging.outbox.OutboxPublisher;
 
 import java.time.Clock;
 import java.time.Duration;
@@ -43,14 +43,14 @@ class EmailVerificationServiceTest {
     @Mock
     private StudentRequestRepository studentRequestRepository;
     @Mock
-    private RabbitTemplate rabbitTemplate;
+    private OutboxPublisher outboxPublisher;
 
     private EmailVerificationService service(boolean enabled) {
         AuthSecurityProperties properties = new AuthSecurityProperties(null, null, null,
                 new AuthSecurityProperties.EmailVerification(enabled, Duration.ofHours(24)),
                 new AuthSecurityProperties.Links("https://app.example.edu/", "https://api.example.edu"),
                 null);
-        return new EmailVerificationService(tokenRepository, userRepository, studentRequestRepository, rabbitTemplate,
+        return new EmailVerificationService(tokenRepository, userRepository, studentRequestRepository, outboxPublisher,
                 properties, Clock.fixed(NOW, ZoneOffset.UTC));
     }
 
@@ -62,7 +62,7 @@ class EmailVerificationServiceTest {
 
         assertThat(service.verifiedAtForNewAccount()).isEqualTo(NOW);
         assertThat(service.isVerified(null)).isTrue();
-        verifyNoInteractions(tokenRepository, rabbitTemplate);
+        verifyNoInteractions(tokenRepository, outboxPublisher);
     }
 
     @Test
@@ -82,7 +82,7 @@ class EmailVerificationServiceTest {
         verify(tokenRepository).deleteByEmail(EMAIL);
         verify(tokenRepository).save(saved.capture());
         ArgumentCaptor<EmailVerificationMessage> sent = ArgumentCaptor.forClass(EmailVerificationMessage.class);
-        verify(rabbitTemplate).convertAndSend(eq(RabbitMQConfig.EXCHANGE_NAME),
+        verify(outboxPublisher).publish(eq(RabbitMQConfig.EXCHANGE_NAME),
                 eq(RabbitMQConfig.EMAIL_VERIFICATION_ROUTING_KEY), sent.capture());
 
         String link = sent.getValue().verificationLink();
@@ -134,7 +134,7 @@ class EmailVerificationServiceTest {
         service(true).resend(EMAIL);
 
         verify(tokenRepository).save(any(EmailVerificationToken.class));
-        verify(rabbitTemplate).convertAndSend(eq(RabbitMQConfig.EXCHANGE_NAME),
+        verify(outboxPublisher).publish(eq(RabbitMQConfig.EXCHANGE_NAME),
                 eq(RabbitMQConfig.EMAIL_VERIFICATION_ROUTING_KEY), any(EmailVerificationMessage.class));
     }
 
@@ -145,7 +145,7 @@ class EmailVerificationServiceTest {
 
         service(true).resend(EMAIL);
 
-        verifyNoInteractions(rabbitTemplate);
+        verifyNoInteractions(outboxPublisher);
         verify(tokenRepository, never()).save(any());
     }
 
