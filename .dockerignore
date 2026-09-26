@@ -13,3 +13,6 @@ docker/
 .env.*
 Dockerfile
 docker-compose*.yml
+backups/
+.github/
+docker-bake.hcl
