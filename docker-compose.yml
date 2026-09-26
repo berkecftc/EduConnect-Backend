@@ -12,6 +12,8 @@ x-app: &app
     EDUCONNECT_FRONTEND_URL: ${EDUCONNECT_FRONTEND_URL:-http://localhost:5173}
     EDUCONNECT_API_URL: ${EDUCONNECT_API_URL:-http://localhost:8080}
     EDUCONNECT_STORAGE_URL: ${EDUCONNECT_STORAGE_URL:-http://localhost:9000}
+    EDUCONNECT_OBSERVABILITY_OTLP_ENDPOINT: ${OTLP_ENDPOINT:-}
+    SPRING_MAIN_BANNER_MODE: "off"
   depends_on: &app-deps
     config-server:
       condition: service_healthy

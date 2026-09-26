@@ -113,7 +113,7 @@ public class PostService {
         post.setAuthorId(authorId);
 
         Post savedPost = postRepository.save(post);
-        log.info("📝 Post oluşturuldu (PENDING) — postId: {}, authorId: {}", savedPost.getId(), authorId);
+        log.info("Post oluşturuldu (PENDING) — postId: {}, authorId: {}", savedPost.getId(), authorId);
 
         // Moderasyon olayını commit sonrası yayınla
         publishModerationEvent(savedPost);
@@ -138,7 +138,7 @@ public class PostService {
         post.setStatus(PostStatus.PENDING); // Güncelleme sonrası tekrar moderasyona gider
 
         Post updatedPost = postRepository.save(post);
-        log.info("✏️ Post güncellendi (PENDING) — postId: {}, authorId: {}", updatedPost.getId(), authorId);
+        log.info("Post güncellendi (PENDING) — postId: {}, authorId: {}", updatedPost.getId(), authorId);
 
         // Yeni moderasyon olayını commit sonrası yayınla
         publishModerationEvent(updatedPost);
@@ -157,7 +157,7 @@ public class PostService {
         validateAuthor(post, authorId);
 
         postRepository.delete(post);
-        log.info("🗑️ Post silindi — postId: {}, authorId: {}", postId, authorId);
+        log.info("Post silindi — postId: {}, authorId: {}", postId, authorId);
     }
 
     /**
@@ -342,7 +342,7 @@ public class PostService {
         try {
             return userClient.getUserById(userId);
         } catch (Exception e) {
-            log.warn("⚠️ Kullanıcı bilgisi alınamadı (user-service erişilemez olabilir) — userId: {}", userId);
+            log.warn("Kullanıcı bilgisi alınamadı (user-service erişilemez olabilir) — userId: {}", userId);
             return null;
         }
     }

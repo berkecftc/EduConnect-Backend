@@ -15,6 +15,7 @@ import org.springframework.boot.autoconfigure.orm.jpa.HibernateJpaAutoConfigurat
 import org.springframework.boot.autoconfigure.transaction.TransactionAutoConfiguration;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
@@ -53,5 +54,16 @@ public class OutboxAutoConfiguration {
                                            OutboxRelay outboxRelay) {
         return new OutboxPublisher(jdbcTemplate, () -> rabbitTemplate.getObject().getMessageConverter(),
                 HEADER_MAPPER, outboxRelay::trigger, Clock.systemUTC());
+    }
+
+    @Configuration(proxyBeanMethods = false)
+    @ConditionalOnClass(name = "io.micrometer.core.instrument.binder.MeterBinder")
+    static class OutboxMetricsConfiguration {
+
+        @Bean
+        @ConditionalOnMissingBean
+        public OutboxMetrics outboxMetrics(JdbcTemplate jdbcTemplate) {
+            return new OutboxMetrics(jdbcTemplate);
+        }
     }
 }

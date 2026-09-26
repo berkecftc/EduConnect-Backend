@@ -24,7 +24,9 @@ public class CorsConfig {
                 "Authorization",
                 "X-Authenticated-User-Id",
                 "X-Authenticated-User-Email",
-                "X-Authenticated-User-Roles"
+                "X-Authenticated-User-Roles",
+                "X-Trace-Id",
+                "Retry-After"
         ));
         corsConfig.setAllowCredentials(true);
         corsConfig.setMaxAge(3600L);

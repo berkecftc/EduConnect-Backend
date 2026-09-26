@@ -35,7 +35,7 @@ public class SecurityConfig {
 
                 .authorizeHttpRequests(auth -> auth
                         .dispatcherTypeMatchers(DispatcherType.ERROR).permitAll()
-                        .requestMatchers("/actuator/health", "/actuator/health/**", "/actuator/info").permitAll()
+                        .requestMatchers("/actuator/health", "/actuator/health/**", "/actuator/info", "/actuator/prometheus").permitAll()
                         .requestMatchers("/api/*/internal/**").hasRole(ServiceIdentity.ROLE)
 
                         // Dashboard endpoints - authentication required (bu kurallar önce gelmeli!)

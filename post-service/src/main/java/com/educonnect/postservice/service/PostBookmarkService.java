@@ -44,7 +44,7 @@ public class PostBookmarkService {
         if (existingBookmark.isPresent()) {
             // Kaydı geri al
             postBookmarkRepository.delete(existingBookmark.get());
-            log.info("🔖 Kayıt geri alındı — postId: {}, userId: {}", postId, userId);
+            log.info("Kayıt geri alındı — postId: {}, userId: {}", postId, userId);
             return new BookmarkResponse(false);
         } else {
             // Kaydet
@@ -52,7 +52,7 @@ public class PostBookmarkService {
             bookmark.setPostId(postId);
             bookmark.setUserId(userId);
             postBookmarkRepository.save(bookmark);
-            log.info("📌 Post kaydedildi — postId: {}, userId: {}", postId, userId);
+            log.info("Post kaydedildi — postId: {}, userId: {}", postId, userId);
             return new BookmarkResponse(true);
         }
     }

@@ -1,5 +1,7 @@
 package com.educonnect.clubservice.service;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import com.educonnect.common.storage.PresignedUrls;
 import com.educonnect.common.storage.StorageUrls;
 import com.educonnect.common.storage.UploadKind;
@@ -20,6 +22,8 @@ import java.util.UUID;
 
 @Service
 public class MinioService {
+
+    private static final Logger log = LoggerFactory.getLogger(MinioService.class);
 
     private final MinioClient minioClient;
     private final PresignedUrls presignedUrls;
@@ -64,7 +68,7 @@ public class MinioService {
                                 .bucket(bucketName)
                                 .build()
                 );
-                System.out.println("MinIO bucket oluşturuldu: " + bucketName);
+                log.info("MinIO bucket oluşturuldu: {}", bucketName);
             }
 
             String policyJson = String.format(
@@ -87,7 +91,7 @@ public class MinioService {
                             .build()
             );
 
-            System.out.println("Bucket politikası güncellendi (Public Read): " + bucketName);
+            log.info("Bucket politikası güncellendi (public read): {}", bucketName);
 
         } catch (Exception e) {
             throw new RuntimeException("Error checking/creating MinIO bucket: " + e.getMessage(), e);

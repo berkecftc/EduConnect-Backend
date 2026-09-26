@@ -115,7 +115,7 @@ public class AssignmentService {
             List<UUID> enrolledStudentIds = courseInternalClient.getEnrolledStudentIds(courseId);
 
             if (enrolledStudentIds == null || enrolledStudentIds.isEmpty()) {
-                log.info("📭 Derste kayıtlı öğrenci yok, ödev bildirimi gönderilmedi.");
+                log.info("Derste kayıtlı öğrenci yok, ödev bildirimi gönderilmedi.");
                 return;
             }
 
@@ -133,10 +133,10 @@ public class AssignmentService {
             );
 
             assignmentProducer.sendAssignmentCreatedNotification(event);
-            log.info("📤 Ödev bildirimi gönderildi: {} öğrenciye -> {} ({})",
+            log.info("Ödev bildirimi gönderildi: {} öğrenciye -> {} ({})",
                     enrolledStudentIds.size(), assignment.getTitle(), courseTitle);
         } catch (Exception e) {
-            log.error("❌ Ödev bildirimi gönderilemedi: {}", e.getMessage());
+            log.error("Ödev bildirimi gönderilemedi: {}", e.getMessage());
         }
     }
 

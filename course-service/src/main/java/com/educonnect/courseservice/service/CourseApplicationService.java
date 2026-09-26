@@ -88,7 +88,7 @@ public class CourseApplicationService {
         CourseApplication saved = applicationRepository.save(application);
         courseCaches.evictInstructorCourses(course.getInstructorId());
 
-        log.info("📝 Yeni ders başvurusu: Öğrenci {} -> Ders {} ({})", studentId, course.getTitle(), course.getCode());
+        log.info("Yeni ders başvurusu: Öğrenci {} -> Ders {} ({})", studentId, course.getTitle(), course.getCode());
 
         return mapToResponse(saved, course);
     }
@@ -164,7 +164,7 @@ public class CourseApplicationService {
         courseCaches.evictStudentCourses(application.getStudentId());
         courseCaches.evictInstructorCourses(course.getInstructorId());
 
-        log.info("✅ Başvuru onaylandı: Öğrenci {} -> Ders {} ({})",
+        log.info("Başvuru onaylandı: Öğrenci {} -> Ders {} ({})",
                 application.getStudentId(), course.getTitle(), course.getCode());
 
         return mapToResponse(application, course);
@@ -199,7 +199,7 @@ public class CourseApplicationService {
         applicationRepository.save(application);
         courseCaches.evictInstructorCourses(course.getInstructorId());
 
-        log.info("❌ Başvuru reddedildi: Öğrenci {} -> Ders {} ({}). Sebep: {}",
+        log.info("Başvuru reddedildi: Öğrenci {} -> Ders {} ({}). Sebep: {}",
                 application.getStudentId(), course.getTitle(), course.getCode(), rejectionReason);
 
         return mapToResponse(application, course);

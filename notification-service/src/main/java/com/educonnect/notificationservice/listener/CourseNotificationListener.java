@@ -35,7 +35,7 @@ public class CourseNotificationListener {
      */
     @RabbitListener(queues = NotificationRabbitMQConfig.COURSE_ANNOUNCEMENT_QUEUE)
     public void handleAnnouncementCreated(CourseNotificationMessage message) {
-        log.info("📢 Ders duyurusu bildirimi alındı: {} -> Ders: {} ({})",
+        log.info("Ders duyurusu bildirimi alındı: {} -> Ders: {} ({})",
                 message.getContentTitle(), message.getCourseTitle(), message.getCourseCode());
 
         sendBulkEmail(message, "Yeni Duyuru");
@@ -47,7 +47,7 @@ public class CourseNotificationListener {
      */
     @RabbitListener(queues = NotificationRabbitMQConfig.COURSE_ASSIGNMENT_QUEUE)
     public void handleAssignmentCreated(CourseNotificationMessage message) {
-        log.info("📝 Ödev bildirimi alındı: {} -> Ders: {} ({})",
+        log.info("Ödev bildirimi alındı: {} -> Ders: {} ({})",
                 message.getContentTitle(), message.getCourseTitle(), message.getCourseCode());
 
         sendBulkEmail(message, "Yeni Ödev");
@@ -62,13 +62,13 @@ public class CourseNotificationListener {
         List<UUID> studentIds = message.getEnrolledStudentIds();
 
         if (studentIds == null || studentIds.isEmpty()) {
-            log.warn("⚠️ Kayıtlı öğrenci listesi boş. E-posta gönderilmedi.");
+            log.warn("Kayıtlı öğrenci listesi boş. E-posta gönderilmedi.");
             return;
         }
 
         // auth-services'ten öğrenci e-postalarını çek
         String authServiceUrl = "http://AUTH-SERVICES/api/auth/internal/users/emails";
-        log.info("🔍 {} öğrenci için e-posta adresleri çekiliyor...", studentIds.size());
+        log.info("{} öğrenci için e-posta adresleri çekiliyor...", studentIds.size());
 
         HttpEntity<List<UUID>> request = new HttpEntity<>(studentIds);
         ResponseEntity<List<String>> emailsResponse = restTemplate.exchange(
@@ -79,7 +79,7 @@ public class CourseNotificationListener {
         );
         List<String> emails = emailsResponse.getBody();
 
-        log.info("📧 {} e-posta adresi alındı.", emails != null ? emails.size() : 0);
+        log.info("{} e-posta adresi alındı.", emails != null ? emails.size() : 0);
 
         if (emails != null && !emails.isEmpty()) {
             String subject = String.format("[%s] %s: %s",
@@ -97,10 +97,10 @@ public class CourseNotificationListener {
                 }
             }
 
-            log.info("✅ {}/{} öğrenciye '{}' e-postası gönderildi. Ders: {} ({})",
+            log.info("{}/{} öğrenciye '{}' e-postası gönderildi. Ders: {} ({})",
                     emails.size() - failed, emails.size(), typeLabel, message.getCourseTitle(), message.getCourseCode());
         } else {
-            log.warn("⚠️ Öğrenci e-postaları bulunamadı.");
+            log.warn("Öğrenci e-postaları bulunamadı.");
         }
     }
 

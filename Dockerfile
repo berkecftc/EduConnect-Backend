@@ -20,5 +20,4 @@ COPY --from=extract /extract/layers/spring-boot-loader/ ./
 COPY --from=extract /extract/layers/snapshot-dependencies/ ./
 COPY --from=extract /extract/layers/application/ ./
 USER app
-ENV JAVA_TOOL_OPTIONS="-XX:MaxRAMPercentage=75 -XX:+ExitOnOutOfMemoryError"
-ENTRYPOINT ["java", "org.springframework.boot.loader.launch.JarLauncher"]
+ENTRYPOINT ["java", "-XX:MaxRAMPercentage=75", "-XX:+ExitOnOutOfMemoryError", "org.springframework.boot.loader.launch.JarLauncher"]

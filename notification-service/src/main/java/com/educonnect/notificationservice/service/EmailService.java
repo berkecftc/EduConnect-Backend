@@ -36,10 +36,10 @@ public class EmailService {
             message.setText(text);
 
             mailSender.send(message);
-            log.info("✅ Email sent successfully to: {} | Subject: {}", LogMasking.email(to), subject);
+            log.info("Email sent successfully to: {} | Subject: {}", LogMasking.email(to), subject);
 
         } catch (Exception e) {
-            log.error("❌ Error sending email to {}: {}", LogMasking.email(to), e.getMessage());
+            log.error("Error sending email to {}: {}", LogMasking.email(to), e.getMessage());
         }
     }
 
@@ -54,10 +54,10 @@ public class EmailService {
             helper.setText(htmlBody, true);
 
             mailSender.send(message);
-            log.info("✅ HTML Email sent successfully to: {} | Subject: {}", LogMasking.email(to), subject);
+            log.info("HTML Email sent successfully to: {} | Subject: {}", LogMasking.email(to), subject);
 
         } catch (MessagingException e) {
-            log.error("❌ Error sending HTML email to {}: {}", LogMasking.email(to), e.getMessage());
+            log.error("Error sending HTML email to {}: {}", LogMasking.email(to), e.getMessage());
         }
     }
 
@@ -74,10 +74,10 @@ public class EmailService {
             helper.addInline(contentId, new ByteArrayResource(image), imageContentType);
 
             mailSender.send(message);
-            log.info("✅ HTML Email sent successfully to: {} | Subject: {}", LogMasking.email(to), subject);
+            log.info("HTML Email sent successfully to: {} | Subject: {}", LogMasking.email(to), subject);
 
         } catch (MessagingException e) {
-            log.error("❌ Error sending HTML email to {}: {}", LogMasking.email(to), e.getMessage());
+            log.error("Error sending HTML email to {}: {}", LogMasking.email(to), e.getMessage());
         }
     }
 }

@@ -1,5 +1,8 @@
 package com.educonnect.common.resilience;
 
+import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.binder.MeterBinder;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.autoconfigure.AutoConfigurations;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
@@ -34,6 +37,18 @@ class FeignResilienceAutoConfigurationTest {
                     assertThat(config.getFailureRateThreshold()).isEqualTo(30f);
                     assertThat(config.getWaitIntervalFunctionInOpenState().apply(1)).isEqualTo(Duration.ofSeconds(5).toMillis());
                 });
+    }
+
+    @Test
+    void metrics_shouldExposeBreakerStatePerTarget() {
+        runner.run(context -> {
+            MeterRegistry registry = new SimpleMeterRegistry();
+            context.getBean(MeterBinder.class).bindTo(registry);
+            context.getBean(FeignCircuitBreakerCapability.class).registry().circuitBreaker("club-service");
+
+            assertThat(registry.get("resilience4j.circuitbreaker.state")
+                    .tag("name", "club-service").tag("state", "closed").gauge().value()).isEqualTo(1.0);
+        });
     }
 
     @Test

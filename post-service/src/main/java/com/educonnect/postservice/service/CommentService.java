@@ -106,9 +106,9 @@ public class CommentService {
         Comment savedComment = commentRepository.save(comment);
 
         if (status == CommentStatus.REJECTED) {
-            log.warn("🚫 Yorum reddedildi (kötü kelime tespit edildi) — commentId: {}, postId: {}", savedComment.getId(), postId);
+            log.warn("Yorum reddedildi (kötü kelime tespit edildi) — commentId: {}, postId: {}", savedComment.getId(), postId);
         } else {
-            log.info("💬 Yorum oluşturuldu — commentId: {}, postId: {}, authorId: {}", savedComment.getId(), postId, authorId);
+            log.info("Yorum oluşturuldu — commentId: {}, postId: {}, authorId: {}", savedComment.getId(), postId, authorId);
         }
 
         UserSummaryDto user = fetchUserSafely(authorId);
@@ -134,7 +134,7 @@ public class CommentService {
         }
 
         commentRepository.delete(comment);
-        log.info("🗑️ Yorum silindi — commentId: {}, postId: {}, authorId: {}", commentId, postId, authorId);
+        log.info("Yorum silindi — commentId: {}, postId: {}, authorId: {}", commentId, postId, authorId);
     }
 
     /**
@@ -223,9 +223,9 @@ public class CommentService {
         Comment savedReply = commentRepository.save(reply);
 
         if (status == CommentStatus.REJECTED) {
-            log.warn("🚫 Yanıt reddedildi (kötü kelime tespit edildi) — replyId: {}, parentId: {}", savedReply.getId(), parentCommentId);
+            log.warn("Yanıt reddedildi (kötü kelime tespit edildi) — replyId: {}, parentId: {}", savedReply.getId(), parentCommentId);
         } else {
-            log.info("↩️ Yanıt oluşturuldu — replyId: {}, parentId: {}, authorId: {}", savedReply.getId(), parentCommentId, authorId);
+            log.info("↩Yanıt oluşturuldu — replyId: {}, parentId: {}, authorId: {}", savedReply.getId(), parentCommentId, authorId);
         }
 
         UserSummaryDto user = fetchUserSafely(authorId);
@@ -295,7 +295,7 @@ public class CommentService {
         try {
             return userClient.getUserById(userId);
         } catch (Exception e) {
-            log.warn("⚠️ Kullanıcı bilgisi alınamadı — userId: {}", userId);
+            log.warn("Kullanıcı bilgisi alınamadı — userId: {}", userId);
             return null;
         }
     }

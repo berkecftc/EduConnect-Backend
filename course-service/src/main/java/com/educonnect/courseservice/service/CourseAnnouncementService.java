@@ -71,7 +71,7 @@ public class CourseAnnouncementService {
 
         CourseAnnouncement saved = announcementRepository.save(announcement);
 
-        log.info("📢 Duyuru oluşturuldu: {} -> Ders: {} ({})", request.getTitle(), course.getTitle(), course.getCode());
+        log.info("Duyuru oluşturuldu: {} -> Ders: {} ({})", request.getTitle(), course.getTitle(), course.getCode());
 
         // Kayıtlı öğrenci ID'lerini çek ve RabbitMQ ile bildirim gönder
         sendNotificationToEnrolledStudents(course, "ANNOUNCEMENT", request.getTitle(), request.getContent());
@@ -114,7 +114,7 @@ public class CourseAnnouncementService {
         }
 
         announcementRepository.deleteById(announcementId);
-        log.info("🗑️ Duyuru silindi: {}", announcementId);
+        log.info("Duyuru silindi: {}", announcementId);
     }
 
     /**
@@ -127,7 +127,7 @@ public class CourseAnnouncementService {
                 .collect(Collectors.toList());
 
         if (studentIds.isEmpty()) {
-            log.info("📭 Derste kayıtlı öğrenci yok, bildirim gönderilmedi.");
+            log.info("Derste kayıtlı öğrenci yok, bildirim gönderilmedi.");
             return;
         }
 
@@ -142,7 +142,7 @@ public class CourseAnnouncementService {
         );
 
         courseProducer.sendAnnouncementNotification(event);
-        log.info("📤 Bildirim event'i kuyruğa alındı: {} öğrenciye {} bildirimi", studentIds.size(), type);
+        log.info("Bildirim event'i kuyruğa alındı: {} öğrenciye {} bildirimi", studentIds.size(), type);
     }
 
     private AnnouncementResponse mapToResponse(CourseAnnouncement announcement, Course course) {

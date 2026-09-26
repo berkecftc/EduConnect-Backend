@@ -139,10 +139,10 @@ public class MinioService {
                                 .object(objectName)
                                 .build()
                 );
-                System.out.println("Auth Service: Kimlik kartı fotoğrafı silindi -> " + objectName);
+                log.info("Kimlik kartı fotoğrafı silindi: {}", objectName);
             }
         } catch (Exception e) {
-            System.err.println("Error deleting ID card image from MinIO: " + e.getMessage());
+            log.warn("Kimlik kartı fotoğrafı MinIO'dan silinemedi: {}", e.getMessage());
             // Silme hatası kritik değil, işlemi durdurmuyoruz
         }
     }
@@ -202,10 +202,10 @@ public class MinioService {
                                 .object(objectName)
                                 .build()
                 );
-                System.out.println("Auth Service: Öğrenci belgesi silindi -> " + objectName);
+                log.info("Öğrenci belgesi silindi: {}", objectName);
             }
         } catch (Exception e) {
-            System.err.println("Error deleting student document from MinIO: " + e.getMessage());
+            log.warn("Öğrenci belgesi MinIO'dan silinemedi: {}", e.getMessage());
         }
     }
 }

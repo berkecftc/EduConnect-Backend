@@ -334,7 +334,7 @@ public class EventService {
         eventRepository.saveAll(clubEvents);
         eventCaches.evictEvents(clubEvents);
 
-        System.out.println("Updated club name for " + clubEvents.size() + " events.");
+        log.info("Updated club name for {} events.", clubEvents.size());
     }
 
     /**

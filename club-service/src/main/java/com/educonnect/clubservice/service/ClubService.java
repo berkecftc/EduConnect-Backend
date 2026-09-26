@@ -362,7 +362,7 @@ public class ClubService {
             String routingKey = "club.updated"; // YENİ ROUTING KEY
             outboxPublisher.publish(ClubRabbitMQConfig.CLUB_EXCHANGE_NAME, routingKey, message);
 
-            System.out.println("Club updated message sent: " + updatedClub.getName());
+            log.info("Club updated message sent: {}", updatedClub.getName());
         }
 
         return updatedClub;
@@ -433,12 +433,12 @@ public class ClubService {
 
     @Transactional
     public String updateClubLogoByAdmin(UUID clubId, MultipartFile file) {
-        System.out.println("DEBUG: Logo güncelleme başladı. ClubID: " + clubId);
+        log.debug("Logo güncelleme başladı. clubId={}", clubId);
 
         Club club = clubRepository.findById(clubId)
                 .orElseThrow(() -> new RuntimeException("Kulüp bulunamadı"));
 
-        System.out.println("DEBUG: Kulüp bulundu. Mevcut Logo URL: " + club.getLogoUrl());
+        log.debug("Kulüp bulundu. Mevcut logo: {}", club.getLogoUrl());
 
         // Eski logoyu silme işlemini ŞİMDİLİK YAPMIYORUZ.
         // Çünkü eski URL bozuksa veya MinIO'da yoksa kod burada patlar ve işlem durur.
@@ -446,23 +446,23 @@ public class ClubService {
 
         try {
             // 1. Yeni dosyayı yükle
-            System.out.println("DEBUG: MinIO'ya yükleme başlıyor...");
+            log.debug("Logo MinIO'ya yükleniyor");
             String newLogoUrl = minioService.uploadFile(file, "logos", clubId.toString());
-            System.out.println("DEBUG: MinIO Yükleme Başarılı. Yeni URL: " + newLogoUrl);
+            log.debug("Logo yüklendi: {}", newLogoUrl);
 
             // 2. Yeni URL'i Set et
             club.setLogoUrl(newLogoUrl);
 
             // 3. Kaydet
             clubRepository.saveAndFlush(club); // save() yerine saveAndFlush() kullanıyoruz ki hatayı hemen görelim
-            System.out.println("DEBUG: Veritabanı güncellendi.");
+            log.debug("Kulüp logosu veritabanında güncellendi");
 
             return newLogoUrl;
 
         } catch (ResponseStatusException e) {
             throw e;
         } catch (Exception e) {
-            log.error("🔥🔥🔥 LOGO GÜNCELLEME HATASI 🔥🔥🔥", e);
+            log.error("Logo güncelleme hatası", e);
             throw new RuntimeException("Logo güncellenemedi: " + e.getMessage());
         }
     }

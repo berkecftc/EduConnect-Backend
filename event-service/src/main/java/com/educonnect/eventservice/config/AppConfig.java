@@ -1,9 +1,9 @@
 package com.educonnect.eventservice.config;
 
+import org.springframework.boot.web.client.RestTemplateBuilder;
 import org.springframework.cloud.client.loadbalancer.LoadBalanced;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.web.client.RestTemplate;
 
 import java.time.Duration;
@@ -13,10 +13,10 @@ public class AppConfig {
 
     @Bean
     @LoadBalanced // Bu anotasyon kritik! Servis ismini (CLUB-SERVICE) IP'ye çevirir.
-    public RestTemplate restTemplate() {
-        SimpleClientHttpRequestFactory requestFactory = new SimpleClientHttpRequestFactory();
-        requestFactory.setConnectTimeout(Duration.ofSeconds(2));
-        requestFactory.setReadTimeout(Duration.ofSeconds(5));
-        return new RestTemplate(requestFactory);
+    public RestTemplate restTemplate(RestTemplateBuilder builder) {
+        return builder
+                .setConnectTimeout(Duration.ofSeconds(2))
+                .setReadTimeout(Duration.ofSeconds(5))
+                .build();
     }
 }

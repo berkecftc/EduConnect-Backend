@@ -83,6 +83,10 @@
             <groupId>com.educonnect</groupId>
             <artifactId>common-messaging</artifactId>
         </dependency>
+        <dependency>
+            <groupId>com.educonnect</groupId>
+            <artifactId>common-observability</artifactId>
+        </dependency>
 
         <dependency>
             <groupId>org.springframework.security</groupId>

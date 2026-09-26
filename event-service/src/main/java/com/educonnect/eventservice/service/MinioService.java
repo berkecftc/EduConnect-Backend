@@ -1,5 +1,7 @@
 package com.educonnect.eventservice.service;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import com.educonnect.common.storage.StorageUrls;
 import com.educonnect.common.storage.UploadKind;
 import com.educonnect.common.storage.UploadValidator;
@@ -13,6 +15,8 @@ import java.io.InputStream;
 
 @Service
 public class MinioService {
+
+    private static final Logger log = LoggerFactory.getLogger(MinioService.class);
 
     private final MinioClient minioClient;
     private final StorageUrls storageUrls;
@@ -57,7 +61,7 @@ public class MinioService {
                                 .bucket(bucketName)
                                 .build()
                 );
-                System.out.println("Event Service: MinIO bucket oluşturuldu -> " + bucketName);
+                log.info("MinIO bucket oluşturuldu: {}", bucketName);
             }
 
             String policyJson = String.format(
@@ -80,7 +84,7 @@ public class MinioService {
                             .build()
             );
 
-            System.out.println("Event Service: Bucket politikası 'Public Read' olarak güncellendi.");
+            log.info("Bucket politikası public read olarak güncellendi: {}", bucketName);
 
         } catch (Exception e) {
             throw new RuntimeException("Error checking/creating MinIO bucket: " + e.getMessage(), e);
@@ -122,7 +126,7 @@ public class MinioService {
                             .build()
             );
         } catch (Exception e) {
-            System.err.println("Error deleting file from MinIO: " + e.getMessage());
+            log.warn("MinIO'dan dosya silinemedi: {}", e.getMessage());
         }
     }
 }

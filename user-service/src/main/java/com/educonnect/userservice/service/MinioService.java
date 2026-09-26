@@ -74,7 +74,7 @@ public class MinioService {
                                 .bucket(bucketName)
                                 .build()
                 );
-                System.out.println("User Service: MinIO bucket oluşturuldu -> " + bucketName);
+                LOGGER.info("MinIO bucket oluşturuldu: {}", bucketName);
             }
 
             // 🔥 KRİTİK KISIM: Bucket politikasını "Public Read" olarak ayarla.
@@ -99,7 +99,7 @@ public class MinioService {
                             .build()
             );
 
-            System.out.println("User Service: Bucket politikası 'Public Read' olarak güncellendi.");
+            LOGGER.info("Bucket politikası public read olarak güncellendi: {}", bucketName);
 
         } catch (Exception e) {
             throw new RuntimeException("Error checking/creating MinIO bucket: " + e.getMessage(), e);

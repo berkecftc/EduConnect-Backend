@@ -42,6 +42,10 @@
         </dependency>
         <dependency>
             <groupId>com.educonnect</groupId>
+            <artifactId>common-observability</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.educonnect</groupId>
             <artifactId>common-resilience</artifactId>
         </dependency>
 

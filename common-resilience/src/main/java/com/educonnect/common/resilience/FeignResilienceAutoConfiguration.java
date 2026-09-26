@@ -2,6 +2,8 @@ package com.educonnect.common.resilience;
 
 import feign.Capability;
 import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry;
+import io.github.resilience4j.micrometer.tagged.TaggedCircuitBreakerMetrics;
+import io.micrometer.core.instrument.binder.MeterBinder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
@@ -10,6 +12,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
 
 @AutoConfiguration
 @ConditionalOnClass({Capability.class, CircuitBreakerRegistry.class})
@@ -27,5 +30,15 @@ public class FeignResilienceAutoConfiguration {
                 .onStateTransition(event -> LOGGER.warn("Circuit breaker {}: {}",
                         event.getCircuitBreakerName(), event.getStateTransition())));
         return new FeignCircuitBreakerCapability(registry);
+    }
+
+    @Configuration(proxyBeanMethods = false)
+    @ConditionalOnClass({MeterBinder.class, TaggedCircuitBreakerMetrics.class})
+    static class CircuitBreakerMetricsConfiguration {
+
+        @Bean
+        public MeterBinder feignCircuitBreakerMetrics(FeignCircuitBreakerCapability capability) {
+            return registry -> TaggedCircuitBreakerMetrics.ofCircuitBreakerRegistry(capability.registry()).bindTo(registry);
+        }
     }
 }

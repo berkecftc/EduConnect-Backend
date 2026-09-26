@@ -35,6 +35,7 @@ public class ListenerRetryConfigurer implements BeanPostProcessor {
     public Object postProcessAfterInitialization(Object bean, String beanName) throws BeansException {
         if (properties.enabled() && bean instanceof AbstractRabbitListenerContainerFactory<?> factory) {
             factory.setDefaultRequeueRejected(false);
+            factory.setObservationEnabled(true);
             if (factory.getAdviceChain() == null || factory.getAdviceChain().length == 0) {
                 factory.setAdviceChain(
                         RetryInterceptorBuilder.stateless()

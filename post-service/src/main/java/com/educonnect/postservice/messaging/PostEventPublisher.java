@@ -27,7 +27,7 @@ public class PostEventPublisher {
     }
 
     public void publishModerationEvent(PostModerationEvent event) {
-        log.info("📤 Moderasyon olayı yayınlanıyor — postId: {}, eventId: {}", event.getPostId(), event.getEventId());
+        log.info("Moderasyon olayı yayınlanıyor — postId: {}, eventId: {}", event.getPostId(), event.getEventId());
         outboxPublisher.publish(
                 RabbitMQConfig.POST_MODERATION_EXCHANGE,
                 RabbitMQConfig.POST_MODERATION_ROUTING_KEY,
