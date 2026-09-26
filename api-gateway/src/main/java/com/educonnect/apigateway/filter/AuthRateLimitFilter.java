@@ -7,19 +7,12 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cloud.gateway.filter.GatewayFilterChain;
 import org.springframework.cloud.gateway.filter.GlobalFilter;
 import org.springframework.core.Ordered;
-import org.springframework.core.io.buffer.DataBuffer;
-import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.MediaType;
 import org.springframework.http.server.reactive.ServerHttpRequest;
-import org.springframework.http.server.reactive.ServerHttpResponse;
 import org.springframework.stereotype.Component;
 import org.springframework.web.server.ServerWebExchange;
 import reactor.core.publisher.Mono;
 
-import java.net.InetSocketAddress;
-import java.nio.charset.StandardCharsets;
 import java.time.Clock;
 import java.time.Duration;
 import java.util.Map;
@@ -79,7 +72,7 @@ public class AuthRateLimitFilter implements GlobalFilter, Ordered {
         }
 
         long now = clock.millis();
-        String key = bucket + "|" + clientAddress(request);
+        String key = bucket + "|" + RateLimitResponses.clientAddress(request);
         Window window = windows.compute(key, (k, current) ->
                 current == null || now - current.start >= WINDOW_MILLIS ? new Window(now, 1) : current.increment());
         cleanupIfNeeded(now);
@@ -87,7 +80,7 @@ public class AuthRateLimitFilter implements GlobalFilter, Ordered {
         if (window.count > limit) {
             LOGGER.warn("Rate limit exceeded for {} on {}", bucket, path);
             long retryAfterSeconds = Math.max(1, (window.start + WINDOW_MILLIS - now + 999) / 1000);
-            return reject(exchange.getResponse(), retryAfterSeconds);
+            return RateLimitResponses.reject(exchange.getResponse(), retryAfterSeconds);
         }
         return chain.filter(exchange);
     }
@@ -101,24 +94,6 @@ public class AuthRateLimitFilter implements GlobalFilter, Ordered {
         if (windows.size() > CLEANUP_THRESHOLD) {
             windows.entrySet().removeIf(entry -> now - entry.getValue().start >= WINDOW_MILLIS);
         }
-    }
-
-    private static String clientAddress(ServerHttpRequest request) {
-        InetSocketAddress remote = request.getRemoteAddress();
-        if (remote == null) {
-            return "unknown";
-        }
-        return remote.getAddress() != null ? remote.getAddress().getHostAddress() : remote.getHostString();
-    }
-
-    private static Mono<Void> reject(ServerHttpResponse response, long retryAfterSeconds) {
-        response.setStatusCode(HttpStatus.TOO_MANY_REQUESTS);
-        response.getHeaders().set(HttpHeaders.RETRY_AFTER, String.valueOf(retryAfterSeconds));
-        response.getHeaders().setContentType(MediaType.APPLICATION_JSON);
-        String body = "{\"status\":429,\"error\":\"Too Many Requests\",\"message\":\"Çok fazla istek gönderildi. Lütfen "
-                + retryAfterSeconds + " saniye sonra tekrar deneyin.\"}";
-        DataBuffer buffer = response.bufferFactory().wrap(body.getBytes(StandardCharsets.UTF_8));
-        return response.writeWith(Mono.just(buffer));
     }
 
     private record Window(long start, int count) {

@@ -40,6 +40,10 @@
             <groupId>com.educonnect</groupId>
             <artifactId>common-messaging</artifactId>
         </dependency>
+        <dependency>
+            <groupId>com.educonnect</groupId>
+            <artifactId>common-resilience</artifactId>
+        </dependency>
 
         <dependency>
             <groupId>org.springframework.boot</groupId>

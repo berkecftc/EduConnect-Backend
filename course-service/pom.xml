@@ -49,6 +49,10 @@
             <groupId>com.educonnect</groupId>
             <artifactId>common-messaging</artifactId>
         </dependency>
+        <dependency>
+            <groupId>com.educonnect</groupId>
+            <artifactId>common-resilience</artifactId>
+        </dependency>
 
         <dependency>
             <groupId>org.springframework.cloud</groupId>
@@ -107,11 +111,6 @@
         <dependency>
             <groupId>org.springframework.cloud</groupId>
             <artifactId>spring-cloud-starter-openfeign</artifactId>
-        </dependency>
-
-        <dependency>
-            <groupId>io.minio</groupId>
-            <artifactId>minio</artifactId>
         </dependency>
 
         <dependency>
