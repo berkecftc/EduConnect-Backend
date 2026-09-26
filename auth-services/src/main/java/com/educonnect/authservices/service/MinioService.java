@@ -1,6 +1,7 @@
 package com.educonnect.authservices.service;
 
 import io.minio.*;
+import com.educonnect.common.storage.PresignedUrls;
 import com.educonnect.common.storage.StorageUrls;
 import com.educonnect.common.storage.UploadKind;
 import com.educonnect.common.storage.UploadValidator;
@@ -11,16 +12,17 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.time.Duration;
 import java.util.UUID;
-import java.util.concurrent.TimeUnit;
 
 @Service
 public class MinioService {
 
     private static final Logger log = LoggerFactory.getLogger(MinioService.class);
-    private static final int PRESIGNED_URL_EXPIRY_MINUTES = 15;
+    private static final Duration PRESIGNED_URL_EXPIRY = Duration.ofMinutes(15);
 
     private final MinioClient minioClient;
+    private final PresignedUrls presignedUrls;
 
     @Value("${minio.bucket.name}")
     private String bucketName;
@@ -39,6 +41,7 @@ public class MinioService {
                     .endpoint(url)
                     .credentials(accessKey, secretKey)
                     .build();
+            this.presignedUrls = new PresignedUrls(storageUrls, accessKey, secretKey);
             this.bucketName = bucketName;
             this.storageUrls = storageUrls;
             this.uploadValidator = uploadValidator;
@@ -87,15 +90,8 @@ public class MinioService {
             return null;
         }
         try {
-            return minioClient.getPresignedObjectUrl(
-                    GetPresignedObjectUrlArgs.builder()
-                            .method(io.minio.http.Method.GET)
-                            .bucket(bucketName)
-                            .object(objectName)
-                            .expiry(PRESIGNED_URL_EXPIRY_MINUTES, TimeUnit.MINUTES)
-                            .build()
-            );
-        } catch (Exception e) {
+            return presignedUrls.get(bucketName, objectName, PRESIGNED_URL_EXPIRY);
+        } catch (RuntimeException e) {
             log.error("Could not create presigned URL for object {}", objectName, e);
             return null;
         }

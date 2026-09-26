@@ -1,5 +1,6 @@
 package com.educonnect.clubservice.service;
 
+import com.educonnect.common.storage.PresignedUrls;
 import com.educonnect.common.storage.StorageUrls;
 import com.educonnect.common.storage.UploadKind;
 import com.educonnect.common.storage.UploadValidator;
@@ -8,20 +9,20 @@ import io.minio.BucketExistsArgs;
 import io.minio.MakeBucketArgs;
 import io.minio.MinioClient;
 import io.minio.PutObjectArgs;
-import io.minio.http.Method;
 import io.minio.SetBucketPolicyArgs;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.InputStream;
+import java.time.Duration;
 import java.util.UUID;
-import java.util.concurrent.TimeUnit;
 
 @Service
 public class MinioService {
 
     private final MinioClient minioClient;
+    private final PresignedUrls presignedUrls;
     private final StorageUrls storageUrls;
     private final UploadValidator uploadValidator;
 
@@ -39,6 +40,7 @@ public class MinioService {
                     .endpoint(url)
                     .credentials(accessKey, secretKey)
                     .build();
+            this.presignedUrls = new PresignedUrls(storageUrls, accessKey, secretKey);
             this.bucketName = bucketName;
             this.storageUrls = storageUrls;
             this.uploadValidator = uploadValidator;
@@ -125,15 +127,8 @@ public class MinioService {
             return null;
         }
         try {
-            return minioClient.getPresignedObjectUrl(
-                    io.minio.GetPresignedObjectUrlArgs.builder()
-                            .method(Method.GET)
-                            .bucket(bucketName)
-                            .object(storageUrls.objectName(objectName, bucketName))
-                            .expiry(7, TimeUnit.DAYS)
-                            .build()
-            );
-        } catch (Exception e) {
+            return presignedUrls.get(bucketName, storageUrls.objectName(objectName, bucketName), Duration.ofDays(7));
+        } catch (RuntimeException e) {
             throw new RuntimeException("Error getting file URL from MinIO: " + e.getMessage(), e);
         }
     }

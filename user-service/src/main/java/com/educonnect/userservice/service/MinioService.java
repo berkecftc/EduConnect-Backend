@@ -1,11 +1,11 @@
 package com.educonnect.userservice.service;
 
 import io.minio.*; // Tüm MinIO sınıflarını import ediyoruz (SetBucketPolicyArgs dahil)
+import com.educonnect.common.storage.PresignedUrls;
 import com.educonnect.common.storage.StorageUrls;
 import com.educonnect.common.storage.UploadKind;
 import com.educonnect.common.storage.UploadValidator;
 import com.educonnect.common.storage.ValidatedUpload;
-import io.minio.http.Method;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -14,10 +14,10 @@ import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.time.Duration;
 import java.util.Collection;
 import java.util.List;
 import java.util.UUID;
-import java.util.concurrent.TimeUnit;
 
 @Service
 public class MinioService {
@@ -25,6 +25,7 @@ public class MinioService {
     private static final Logger LOGGER = LoggerFactory.getLogger(MinioService.class);
 
     private final MinioClient minioClient;
+    private final PresignedUrls presignedUrls;
 
     @Value("${minio.bucket.name}")
     private String bucketName;
@@ -44,6 +45,7 @@ public class MinioService {
                     .endpoint(url)
                     .credentials(accessKey, secretKey)
                     .build();
+            this.presignedUrls = new PresignedUrls(storageUrls, accessKey, secretKey);
             this.bucketName = bucketName;
             this.storageUrls = storageUrls;
             this.uploadValidator = uploadValidator;
@@ -137,15 +139,8 @@ public class MinioService {
             return null;
         }
         try {
-            return minioClient.getPresignedObjectUrl(
-                    io.minio.GetPresignedObjectUrlArgs.builder()
-                            .method(Method.GET)
-                            .bucket(bucketName)
-                            .object(objectName)
-                            .expiry(7, TimeUnit.DAYS)
-                            .build()
-            );
-        } catch (Exception e) {
+            return presignedUrls.get(bucketName, objectName, Duration.ofDays(7));
+        } catch (RuntimeException e) {
             throw new RuntimeException("Error getting file URL from MinIO: " + e.getMessage(), e);
         }
     }
