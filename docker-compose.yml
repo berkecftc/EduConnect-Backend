@@ -152,6 +152,10 @@ services:
     image: ollama/ollama:0.34.3
     container_name: ollama
     restart: unless-stopped
+    mem_limit: ${OLLAMA_MEM_LIMIT:-8g}
+    environment:
+      OLLAMA_KEEP_ALIVE: ${OLLAMA_KEEP_ALIVE:-1h}
+      OLLAMA_MAX_LOADED_MODELS: "2"
     ports:
       - "127.0.0.1:11434:11434"
     volumes:
@@ -161,6 +165,19 @@ services:
       interval: 10s
       timeout: 10s
       retries: 10
+    networks:
+      - educonnect-network
+
+  ollama-models:
+    image: ollama/ollama:0.34.3
+    restart: "no"
+    entrypoint: ["/bin/sh", "-c", "for m in $$OLLAMA_PULL_MODELS; do ollama show \"$$m\" > /dev/null 2>&1 && echo \"model $$m present\" && continue; ollama pull \"$$m\" || exit 1; done"]
+    environment:
+      OLLAMA_HOST: http://ollama:11434
+      OLLAMA_PULL_MODELS: ${OLLAMA_PULL_MODELS:-llama3.1:8b nomic-embed-text}
+    depends_on:
+      ollama:
+        condition: service_healthy
     networks:
       - educonnect-network
 
@@ -336,6 +353,8 @@ services:
       <<: *app-deps
       ollama:
         condition: service_healthy
+      ollama-models:
+        condition: service_completed_successfully
     healthcheck:
       <<: *health
       test: ["CMD-SHELL", "wget -qO- http://localhost:8089/actuator/health | grep -q UP"]

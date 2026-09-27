@@ -300,11 +300,11 @@ MinIO ve Mailpit için varsayılan kimlik bilgileri `docker-compose.yml` dosyas�
 
 ### 3️⃣ Modelleri İndir (LLM için)
 
-Eğer Ollama modelleri yüklü değilse:
+`docker compose up` sırasında `ollama-models` servisi eksik modelleri kendisi indirir (`.env`: `OLLAMA_PULL_MODELS`, varsayılan `llama3.1:8b nomic-embed-text`). Elle indirmek için:
 
 ```bash
 # Sohbet modeli
-docker exec ollama ollama pull llama3.2:1b
+docker exec ollama ollama pull llama3.1:8b
 
 # Gömme modeli (RAG için)
 docker exec ollama ollama pull nomic-embed-text
@@ -1695,7 +1695,7 @@ HMACSHA256(
 
 ```bash
 # Modelleri indir
-docker exec ollama ollama pull llama3.2:1b      # Sohbet modeli (1B params)
+docker exec ollama ollama pull llama3.1:8b      # Sohbet modeli (8B params)
 docker exec ollama ollama pull nomic-embed-text # Gömme modeli (768 boyut)
 
 # Doğrulama
@@ -1705,7 +1705,7 @@ curl http://localhost:11434/api/tags
 {
   "models": [
     {
-      "name": "llama3.2:1b",
+      "name": "llama3.1:8b",
       "size": 2000000000,
       ...
     },
@@ -1729,7 +1729,7 @@ spring:
       # Sohbet Modeli
       chat:
         options:
-          model: llama3.2:1b
+          model: llama3.1:8b
           temperature: 0.0      # Deterministik (moderasyon)
           top_p: 0.1           # Düşük varyans
           num_predict: 128     # Max 128 token yanıt
@@ -2293,7 +2293,7 @@ mc mb minio/course-covers
 docker exec ollama ollama list
 
 # Model indir (tekrar deneyin)
-docker exec ollama ollama pull llama3.2:1b
+docker exec ollama ollama pull llama3.1:8b
 
 # Ollama servisi log'ları
 docker logs ollama
@@ -2302,7 +2302,7 @@ docker logs ollama
 curl -X POST http://localhost:11434/api/generate \
   -H "Content-Type: application/json" \
   -d '{
-    "model": "llama3.2:1b",
+    "model": "llama3.1:8b",
     "prompt": "Hello"
   }'
 ```
