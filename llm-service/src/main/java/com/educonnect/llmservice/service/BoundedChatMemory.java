@@ -42,15 +42,13 @@ public class BoundedChatMemory implements ChatMemory {
     }
 
     @Override
-    public synchronized List<Message> get(String conversationId, int lastN) {
+    public synchronized List<Message> get(String conversationId) {
         Conversation conversation = activeConversation(conversationId);
         if (conversation == null) {
             return List.of();
         }
         conversation.lastAccess = clock.millis();
-        List<Message> messages = conversation.messages;
-        int from = Math.max(0, messages.size() - lastN);
-        return List.copyOf(messages.subList(from, messages.size()));
+        return List.copyOf(conversation.messages);
     }
 
     @Override

@@ -76,8 +76,8 @@ class LlmSafetyTest {
         memory.add("b", List.<Message>of(new UserMessage("x")));
         memory.add("c", List.<Message>of(new UserMessage("y")));
 
-        assertThat(memory.get("a", 10)).isEmpty();
-        assertThat(memory.get("b", 10)).extracting(Message::getText).containsExactly("x");
+        assertThat(memory.get("a")).isEmpty();
+        assertThat(memory.get("b")).extracting(Message::getText).containsExactly("x");
         assertThat(memory.size()).isEqualTo(2);
     }
 
@@ -87,10 +87,10 @@ class LlmSafetyTest {
         BoundedChatMemory memory = new BoundedChatMemory(10, 2, Duration.ofMinutes(1), time.clock());
 
         memory.add("a", List.<Message>of(new UserMessage("1"), new UserMessage("2"), new UserMessage("3")));
-        assertThat(memory.get("a", 10)).extracting(Message::getText).containsExactly("2", "3");
+        assertThat(memory.get("a")).extracting(Message::getText).containsExactly("2", "3");
 
         time.advanceMinutes(2);
-        assertThat(memory.get("a", 10)).isEmpty();
+        assertThat(memory.get("a")).isEmpty();
     }
 
     private static final class MutableTime {

@@ -15,8 +15,8 @@ public class AppConfig {
     @LoadBalanced // Bu anotasyon kritik! Servis ismini (CLUB-SERVICE) IP'ye çevirir.
     public RestTemplate restTemplate(RestTemplateBuilder builder) {
         return builder
-                .setConnectTimeout(Duration.ofSeconds(2))
-                .setReadTimeout(Duration.ofSeconds(5))
+                .connectTimeout(Duration.ofSeconds(2))
+                .readTimeout(Duration.ofSeconds(5))
                 .build();
     }
 }

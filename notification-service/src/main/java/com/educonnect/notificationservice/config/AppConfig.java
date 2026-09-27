@@ -15,8 +15,8 @@ public class AppConfig {
     @LoadBalanced // Servis isimlerini (CLUB-SERVICE) tanır
     public RestTemplate restTemplate(RestTemplateBuilder builder, ServiceTokenHttpRequestInterceptor serviceTokenInterceptor) {
         return builder
-                .setConnectTimeout(Duration.ofSeconds(2))
-                .setReadTimeout(Duration.ofSeconds(5))
+                .connectTimeout(Duration.ofSeconds(2))
+                .readTimeout(Duration.ofSeconds(5))
                 .additionalInterceptors(serviceTokenInterceptor)
                 .build();
     }

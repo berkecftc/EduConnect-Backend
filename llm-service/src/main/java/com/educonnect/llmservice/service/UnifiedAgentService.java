@@ -4,8 +4,8 @@ import com.educonnect.llmservice.config.LlmSafetyProperties;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.ai.chat.client.ChatClient;
-import org.springframework.ai.chat.client.advisor.AbstractChatMemoryAdvisor;
 import org.springframework.ai.chat.client.advisor.MessageChatMemoryAdvisor;
+import org.springframework.ai.chat.memory.ChatMemory;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Flux;
 
@@ -49,10 +49,11 @@ public class UnifiedAgentService {
                                LlmSafetyProperties properties) {
         this.rateLimiter = rateLimiter;
         LlmSafetyProperties.Memory memory = properties.memory();
-        BoundedChatMemory chatMemory = new BoundedChatMemory(memory.maxConversations(), memory.maxMessages(),
+        BoundedChatMemory chatMemory = new BoundedChatMemory(memory.maxConversations(),
+                Math.min(memory.maxMessages(), MEMORY_WINDOW_SIZE),
                 memory.ttl(), Clock.systemUTC());
         this.agentChatClient = chatClientBuilder
-                .defaultAdvisors(new MessageChatMemoryAdvisor(chatMemory))
+                .defaultAdvisors(MessageChatMemoryAdvisor.builder(chatMemory).build())
                 .build();
     }
 
@@ -63,11 +64,9 @@ public class UnifiedAgentService {
         String fullResponse = agentChatClient.prompt()
                 .system(STUDENT_SYSTEM_PROMPT)
                 .user(userMessage)
-                .tools(STUDENT_TOOLS)
+                .toolNames(STUDENT_TOOLS)
                 .toolContext(Map.of(STUDENT_ID_CONTEXT_KEY, studentId))
-                .advisors(spec -> spec
-                        .param(AbstractChatMemoryAdvisor.CHAT_MEMORY_CONVERSATION_ID_KEY, studentId)
-                        .param(AbstractChatMemoryAdvisor.CHAT_MEMORY_RETRIEVE_SIZE_KEY, MEMORY_WINDOW_SIZE))
+                .advisors(spec -> spec.param(ChatMemory.CONVERSATION_ID, studentId))
                 .call()
                 .content();
 
