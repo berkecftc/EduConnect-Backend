@@ -3,9 +3,11 @@ package com.educonnect.authservices.service;
 import com.educonnect.authservices.Repository.RefreshTokenRepository;
 import com.educonnect.authservices.config.AuthSecurityProperties;
 import com.educonnect.authservices.models.RefreshToken;
+import com.educonnect.common.web.ApiException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -121,10 +123,10 @@ public class RefreshTokenService {
     public record RotatedRefreshToken(UUID userId, String rawToken) {
     }
 
-    public static class InvalidRefreshTokenException extends RuntimeException {
+    public static class InvalidRefreshTokenException extends ApiException {
 
         public InvalidRefreshTokenException(String message) {
-            super(message);
+            super(HttpStatus.UNAUTHORIZED, "INVALID_REFRESH_TOKEN", message);
         }
     }
 }

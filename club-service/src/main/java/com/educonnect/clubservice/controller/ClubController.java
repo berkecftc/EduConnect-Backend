@@ -10,12 +10,14 @@ import com.educonnect.clubservice.dto.response.MyClubMembershipDTO;
 import com.educonnect.clubservice.dto.response.PageResponse;
 import com.educonnect.clubservice.model.Club;
 import com.educonnect.clubservice.service.ClubService;
+import com.educonnect.common.web.ApiException;
+import com.educonnect.common.web.BadRequestException;
+import com.educonnect.common.web.NotFoundException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
-import org.springframework.web.server.ResponseStatusException;
 
 import java.util.Arrays;
 import java.util.List;
@@ -59,14 +61,14 @@ public class ClubController {
 
     @PostMapping("/{clubId}/join")
     public ResponseEntity<String> joinClub(@PathVariable UUID clubId) {
-        return ResponseEntity.status(HttpStatus.GONE)
-                .body("Kulübe doğrudan katılım kapatıldı. Üyelik için POST /api/clubs/{clubId}/membership-requests kullanın.");
+        throw new ApiException(HttpStatus.GONE, "ENDPOINT_GONE",
+                "Kulübe doğrudan katılım kapatıldı. Üyelik için POST /api/clubs/{clubId}/membership-requests kullanın.");
     }
 
     @PostMapping("/{clubId}/members")
     public ResponseEntity<String> addMember(@PathVariable UUID clubId) {
-        return ResponseEntity.status(HttpStatus.GONE)
-                .body("Doğrudan üye ekleme kapatıldı. Üyelik başvurusu ve görev değişikliği talebi akışlarını kullanın.");
+        throw new ApiException(HttpStatus.GONE, "ENDPOINT_GONE",
+                "Doğrudan üye ekleme kapatıldı. Üyelik başvurusu ve görev değişikliği talebi akışlarını kullanın.");
     }
 
     /**
@@ -84,8 +86,8 @@ public class ClubController {
             @PathVariable UUID studentId,
             @RequestBody UpdateMemberRoleRequest request
     ) {
-        return ResponseEntity.status(HttpStatus.GONE)
-                .body("Bu endpoint artık kullanılmamaktadır. Görev değişiklikleri danışman onayına tabidir. " +
+        throw new ApiException(HttpStatus.GONE, "ENDPOINT_GONE",
+                "Bu endpoint artık kullanılmamaktadır. Görev değişiklikleri danışman onayına tabidir. " +
                         "Görev atamak için POST /api/clubs/{clubId}/role-change-requests, " +
                         "Görevden almak için DELETE /api/clubs/{clubId}/members/{studentId}/role kullanın.");
     }
@@ -97,17 +99,14 @@ public class ClubController {
             @PathVariable UUID clubId,
             @RequestHeader("X-Authenticated-User-Id") String userIdHeader
     ) {
+        UUID studentId;
         try {
-            UUID studentId = UUID.fromString(userIdHeader);
-            clubService.leaveClub(clubId, studentId);
-            return ResponseEntity.ok("Successfully left the club.");
-        } catch (ResponseStatusException e) {
-            return ResponseEntity.status(e.getStatusCode()).body(e.getReason());
+            studentId = UUID.fromString(userIdHeader);
         } catch (IllegalArgumentException e) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Invalid user id format.");
-        } catch (RuntimeException e) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
+            throw new BadRequestException("INVALID_USER_ID", "Invalid user id format.");
         }
+        clubService.leaveClub(clubId, studentId);
+        return ResponseEntity.ok("Successfully left the club.");
     }
 
     /**
@@ -126,23 +125,15 @@ public class ClubController {
             @RequestHeader("X-Authenticated-User-Id") String userIdHeader
     ) {
         if (file.isEmpty()) {
-            return ResponseEntity.badRequest().body("File is empty.");
+            throw new BadRequestException("FILE_EMPTY", "File is empty.");
         }
 
-        try {
-            UUID requestingStudentId = UUID.fromString(userIdHeader);
+        UUID requestingStudentId = UUID.fromString(userIdHeader);
 
-            // Servis katmanı hem yetkiyi kontrol edecek hem de yüklemeyi yapacak
-            String objectName = clubService.updateClubLogo(clubId, file, requestingStudentId);
+        // Servis katmanı hem yetkiyi kontrol edecek hem de yüklemeyi yapacak
+        String objectName = clubService.updateClubLogo(clubId, file, requestingStudentId);
 
-            return ResponseEntity.ok(objectName);
-
-        } catch (ResponseStatusException e) {
-            // Service katmanından fırlatılan FORBIDDEN veya NOT_FOUND hatalarını yakala
-            return ResponseEntity.status(e.getStatusCode()).body(e.getReason());
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Error uploading file: " + e.getMessage());
-        }
+        return ResponseEntity.ok(objectName);
     }
 
     @PostMapping("/request-creation")
@@ -167,7 +158,7 @@ public class ClubController {
     @GetMapping("/search")
     public ResponseEntity<ClubSummaryDTO> getClubByName(@RequestParam String name) {
         Club club = clubRepository.findByName(name)
-                .orElseThrow(() -> new RuntimeException("Club not found with name: " + name));
+                .orElseThrow(() -> new NotFoundException("CLUB_NOT_FOUND", "Club not found with name: " + name));
 
         return ResponseEntity.ok(new ClubSummaryDTO(club.getId(), club.getName(), club.getLogoUrl()));
     }

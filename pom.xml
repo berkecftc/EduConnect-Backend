@@ -25,6 +25,7 @@
         <module>common-messaging</module>
         <module>common-resilience</module>
         <module>common-observability</module>
+        <module>common-web</module>
         <module>config-server</module>
         <module>eureka-server</module>
         <module>api-gateway</module>
@@ -80,6 +81,11 @@
             <dependency>
                 <groupId>com.educonnect</groupId>
                 <artifactId>common-observability</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.educonnect</groupId>
+                <artifactId>common-web</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>

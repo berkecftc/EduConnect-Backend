@@ -2,6 +2,7 @@ package com.educonnect.courseservice.config;
 
 import com.educonnect.common.security.ServiceIdentity;
 import com.educonnect.common.security.VerifiedIdentityFilter;
+import com.educonnect.common.web.ProblemSecurityHandlers;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
@@ -17,9 +18,12 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 public class SecurityConfig {
 
     private final VerifiedIdentityFilter verifiedIdentityFilter;
+    private final ProblemSecurityHandlers problemSecurityHandlers;
 
-    public SecurityConfig(VerifiedIdentityFilter verifiedIdentityFilter) {
+    public SecurityConfig(VerifiedIdentityFilter verifiedIdentityFilter,
+                          ProblemSecurityHandlers problemSecurityHandlers) {
         this.verifiedIdentityFilter = verifiedIdentityFilter;
+        this.problemSecurityHandlers = problemSecurityHandlers;
     }
 
     @Bean
@@ -27,6 +31,7 @@ public class SecurityConfig {
         http
             .csrf(csrf -> csrf.disable())
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+            .exceptionHandling(problemSecurityHandlers)
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers("/api/*/internal/**").hasRole(ServiceIdentity.ROLE)
                 .requestMatchers("/actuator/**").permitAll()

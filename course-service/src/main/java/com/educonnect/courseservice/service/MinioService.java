@@ -4,7 +4,9 @@ import com.educonnect.common.storage.StorageUrls;
 import com.educonnect.common.storage.UploadKind;
 import com.educonnect.common.storage.UploadValidator;
 import com.educonnect.common.storage.ValidatedUpload;
+import com.educonnect.common.web.NotFoundException;
 import io.minio.*;
+import io.minio.errors.ErrorResponseException;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
@@ -52,6 +54,13 @@ public class MinioService {
                     .bucket(bucketName)
                     .object(objectName)
                     .build());
+        } catch (ErrorResponseException e) {
+            if ("NoSuchKey".equals(e.errorResponse().code())) {
+                throw new NotFoundException("FILE_NOT_FOUND", "Dosya bulunamadı.");
+            }
+            throw new RuntimeException("MinIO İndirme Hatası: " + e.getMessage());
+        } catch (IllegalArgumentException e) {
+            throw new NotFoundException("FILE_NOT_FOUND", "Dosya bulunamadı.");
         } catch (Exception e) {
             throw new RuntimeException("MinIO İndirme Hatası: " + e.getMessage());
         }

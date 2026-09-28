@@ -9,6 +9,9 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.educonnect.common.security.AuditLog;
 import com.educonnect.common.security.IdentityHeaders;
+import com.educonnect.common.web.ApiException;
+import com.educonnect.common.web.BadRequestException;
+import com.educonnect.common.web.ForbiddenException;
 import com.educonnect.userservice.service.ProfileService;
 import com.educonnect.userservice.service.ProfileViewService;
 import org.springframework.http.HttpStatus;
@@ -16,7 +19,6 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
@@ -59,19 +61,10 @@ public class ProfileController {
             @RequestBody UpdateUserProfileRequest request,
             @RequestHeader("X-Authenticated-User-Id") String userIdHeader
     ) {
-        try {
-            if (!isSelfUpdate(userId, userIdHeader)) {
-                return ResponseEntity.status(HttpStatus.FORBIDDEN)
-                        .body("You can only update your own profile.");
-            }
+        requireSelfUpdate(userId, userIdHeader);
 
-            UserProfileResponse updatedProfile = profileService.updateUserProfile(userId, request);
-            return ResponseEntity.ok(updatedProfile);
-        } catch (IllegalArgumentException e) {
-            return ResponseEntity.badRequest().body(e.getMessage());
-        } catch (RuntimeException e) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Error: " + e.getMessage());
-        }
+        UserProfileResponse updatedProfile = profileService.updateUserProfile(userId, request);
+        return ResponseEntity.ok(updatedProfile);
     }
 
     /**
@@ -96,55 +89,44 @@ public class ProfileController {
             @RequestPart(value = "profilePicture", required = false) MultipartFile profilePicture,
             @RequestHeader("X-Authenticated-User-Id") String userIdHeader
     ) {
-        try {
-            if (!isSelfUpdate(userId, userIdHeader)) {
-                return ResponseEntity.status(HttpStatus.FORBIDDEN)
-                        .body("You can only update your own profile.");
-            }
+        requireSelfUpdate(userId, userIdHeader);
 
-            UpdateUserProfileRequest bodyPart = parseRequestPartJson(dataJson, profileDataJson);
+        UpdateUserProfileRequest bodyPart = parseRequestPartJson(dataJson, profileDataJson);
 
-            String normalizedFirstName = coalesceNonBlank(firstName, firstNameSnake, bodyPart.getFirstName());
-            String normalizedLastName = coalesceNonBlank(lastName, lastNameSnake, bodyPart.getLastName());
-            String normalizedBio = coalesceNonBlank(bio, bodyPart.getBio());
-            String normalizedDepartment = coalesceNonBlank(department, bodyPart.getDepartment());
-            String normalizedTitle = coalesceNonBlank(title, bodyPart.getTitle());
-            String normalizedOfficeNumber = coalesceNonBlank(officeNumber, officeNumberSnake, bodyPart.getOfficeNumber());
+        String normalizedFirstName = coalesceNonBlank(firstName, firstNameSnake, bodyPart.getFirstName());
+        String normalizedLastName = coalesceNonBlank(lastName, lastNameSnake, bodyPart.getLastName());
+        String normalizedBio = coalesceNonBlank(bio, bodyPart.getBio());
+        String normalizedDepartment = coalesceNonBlank(department, bodyPart.getDepartment());
+        String normalizedTitle = coalesceNonBlank(title, bodyPart.getTitle());
+        String normalizedOfficeNumber = coalesceNonBlank(officeNumber, officeNumberSnake, bodyPart.getOfficeNumber());
 
-            MultipartFile uploadFile = firstNonEmptyFile(file, profileImage, profilePicture);
+        MultipartFile uploadFile = firstNonEmptyFile(file, profileImage, profilePicture);
 
-            boolean hasTextUpdate = normalizedFirstName != null || normalizedLastName != null || normalizedBio != null
-                    || normalizedDepartment != null || normalizedTitle != null || normalizedOfficeNumber != null;
-            boolean hasFile = uploadFile != null;
+        boolean hasTextUpdate = normalizedFirstName != null || normalizedLastName != null || normalizedBio != null
+                || normalizedDepartment != null || normalizedTitle != null || normalizedOfficeNumber != null;
+        boolean hasFile = uploadFile != null;
 
-            if (!hasTextUpdate && !hasFile) {
-                // Save butonu degisiklik olmadan tetiklenirse no-op olarak basarili don.
-                return ResponseEntity.ok(profileService.getUserProfile(userId));
-            }
-
-            if (hasTextUpdate) {
-                UpdateUserProfileRequest request = new UpdateUserProfileRequest();
-                request.setFirstName(normalizedFirstName);
-                request.setLastName(normalizedLastName);
-                request.setBio(normalizedBio);
-                request.setDepartment(normalizedDepartment);
-                request.setTitle(normalizedTitle);
-                request.setOfficeNumber(normalizedOfficeNumber);
-                profileService.updateUserProfile(userId, request);
-            }
-
-            if (hasFile) {
-                profileService.uploadProfilePicture(userId, uploadFile);
-            }
-
+        if (!hasTextUpdate && !hasFile) {
+            // Save butonu degisiklik olmadan tetiklenirse no-op olarak basarili don.
             return ResponseEntity.ok(profileService.getUserProfile(userId));
-        } catch (IllegalArgumentException e) {
-            return ResponseEntity.badRequest().body(e.getMessage());
-        } catch (ResponseStatusException e) {
-            return ResponseEntity.status(e.getStatusCode()).body(e.getReason());
-        } catch (RuntimeException e) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Error: " + e.getMessage());
         }
+
+        if (hasTextUpdate) {
+            UpdateUserProfileRequest request = new UpdateUserProfileRequest();
+            request.setFirstName(normalizedFirstName);
+            request.setLastName(normalizedLastName);
+            request.setBio(normalizedBio);
+            request.setDepartment(normalizedDepartment);
+            request.setTitle(normalizedTitle);
+            request.setOfficeNumber(normalizedOfficeNumber);
+            profileService.updateUserProfile(userId, request);
+        }
+
+        if (hasFile) {
+            profileService.uploadProfilePicture(userId, uploadFile);
+        }
+
+        return ResponseEntity.ok(profileService.getUserProfile(userId));
     }
 
     /**
@@ -160,8 +142,7 @@ public class ProfileController {
 
     @GetMapping("/by-student-number/{studentNumber}")
     public ResponseEntity<String> getProfileByStudentNumber(@PathVariable String studentNumber) {
-        return ResponseEntity.status(HttpStatus.GONE)
-                .body("Öğrenci numarasıyla profil sorgulama kapatıldı.");
+        throw new ApiException(HttpStatus.GONE, "ENDPOINT_GONE", "Öğrenci numarasıyla profil sorgulama kapatıldı.");
     }
 
     // --- YENİ ENDPOINT: Profil Resmi Yükleme ---
@@ -172,33 +153,22 @@ public class ProfileController {
             // API Gateway'den (AuthenticationFilter) gelen kullanıcı ID'si
             @RequestHeader("X-Authenticated-User-Id") String userIdHeader
     ) {
-        try {
-            if (file.isEmpty()) {
-                return ResponseEntity.badRequest().body("File is empty.");
-            }
-
-            UUID userId = UUID.fromString(userIdHeader);
-
-            // Servisi çağır (Yükleme, DB güncelleme ve Cache temizleme burada yapılır)
-            String fileUrl = profileService.uploadProfilePicture(userId, file);
-
-            return ResponseEntity.ok(fileUrl); // Yeni resmin yolunu (objectName) döndür
-
-        } catch (ResponseStatusException e) {
-            return ResponseEntity.status(e.getStatusCode()).body(e.getReason());
-        } catch (RuntimeException e) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                    .body("Error: " + e.getMessage());
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body("Unexpected error: " + e.getMessage());
+        if (file.isEmpty()) {
+            throw new BadRequestException("File is empty.");
         }
+
+        UUID userId = UUID.fromString(userIdHeader);
+
+        // Servisi çağır (Yükleme, DB güncelleme ve Cache temizleme burada yapılır)
+        String fileUrl = profileService.uploadProfilePicture(userId, file);
+
+        return ResponseEntity.ok(fileUrl); // Yeni resmin yolunu (objectName) döndür
     }
 
     @DeleteMapping({"/students/{userId}", "/academicians/{userId}"})
     public ResponseEntity<String> deleteProfile(@PathVariable UUID userId) {
-        return ResponseEntity.status(HttpStatus.GONE)
-                .body("Profil silme bu uçtan kapatıldı. Kullanıcıyı DELETE /api/auth/admin/users/{userId} ile silin; profil tüm servislerle birlikte temizlenir.");
+        throw new ApiException(HttpStatus.GONE, "ENDPOINT_GONE",
+                "Profil silme bu uçtan kapatıldı. Kullanıcıyı DELETE /api/auth/admin/users/{userId} ile silin; profil tüm servislerle birlikte temizlenir.");
     }
 
     /**
@@ -223,9 +193,11 @@ public class ProfileController {
         return ResponseEntity.ok(archivedAcademicians);
     }
 
-    private boolean isSelfUpdate(UUID userId, String userIdHeader) {
+    private void requireSelfUpdate(UUID userId, String userIdHeader) {
         UUID authenticatedUserId = UUID.fromString(userIdHeader);
-        return Objects.equals(userId, authenticatedUserId);
+        if (!Objects.equals(userId, authenticatedUserId)) {
+            throw new ForbiddenException("You can only update your own profile.");
+        }
     }
 
     private String normalizeBlankToNull(String value) {

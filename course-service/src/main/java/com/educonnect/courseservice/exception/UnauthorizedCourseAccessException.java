@@ -1,8 +1,9 @@
 package com.educonnect.courseservice.exception;
 
-public class UnauthorizedCourseAccessException extends RuntimeException {
+import com.educonnect.common.web.ForbiddenException;
+
+public class UnauthorizedCourseAccessException extends ForbiddenException {
     public UnauthorizedCourseAccessException(String message) {
-        super(message);
+        super("UNAUTHORIZED_COURSE_ACCESS", message);
     }
 }
-

@@ -1,5 +1,6 @@
 package com.educonnect.userservice.service;
 
+import com.educonnect.common.web.NotFoundException;
 import com.educonnect.userservice.dto.request.UpdateUserProfileRequest;
 import com.educonnect.userservice.dto.response.ArchivedAcademicianDTO;
 import com.educonnect.userservice.dto.response.ArchivedStudentDTO;
@@ -82,7 +83,7 @@ public class ProfileService {
             return mapToResponse(academician);
         }
 
-        throw new RuntimeException("Profile not found for user ID: " + userId);
+        throw new NotFoundException("PROFILE_NOT_FOUND", "Profile not found for user ID: " + userId);
     }
 
     public List<UserProfileResponse> getUserProfiles(Collection<UUID> userIds) {
@@ -122,7 +123,7 @@ public class ProfileService {
             return mapToResponse(saved);
         }
 
-        throw new RuntimeException("Profile not found for user ID: " + userId);
+        throw new NotFoundException("PROFILE_NOT_FOUND", "Profile not found for user ID: " + userId);
     }
 
     // --- YENİ METOT: Profil Resmi Yükleme ---
@@ -139,7 +140,7 @@ public class ProfileService {
         Optional<Academician> academicianOpt = academicianRepository.findById(userId);
 
         if (studentOpt.isEmpty() && academicianOpt.isEmpty()) {
-            throw new RuntimeException(
+            throw new NotFoundException("PROFILE_NOT_FOUND",
                 "Profile not found for user ID: " + userId +
                 ". Please make sure your account has been properly registered and profile created. " +
                 "This may happen if you're using an old token or if profile creation failed."

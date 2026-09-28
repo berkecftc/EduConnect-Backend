@@ -69,7 +69,7 @@ public class GeneralRateLimitFilter implements GlobalFilter, Ordered {
                     }
                     LOGGER.warn("General rate limit exceeded for {} on {}", subject.startsWith("user:") ? "user" : "ip", request.getURI().getPath());
                     long retryAfterSeconds = Math.max(1, (window + 1) * WINDOW_SECONDS - nowSeconds);
-                    return RateLimitResponses.reject(exchange.getResponse(), retryAfterSeconds);
+                    return RateLimitResponses.reject(exchange, retryAfterSeconds);
                 });
     }
 

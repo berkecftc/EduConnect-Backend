@@ -4,13 +4,14 @@ import com.educonnect.eventservice.dto.request.CreateEventRequest;
 import com.educonnect.eventservice.dto.response.EventRegistrantDTO;
 import com.educonnect.eventservice.model.Event;
 import com.educonnect.eventservice.service.EventService;
+import com.educonnect.common.web.ApiException;
+import com.educonnect.common.web.BadRequestException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
-import org.springframework.web.server.ResponseStatusException;
 
 import java.util.UUID;
 import java.util.List;
@@ -40,13 +41,13 @@ public class EventManagementController {
 
         // Afiş dosyası boş olamaz
         if (poster == null || poster.isEmpty()) {
-            return ResponseEntity.badRequest().build();
+            throw new BadRequestException("POSTER_REQUIRED", "Afiş dosyası zorunludur.");
         }
 
         // Dosya türü kontrolü - sadece resim dosyaları kabul edilir
         String contentType = poster.getContentType();
         if (contentType == null || !contentType.startsWith("image/")) {
-            return ResponseEntity.badRequest().build();
+            throw new BadRequestException("INVALID_POSTER_TYPE", "Afiş yalnızca resim dosyası olabilir.");
         }
 
 
@@ -56,22 +57,22 @@ public class EventManagementController {
 
     @GetMapping("/pending")
     public ResponseEntity<String> getPendingEvents() {
-        return advisorFlowOnly();
+        throw advisorFlowOnly();
     }
 
     @PostMapping("/{eventId}/approve")
     public ResponseEntity<String> approveEvent(@PathVariable UUID eventId) {
-        return advisorFlowOnly();
+        throw advisorFlowOnly();
     }
 
     @PostMapping("/{eventId}/reject")
     public ResponseEntity<String> rejectEvent(@PathVariable UUID eventId) {
-        return advisorFlowOnly();
+        throw advisorFlowOnly();
     }
 
-    private static ResponseEntity<String> advisorFlowOnly() {
-        return ResponseEntity.status(HttpStatus.GONE)
-                .body("Bu uç kapatıldı. Etkinlik onayı için /api/events/advisor/pending, /api/events/advisor/{eventId}/approve ve /reject kullanın.");
+    private static ApiException advisorFlowOnly() {
+        return new ApiException(HttpStatus.GONE, "ENDPOINT_GONE",
+                "Bu uç kapatıldı. Etkinlik onayı için /api/events/advisor/pending, /api/events/advisor/{eventId}/approve ve /reject kullanın.");
     }
 
     /**
@@ -92,22 +93,14 @@ public class EventManagementController {
         }
 
         if (code == null || code.isBlank()) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("QR code is required.");
+            throw new BadRequestException("QR_CODE_REQUIRED", "QR code is required.");
         }
 
-        try {
-            boolean verified = eventService.verifyTicket(code, UUID.fromString(userIdHeader));
-            if (verified) {
-                return ResponseEntity.ok("ACCESS GRANTED: Ticket verified successfully.");
-            } else {
-                return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Verification failed.");
-            }
-        } catch (ResponseStatusException e) {
-            return ResponseEntity.status(e.getStatusCode()).body("ACCESS DENIED: " + e.getReason());
-        } catch (RuntimeException e) {
-            // "Invalid ticket" veya "Already used" hataları
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("ACCESS DENIED: " + e.getMessage());
+        boolean verified = eventService.verifyTicket(code, UUID.fromString(userIdHeader));
+        if (!verified) {
+            throw new BadRequestException("VERIFICATION_FAILED", "Verification failed.");
         }
+        return ResponseEntity.ok("ACCESS GRANTED: Ticket verified successfully.");
     }
 
     // ==================== CLUB OFFICIAL DASHBOARD ENDPOINTS ====================

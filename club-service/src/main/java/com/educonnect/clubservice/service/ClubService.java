@@ -30,6 +30,8 @@ import com.educonnect.clubservice.security.ClubPermission;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import com.educonnect.common.messaging.outbox.OutboxPublisher;
+import com.educonnect.common.web.ConflictException;
+import com.educonnect.common.web.NotFoundException;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Sort;
@@ -101,7 +103,7 @@ public class ClubService {
 
         // 1. Aynı isimde kulüp var mı diye kontrol et (opsiyonel ama önerilir)
         if (clubRepository.findByName(request.getName()).isPresent()) {
-            throw new IllegalStateException("Club with this name already exists.");
+            throw new ConflictException("CLUB_NAME_TAKEN", "Club with this name already exists.");
         }
         if (request.getClubPresidentId() == null) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Kulüp başkanı zorunludur.");
@@ -270,7 +272,7 @@ public class ClubService {
     @Transactional
     public void deleteClub(UUID clubId, String reason, UUID adminId) {
         Club club = clubRepository.findById(clubId)
-                .orElseThrow(() -> new RuntimeException("Club not found with id: " + clubId));
+                .orElseThrow(() -> new NotFoundException("CLUB_NOT_FOUND", "Club not found with id: " + clubId));
 
         log.info("Archiving club: {} (ID: {}), reason: {}, by admin: {}",
             club.getName(), clubId, reason, adminId);
@@ -342,7 +344,7 @@ public class ClubService {
      */
     public Club updateClub(UUID clubId, UpdateClubRequest request) {
         Club club = clubRepository.findById(clubId)
-                .orElseThrow(() -> new RuntimeException("Club not found"));
+                .orElseThrow(() -> new NotFoundException("CLUB_NOT_FOUND", "Club not found"));
 
         // 1. Bilgileri Güncelle
         if (request.getName() != null) club.setName(request.getName());
@@ -378,11 +380,11 @@ public class ClubService {
     public void leaveClub(UUID clubId, UUID studentId) {
         // Kulüp var mı kontrolü
         if (!clubRepository.existsById(clubId)) {
-            throw new RuntimeException("Club not found with id: " + clubId);
+            throw new NotFoundException("CLUB_NOT_FOUND", "Club not found with id: " + clubId);
         }
         // Üyelik var mı kontrolü
         ClubMembership membership = membershipRepository.findByClubIdAndStudentId(clubId, studentId)
-                .orElseThrow(() -> new RuntimeException("Membership not found for this user and club"));
+                .orElseThrow(() -> new NotFoundException("MEMBERSHIP_NOT_FOUND", "Membership not found for this user and club"));
 
         if (membership.isActive() && membership.getClubRole() == ClubPosition.PRESIDENT) {
             throw new ResponseStatusException(HttpStatus.CONFLICT,
@@ -436,7 +438,7 @@ public class ClubService {
         log.debug("Logo güncelleme başladı. clubId={}", clubId);
 
         Club club = clubRepository.findById(clubId)
-                .orElseThrow(() -> new RuntimeException("Kulüp bulunamadı"));
+                .orElseThrow(() -> new NotFoundException("CLUB_NOT_FOUND", "Kulüp bulunamadı"));
 
         log.debug("Kulüp bulundu. Mevcut logo: {}", club.getLogoUrl());
 
@@ -599,7 +601,7 @@ public class ClubService {
     /// İsteği reddetme metodu
     public void rejectClubCreationRequest(UUID requestId) {
         ClubCreationRequest request = requestRepository.findById(requestId)
-                .orElseThrow(() -> new RuntimeException("İstek bulunamadı"));
+                .orElseThrow(() -> new NotFoundException("REQUEST_NOT_FOUND", "İstek bulunamadı"));
 
         request.setStatus(ClubCreationRequestStatus.REJECTED);
         request.setProcessedAt(LocalDateTime.now());
@@ -642,7 +644,7 @@ public class ClubService {
     // 2. YÖNETİM KURULUNU GETİR (GÜNCELLENDİ)
     public List<MemberDTO> getClubBoardMembers(UUID clubId) {
         if (!clubRepository.existsById(clubId)) {
-            throw new RuntimeException("Kulüp bulunamadı");
+            throw new NotFoundException("CLUB_NOT_FOUND", "Kulüp bulunamadı");
         }
 
         List<ClubMembership> boardMembers = membershipRepository.findByClubId(clubId).stream()
@@ -685,7 +687,7 @@ public class ClubService {
     public List<MemberDTO> getPastPresidents(UUID clubId) {
         // Kulübün var olup olmadığını kontrol et
         if (!clubRepository.existsById(clubId)) {
-            throw new RuntimeException("Kulüp bulunamadı");
+            throw new NotFoundException("CLUB_NOT_FOUND", "Kulüp bulunamadı");
         }
 
         // Pasif olan ve ROLE_MEMBER'a dönüştürülmüş eski başkanları getir

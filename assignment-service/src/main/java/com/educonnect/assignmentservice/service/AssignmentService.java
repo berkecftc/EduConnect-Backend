@@ -11,6 +11,7 @@ import com.educonnect.assignmentservice.model.AssignmentSubmission;
 import com.educonnect.assignmentservice.publisher.AssignmentProducer;
 import com.educonnect.assignmentservice.repository.AssignmentRepository;
 import com.educonnect.assignmentservice.repository.SubmissionRepository;
+import com.educonnect.common.web.BadRequestException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.cache.Cache;
@@ -81,7 +82,7 @@ public class AssignmentService {
         try {
             courseData = courseClient.getCourseById(request.getCourseId());
         } catch (Exception e) {
-            throw new RuntimeException("Ders bulunamadı! Geçersiz Course ID.");
+            throw new BadRequestException("COURSE_NOT_FOUND", "Ders bulunamadı! Geçersiz Course ID.");
         }
 
         // 2. Dosya yükle (varsa)
@@ -159,7 +160,7 @@ public class AssignmentService {
     public AssignmentSubmission submitAssignment(UUID assignmentId, UUID studentId, MultipartFile file) {
         // Ödev var mı kontrol et
         Assignment assignment = assignmentRepository.findById(assignmentId)
-                .orElseThrow(() -> new RuntimeException("Ödev bulunamadı"));
+                .orElseThrow(() -> new BadRequestException("ASSIGNMENT_NOT_FOUND", "Ödev bulunamadı"));
 
         // Deadline kontrolü
         boolean isLate = assignment.getDueDate() != null && LocalDateTime.now().isAfter(assignment.getDueDate());
@@ -210,10 +211,10 @@ public class AssignmentService {
     // AKADEMİSYEN NOT VERME
     public void gradeSubmission(UUID submissionId, Integer grade, String feedback) {
         AssignmentSubmission submission = submissionRepository.findById(submissionId)
-                .orElseThrow(() -> new RuntimeException("Teslim bulunamadı"));
+                .orElseThrow(() -> new BadRequestException("SUBMISSION_NOT_FOUND", "Teslim bulunamadı"));
 
         if (grade != null && (grade < 0 || grade > 100)) {
-            throw new RuntimeException("Not 0-100 arasında olmalıdır");
+            throw new BadRequestException("INVALID_GRADE", "Not 0-100 arasında olmalıdır");
         }
 
         submission.setGrade(grade);

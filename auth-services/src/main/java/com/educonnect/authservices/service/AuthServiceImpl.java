@@ -29,6 +29,7 @@ import com.educonnect.authservices.Repository.StudentRequestRepository; // ÖĞR
 import com.educonnect.authservices.Repository.UserRepository;
 import jakarta.transaction.Transactional; // Transaction yönetimi için
 import com.educonnect.common.messaging.outbox.OutboxPublisher;
+import com.educonnect.common.web.BadRequestException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.BadCredentialsException;
@@ -160,10 +161,10 @@ public class AuthServiceImpl {
 
         // Email kontrolü - hem users hem de student_requests tablosunda kontrol et
         if (userRepository.findByEmail(request.getEmail()).isPresent()) {
-            throw new IllegalStateException("Email already registered");
+            throw new BadRequestException("EMAIL_ALREADY_REGISTERED", "Email already registered");
         }
         if (studentRequestRepository.findByEmail(request.getEmail()).isPresent()) {
-            throw new IllegalStateException("Bu email ile zaten bir başvuru mevcut");
+            throw new BadRequestException("STUDENT_REQUEST_ALREADY_EXISTS", "Bu email ile zaten bir başvuru mevcut");
         }
 
         // Öğrenci belgesi zorunlu
@@ -308,7 +309,7 @@ public class AuthServiceImpl {
     public void requestAcademicianAccount(RegisterRequest request, MultipartFile idCardImage) {
 
         if (userRepository.findByEmail(request.getEmail()).isPresent()) {
-            throw new IllegalStateException("Email already registered");
+            throw new BadRequestException("EMAIL_ALREADY_REGISTERED", "Email already registered");
         }
 
         // Kimlik kartı fotoğrafı zorunlu
@@ -487,18 +488,17 @@ public class AuthServiceImpl {
 
         // 2. Mevcut şifre doğru mu diye kontrol et
         if (!passwordEncoder.matches(request.getCurrentPassword(), user.getPassword())) {
-            throw new IllegalStateException("Wrong current password");
-            // (Daha iyisi: 400 Bad Request hatası fırlat)
+            throw new BadRequestException("WRONG_CURRENT_PASSWORD", "Wrong current password");
         }
 
         // 3. Yeni şifre ve onayı eşleşiyor mu diye kontrol et
         if (!request.getNewPassword().equals(request.getConfirmationPassword())) {
-            throw new IllegalStateException("New password and confirmation do not match");
+            throw new BadRequestException("PASSWORD_CONFIRMATION_MISMATCH", "New password and confirmation do not match");
         }
 
         // 4. (Opsiyonel) Yeni şifre, eski şifreyle aynı olamaz kontrolü
         if (passwordEncoder.matches(request.getNewPassword(), user.getPassword())) {
-            throw new IllegalStateException("New password cannot be the same as the old password");
+            throw new BadRequestException("PASSWORD_UNCHANGED", "New password cannot be the same as the old password");
         }
         passwordPolicy.validateNewPassword(request.getNewPassword(), user.getEmail());
 
@@ -578,7 +578,7 @@ public class AuthServiceImpl {
         // Kullanıcının sadece PENDING_ACADEMICIAN rolü olduğunu doğrula
         Set<Role> roles = user.getRoles();
         if (!roles.contains(Role.ROLE_PENDING_ACADEMICIAN)) {
-            throw new IllegalStateException("User does not have a pending academician request");
+            throw new BadRequestException("NO_PENDING_ACADEMICIAN_REQUEST", "User does not have a pending academician request");
         }
 
         // 1. E-posta bildirimi gönder (red) - Silmeden önce bilgileri al
@@ -730,7 +730,7 @@ public class AuthServiceImpl {
 
         // 2. Şifre eşleşme kontrolü
         if (!newPassword.equals(confirmPassword)) {
-            throw new IllegalStateException("Şifreler eşleşmiyor.");
+            throw new BadRequestException("PASSWORD_CONFIRMATION_MISMATCH", "Şifreler eşleşmiyor.");
         }
 
         PasswordResetToken resetToken = passwordResetTokenRepository.findByTokenHash(OpaqueTokens.hash(token))
@@ -739,7 +739,7 @@ public class AuthServiceImpl {
         // 5. Token süre kontrolü
         if (resetToken.isExpired()) {
             passwordResetTokenRepository.delete(resetToken);
-            throw new IllegalStateException("Token süresi dolmuş. Lütfen yeni bir şifre sıfırlama talebi oluşturun.");
+            throw new BadRequestException("RESET_TOKEN_EXPIRED", "Token süresi dolmuş. Lütfen yeni bir şifre sıfırlama talebi oluşturun.");
         }
 
         // 6. Kullanıcıyı bul

@@ -14,6 +14,8 @@ import com.educonnect.authservices.dto.response.AuthResponse;
 import com.educonnect.authservices.service.AuthServiceImpl;
 import com.educonnect.authservices.Repository.UserRepository;
 import com.educonnect.authservices.models.User;
+import com.educonnect.common.web.ApiException;
+import com.educonnect.common.web.BadRequestException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.web.server.ResponseStatusException;
@@ -114,8 +116,8 @@ public class AuthController {
 
     @PostMapping({"/request/club-official", "/request/club-official/{userId}"})
     public ResponseEntity<String> requestClubOfficial() {
-        return ResponseEntity.status(HttpStatus.GONE)
-                .body("Genel kulüp yetkilisi başvurusu kapatıldı. Kulüp görevleri kulüp kuruluş başvurusu ve danışman onaylı görev atamasıyla verilir.");
+        throw new ApiException(HttpStatus.GONE, "ENDPOINT_GONE",
+                "Genel kulüp yetkilisi başvurusu kapatıldı. Kulüp görevleri kulüp kuruluş başvurusu ve danışman onaylı görev atamasıyla verilir.");
     }
 
     // --- YENİ ENDPOINT: ŞİFRE DEĞİŞTİRME ---
@@ -129,20 +131,12 @@ public class AuthController {
             @RequestBody ChangePasswordRequest request,
             Authentication authentication // Spring Security, token'dan kimliği doğrulanmış kullanıcıyı buraya inject eder
     ) {
-        try {
-            // 'authentication.getPrincipal()' bize 'User' (UserDetails) nesnesini verir
-            UserDetails userDetails = (UserDetails) authentication.getPrincipal();
+        // 'authentication.getPrincipal()' bize 'User' (UserDetails) nesnesini verir
+        UserDetails userDetails = (UserDetails) authentication.getPrincipal();
 
-            authService.changePassword(request, userDetails);
+        authService.changePassword(request, userDetails);
 
-            return ResponseEntity.ok("Password changed successfully.");
-
-        } catch (IllegalStateException e) {
-            // "Mevcut şifre yanlış" veya "Şifreler eşleşmiyor" hatalarını yakala
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("An unexpected error occurred.");
-        }
+        return ResponseEntity.ok("Password changed successfully.");
     }
 
     // --- YENİ ENDPOINT: REFRESH TOKEN ---
@@ -151,16 +145,12 @@ public class AuthController {
      */
     @PostMapping("/refresh")
     public ResponseEntity<?> refreshToken(@RequestBody Map<String, String> request) {
-        try {
-            String refreshToken = request.get("refreshToken");
-            if (refreshToken == null || refreshToken.isBlank()) {
-                return ResponseEntity.badRequest().body("Refresh token is required");
-            }
-            AuthResponse response = authService.refreshAccessToken(refreshToken);
-            return ResponseEntity.ok(response);
-        } catch (RuntimeException e) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(e.getMessage());
+        String refreshToken = request.get("refreshToken");
+        if (refreshToken == null || refreshToken.isBlank()) {
+            throw new BadRequestException("REFRESH_TOKEN_REQUIRED", "Refresh token is required");
         }
+        AuthResponse response = authService.refreshAccessToken(refreshToken);
+        return ResponseEntity.ok(response);
     }
 
     // --- YENİ ENDPOINT: LOGOUT ---
@@ -169,16 +159,12 @@ public class AuthController {
      */
     @PostMapping("/logout")
     public ResponseEntity<String> logout(@RequestBody Map<String, String> request) {
-        try {
-            String refreshToken = request.get("refreshToken");
-            if (refreshToken == null || refreshToken.isBlank()) {
-                return ResponseEntity.badRequest().body("Refresh token is required");
-            }
-            authService.logout(refreshToken);
-            return ResponseEntity.ok("Logged out successfully");
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Logout failed");
+        String refreshToken = request.get("refreshToken");
+        if (refreshToken == null || refreshToken.isBlank()) {
+            throw new BadRequestException("REFRESH_TOKEN_REQUIRED", "Refresh token is required");
         }
+        authService.logout(refreshToken);
+        return ResponseEntity.ok("Logged out successfully");
     }
 
     // --- YENİ ENDPOINT: ŞİFREMİ UNUTTUM ---
@@ -200,16 +186,7 @@ public class AuthController {
      */
     @PostMapping("/reset-password")
     public ResponseEntity<String> resetPassword(@RequestBody ResetPasswordRequest request) {
-        try {
-            authService.resetPassword(request);
-            return ResponseEntity.ok("Şifreniz başarıyla sıfırlandı. Artık yeni şifrenizle giriş yapabilirsiniz.");
-        } catch (NoSuchElementException e) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
-        } catch (IllegalStateException | IllegalArgumentException e) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body("Şifre sıfırlama işlemi sırasında bir hata oluştu.");
-        }
+        authService.resetPassword(request);
+        return ResponseEntity.ok("Şifreniz başarıyla sıfırlandı. Artık yeni şifrenizle giriş yapabilirsiniz.");
     }
 }

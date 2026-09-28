@@ -80,7 +80,7 @@ public class AuthRateLimitFilter implements GlobalFilter, Ordered {
         if (window.count > limit) {
             LOGGER.warn("Rate limit exceeded for {} on {}", bucket, path);
             long retryAfterSeconds = Math.max(1, (window.start + WINDOW_MILLIS - now + 999) / 1000);
-            return RateLimitResponses.reject(exchange.getResponse(), retryAfterSeconds);
+            return RateLimitResponses.reject(exchange, retryAfterSeconds);
         }
         return chain.filter(exchange);
     }

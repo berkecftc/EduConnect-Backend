@@ -1,8 +1,9 @@
 package com.educonnect.postservice.exception;
 
-public class CommentNotFoundException extends RuntimeException {
+import com.educonnect.common.web.NotFoundException;
+
+public class CommentNotFoundException extends NotFoundException {
     public CommentNotFoundException(String message) {
-        super(message);
+        super("COMMENT_NOT_FOUND", message);
     }
 }
-

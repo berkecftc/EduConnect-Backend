@@ -3,6 +3,7 @@ package com.educonnect.authservices.config;
 import com.educonnect.authservices.Repository.UserRepository;
 import com.educonnect.authservices.security.JwtAuthenticationFilter;
 import com.educonnect.authservices.service.JWTService;
+import com.educonnect.common.web.ProblemSecurityHandlers;
 import jakarta.servlet.DispatcherType;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
@@ -38,11 +39,14 @@ public class SecurityConfig {
 
     private final UserRepository userRepository;
     private final JWTService jwtService;
+    private final ProblemSecurityHandlers problemSecurityHandlers;
 
     @Autowired
-    public SecurityConfig(UserRepository userRepository, JWTService jwtService) {
+    public SecurityConfig(UserRepository userRepository, JWTService jwtService,
+                          ProblemSecurityHandlers problemSecurityHandlers) {
         this.userRepository = userRepository;
         this.jwtService = jwtService;
+        this.problemSecurityHandlers = problemSecurityHandlers;
     }
 
     // 1. HTTP Güvenlik Filtre Zinciri
@@ -78,7 +82,8 @@ public class SecurityConfig {
 
                 // Form login ve HTTP Basic'i devre dışı bırak
                 .formLogin(form -> form.disable())
-                .httpBasic(basic -> basic.disable());
+                .httpBasic(basic -> basic.disable())
+                .exceptionHandling(problemSecurityHandlers);
 
         // JWT doğrulama filtresini UsernamePasswordAuthenticationFilter'dan önce ekle
         http.addFilterBefore(new JwtAuthenticationFilter(jwtService, userDetailsService()),

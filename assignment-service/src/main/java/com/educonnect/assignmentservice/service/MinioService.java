@@ -4,6 +4,7 @@ import com.educonnect.common.storage.StorageUrls;
 import com.educonnect.common.storage.UploadKind;
 import com.educonnect.common.storage.UploadValidator;
 import com.educonnect.common.storage.ValidatedUpload;
+import com.educonnect.common.web.NotFoundException;
 import io.minio.BucketExistsArgs;
 import io.minio.GetObjectArgs;
 import io.minio.MakeBucketArgs;
@@ -11,6 +12,7 @@ import io.minio.MinioClient;
 import io.minio.PutObjectArgs;
 import io.minio.DeleteBucketPolicyArgs;
 import io.minio.RemoveObjectArgs;
+import io.minio.errors.ErrorResponseException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -94,6 +96,11 @@ public class MinioService {
                     .bucket(bucketName)
                     .object(objectName)
                     .build());
+        } catch (ErrorResponseException e) {
+            if ("NoSuchKey".equals(e.errorResponse().code())) {
+                throw new NotFoundException("FILE_NOT_FOUND", "Dosya bulunamadı.");
+            }
+            throw new RuntimeException("Dosya indirilemedi: " + e.getMessage());
         } catch (Exception e) {
             throw new RuntimeException("Dosya indirilemedi: " + e.getMessage());
         }

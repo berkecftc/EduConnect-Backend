@@ -10,7 +10,6 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.server.reactive.ServerHttpRequest;
-import org.springframework.http.server.reactive.ServerHttpResponse;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.oauth2.jwt.JwtException;
 import org.springframework.security.oauth2.jwt.ReactiveJwtDecoder;
@@ -113,9 +112,7 @@ public class AuthenticationFilter extends AbstractGatewayFilterFactory<Authentic
     }
 
     private Mono<Void> onError(ServerWebExchange exchange, HttpStatus httpStatus) {
-        ServerHttpResponse response = exchange.getResponse();
-        response.setStatusCode(httpStatus);
-        return response.setComplete();
+        return GatewayProblems.write(exchange, httpStatus, "UNAUTHENTICATED", "Oturum açmanız gerekiyor.");
     }
 
     private record PublicEndpoint(HttpMethod method, Pattern pattern) {

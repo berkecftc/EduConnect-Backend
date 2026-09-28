@@ -22,6 +22,7 @@ import com.educonnect.eventservice.security.EventAuthorizationService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import com.educonnect.common.messaging.outbox.OutboxPublisher;
+import com.educonnect.common.web.BadRequestException;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -343,17 +344,17 @@ public class EventService {
     public boolean verifyTicket(String qrCode, UUID scannerId) {
         // 1. Bileti bul
         EventRegistration registration = eventRegistrationRepository.findByQrCode(qrCode)
-                .orElseThrow(() -> new RuntimeException("Invalid ticket (QR Code not found)"));
+                .orElseThrow(() -> new BadRequestException("INVALID_TICKET", "Invalid ticket (QR Code not found)"));
 
         Event event = getEventDetails(registration.getEventId());
         eventAuthorizationService.requireEventManager(event, scannerId);
         if (event.getStatus() != EventStatus.ACTIVE) {
-            throw new IllegalStateException("Event is not active.");
+            throw new BadRequestException("EVENT_NOT_ACTIVE", "Event is not active.");
         }
 
         // 2. Zaten kullanılmış mı?
         if (registration.isAttended()) {
-            throw new IllegalStateException("Ticket already used/scanned.");
+            throw new BadRequestException("TICKET_ALREADY_USED", "Ticket already used/scanned.");
         }
 
         // 3. Kullanıldı olarak işaretle

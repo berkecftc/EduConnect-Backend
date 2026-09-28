@@ -1,8 +1,9 @@
 package com.educonnect.courseservice.exception;
 
-public class DuplicateApplicationException extends RuntimeException {
+import com.educonnect.common.web.ConflictException;
+
+public class DuplicateApplicationException extends ConflictException {
     public DuplicateApplicationException(String message) {
-        super(message);
+        super("DUPLICATE_APPLICATION", message);
     }
 }
-

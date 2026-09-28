@@ -23,8 +23,7 @@ public class InternalPathBlockingFilter implements GlobalFilter, Ordered {
         String path = exchange.getRequest().getURI().getPath();
         if (INTERNAL_PATH.matcher(path).matches()) {
             LOGGER.warn("Blocked external request to internal path: {}", path);
-            exchange.getResponse().setStatusCode(HttpStatus.NOT_FOUND);
-            return exchange.getResponse().setComplete();
+            return GatewayProblems.write(exchange, HttpStatus.NOT_FOUND, "NOT_FOUND", "Kayıt bulunamadı.");
         }
         return chain.filter(exchange);
     }

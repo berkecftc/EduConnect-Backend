@@ -13,7 +13,6 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.multipart.MultipartFile;
 import java.util.List;
 import java.util.UUID;
@@ -82,14 +81,8 @@ public class AssignmentController {
         UUID studentId = parseUserId(studentIdHeader);
         Assignment assignment = accessGuard.getAssignment(assignmentId);
         accessGuard.requireEnrolledStudent(assignment.getCourseId(), studentId);
-        try {
-            AssignmentSubmission submission = assignmentService.submitAssignment(assignmentId, studentId, file);
-            return ResponseEntity.status(HttpStatus.CREATED).body(submission);
-        } catch (ResponseStatusException e) {
-            return ResponseEntity.status(e.getStatusCode()).body(e.getReason());
-        } catch (RuntimeException e) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
-        }
+        AssignmentSubmission submission = assignmentService.submitAssignment(assignmentId, studentId, file);
+        return ResponseEntity.status(HttpStatus.CREATED).body(submission);
     }
 
     // AKADEMİSYEN NOT VERME
@@ -103,12 +96,8 @@ public class AssignmentController {
         AssignmentSubmission submission = accessGuard.getSubmission(submissionId);
         Assignment assignment = accessGuard.getAssignment(submission.getAssignmentId());
         accessGuard.requireInstructor(assignment.getCourseId(), parseUserId(userIdHeader), roles);
-        try {
-            assignmentService.gradeSubmission(submissionId, request.getGrade(), request.getFeedback());
-            return ResponseEntity.ok("Not başarıyla verildi");
-        } catch (RuntimeException e) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
-        }
+        assignmentService.gradeSubmission(submissionId, request.getGrade(), request.getFeedback());
+        return ResponseEntity.ok("Not başarıyla verildi");
     }
 
     // BİR DERSE AİT TÜM TESLİMLERİ GETİR (Akademisyen)
@@ -151,17 +140,13 @@ public class AssignmentController {
     ) {
         String normalizedUrl = minioService.normalizeToFullUrl(fileUrl);
         accessGuard.requireFileAccess(normalizedUrl, parseUserId(userIdHeader), roles);
-        try {
-            Resource resource = assignmentService.downloadFile(normalizedUrl);
-            String fileName = assignmentService.getOriginalFileName(normalizedUrl);
+        Resource resource = assignmentService.downloadFile(normalizedUrl);
+        String fileName = assignmentService.getOriginalFileName(normalizedUrl);
 
-            return ResponseEntity.ok()
-                    .contentType(MediaType.APPLICATION_OCTET_STREAM)
-                    .header(HttpHeaders.CONTENT_DISPOSITION, SafeFileNames.attachmentHeader(fileName))
-                    .header("X-Content-Type-Options", "nosniff")
-                    .body(resource);
-        } catch (RuntimeException e) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
-        }
+        return ResponseEntity.ok()
+                .contentType(MediaType.APPLICATION_OCTET_STREAM)
+                .header(HttpHeaders.CONTENT_DISPOSITION, SafeFileNames.attachmentHeader(fileName))
+                .header("X-Content-Type-Options", "nosniff")
+                .body(resource);
     }
 }

@@ -1,8 +1,9 @@
 package com.educonnect.courseservice.exception;
 
-public class AlreadyEnrolledException extends RuntimeException {
+import com.educonnect.common.web.ConflictException;
+
+public class AlreadyEnrolledException extends ConflictException {
     public AlreadyEnrolledException(String message) {
-        super(message);
+        super("ALREADY_ENROLLED", message);
     }
 }
-

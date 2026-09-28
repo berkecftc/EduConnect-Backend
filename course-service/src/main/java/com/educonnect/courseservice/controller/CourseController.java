@@ -1,6 +1,8 @@
 package com.educonnect.courseservice.controller;
 
 import com.educonnect.common.storage.SafeFileNames;
+import com.educonnect.common.web.ApiException;
+import com.educonnect.common.web.ForbiddenException;
 import com.educonnect.courseservice.dto.*;
 import com.educonnect.courseservice.exception.UnauthorizedCourseAccessException;
 import com.educonnect.courseservice.service.CourseAnnouncementService;
@@ -99,8 +101,8 @@ public class CourseController {
 
     @PostMapping("/{courseId}/enroll-student")
     public ResponseEntity<String> enrollStudent(@PathVariable UUID courseId) {
-        return ResponseEntity.status(HttpStatus.GONE)
-                .body("Derse doğrudan öğrenci ekleme kapatıldı. Öğrenci POST /api/courses/{courseId}/apply ile başvurur, hoca onaylar.");
+        throw new ApiException(HttpStatus.GONE, "ENDPOINT_GONE",
+                "Derse doğrudan öğrenci ekleme kapatıldı. Öğrenci POST /api/courses/{courseId}/apply ile başvurur, hoca onaylar.");
     }
 
     // ÖĞRENCİNİN KAYITLI OLDUĞU KURSLARI GETİR
@@ -141,7 +143,7 @@ public class CourseController {
             @RequestHeader(value = "X-Authenticated-User-Roles", required = false) String roles
     ) {
         if (!hasRole(roles, "ROLE_STUDENT")) {
-            return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Derse yalnızca öğrenciler başvurabilir.");
+            throw new ForbiddenException("Derse yalnızca öğrenciler başvurabilir.");
         }
         CourseApplicationResponse response = applicationService.applyToCourse(courseId, UUID.fromString(studentIdHeader));
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
@@ -194,13 +196,9 @@ public class CourseController {
             @RequestBody AnnouncementRequest request,
             @RequestHeader("X-Authenticated-User-Id") String instructorIdHeader
     ) {
-        try {
-            UUID instructorId = UUID.fromString(instructorIdHeader);
-            AnnouncementResponse response = announcementService.createAnnouncement(courseId, request, instructorId);
-            return ResponseEntity.status(HttpStatus.CREATED).body(response);
-        } catch (RuntimeException e) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
-        }
+        UUID instructorId = UUID.fromString(instructorIdHeader);
+        AnnouncementResponse response = announcementService.createAnnouncement(courseId, request, instructorId);
+        return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
     @GetMapping("/{courseId}/announcements")
@@ -219,13 +217,9 @@ public class CourseController {
             @PathVariable UUID announcementId,
             @RequestHeader("X-Authenticated-User-Id") String instructorIdHeader
     ) {
-        try {
-            UUID instructorId = UUID.fromString(instructorIdHeader);
-            announcementService.deleteAnnouncement(announcementId, instructorId);
-            return ResponseEntity.ok("Duyuru başarıyla silindi");
-        } catch (RuntimeException e) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
-        }
+        UUID instructorId = UUID.fromString(instructorIdHeader);
+        announcementService.deleteAnnouncement(announcementId, instructorId);
+        return ResponseEntity.ok("Duyuru başarıyla silindi");
     }
 
     // ===================== KAYITLI ÖĞRENCİ LİSTESİ =====================
@@ -236,30 +230,22 @@ public class CourseController {
             @PathVariable UUID courseId,
             @RequestHeader("X-Authenticated-User-Id") String instructorIdHeader
     ) {
-        try {
-            UUID instructorId = UUID.fromString(instructorIdHeader);
-            List<EnrolledStudentDTO> students = courseService.getEnrolledStudents(courseId, instructorId);
-            return ResponseEntity.ok(students);
-        } catch (RuntimeException e) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
-        }
+        UUID instructorId = UUID.fromString(instructorIdHeader);
+        List<EnrolledStudentDTO> students = courseService.getEnrolledStudents(courseId, instructorId);
+        return ResponseEntity.ok(students);
     }
 
     // ===================== DOSYA İNDİRME =====================
 
     @GetMapping("/files/download")
     public ResponseEntity<Resource> downloadFile(@RequestParam("url") String fileUrl) {
-        try {
-            Resource resource = courseService.downloadFile(fileUrl);
-            String fileName = courseService.getOriginalFileName(fileUrl);
+        Resource resource = courseService.downloadFile(fileUrl);
+        String fileName = courseService.getOriginalFileName(fileUrl);
 
-            return ResponseEntity.ok()
-                    .contentType(MediaType.APPLICATION_OCTET_STREAM)
-                    .header(HttpHeaders.CONTENT_DISPOSITION, SafeFileNames.attachmentHeader(fileName))
-                    .header("X-Content-Type-Options", "nosniff")
-                    .body(resource);
-        } catch (RuntimeException e) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
-        }
+        return ResponseEntity.ok()
+                .contentType(MediaType.APPLICATION_OCTET_STREAM)
+                .header(HttpHeaders.CONTENT_DISPOSITION, SafeFileNames.attachmentHeader(fileName))
+                .header("X-Content-Type-Options", "nosniff")
+                .body(resource);
     }
 }

@@ -9,6 +9,8 @@ import com.educonnect.clubservice.model.Club;
 import com.educonnect.clubservice.model.ClubCreationRequest;
 import com.educonnect.clubservice.service.ClubService;
 import com.educonnect.common.security.AuditLog;
+import com.educonnect.common.web.ApiException;
+import com.educonnect.common.web.BadRequestException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -16,7 +18,6 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -132,8 +133,8 @@ public class ClubAdminController {
     @PutMapping("/{clubId}/change-president")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<String> changePresident(@PathVariable UUID clubId, @RequestParam UUID newPresidentId) {
-        return ResponseEntity.status(HttpStatus.GONE)
-                .body("Bu endpoint artık kullanılmamaktadır. Başkan değişiklikleri danışman onayına tabidir. " +
+        throw new ApiException(HttpStatus.GONE, "ENDPOINT_GONE",
+                "Bu endpoint artık kullanılmamaktadır. Başkan değişiklikleri danışman onayına tabidir. " +
                         "Önce mevcut başkanı görevden almak için DELETE /api/clubs/{clubId}/members/{studentId}/role, " +
                         "ardından yeni başkan atamak için POST /api/clubs/{clubId}/role-change-requests kullanın.");
     }
@@ -154,17 +155,11 @@ public class ClubAdminController {
 
         // Dosya boş mu kontrolü
         if (file.isEmpty()) {
-            return ResponseEntity.badRequest().body("Dosya seçilmedi.");
+            throw new BadRequestException("FILE_EMPTY", "Dosya seçilmedi.");
         }
 
-        try {
-            String newLogoUrl = clubService.updateClubLogoByAdmin(clubId, file);
-            return ResponseEntity.ok(newLogoUrl); // Yeni MinIO URL'ini dönüyoruz
-        } catch (ResponseStatusException e) {
-            return ResponseEntity.status(e.getStatusCode()).body(e.getReason());
-        } catch (Exception e) {
-            return ResponseEntity.internalServerError().body("Logo yüklenirken hata: " + e.getMessage());
-        }
+        String newLogoUrl = clubService.updateClubLogoByAdmin(clubId, file);
+        return ResponseEntity.ok(newLogoUrl); // Yeni MinIO URL'ini dönüyoruz
     }
 
     // Arşivlenmiş Kulüpleri Listele

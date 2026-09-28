@@ -89,6 +89,10 @@
             <artifactId>common-observability</artifactId>
         </dependency>
         <dependency>
+            <groupId>com.educonnect</groupId>
+            <artifactId>common-web</artifactId>
+        </dependency>
+        <dependency>
             <groupId>io.github.openfeign</groupId>
             <artifactId>feign-micrometer</artifactId>
         </dependency>
