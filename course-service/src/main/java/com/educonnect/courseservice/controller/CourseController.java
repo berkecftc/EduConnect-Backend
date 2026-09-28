@@ -171,7 +171,7 @@ public class CourseController {
     @PutMapping("/applications/{applicationId}/reject")
     public ResponseEntity<?> rejectApplication(
             @PathVariable UUID applicationId,
-            @RequestBody(required = false) RejectApplicationRequest request,
+            @RequestBody(required = false) @Valid RejectApplicationRequest request,
             @RequestHeader("X-Authenticated-User-Id") String instructorIdHeader
     ) {
         String reason = (request != null) ? request.getRejectionReason() : null;
@@ -193,7 +193,7 @@ public class CourseController {
     @PostMapping("/{courseId}/announcements")
     public ResponseEntity<?> createAnnouncement(
             @PathVariable UUID courseId,
-            @RequestBody AnnouncementRequest request,
+            @RequestBody @Valid AnnouncementRequest request,
             @RequestHeader("X-Authenticated-User-Id") String instructorIdHeader
     ) {
         UUID instructorId = UUID.fromString(instructorIdHeader);

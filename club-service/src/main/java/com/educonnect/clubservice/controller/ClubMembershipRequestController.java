@@ -4,6 +4,7 @@ import com.educonnect.clubservice.dto.request.CreateMembershipRequestDTO;
 import com.educonnect.clubservice.dto.request.RejectMembershipRequestDTO;
 import com.educonnect.clubservice.dto.response.MembershipRequestDTO;
 import com.educonnect.clubservice.service.ClubMembershipRequestService;
+import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -33,7 +34,7 @@ public class ClubMembershipRequestController {
     @PreAuthorize("hasRole('STUDENT')")
     public ResponseEntity<MembershipRequestDTO> createMembershipRequest(
             @PathVariable UUID clubId,
-            @RequestBody(required = false) CreateMembershipRequestDTO dto,
+            @Valid @RequestBody(required = false) CreateMembershipRequestDTO dto,
             @RequestHeader("X-Authenticated-User-Id") String userIdHeader) {
 
         UUID studentId = UUID.fromString(userIdHeader);
@@ -127,7 +128,7 @@ public class ClubMembershipRequestController {
     public ResponseEntity<MembershipRequestDTO> rejectRequest(
             @PathVariable UUID clubId,
             @PathVariable UUID requestId,
-            @RequestBody(required = false) RejectMembershipRequestDTO dto,
+            @Valid @RequestBody(required = false) RejectMembershipRequestDTO dto,
             @RequestHeader("X-Authenticated-User-Id") String userIdHeader) {
 
         UUID officialId = UUID.fromString(userIdHeader);

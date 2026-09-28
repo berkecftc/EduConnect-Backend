@@ -3,6 +3,7 @@ package com.educonnect.authservices.controller;
 import com.educonnect.authservices.service.AuthServiceImpl;
 import com.educonnect.authservices.service.JWTService;
 import com.educonnect.authservices.service.ServiceClientAuthenticator;
+import jakarta.validation.constraints.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.CacheControl;
@@ -67,7 +68,7 @@ public class InternalAuthController {
     }
 
     @PostMapping("/users/emails")
-    public ResponseEntity<List<String>> getEmailsByIds(@RequestBody List<UUID> userIds) {
+    public ResponseEntity<List<String>> getEmailsByIds(@RequestBody @NotNull(message = "Kullanıcı listesi boş olamaz") List<@NotNull(message = "Kullanıcı kimliği boş olamaz") UUID> userIds) {
         return ResponseEntity.ok(authService.getEmailsByUserIds(userIds));
     }
 

@@ -1,11 +1,13 @@
 package com.educonnect.eventservice.controller;
 
 import com.educonnect.eventservice.dto.request.CreateEventRequest;
+import com.educonnect.eventservice.dto.request.VerifyQrRequest;
 import com.educonnect.eventservice.dto.response.EventRegistrantDTO;
 import com.educonnect.eventservice.model.Event;
 import com.educonnect.eventservice.service.EventService;
 import com.educonnect.common.web.ApiException;
 import com.educonnect.common.web.BadRequestException;
+import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -33,7 +35,7 @@ public class EventManagementController {
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<Event> createEvent(
-            @RequestPart("data") CreateEventRequest request, // JSON verisi
+            @Valid @RequestPart("data") CreateEventRequest request, // JSON verisi
             @RequestPart(value = "poster") MultipartFile poster, // Afiş dosyası (zorunlu)
             @RequestHeader("X-Authenticated-User-Id") String userIdHeader
     ) {
@@ -83,13 +85,13 @@ public class EventManagementController {
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<String> verifyTicket(
             @RequestParam(required = false) String qrCode,
-            @RequestBody(required = false) java.util.Map<String, String> body,
+            @Valid @RequestBody(required = false) VerifyQrRequest body,
             @RequestHeader("X-Authenticated-User-Id") String userIdHeader
     ) {
         // QR kodu önce query param'dan, yoksa body'den al
         String code = qrCode;
         if (code == null && body != null) {
-            code = body.get("qrCode");
+            code = body.qrCode();
         }
 
         if (code == null || code.isBlank()) {

@@ -14,6 +14,10 @@ import com.educonnect.common.web.BadRequestException;
 import com.educonnect.common.web.ForbiddenException;
 import com.educonnect.userservice.service.ProfileService;
 import com.educonnect.userservice.service.ProfileViewService;
+import jakarta.validation.ConstraintViolation;
+import jakarta.validation.ConstraintViolationException;
+import jakarta.validation.Valid;
+import jakarta.validation.Validator;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -23,6 +27,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 import java.util.Objects;
+import java.util.Set;
 import java.util.UUID;
 
 @RestController
@@ -32,13 +37,16 @@ public class ProfileController {
     private final ProfileService profileService;
     private final ProfileViewService profileViewService;
     private final ObjectMapper objectMapper;
+    private final Validator validator;
 
     public ProfileController(ProfileService profileService,
                              ProfileViewService profileViewService,
-                             ObjectMapper objectMapper) {
+                             ObjectMapper objectMapper,
+                             Validator validator) {
         this.profileService = profileService;
         this.profileViewService = profileViewService;
         this.objectMapper = objectMapper;
+        this.validator = validator;
     }
 
     /**
@@ -58,7 +66,7 @@ public class ProfileController {
     @PutMapping(value = "/profile/{userId}", consumes = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> updateProfileById(
             @PathVariable UUID userId,
-            @RequestBody UpdateUserProfileRequest request,
+            @RequestBody @Valid UpdateUserProfileRequest request,
             @RequestHeader("X-Authenticated-User-Id") String userIdHeader
     ) {
         requireSelfUpdate(userId, userIdHeader);
@@ -119,6 +127,7 @@ public class ProfileController {
             request.setDepartment(normalizedDepartment);
             request.setTitle(normalizedTitle);
             request.setOfficeNumber(normalizedOfficeNumber);
+            validate(request);
             profileService.updateUserProfile(userId, request);
         }
 
@@ -227,6 +236,13 @@ public class ProfileController {
             return objectMapper.readValue(json, UpdateUserProfileRequest.class);
         } catch (JsonProcessingException e) {
             throw new IllegalArgumentException("Invalid profile data payload.", e);
+        }
+    }
+
+    private void validate(UpdateUserProfileRequest request) {
+        Set<ConstraintViolation<UpdateUserProfileRequest>> violations = validator.validate(request);
+        if (!violations.isEmpty()) {
+            throw new ConstraintViolationException(violations);
         }
     }
 

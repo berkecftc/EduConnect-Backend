@@ -11,6 +11,7 @@ import com.educonnect.authservices.service.AdminAuditService;
 import com.educonnect.authservices.dto.response.AdminAuditPage;
 import com.educonnect.authservices.service.AuthServiceImpl;
 import com.educonnect.common.web.ApiException;
+import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -136,7 +137,7 @@ public class AdminController {
     @PutMapping("/users/{userId}/suspend")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<String> suspendUser(@PathVariable UUID userId,
-                                              @RequestBody(required = false) SuspendAccountRequest request,
+                                              @Valid @RequestBody(required = false) SuspendAccountRequest request,
                                               Authentication authentication) {
         accountStatusService.suspend(userId, authentication.getName(), request != null ? request.reason() : null);
         adminAuditService.record("SUSPEND_USER", "USER", userId, request != null ? request.reason() : null);

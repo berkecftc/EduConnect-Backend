@@ -7,6 +7,7 @@ import com.educonnect.assignmentservice.service.AssignmentAccessGuard;
 import com.educonnect.assignmentservice.service.AssignmentService;
 import com.educonnect.assignmentservice.service.MinioService;
 import com.educonnect.common.storage.SafeFileNames;
+import jakarta.validation.Valid;
 import org.springframework.core.io.Resource;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
@@ -40,7 +41,7 @@ public class AssignmentController {
 
     @PostMapping(consumes = {"multipart/form-data"})
     public ResponseEntity<AssignmentResponse> create(
-            @RequestPart("assignment") AssignmentRequest request,
+            @RequestPart("assignment") @Valid AssignmentRequest request,
             @RequestPart(value = "file", required = false) MultipartFile file,
             @RequestHeader(USER_ID_HEADER) String userIdHeader,
             @RequestHeader(value = ROLES_HEADER, required = false) String roles
@@ -89,7 +90,7 @@ public class AssignmentController {
     @PutMapping("/submissions/{submissionId}/grade")
     public ResponseEntity<String> gradeSubmission(
             @PathVariable UUID submissionId,
-            @RequestBody GradeSubmissionRequest request,
+            @RequestBody @Valid GradeSubmissionRequest request,
             @RequestHeader(USER_ID_HEADER) String userIdHeader,
             @RequestHeader(value = ROLES_HEADER, required = false) String roles
     ) {

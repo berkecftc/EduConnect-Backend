@@ -11,6 +11,7 @@ import com.educonnect.clubservice.service.ClubService;
 import com.educonnect.common.security.AuditLog;
 import com.educonnect.common.web.ApiException;
 import com.educonnect.common.web.BadRequestException;
+import jakarta.validation.Valid;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -42,7 +43,7 @@ public class ClubAdminController {
     @PostMapping
     @PreAuthorize("hasRole('ADMIN')") // Sadece Admin rolü
     public ResponseEntity<Club> createClub(
-            @RequestBody CreateClubRequest request,
+            @Valid @RequestBody CreateClubRequest request,
             @RequestHeader(value = "X-Authenticated-User-Id", required = false) String userId,
             @RequestHeader(value = "X-Authenticated-User-Email", required = false) String userEmail) {
 
@@ -105,7 +106,7 @@ public class ClubAdminController {
 
     @PutMapping("/{clubId}")
     @PreAuthorize("hasRole('ADMIN')") // Veya kulüp başkanı
-    public ResponseEntity<Club> updateClub(@PathVariable UUID clubId, @RequestBody UpdateClubRequest request) {
+    public ResponseEntity<Club> updateClub(@PathVariable UUID clubId, @Valid @RequestBody UpdateClubRequest request) {
         return ResponseEntity.ok(clubService.updateClub(clubId, request));
     }
 

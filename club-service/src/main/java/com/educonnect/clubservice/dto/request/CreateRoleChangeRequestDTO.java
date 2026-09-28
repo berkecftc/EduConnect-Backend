@@ -1,6 +1,7 @@
 package com.educonnect.clubservice.dto.request;
 
 import com.educonnect.clubservice.model.ClubPosition;
+import jakarta.validation.constraints.NotNull;
 
 /**
  * Görev değişikliği talebi oluşturmak için kullanılan DTO.
@@ -11,6 +12,7 @@ public class CreateRoleChangeRequestDTO {
 
     private String studentId;       // Göreve atanacak öğrenci UUID'si (opsiyonel)
     private String studentNumber;   // Göreve atanacak öğrenci numarası (opsiyonel)
+    @NotNull(message = "Talep edilen görev zorunludur")
     private ClubPosition requestedRole; // Talep edilen rol
 
     public CreateRoleChangeRequestDTO() {}

@@ -1,11 +1,19 @@
 package com.educonnect.assignmentservice.dto;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
+
 import java.time.LocalDateTime;
 import java.util.UUID;
 
 public class AssignmentRequest {
+    @NotBlank(message = "Ödev başlığı boş olamaz")
+    @Size(max = 255, message = "Ödev başlığı en fazla 255 karakter olabilir")
     private String title;
     private String description;
+    @NotNull(message = "Son teslim tarihi zorunludur")
     private LocalDateTime dueDate;
+    @NotNull(message = "Ders ID boş olamaz")
     private UUID courseId;
 
     // Getter & Setter

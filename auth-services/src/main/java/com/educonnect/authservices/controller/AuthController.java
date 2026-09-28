@@ -3,6 +3,7 @@ package com.educonnect.authservices.controller;
 import com.educonnect.authservices.dto.request.ChangePasswordRequest;
 import com.educonnect.authservices.dto.request.ForgotPasswordRequest;
 import com.educonnect.authservices.dto.request.LoginRequest;
+import com.educonnect.authservices.dto.request.RefreshTokenRequest;
 import com.educonnect.authservices.dto.request.RegisterRequest;
 import com.educonnect.authservices.dto.request.ResendVerificationRequest;
 import com.educonnect.authservices.dto.request.ResetPasswordRequest;
@@ -15,7 +16,7 @@ import com.educonnect.authservices.service.AuthServiceImpl;
 import com.educonnect.authservices.Repository.UserRepository;
 import com.educonnect.authservices.models.User;
 import com.educonnect.common.web.ApiException;
-import com.educonnect.common.web.BadRequestException;
+import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.web.server.ResponseStatusException;
@@ -36,7 +37,6 @@ import org.springframework.web.multipart.MultipartFile;
 import org.springframework.http.MediaType;
 
 import java.util.List;
-import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.UUID;
 
@@ -62,7 +62,7 @@ public class AuthController {
 
     @PostMapping("/register")
     public ResponseEntity<AuthResponse> register(
-            @RequestBody RegisterRequest request
+            @Valid @RequestBody RegisterRequest request
     ) {
         if (!openRegistrationEnabled) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN,
@@ -74,7 +74,7 @@ public class AuthController {
     // --- YENİ ENDPOINT: Öğrenci Başvurusu (Belge ile) ---
     @PostMapping(value = "/request/student-account", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<String> requestStudentAccount(
-            @RequestPart("request") RegisterRequest request,
+            @Valid @RequestPart("request") RegisterRequest request,
             @RequestPart("studentDocument") MultipartFile studentDocument
     ) {
         authService.requestStudentAccount(request, studentDocument);
@@ -83,7 +83,7 @@ public class AuthController {
 
     @PostMapping("/login")
     public ResponseEntity<AuthResponse> login(
-            @RequestBody LoginRequest request
+            @Valid @RequestBody LoginRequest request
     ) {
 
         return ResponseEntity.ok(authService.login(request));
@@ -92,7 +92,7 @@ public class AuthController {
     // --- YENİ ENDPOINT: Akademisyen Başvurusu ---
     @PostMapping(value = "/request/academician-account", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<String> requestAcademicianAccount(
-            @RequestPart("request") RegisterRequest request,
+            @Valid @RequestPart("request") RegisterRequest request,
             @RequestPart("idCardImage") MultipartFile idCardImage
     ) {
         // Servis katmanında bu isteği işleyeceğiz (kimlik kartı fotoğrafı ile birlikte)
@@ -109,7 +109,7 @@ public class AuthController {
     }
 
     @PostMapping("/resend-verification")
-    public ResponseEntity<String> resendVerification(@RequestBody ResendVerificationRequest request) {
+    public ResponseEntity<String> resendVerification(@Valid @RequestBody ResendVerificationRequest request) {
         emailVerificationService.resend(request != null ? request.email() : null);
         return ResponseEntity.ok("E-posta adresi doğrulama bekliyorsa yeni bir doğrulama bağlantısı gönderildi.");
     }
@@ -128,7 +128,7 @@ public class AuthController {
      */
     @PostMapping("/change-password")
     public ResponseEntity<String> changePassword(
-            @RequestBody ChangePasswordRequest request,
+            @Valid @RequestBody ChangePasswordRequest request,
             Authentication authentication // Spring Security, token'dan kimliği doğrulanmış kullanıcıyı buraya inject eder
     ) {
         // 'authentication.getPrincipal()' bize 'User' (UserDetails) nesnesini verir
@@ -144,12 +144,8 @@ public class AuthController {
      * Refresh token ile yeni access token alır
      */
     @PostMapping("/refresh")
-    public ResponseEntity<?> refreshToken(@RequestBody Map<String, String> request) {
-        String refreshToken = request.get("refreshToken");
-        if (refreshToken == null || refreshToken.isBlank()) {
-            throw new BadRequestException("REFRESH_TOKEN_REQUIRED", "Refresh token is required");
-        }
-        AuthResponse response = authService.refreshAccessToken(refreshToken);
+    public ResponseEntity<?> refreshToken(@Valid @RequestBody RefreshTokenRequest request) {
+        AuthResponse response = authService.refreshAccessToken(request.refreshToken());
         return ResponseEntity.ok(response);
     }
 
@@ -158,12 +154,8 @@ public class AuthController {
      * Logout - refresh token'ı geçersiz kılar
      */
     @PostMapping("/logout")
-    public ResponseEntity<String> logout(@RequestBody Map<String, String> request) {
-        String refreshToken = request.get("refreshToken");
-        if (refreshToken == null || refreshToken.isBlank()) {
-            throw new BadRequestException("REFRESH_TOKEN_REQUIRED", "Refresh token is required");
-        }
-        authService.logout(refreshToken);
+    public ResponseEntity<String> logout(@Valid @RequestBody RefreshTokenRequest request) {
+        authService.logout(request.refreshToken());
         return ResponseEntity.ok("Logged out successfully");
     }
 
@@ -172,7 +164,7 @@ public class AuthController {
      * Kullanıcı şifresini unuttuğunda e-posta ile şifre sıfırlama linki gönderir.
      */
     @PostMapping("/forgot-password")
-    public ResponseEntity<String> forgotPassword(@RequestBody ForgotPasswordRequest request) {
+    public ResponseEntity<String> forgotPassword(@Valid @RequestBody ForgotPasswordRequest request) {
         try {
             authService.forgotPassword(request);
         } catch (NoSuchElementException ignored) {
@@ -185,7 +177,7 @@ public class AuthController {
      * Token ile şifre sıfırlama işlemini gerçekleştirir.
      */
     @PostMapping("/reset-password")
-    public ResponseEntity<String> resetPassword(@RequestBody ResetPasswordRequest request) {
+    public ResponseEntity<String> resetPassword(@Valid @RequestBody ResetPasswordRequest request) {
         authService.resetPassword(request);
         return ResponseEntity.ok("Şifreniz başarıyla sıfırlandı. Artık yeni şifrenizle giriş yapabilirsiniz.");
     }

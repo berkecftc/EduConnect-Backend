@@ -13,6 +13,7 @@ import com.educonnect.clubservice.service.ClubService;
 import com.educonnect.common.web.ApiException;
 import com.educonnect.common.web.BadRequestException;
 import com.educonnect.common.web.NotFoundException;
+import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -84,7 +85,7 @@ public class ClubController {
     public ResponseEntity<String> updateMemberRole(
             @PathVariable UUID clubId,
             @PathVariable UUID studentId,
-            @RequestBody UpdateMemberRoleRequest request
+            @Valid @RequestBody UpdateMemberRoleRequest request
     ) {
         throw new ApiException(HttpStatus.GONE, "ENDPOINT_GONE",
                 "Bu endpoint artık kullanılmamaktadır. Görev değişiklikleri danışman onayına tabidir. " +
@@ -139,7 +140,7 @@ public class ClubController {
     @PostMapping("/request-creation")
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<String> requestClubCreation(
-            @RequestBody SubmitClubRequest request,
+            @Valid @RequestBody SubmitClubRequest request,
             @RequestHeader("X-Authenticated-User-Id") String userIdHeader,
             @RequestHeader(value = "X-Authenticated-User-Roles", required = false) String roles
     ) {

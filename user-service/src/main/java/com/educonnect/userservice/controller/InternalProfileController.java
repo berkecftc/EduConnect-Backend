@@ -2,6 +2,8 @@ package com.educonnect.userservice.controller;
 
 import com.educonnect.userservice.dto.response.UserProfileResponse;
 import com.educonnect.userservice.service.ProfileViewService;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -29,7 +31,11 @@ public class InternalProfileController {
     }
 
     @PostMapping("/batch")
-    public ResponseEntity<List<UserProfileResponse>> getProfiles(@RequestBody List<UUID> userIds) {
+    public ResponseEntity<List<UserProfileResponse>> getProfiles(
+            @RequestBody
+            @NotNull(message = "Kullanıcı listesi boş olamaz")
+            @Size(max = 500, message = "En fazla 500 profil istenebilir")
+            List<@NotNull(message = "Kullanıcı ID boş olamaz") UUID> userIds) {
         return ResponseEntity.ok(profileViewService.getProfilesForService(userIds));
     }
 

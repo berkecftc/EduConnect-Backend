@@ -1,10 +1,12 @@
 package com.educonnect.eventservice.controller;
 
 import com.educonnect.eventservice.dto.request.CreateParticipationRequestDTO;
+import com.educonnect.eventservice.dto.request.RejectParticipationRequestDTO;
 import com.educonnect.eventservice.dto.response.EventParticipationRequestDTO;
 import com.educonnect.eventservice.model.EventParticipationRequest;
 import com.educonnect.eventservice.model.EventRegistration;
 import com.educonnect.eventservice.service.EventParticipationRequestService;
+import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -36,7 +38,7 @@ public class EventParticipationRequestController {
     @PostMapping("/{eventId}/participation-request")
     public ResponseEntity<?> createParticipationRequest(
             @PathVariable UUID eventId,
-            @RequestBody(required = false) CreateParticipationRequestDTO requestDTO,
+            @Valid @RequestBody(required = false) CreateParticipationRequestDTO requestDTO,
             @RequestHeader("X-Authenticated-User-Id") String userIdHeader
     ) {
         UUID studentId = UUID.fromString(userIdHeader);
@@ -131,11 +133,11 @@ public class EventParticipationRequestController {
     @PostMapping("/participation-requests/{requestId}/reject")
     public ResponseEntity<?> rejectParticipationRequest(
             @PathVariable UUID requestId,
-            @RequestBody(required = false) Map<String, String> body,
+            @Valid @RequestBody(required = false) RejectParticipationRequestDTO body,
             @RequestHeader("X-Authenticated-User-Id") String userIdHeader
     ) {
         UUID rejecterId = UUID.fromString(userIdHeader);
-        String rejectionReason = body != null ? body.get("reason") : null;
+        String rejectionReason = body != null ? body.reason() : null;
 
         EventParticipationRequest request = participationRequestService
                 .rejectParticipationRequest(requestId, rejecterId, rejectionReason);

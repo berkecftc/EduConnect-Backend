@@ -1,6 +1,11 @@
 package com.educonnect.assignmentservice.dto;
 
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
+
 public class GradeSubmissionRequest {
+    @Min(value = 0, message = "Not 0-100 arasında olmalıdır")
+    @Max(value = 100, message = "Not 0-100 arasında olmalıdır")
     private Integer grade; // 0-100
     private String feedback;
 

@@ -1,9 +1,10 @@
 package com.educonnect.clubservice.controller;
 
-import com.educonnect.clubservice.dto.request.RejectRoleChangeRequestDTO;
+import com.educonnect.clubservice.dto.request.RejectionReasonRequest;
 import com.educonnect.clubservice.model.Club;
 import com.educonnect.clubservice.model.ClubCreationRequest;
 import com.educonnect.clubservice.service.ClubService;
+import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -46,9 +47,9 @@ public class AdvisorClubCreationController {
     @PreAuthorize("hasRole('ACADEMICIAN')")
     public ResponseEntity<ClubCreationRequest> reject(
             @PathVariable UUID requestId,
-            @RequestBody(required = false) RejectRoleChangeRequestDTO body,
+            @Valid @RequestBody(required = false) RejectionReasonRequest body,
             @RequestHeader("X-Authenticated-User-Id") String userIdHeader) {
         return ResponseEntity.ok(clubService.rejectClubCreationRequestByAdvisor(requestId, UUID.fromString(userIdHeader),
-                body != null ? body.getRejectionReason() : null));
+                body != null ? body.rejectionReason() : null));
     }
 }

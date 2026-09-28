@@ -3,14 +3,17 @@ package com.educonnect.courseservice.dto;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
 
 import java.util.UUID;
 
 public class CourseRequest {
     @NotBlank(message = "Ders başlığı boş olamaz")
+    @Size(max = 255, message = "Ders başlığı en fazla 255 karakter olabilir")
     private String title;
 
     @NotBlank(message = "Ders kodu boş olamaz")
+    @Size(max = 255, message = "Ders kodu en fazla 255 karakter olabilir")
     private String code;
 
     private String description;
@@ -18,6 +21,7 @@ public class CourseRequest {
     @Min(value = 1, message = "Kredi en az 1 olmalıdır")
     private int credit;
 
+    @Size(max = 255, message = "Dönem en fazla 255 karakter olabilir")
     private String semester;
 
     @NotNull(message = "Eğitmen ID boş olamaz")

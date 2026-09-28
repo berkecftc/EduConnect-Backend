@@ -2,8 +2,10 @@ package com.educonnect.clubservice.controller;
 
 import com.educonnect.clubservice.dto.request.CreateRoleChangeRequestDTO;
 import com.educonnect.clubservice.dto.request.RejectRoleChangeRequestDTO;
+import com.educonnect.clubservice.dto.request.RejectionReasonRequest;
 import com.educonnect.clubservice.dto.response.RoleChangeRequestDTO;
 import com.educonnect.clubservice.service.RoleChangeRequestService;
+import jakarta.validation.Valid;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
@@ -47,7 +49,7 @@ public class ClubRoleChangeController {
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<RoleChangeRequestDTO> createRoleChangeRequest(
             @PathVariable UUID clubId,
-            @RequestBody CreateRoleChangeRequestDTO request,
+            @Valid @RequestBody CreateRoleChangeRequestDTO request,
             @RequestHeader("X-Authenticated-User-Id") String userIdHeader) {
 
         UUID requesterId = UUID.fromString(userIdHeader);
@@ -127,7 +129,7 @@ public class ClubRoleChangeController {
     @PreAuthorize("hasRole('ACADEMICIAN')")
     public ResponseEntity<RoleChangeRequestDTO> rejectRoleChangeRequest(
             @PathVariable UUID requestId,
-            @RequestBody(required = false) RejectRoleChangeRequestDTO dto,
+            @Valid @RequestBody(required = false) RejectRoleChangeRequestDTO dto,
             @RequestHeader("X-Authenticated-User-Id") String userIdHeader) {
 
         UUID advisorId = UUID.fromString(userIdHeader);
@@ -156,14 +158,14 @@ public class ClubRoleChangeController {
     @PreAuthorize("hasRole('ACADEMICIAN')")
     public ResponseEntity<String> removePresident(
             @PathVariable UUID clubId,
-            @RequestBody(required = false) RejectRoleChangeRequestDTO reason,
+            @Valid @RequestBody(required = false) RejectionReasonRequest reason,
             @RequestHeader("X-Authenticated-User-Id") String userIdHeader) {
 
         UUID advisorId = UUID.fromString(userIdHeader);
         log.info("Advisor removing president: clubId={}, advisorId={}", clubId, advisorId);
 
         roleChangeRequestService.removePresidentByAdvisor(clubId, advisorId,
-                reason != null ? reason.getRejectionReason() : null);
+                reason != null ? reason.rejectionReason() : null);
         return ResponseEntity.ok("Kulüp başkanı görevden alındı. Yeni başkan atanana kadar başkan yardımcısı vekâlet eder.");
     }
 }
