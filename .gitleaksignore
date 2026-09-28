@@ -1,0 +1,4 @@
+69bb17264a41d256c01bda4809dc4a66d0a46698:auth-services/src/test/java/com/educonnect/authservices/service/AdminBootstrapTest.java:generic-api-key:28
+bffe2bafc83198db3e86d306039afee99c1a4b76:auth-services/src/test/java/com/educonnect/authservices/service/JWTServiceServiceTokenTest.java:private-key:31
+986d8294c5adc3e126260eb667aaae1200b57e8d:README.md:curl-auth-user:1910
+986d8294c5adc3e126260eb667aaae1200b57e8d:README.md:generic-api-key:2006

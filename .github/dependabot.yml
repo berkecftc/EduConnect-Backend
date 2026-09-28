@@ -1,0 +1,55 @@
+version: 2
+updates:
+  - package-ecosystem: maven
+    directory: "/"
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    groups:
+      spring:
+        patterns:
+          - "org.springframework*"
+        update-types:
+          - minor
+          - patch
+      patches:
+        patterns:
+          - "*"
+        update-types:
+          - patch
+    ignore:
+      - dependency-name: "org.springframework.boot:spring-boot-starter-parent"
+        update-types:
+          - "version-update:semver-major"
+      - dependency-name: "org.springframework.cloud:spring-cloud-dependencies"
+        versions:
+          - ">=2025.1.0"
+      - dependency-name: "org.springframework.ai:spring-ai-bom"
+        update-types:
+          - "version-update:semver-major"
+      - dependency-name: "org.springdoc:*"
+        update-types:
+          - "version-update:semver-major"
+
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: weekly
+      day: monday
+    groups:
+      actions:
+        patterns:
+          - "*"
+
+  - package-ecosystem: docker
+    directory: "/"
+    schedule:
+      interval: weekly
+      day: monday
+
+  - package-ecosystem: docker-compose
+    directory: "/"
+    schedule:
+      interval: weekly
+      day: monday
