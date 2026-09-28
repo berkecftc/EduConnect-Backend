@@ -1,0 +1,44 @@
+spring:
+  cloud:
+    config:
+      enabled: false
+    discovery:
+      enabled: false
+    service-registry:
+      auto-registration:
+        enabled: false
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+  flyway:
+    create-schemas: true
+    clean-disabled: true
+  main:
+    banner-mode: "off"
+
+eureka:
+  client:
+    enabled: false
+
+server:
+  port: 0
+
+minio:
+  url: http://localhost:9
+  access-key: integration
+  secret-key: integration-secret
+
+management:
+  tracing:
+    sampling:
+      probability: 1.0
+
+educonnect:
+  security:
+    jwt:
+      jwks-uri: http://localhost:9/.well-known/jwks.json
+      issuer: educonnect-auth
+      audience: educonnect
+  observability:
+    otlp-endpoint: http://localhost:9/v1/traces

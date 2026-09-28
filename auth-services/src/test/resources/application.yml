@@ -1,0 +1,16 @@
+spring:
+  application:
+    name: auth-services
+  config:
+    import: "classpath:educonnect-integration.yml"
+  jpa:
+    properties:
+      hibernate:
+        default_schema: auth_db
+  flyway:
+    schemas: auth_db
+    default-schema: auth_db
+
+minio:
+  bucket:
+    name: academician-id-cards

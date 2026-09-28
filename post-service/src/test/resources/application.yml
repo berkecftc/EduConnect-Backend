@@ -1,0 +1,17 @@
+spring:
+  application:
+    name: post-service
+  config:
+    import: "classpath:educonnect-integration.yml"
+  jpa:
+    properties:
+      hibernate:
+        default_schema: post_db
+  flyway:
+    schemas: post_db
+    default-schema: post_db
+
+post:
+  moderation:
+    mock-consumer:
+      enabled: false

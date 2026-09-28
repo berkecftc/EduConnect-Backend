@@ -1,0 +1,18 @@
+spring:
+  application:
+    name: notification-service
+  config:
+    import: "classpath:educonnect-integration.yml"
+  mail:
+    host: localhost
+    port: 9
+    test-connection: false
+
+management:
+  health:
+    mail:
+      enabled: false
+
+app:
+  mail:
+    from: noreply@educonnect.test

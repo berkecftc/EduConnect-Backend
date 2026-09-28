@@ -1,0 +1,16 @@
+spring:
+  application:
+    name: user-service
+  config:
+    import: "classpath:educonnect-integration.yml"
+  jpa:
+    properties:
+      hibernate:
+        default_schema: user_db
+  flyway:
+    schemas: user_db
+    default-schema: user_db
+
+minio:
+  bucket:
+    name: educonnect

@@ -1,0 +1,12 @@
+spring:
+  application:
+    name: gamification-service
+  config:
+    import: "classpath:educonnect-integration.yml"
+  jpa:
+    properties:
+      hibernate:
+        default_schema: gamification_db
+  flyway:
+    schemas: gamification_db
+    default-schema: gamification_db

@@ -1,0 +1,16 @@
+spring:
+  application:
+    name: llm-service
+  config:
+    import: "classpath:educonnect-integration.yml"
+  ai:
+    ollama:
+      base-url: http://localhost:9
+
+vector:
+  store:
+    path: target/integration-vector-store/vector-store.json
+
+club:
+  ingestion:
+    enabled: false

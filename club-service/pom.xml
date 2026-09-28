@@ -118,6 +118,11 @@
 
 
 
+        <dependency>
+            <groupId>com.educonnect</groupId>
+            <artifactId>common-test</artifactId>
+            <scope>test</scope>
+        </dependency>
     </dependencies>
 
     <build>
