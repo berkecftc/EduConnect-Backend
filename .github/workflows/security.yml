@@ -48,7 +48,7 @@ jobs:
       - name: SBOM (CycloneDX, runtime scopes)
         run: >
           ./mvnw -B -ntp -q org.cyclonedx:cyclonedx-maven-plugin:2.9.1:makeAggregateBom
-          -DoutputFormat=json -DoutputName=bom -DincludeTestScope=false
+          -DoutputFormat=json -DoutputName=bom -DincludeTestScope=false -DexcludeArtifactId=common-test
 
       - name: OSV-Scanner
         run: >

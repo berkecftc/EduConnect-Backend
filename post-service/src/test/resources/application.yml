@@ -1,4 +1,7 @@
 spring:
+  datasource:
+    hikari:
+      schema: post_db
   application:
     name: post-service
   config:

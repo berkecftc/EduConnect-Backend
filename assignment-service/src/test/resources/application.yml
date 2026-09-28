@@ -1,4 +1,7 @@
 spring:
+  datasource:
+    hikari:
+      schema: assignment_db
   application:
     name: assignment-service
   config:

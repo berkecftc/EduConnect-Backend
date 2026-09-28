@@ -1,4 +1,7 @@
 spring:
+  datasource:
+    hikari:
+      schema: auth_db
   application:
     name: auth-services
   config:

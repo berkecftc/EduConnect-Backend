@@ -62,7 +62,7 @@ public class AcademicianAssignmentGuard {
                     .retrieve()
                     .body(ID_LIST);
             return ids != null ? ids : List.of();
-        } catch (RestClientException e) {
+        } catch (RestClientException | IllegalArgumentException | IllegalStateException e) {
             log.warn("Akademisyen görevleri doğrulanamadı: uri={}, reason={}", uri, e.getMessage());
             throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE,
                     "Akademisyenin ders ve kulüp görevleri doğrulanamadı. Biraz sonra tekrar deneyin.");

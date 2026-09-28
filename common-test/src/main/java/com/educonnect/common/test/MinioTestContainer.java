@@ -10,7 +10,7 @@ import org.testcontainers.utility.DockerImageName;
 public class MinioTestContainer {
 
     public static final DockerImageName IMAGE = DockerImageName.parse(
-                    "quay.io/minio/minio@sha256:14cea493d9a34af32f524e538b8346cf79f3321eff8e708c1e2960462bd8936e")
+                    "pgsty/minio@sha256:b6bfe7239bfc83fb90d31612d9704d86039dd714f7904b3f1ad68f211e602372")
             .asCompatibleSubstituteFor("minio/minio");
 
     @Bean

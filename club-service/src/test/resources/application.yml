@@ -1,4 +1,7 @@
 spring:
+  datasource:
+    hikari:
+      schema: club_db
   application:
     name: club-service
   config:

@@ -1,4 +1,7 @@
 spring:
+  datasource:
+    hikari:
+      schema: course_db
   application:
     name: course-service
   config:

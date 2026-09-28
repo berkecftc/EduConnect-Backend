@@ -1,4 +1,7 @@
 spring:
+  datasource:
+    hikari:
+      schema: event_db
   application:
     name: event-service
   config:

@@ -9,6 +9,7 @@ import com.educonnect.postservice.exception.PostNotFoundException;
 import com.educonnect.postservice.exception.UnauthorizedPostAccessException;
 import com.educonnect.postservice.model.Comment;
 import com.educonnect.postservice.model.CommentStatus;
+import com.educonnect.postservice.model.Post;
 import com.educonnect.postservice.model.PostStatus;
 import com.educonnect.postservice.repository.CommentRepository;
 import com.educonnect.postservice.repository.PostRepository;
@@ -147,9 +148,10 @@ public class CommentService {
      * - Her üst yorum için yanıtlar ayrı sorgu ile alınır (sayfa başına yorum sayısı sınırlı olduğu için kabul edilebilir).
      */
     @Transactional(readOnly = true)
-    public Page<CommentResponse> getCommentsByPostId(UUID postId, Pageable pageable) {
-        // Post var mı kontrol et
-        if (!postRepository.existsById(postId)) {
+    public Page<CommentResponse> getCommentsByPostId(UUID postId, UUID viewerId, Pageable pageable) {
+        Post post = postRepository.findById(postId)
+                .orElseThrow(() -> new PostNotFoundException("Post bulunamadı: " + postId));
+        if (!isVisibleTo(post, viewerId)) {
             throw new PostNotFoundException("Post bulunamadı: " + postId);
         }
 
@@ -189,6 +191,10 @@ public class CommentService {
     /**
      * Bir post'a ait yayınlanmış yorum sayısını döndürür.
      */
+    private static boolean isVisibleTo(Post post, UUID viewerId) {
+        return post.getStatus() == PostStatus.PUBLISHED || post.getAuthorId().equals(viewerId);
+    }
+
     public long getPublishedCommentCount(UUID postId) {
         return commentRepository.countByPostIdAndStatus(postId, CommentStatus.PUBLISHED);
     }
@@ -202,6 +208,12 @@ public class CommentService {
     public CommentResponse createReply(UUID parentCommentId, String content, UUID authorId) {
         Comment parentComment = commentRepository.findById(parentCommentId)
                 .orElseThrow(() -> new CommentNotFoundException("Yanıt verilecek yorum bulunamadı: " + parentCommentId));
+
+        Post post = postRepository.findById(parentComment.getPostId())
+                .orElseThrow(() -> new CommentNotFoundException("Yanıt verilecek yorum bulunamadı: " + parentCommentId));
+        if (post.getStatus() != PostStatus.PUBLISHED) {
+            throw new IllegalArgumentException("Sadece yayınlanmış postlara yorum yapılabilir.");
+        }
 
         // Yanıta yanıt verilemez — sadece üst seviye yorumlara yanıt verilebilir
         if (parentComment.getParentCommentId() != null) {
@@ -236,8 +248,13 @@ public class CommentService {
      * Bir yorumun yayınlanmış yanıtlarını döndürür.
      */
     @Transactional(readOnly = true)
-    public List<CommentResponse> getRepliesByCommentId(UUID commentId) {
-        if (!commentRepository.existsById(commentId)) {
+    public List<CommentResponse> getRepliesByCommentId(UUID commentId, UUID viewerId) {
+        Comment parentComment = commentRepository.findById(commentId)
+                .orElseThrow(() -> new CommentNotFoundException("Yorum bulunamadı: " + commentId));
+        boolean visible = postRepository.findById(parentComment.getPostId())
+                .map(post -> isVisibleTo(post, viewerId))
+                .orElse(false);
+        if (!visible) {
             throw new CommentNotFoundException("Yorum bulunamadı: " + commentId);
         }
 

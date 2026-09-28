@@ -1,4 +1,7 @@
 spring:
+  datasource:
+    hikari:
+      schema: gamification_db
   application:
     name: gamification-service
   config:

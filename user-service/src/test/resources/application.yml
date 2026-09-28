@@ -1,4 +1,7 @@
 spring:
+  datasource:
+    hikari:
+      schema: user_db
   application:
     name: user-service
   config:

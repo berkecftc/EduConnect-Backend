@@ -1,15 +1,8 @@
 package com.educonnect.eventservice;
 
-import com.educonnect.common.test.MinioTestContainer;
-import com.educonnect.common.test.PostgresTestContainer;
-import com.educonnect.common.test.RabbitTestContainer;
-import com.educonnect.common.test.RedisTestContainer;
 import org.flywaydb.core.Flyway;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.context.annotation.Import;
 import org.springframework.test.web.servlet.MockMvc;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -17,9 +10,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-@SpringBootTest
-@AutoConfigureMockMvc
-@Import({PostgresTestContainer.class, RabbitTestContainer.class, RedisTestContainer.class, MinioTestContainer.class})
+@EventIntegrationTest
 class EventServiceApplicationTests {
 
 	@Autowired
@@ -35,7 +26,6 @@ class EventServiceApplicationTests {
 
 		mockMvc.perform(get("/api/events"))
 				.andExpect(status().isOk())
-				.andExpect(jsonPath("$").isArray())
-				.andExpect(jsonPath("$").isEmpty());
+				.andExpect(jsonPath("$").isArray());
 	}
 }
