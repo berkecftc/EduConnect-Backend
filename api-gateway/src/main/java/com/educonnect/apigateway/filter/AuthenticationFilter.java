@@ -36,7 +36,8 @@ public class AuthenticationFilter extends AbstractGatewayFilterFactory<Authentic
             new PublicEndpoint(HttpMethod.GET, "^/api/clubs/" + UUID_SEGMENT + "$"),
             new PublicEndpoint(HttpMethod.GET, "^/api/events$"),
             new PublicEndpoint(HttpMethod.GET, "^/api/events/" + UUID_SEGMENT + "$"),
-            new PublicEndpoint(HttpMethod.GET, "^/api/gamification/badges/[a-zA-Z_]+/image$")
+            new PublicEndpoint(HttpMethod.GET, "^/api/gamification/badges/[a-zA-Z_]+/image$"),
+            new PublicEndpoint(HttpMethod.GET, "^/api-docs/[a-z-]+$")
     );
 
     private final ReactiveJwtDecoder jwtDecoder;

@@ -1,1 +1,2 @@
 com.educonnect.common.web.WebProblemAutoConfiguration
+com.educonnect.common.web.OpenApiAutoConfiguration
