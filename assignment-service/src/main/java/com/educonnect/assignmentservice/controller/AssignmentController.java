@@ -74,7 +74,7 @@ public class AssignmentController {
 
     // ÖĞRENCİ ÖDEV TESLİMİ
     @PostMapping(value = "/{assignmentId}/submit", consumes = {"multipart/form-data"})
-    public ResponseEntity<?> submitAssignment(
+    public ResponseEntity<SubmissionResponse> submitAssignment(
             @PathVariable UUID assignmentId,
             @RequestPart(value = "file", required = false) MultipartFile file,
             @RequestHeader(USER_ID_HEADER) String studentIdHeader
@@ -83,7 +83,7 @@ public class AssignmentController {
         Assignment assignment = accessGuard.getAssignment(assignmentId);
         accessGuard.requireEnrolledStudent(assignment.getCourseId(), studentId);
         AssignmentSubmission submission = assignmentService.submitAssignment(assignmentId, studentId, file);
-        return ResponseEntity.status(HttpStatus.CREATED).body(submission);
+        return ResponseEntity.status(HttpStatus.CREATED).body(SubmissionResponse.from(submission));
     }
 
     // AKADEMİSYEN NOT VERME

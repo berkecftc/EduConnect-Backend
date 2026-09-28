@@ -3,6 +3,7 @@ package com.educonnect.eventservice.controller;
 import com.educonnect.eventservice.dto.request.CreateEventRequest;
 import com.educonnect.eventservice.dto.request.VerifyQrRequest;
 import com.educonnect.eventservice.dto.response.EventRegistrantDTO;
+import com.educonnect.eventservice.dto.response.EventResponse;
 import com.educonnect.eventservice.model.Event;
 import com.educonnect.eventservice.service.EventService;
 import com.educonnect.common.web.ApiException;
@@ -34,7 +35,7 @@ public class EventManagementController {
      */
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<Event> createEvent(
+    public ResponseEntity<EventResponse> createEvent(
             @Valid @RequestPart("data") CreateEventRequest request, // JSON verisi
             @RequestPart(value = "poster") MultipartFile poster, // Afiş dosyası (zorunlu)
             @RequestHeader("X-Authenticated-User-Id") String userIdHeader
@@ -54,7 +55,7 @@ public class EventManagementController {
 
 
         Event createdEvent = eventService.createEvent(request, poster, creatorId);
-        return ResponseEntity.status(HttpStatus.CREATED).body(createdEvent);
+        return ResponseEntity.status(HttpStatus.CREATED).body(EventResponse.from(createdEvent));
     }
 
     @GetMapping("/pending")
@@ -109,11 +110,11 @@ public class EventManagementController {
 
     @GetMapping("/my-events")
     @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<List<Event>> getMyCreatedEvents(
+    public ResponseEntity<List<EventResponse>> getMyCreatedEvents(
             @RequestHeader("X-Authenticated-User-Id") String userIdHeader
     ) {
         List<Event> events = eventService.getEventsOfManagedClubs(UUID.fromString(userIdHeader));
-        return ResponseEntity.ok(events);
+        return ResponseEntity.ok(EventResponse.from(events));
     }
 
     /**
@@ -139,12 +140,12 @@ public class EventManagementController {
      */
     @GetMapping("/club/{clubId}/events")
     @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<List<Event>> getClubEvents(
+    public ResponseEntity<List<EventResponse>> getClubEvents(
             @PathVariable UUID clubId,
             @RequestHeader("X-Authenticated-User-Id") String userIdHeader
     ) {
         List<Event> events = eventService.getEventsByClubIdForManagement(clubId, UUID.fromString(userIdHeader));
-        return ResponseEntity.ok(events);
+        return ResponseEntity.ok(EventResponse.from(events));
     }
 
     // Etkinlik İptal Etme (DELETE) de buraya eklenebilir

@@ -12,6 +12,7 @@ import java.util.UUID;
 public interface CourseRepository extends JpaRepository<Course, UUID> {
     List<Course> findByInstructorId(UUID instructorId);
     boolean existsByCode(String code);
+    boolean existsByImageUrl(String imageUrl);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT c FROM Course c WHERE c.id = :id")

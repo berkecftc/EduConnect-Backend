@@ -237,8 +237,17 @@ public class CourseController {
 
     // ===================== DOSYA İNDİRME =====================
 
+    @GetMapping("/{courseId}/file")
+    public ResponseEntity<Resource> downloadCourseFile(@PathVariable UUID courseId) {
+        return fileResponse(courseService.getCourseFileUrl(courseId));
+    }
+
     @GetMapping("/files/download")
     public ResponseEntity<Resource> downloadFile(@RequestParam("url") String fileUrl) {
+        return fileResponse(courseService.requireCourseFileUrl(fileUrl));
+    }
+
+    private ResponseEntity<Resource> fileResponse(String fileUrl) {
         Resource resource = courseService.downloadFile(fileUrl);
         String fileName = courseService.getOriginalFileName(fileUrl);
 

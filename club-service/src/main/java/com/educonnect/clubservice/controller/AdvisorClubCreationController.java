@@ -1,8 +1,8 @@
 package com.educonnect.clubservice.controller;
 
 import com.educonnect.clubservice.dto.request.RejectionReasonRequest;
-import com.educonnect.clubservice.model.Club;
-import com.educonnect.clubservice.model.ClubCreationRequest;
+import com.educonnect.clubservice.dto.response.ClubCreationRequestResponse;
+import com.educonnect.clubservice.dto.response.ClubResponse;
 import com.educonnect.clubservice.service.ClubService;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
@@ -30,26 +30,26 @@ public class AdvisorClubCreationController {
 
     @GetMapping
     @PreAuthorize("hasRole('ACADEMICIAN')")
-    public ResponseEntity<List<ClubCreationRequest>> getPendingRequests(
+    public ResponseEntity<List<ClubCreationRequestResponse>> getPendingRequests(
             @RequestHeader("X-Authenticated-User-Id") String userIdHeader) {
-        return ResponseEntity.ok(clubService.getPendingCreationRequestsForAdvisor(UUID.fromString(userIdHeader)));
+        return ResponseEntity.ok(ClubCreationRequestResponse.from(clubService.getPendingCreationRequestsForAdvisor(UUID.fromString(userIdHeader))));
     }
 
     @PutMapping("/{requestId}/approve")
     @PreAuthorize("hasRole('ACADEMICIAN')")
-    public ResponseEntity<Club> approve(
+    public ResponseEntity<ClubResponse> approve(
             @PathVariable UUID requestId,
             @RequestHeader("X-Authenticated-User-Id") String userIdHeader) {
-        return ResponseEntity.ok(clubService.approveClubCreationRequestByAdvisor(requestId, UUID.fromString(userIdHeader)));
+        return ResponseEntity.ok(ClubResponse.from(clubService.approveClubCreationRequestByAdvisor(requestId, UUID.fromString(userIdHeader))));
     }
 
     @PutMapping("/{requestId}/reject")
     @PreAuthorize("hasRole('ACADEMICIAN')")
-    public ResponseEntity<ClubCreationRequest> reject(
+    public ResponseEntity<ClubCreationRequestResponse> reject(
             @PathVariable UUID requestId,
             @Valid @RequestBody(required = false) RejectionReasonRequest body,
             @RequestHeader("X-Authenticated-User-Id") String userIdHeader) {
-        return ResponseEntity.ok(clubService.rejectClubCreationRequestByAdvisor(requestId, UUID.fromString(userIdHeader),
-                body != null ? body.rejectionReason() : null));
+        return ResponseEntity.ok(ClubCreationRequestResponse.from(clubService.rejectClubCreationRequestByAdvisor(
+                requestId, UUID.fromString(userIdHeader), body != null ? body.rejectionReason() : null)));
     }
 }

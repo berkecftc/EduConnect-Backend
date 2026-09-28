@@ -1,6 +1,7 @@
 package com.educonnect.eventservice.controller;
 
 import com.educonnect.eventservice.dto.MyEventRegistrationDTO;
+import com.educonnect.eventservice.dto.response.EventResponse;
 import com.educonnect.eventservice.dto.response.PageResponse;
 import com.educonnect.eventservice.model.Event;
 import com.educonnect.eventservice.service.EventService;
@@ -27,34 +28,34 @@ public class EventController {
      * Aktif tüm etkinlikleri listeler.
      */
     @GetMapping
-    public ResponseEntity<List<Event>> getAllActiveEvents() {
-        return ResponseEntity.ok(eventService.getAllActiveEvents());
+    public ResponseEntity<List<EventResponse>> getAllActiveEvents() {
+        return ResponseEntity.ok(EventResponse.from(eventService.getAllActiveEvents()));
     }
 
     @GetMapping(params = "page")
-    public ResponseEntity<PageResponse<Event>> getActiveEventsPage(@RequestParam int page,
-                                                                  @RequestParam(required = false) Integer size) {
-        return ResponseEntity.ok(eventService.getActiveEventsPage(page, size));
+    public ResponseEntity<PageResponse<EventResponse>> getActiveEventsPage(@RequestParam int page,
+                                                                            @RequestParam(required = false) Integer size) {
+        return ResponseEntity.ok(eventService.getActiveEventsPage(page, size).map(EventResponse::from));
     }
 
     // 👇 ADMİN İÇİN ÖZEL ENDPOINT
     // Bu endpoint Bekleyen, Onaylanan, Reddedilen, Geçmiş... HEPSİNİ getirir.
     @GetMapping("/admin/all")
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<List<Event>> getAllEventsForAdmin() {
-        return ResponseEntity.ok(eventService.getAllEventsForAdmin());
+    public ResponseEntity<List<EventResponse>> getAllEventsForAdmin() {
+        return ResponseEntity.ok(EventResponse.from(eventService.getAllEventsForAdmin()));
     }
 
     /**
      * Tek bir etkinliğin detaylarını getirir.
      */
     @GetMapping("/{eventId}")
-    public ResponseEntity<Event> getEventDetails(
+    public ResponseEntity<EventResponse> getEventDetails(
             @PathVariable UUID eventId,
             @RequestHeader(value = "X-Authenticated-User-Id", required = false) String userIdHeader
     ) {
         UUID viewerId = userIdHeader != null ? UUID.fromString(userIdHeader) : null;
-        return ResponseEntity.ok(eventService.getEventDetailsForViewer(eventId, viewerId));
+        return ResponseEntity.ok(EventResponse.from(eventService.getEventDetailsForViewer(eventId, viewerId)));
     }
 
     @PostMapping("/{eventId}/register")
@@ -79,13 +80,13 @@ public class EventController {
      * Öğrenciler üye oldukları kulübün etkinliklerini görmek için kullanır.
      */
     @GetMapping("/club/{clubId}")
-    public ResponseEntity<List<Event>> getClubEvents(@PathVariable UUID clubId) {
+    public ResponseEntity<List<EventResponse>> getClubEvents(@PathVariable UUID clubId) {
         List<Event> events = eventService.getEventsByClubId(clubId);
         // Sadece aktif etkinlikleri filtrele (öğrenciler için)
         List<Event> activeEvents = events.stream()
                 .filter(e -> e.getStatus() == com.educonnect.eventservice.model.EventStatus.ACTIVE)
                 .toList();
-        return ResponseEntity.ok(activeEvents);
+        return ResponseEntity.ok(EventResponse.from(activeEvents));
     }
 }
 

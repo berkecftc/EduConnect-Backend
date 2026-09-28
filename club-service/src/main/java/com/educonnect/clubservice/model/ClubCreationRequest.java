@@ -59,6 +59,7 @@ public class ClubCreationRequest {
     public void setRejectionReason(String rejectionReason) { this.rejectionReason = rejectionReason; }
     public LocalDateTime getProcessedAt() { return processedAt; }
     public void setProcessedAt(LocalDateTime processedAt) { this.processedAt = processedAt; }
+    public LocalDateTime getRequestDate() { return requestDate; }
     public UUID getProcessedBy() { return processedBy; }
     public void setProcessedBy(UUID processedBy) { this.processedBy = processedBy; }
 }

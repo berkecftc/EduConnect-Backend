@@ -5,6 +5,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 
 import java.util.List;
+import java.util.function.Function;
 
 public record PageResponse<T>(List<T> content,
                               int number,
@@ -25,5 +26,10 @@ public record PageResponse<T>(List<T> content,
     public static <T> PageResponse<T> of(Page<?> page, List<T> content) {
         return new PageResponse<>(content, page.getNumber(), page.getSize(), page.getTotalElements(),
                 page.getTotalPages(), page.isFirst(), page.isLast());
+    }
+
+    public <R> PageResponse<R> map(Function<? super T, ? extends R> mapper) {
+        List<R> mapped = content.stream().<R>map(mapper).toList();
+        return new PageResponse<>(mapped, number, size, totalElements, totalPages, first, last);
     }
 }

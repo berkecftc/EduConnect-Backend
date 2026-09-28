@@ -5,8 +5,9 @@ import com.educonnect.clubservice.dto.request.UpdateClubRequest;
 import com.educonnect.clubservice.dto.response.ArchivedClubDTO;
 import com.educonnect.clubservice.dto.response.ClubAdminSummaryDto;
 import com.educonnect.clubservice.dto.response.MemberDTO;
+import com.educonnect.clubservice.dto.response.ClubCreationRequestResponse;
+import com.educonnect.clubservice.dto.response.ClubResponse;
 import com.educonnect.clubservice.model.Club;
-import com.educonnect.clubservice.model.ClubCreationRequest;
 import com.educonnect.clubservice.service.ClubService;
 import com.educonnect.common.security.AuditLog;
 import com.educonnect.common.web.ApiException;
@@ -42,7 +43,7 @@ public class ClubAdminController {
     // Yeni Kulüp Oluşturma
     @PostMapping
     @PreAuthorize("hasRole('ADMIN')") // Sadece Admin rolü
-    public ResponseEntity<Club> createClub(
+    public ResponseEntity<ClubResponse> createClub(
             @Valid @RequestBody CreateClubRequest request,
             @RequestHeader(value = "X-Authenticated-User-Id", required = false) String userId,
             @RequestHeader(value = "X-Authenticated-User-Email", required = false) String userEmail) {
@@ -57,7 +58,7 @@ public class ClubAdminController {
         return ResponseEntity
                 .status(HttpStatus.CREATED)
                 .header("X-Created-Club-Id", createdClub.getId().toString())
-                .body(createdClub);
+                .body(ClubResponse.from(createdClub));
     }
 
     // Kulüp Kapatma/Arşivleme (Soft Delete)
@@ -84,16 +85,16 @@ public class ClubAdminController {
 
     @GetMapping("/requests")
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<List<ClubCreationRequest>> getPendingRequests() {
-        return ResponseEntity.ok(clubService.getPendingClubRequests());
+    public ResponseEntity<List<ClubCreationRequestResponse>> getPendingRequests() {
+        return ResponseEntity.ok(ClubCreationRequestResponse.from(clubService.getPendingClubRequests()));
     }
 
     @PostMapping("/requests/{requestId}/approve")
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<Club> approveClubRequest(@PathVariable UUID requestId) {
+    public ResponseEntity<ClubResponse> approveClubRequest(@PathVariable UUID requestId) {
         Club approved = clubService.approveClubCreationRequest(requestId);
         AuditLog.record("APPROVE_CLUB_CREATION", "CLUB_CREATION_REQUEST", requestId);
-        return ResponseEntity.ok(approved);
+        return ResponseEntity.ok(ClubResponse.from(approved));
     }
 
     @PostMapping("/requests/{requestId}/reject")
@@ -106,8 +107,8 @@ public class ClubAdminController {
 
     @PutMapping("/{clubId}")
     @PreAuthorize("hasRole('ADMIN')") // Veya kulüp başkanı
-    public ResponseEntity<Club> updateClub(@PathVariable UUID clubId, @Valid @RequestBody UpdateClubRequest request) {
-        return ResponseEntity.ok(clubService.updateClub(clubId, request));
+    public ResponseEntity<ClubResponse> updateClub(@PathVariable UUID clubId, @Valid @RequestBody UpdateClubRequest request) {
+        return ResponseEntity.ok(ClubResponse.from(clubService.updateClub(clubId, request)));
     }
 
     // Aktif Kulüpleri Listele

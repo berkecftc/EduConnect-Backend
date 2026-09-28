@@ -70,6 +70,14 @@ public class MinioService {
         return storageUrls.objectName(fileUrl, bucketName);
     }
 
+    public String canonicalUrl(String fileUrl) {
+        String objectName = extractObjectName(fileUrl);
+        if (objectName == null || objectName.isBlank()) {
+            return null;
+        }
+        return storageUrls.url(bucketName, objectName);
+    }
+
     public String extractOriginalFileName(String fileUrl) {
         String objectName = extractObjectName(fileUrl);
         int underscoreIndex = objectName.indexOf('_');

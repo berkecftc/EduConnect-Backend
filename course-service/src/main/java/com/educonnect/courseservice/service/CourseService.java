@@ -1,5 +1,6 @@
 package com.educonnect.courseservice.service;
 
+import com.educonnect.common.web.NotFoundException;
 import com.educonnect.courseservice.client.UserClient;
 import com.educonnect.courseservice.client.UserLookup;
 import com.educonnect.courseservice.dto.*;
@@ -251,6 +252,23 @@ public class CourseService {
     }
 
     // 12. DOSYA İNDİRME
+    public String getCourseFileUrl(UUID courseId) {
+        Course course = courseRepository.findById(courseId)
+                .orElseThrow(() -> new CourseNotFoundException("Ders bulunamadı: " + courseId));
+        if (course.getImageUrl() == null || course.getImageUrl().isBlank()) {
+            throw new NotFoundException("FILE_NOT_FOUND", "Dosya bulunamadı.");
+        }
+        return course.getImageUrl();
+    }
+
+    public String requireCourseFileUrl(String fileUrl) {
+        String canonical = minioService.canonicalUrl(fileUrl);
+        if (canonical == null || !courseRepository.existsByImageUrl(canonical)) {
+            throw new NotFoundException("FILE_NOT_FOUND", "Dosya bulunamadı.");
+        }
+        return canonical;
+    }
+
     public Resource downloadFile(String fileUrl) {
         InputStream inputStream = minioService.downloadFile(fileUrl);
         return new InputStreamResource(inputStream);
