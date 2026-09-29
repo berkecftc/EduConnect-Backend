@@ -15,7 +15,8 @@ import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.web.servlet.MockMvc;
-import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
+import org.springframework.test.web.servlet.request.AbstractMockHttpServletRequestBuilder;
+import org.springframework.test.web.servlet.request.MockMultipartHttpServletRequestBuilder;
 
 import java.time.LocalDateTime;
 import java.util.UUID;
@@ -79,7 +80,7 @@ class UserAuthorizationTest {
 
 	@Test
 	void theMultipartProfileUpdateIsAlsoSelfOnly() throws Exception {
-		MockHttpServletRequestBuilder request = multipart(HttpMethod.PUT, "/api/users/profile/{id}", owner)
+		MockMultipartHttpServletRequestBuilder request = multipart(HttpMethod.PUT, "/api/users/profile/{id}", owner)
 				.file(new MockMultipartFile("file", "avatar.png", MediaType.IMAGE_PNG_VALUE, PNG))
 				.param("firstName", "Ele Geçirildi");
 
@@ -211,7 +212,7 @@ class UserAuthorizationTest {
 				.andExpect(status().isGone());
 	}
 
-	private static MockHttpServletRequestBuilder as(MockHttpServletRequestBuilder request, String token) {
+	private static <B extends AbstractMockHttpServletRequestBuilder<B>> B as(B request, String token) {
 		return request.header(HttpHeaders.AUTHORIZATION, TestTokens.bearer(token));
 	}
 

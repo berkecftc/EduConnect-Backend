@@ -12,7 +12,7 @@ import org.springframework.stereotype.Service;
  *
  * Mesaj kaybı önlemi:
  * - Service katmanı event'i transaction commit olduktan sonra publish edecek şekilde çağırır.
- * - Jackson2JsonMessageConverter ile JSON serileştirme kullanılır.
+ * - JacksonJsonMessageConverter ile JSON serileştirme kullanılır.
  * - Kuyruk durable olduğu için broker yeniden başlasa bile mesaj korunur.
  */
 @Service

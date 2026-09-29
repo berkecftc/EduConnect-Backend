@@ -37,6 +37,8 @@ public final class Problems {
             Map.entry(503, "Servis şu an kullanılamıyor. Lütfen daha sonra tekrar deneyin."),
             Map.entry(504, "İlgili servis zamanında yanıt vermedi."));
 
+    private static final URI BLANK_TYPE = URI.create("about:blank");
+
     private Problems() {
     }
 
@@ -48,6 +50,9 @@ public final class Problems {
 
     public static ProblemDetail enrich(ProblemDetail problem, String errorCode, String path) {
         int status = problem.getStatus();
+        if (problem.getType() == null) {
+            problem.setType(BLANK_TYPE);
+        }
         if (!StringUtils.hasText(problem.getDetail())) {
             problem.setDetail(defaultMessage(status));
         }

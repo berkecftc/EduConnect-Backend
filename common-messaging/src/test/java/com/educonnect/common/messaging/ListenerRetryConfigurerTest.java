@@ -10,7 +10,8 @@ import org.springframework.amqp.core.MessageProperties;
 import org.springframework.amqp.rabbit.config.SimpleRabbitListenerContainerFactory;
 import org.springframework.amqp.rabbit.support.ListenerExecutionFailedException;
 import org.springframework.beans.factory.ObjectProvider;
-import org.springframework.retry.support.RetryTemplate;
+import org.springframework.core.retry.RetryException;
+import org.springframework.core.retry.RetryTemplate;
 
 import java.time.Duration;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -58,26 +59,28 @@ class ListenerRetryConfigurerTest {
 
     @Test
     void transientFailure_shouldBeRetriedUpToMaxAttempts() {
-        RetryTemplate template = ListenerRetryConfigurer.retryTemplate(properties);
+        RetryTemplate template = new RetryTemplate(ListenerRetryConfigurer.retryPolicy(properties));
         AtomicInteger calls = new AtomicInteger();
 
-        assertThatThrownBy(() -> template.execute(context -> {
+        assertThatThrownBy(() -> template.execute(() -> {
             calls.incrementAndGet();
             throw wrapped(new IllegalStateException("database down"));
-        })).isInstanceOf(ListenerExecutionFailedException.class);
+        })).isInstanceOf(RetryException.class)
+                .cause().isInstanceOf(ListenerExecutionFailedException.class);
 
         assertThat(calls).hasValue(3);
     }
 
     @Test
     void permanentFailure_shouldNotBeRetried() {
-        RetryTemplate template = ListenerRetryConfigurer.retryTemplate(properties);
+        RetryTemplate template = new RetryTemplate(ListenerRetryConfigurer.retryPolicy(properties));
         AtomicInteger calls = new AtomicInteger();
 
-        assertThatThrownBy(() -> template.execute(context -> {
+        assertThatThrownBy(() -> template.execute(() -> {
             calls.incrementAndGet();
             throw wrapped(new AmqpRejectAndDontRequeueException("invalid payload"));
-        })).isInstanceOf(ListenerExecutionFailedException.class);
+        })).isInstanceOf(RetryException.class)
+                .cause().isInstanceOf(ListenerExecutionFailedException.class);
 
         assertThat(calls).hasValue(1);
     }

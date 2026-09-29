@@ -1,14 +1,4 @@
 [[IgnoredVulns]]
-id = "GHSA-8jxr-pr72-r468"
-ignoreUntil = 2027-03-31T00:00:00Z
-reason = "mcp-core comes only through spring-ai-client-chat (mcp-json-jackson2); llm-service does not run an MCP server or client. Revisit with the Spring AI 2 upgrade (Faz 4F)."
-
-[[IgnoredVulns]]
-id = "GHSA-p53j-g8pw-4w5f"
-ignoreUntil = 2027-03-31T00:00:00Z
-reason = "net.i2p.crypto:eddsa 0.3.0 has no fixed release; it is pulled by jgit's Apache SSH transport in config-server, which clones the config repository over HTTPS only."
-
-[[IgnoredVulns]]
 id = "GHSA-h7rh-xfpj-hpcm"
 ignoreUntil = 2027-03-31T00:00:00Z
-reason = "minio-java 8.6.0 needs okhttp 5 and Kotlin 2 stdlib, which Spring Boot 3.5 does not manage. The client only parses XML returned by our own MinIO on the internal network, not untrusted input. Upgrade together with Boot 4 (Faz 4F)."
+reason = "minio-java 8.6.0 needs okhttp 5 and Kotlin 2 stdlib, which Spring Boot does not manage. The client only parses XML returned by our own MinIO on the internal network, not untrusted input. Upgrade in Faz 4F-3."

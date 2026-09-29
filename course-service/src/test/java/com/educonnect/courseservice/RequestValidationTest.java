@@ -3,7 +3,7 @@ package com.educonnect.courseservice;
 import com.educonnect.courseservice.dto.AnnouncementRequest;
 import com.educonnect.courseservice.dto.CourseRequest;
 import com.educonnect.courseservice.dto.RejectApplicationRequest;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.ObjectMapper;
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.Validation;
 import jakarta.validation.Validator;

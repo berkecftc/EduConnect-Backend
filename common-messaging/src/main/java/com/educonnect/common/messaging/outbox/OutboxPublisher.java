@@ -1,7 +1,7 @@
 package com.educonnect.common.messaging.outbox;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.ObjectMapper;
 import org.springframework.amqp.core.Message;
 import org.springframework.amqp.core.MessageDeliveryMode;
 import org.springframework.amqp.core.MessageProperties;
@@ -85,7 +85,7 @@ public class OutboxPublisher {
         });
         try {
             return objectMapper.writeValueAsString(values);
-        } catch (JsonProcessingException e) {
+        } catch (JacksonException e) {
             throw new IllegalStateException("Outbox headers could not be serialized", e);
         }
     }

@@ -23,7 +23,7 @@ import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
-import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
+import org.springframework.test.web.servlet.request.AbstractMockHttpServletRequestBuilder;
 
 import java.util.Base64;
 import java.util.UUID;
@@ -525,11 +525,11 @@ class ClubAuthorizationTest {
         return new MockMultipartFile("file", "logo.png", MediaType.IMAGE_PNG_VALUE, PNG);
     }
 
-    private static MockHttpServletRequestBuilder json(MockHttpServletRequestBuilder request, String token, String body) {
+    private static <B extends AbstractMockHttpServletRequestBuilder<B>> B json(B request, String token, String body) {
         return as(request, token).contentType(MediaType.APPLICATION_JSON).content(body);
     }
 
-    private static MockHttpServletRequestBuilder as(MockHttpServletRequestBuilder request, String token) {
+    private static <B extends AbstractMockHttpServletRequestBuilder<B>> B as(B request, String token) {
         return request.header(HttpHeaders.AUTHORIZATION, TestTokens.bearer(token));
     }
 }

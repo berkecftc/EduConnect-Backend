@@ -1,11 +1,12 @@
 package com.educonnect.common.web;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.ObjectMapper;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ProblemDetail;
+import org.springframework.http.converter.json.ProblemDetailJacksonMixin;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configurers.ExceptionHandlingConfigurer;
@@ -20,7 +21,9 @@ public class ProblemSecurityHandlers implements Customizer<ExceptionHandlingConf
     private final ObjectMapper objectMapper;
 
     public ProblemSecurityHandlers(ObjectMapper objectMapper) {
-        this.objectMapper = objectMapper;
+        this.objectMapper = objectMapper.rebuild()
+                .addMixIn(ProblemDetail.class, ProblemDetailJacksonMixin.class)
+                .build();
     }
 
     @Override

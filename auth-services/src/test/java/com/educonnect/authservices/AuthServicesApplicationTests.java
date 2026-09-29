@@ -3,7 +3,9 @@ package com.educonnect.authservices;
 import org.flywaydb.core.Flyway;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.ApplicationContext;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.web.client.RestClient;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -18,6 +20,17 @@ class AuthServicesApplicationTests {
 
 	@Autowired
 	private MockMvc mockMvc;
+
+	@Autowired
+	private ApplicationContext context;
+
+	@Test
+	void unqualifiedRestClientBuilderLookupsDoNotGetTheLoadBalancedBuilder() {
+		RestClient.Builder loadBalanced = context.getBean("internalRestClientBuilder", RestClient.Builder.class);
+
+		assertThat(context.getBeanProvider(RestClient.Builder.class).getIfAvailable(RestClient::builder))
+				.isNotSameAs(loadBalanced);
+	}
 
 	@Test
 	void startsOnAFreshDatabaseWithAllMigrationsApplied() throws Exception {

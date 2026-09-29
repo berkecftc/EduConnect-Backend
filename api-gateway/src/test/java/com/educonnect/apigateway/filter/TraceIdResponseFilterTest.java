@@ -44,6 +44,6 @@ class TraceIdResponseFilterTest {
 
         new TraceIdResponseFilter().filter(exchange, chain).block();
 
-        assertThat(exchange.getResponse().getHeaders().containsKey(TraceIdResponseFilter.HEADER)).isFalse();
+        assertThat(exchange.getResponse().getHeaders().containsHeader(TraceIdResponseFilter.HEADER)).isFalse();
     }
 }

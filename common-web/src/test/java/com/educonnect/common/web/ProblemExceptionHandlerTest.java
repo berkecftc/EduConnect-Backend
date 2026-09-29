@@ -1,6 +1,6 @@
 package com.educonnect.common.web;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.ObjectMapper;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
@@ -10,7 +10,7 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
-import org.springframework.http.converter.json.Jackson2ObjectMapperBuilder;
+import tools.jackson.databind.json.JsonMapper;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
 import org.springframework.security.access.AccessDeniedException;
@@ -60,6 +60,7 @@ class ProblemExceptionHandlerTest {
                 .andExpect(jsonPath("$.title").value("Not Found"))
                 .andExpect(jsonPath("$.detail").value("Kulüp bulunamadı."))
                 .andExpect(jsonPath("$.message").value("Kulüp bulunamadı."))
+                .andExpect(jsonPath("$.type").value("about:blank"))
                 .andExpect(jsonPath("$.errorCode").value("CLUB_NOT_FOUND"))
                 .andExpect(jsonPath("$.instance").value("/test/not-found"))
                 .andExpect(jsonPath("$.timestamp").exists());
@@ -103,6 +104,7 @@ class ProblemExceptionHandlerTest {
     void malformedJson_returns400WithoutParserDetails() throws Exception {
         mockMvc.perform(post("/test/body").contentType(MediaType.APPLICATION_JSON).content("{not-json"))
                 .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.type").value("about:blank"))
                 .andExpect(jsonPath("$.errorCode").value("MALFORMED_REQUEST"))
                 .andExpect(jsonPath("$.message").value("İstek gövdesi okunamadı veya geçersiz."));
     }
@@ -173,7 +175,7 @@ class ProblemExceptionHandlerTest {
 
     @Test
     void securityFilterHandlers_writeProblemJson() throws Exception {
-        ObjectMapper objectMapper = Jackson2ObjectMapperBuilder.json().build();
+        ObjectMapper objectMapper = JsonMapper.builder().build();
         ProblemSecurityHandlers handlers = new ProblemSecurityHandlers(objectMapper);
 
         MockHttpServletRequest request = new MockHttpServletRequest("GET", "/api/clubs/1");
@@ -186,6 +188,7 @@ class ProblemExceptionHandlerTest {
         assertThat(body.get("message")).isEqualTo("Bu işlem için yetkiniz yok.");
         assertThat(body.get("errorCode")).isEqualTo("ACCESS_DENIED");
         assertThat(body.get("instance")).isEqualTo("/api/clubs/1");
+        assertThat(body.get("type")).isEqualTo("about:blank");
 
         MockHttpServletResponse unauthenticated = new MockHttpServletResponse();
         handlers.authenticationEntryPoint().commence(request, unauthenticated,

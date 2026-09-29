@@ -13,7 +13,7 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.web.servlet.MockMvc;
-import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
+import org.springframework.test.web.servlet.request.AbstractMockHttpServletRequestBuilder;
 
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
@@ -241,7 +241,7 @@ class AssignmentAuthorizationTest {
 				.andExpect(status().isNotFound());
 	}
 
-	private static MockHttpServletRequestBuilder as(MockHttpServletRequestBuilder request, String token) {
+	private static <B extends AbstractMockHttpServletRequestBuilder<B>> B as(B request, String token) {
 		return request.header(HttpHeaders.AUTHORIZATION, TestTokens.bearer(token));
 	}
 

@@ -2,7 +2,7 @@ package com.educonnect.common.observability;
 
 import io.micrometer.core.instrument.MeterRegistry;
 import io.opentelemetry.exporter.otlp.http.trace.OtlpHttpSpanExporter;
-import org.springframework.boot.actuate.autoconfigure.metrics.MeterRegistryCustomizer;
+import org.springframework.boot.micrometer.metrics.autoconfigure.MeterRegistryCustomizer;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;

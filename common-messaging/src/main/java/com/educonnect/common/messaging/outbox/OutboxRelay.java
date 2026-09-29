@@ -1,7 +1,7 @@
 package com.educonnect.common.messaging.outbox;
 
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.core.type.TypeReference;
+import tools.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.amqp.core.Message;
@@ -147,8 +147,8 @@ public class OutboxRelay implements SmartLifecycle {
             } catch (Exception e) {
                 throw new IllegalStateException("No broker confirm: " + e.getMessage(), e);
             }
-            if (!confirm.isAck()) {
-                throw new IllegalStateException("Broker rejected message: " + confirm.getReason());
+            if (!confirm.ack()) {
+                throw new IllegalStateException("Broker rejected message: " + confirm.reason());
             }
             if (correlation.getReturned() != null) {
                 log.warn("Outbox message {} was not routed to any queue ({}/{})", row.id(), row.exchange(), row.routingKey());

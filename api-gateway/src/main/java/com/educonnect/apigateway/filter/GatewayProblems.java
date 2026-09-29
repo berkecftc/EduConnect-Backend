@@ -1,7 +1,7 @@
 package com.educonnect.apigateway.filter;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.ObjectMapper;
 import org.springframework.core.io.buffer.DataBuffer;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -44,7 +44,7 @@ final class GatewayProblems {
         problem.put("timestamp", Instant.now().toString());
         try {
             return OBJECT_MAPPER.writeValueAsBytes(problem);
-        } catch (JsonProcessingException ex) {
+        } catch (JacksonException ex) {
             throw new IllegalStateException("Problem body could not be serialized", ex);
         }
     }

@@ -1,8 +1,11 @@
 package com.educonnect.authservices.config;
 
+import org.springframework.beans.factory.config.ConfigurableBeanFactory;
 import org.springframework.cloud.client.loadbalancer.LoadBalanced;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Primary;
+import org.springframework.context.annotation.Scope;
 import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.web.client.RestClient;
 
@@ -18,5 +21,12 @@ public class InternalClientConfig {
         requestFactory.setConnectTimeout(Duration.ofSeconds(3));
         requestFactory.setReadTimeout(Duration.ofSeconds(5));
         return RestClient.builder().requestFactory(requestFactory);
+    }
+
+    @Bean
+    @Primary
+    @Scope(ConfigurableBeanFactory.SCOPE_PROTOTYPE)
+    public RestClient.Builder restClientBuilder() {
+        return RestClient.builder();
     }
 }

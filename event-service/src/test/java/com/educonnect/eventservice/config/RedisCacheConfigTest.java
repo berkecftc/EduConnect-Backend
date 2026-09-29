@@ -3,7 +3,7 @@ package com.educonnect.eventservice.config;
 import com.educonnect.eventservice.model.Event;
 import com.educonnect.eventservice.model.EventStatus;
 import org.junit.jupiter.api.Test;
-import org.springframework.data.redis.serializer.GenericJackson2JsonRedisSerializer;
+import org.springframework.data.redis.serializer.GenericJacksonJsonRedisSerializer;
 import org.springframework.data.redis.serializer.SerializationException;
 
 import java.nio.charset.StandardCharsets;
@@ -17,7 +17,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class RedisCacheConfigTest {
 
-    private final GenericJackson2JsonRedisSerializer serializer = RedisCacheConfig.cacheValueSerializer();
+    private final GenericJacksonJsonRedisSerializer serializer = RedisCacheConfig.cacheValueSerializer();
 
     @Test
     void cacheValueSerializer_withApplicationTypes_shouldRoundTrip() {

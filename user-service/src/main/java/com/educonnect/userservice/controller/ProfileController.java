@@ -5,8 +5,8 @@ import com.educonnect.userservice.dto.response.ArchivedAcademicianDTO;
 import com.educonnect.userservice.dto.response.ArchivedStudentDTO;
 import com.educonnect.userservice.dto.response.UserProfileResponse;
 import com.educonnect.userservice.dto.response.UserProfileResponseDTO;
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.ObjectMapper;
 import com.educonnect.common.security.AuditLog;
 import com.educonnect.common.security.IdentityHeaders;
 import com.educonnect.common.web.ApiException;
@@ -234,7 +234,7 @@ public class ProfileController {
         }
         try {
             return objectMapper.readValue(json, UpdateUserProfileRequest.class);
-        } catch (JsonProcessingException e) {
+        } catch (JacksonException e) {
             throw new IllegalArgumentException("Invalid profile data payload.", e);
         }
     }

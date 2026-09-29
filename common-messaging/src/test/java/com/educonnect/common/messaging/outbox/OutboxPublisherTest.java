@@ -1,10 +1,10 @@
 package com.educonnect.common.messaging.outbox;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
-import org.springframework.amqp.support.converter.Jackson2JsonMessageConverter;
+import org.springframework.amqp.support.converter.JacksonJsonMessageConverter;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
@@ -25,7 +25,7 @@ class OutboxPublisherTest {
 
     private final JdbcTemplate jdbcTemplate = mock(JdbcTemplate.class);
     private final AtomicInteger triggers = new AtomicInteger();
-    private final OutboxPublisher publisher = new OutboxPublisher(jdbcTemplate, Jackson2JsonMessageConverter::new,
+    private final OutboxPublisher publisher = new OutboxPublisher(jdbcTemplate, JacksonJsonMessageConverter::new,
             new ObjectMapper(), triggers::incrementAndGet,
             Clock.fixed(Instant.parse("2026-09-25T10:00:00Z"), ZoneOffset.UTC));
 
@@ -50,7 +50,7 @@ class OutboxPublisherTest {
         assertThat(values[2]).isEqualTo("user.registered");
         assertThat(new String((byte[]) values[3], StandardCharsets.UTF_8)).isEqualTo("{\"name\":\"ayse\",\"count\":3}");
         assertThat(values[4]).isEqualTo("application/json");
-        assertThat(new ObjectMapper().readTree((String) values[6]).get("__TypeId__").asText())
+        assertThat(new ObjectMapper().readTree((String) values[6]).get("__TypeId__").asString())
                 .isEqualTo(SamplePayload.class.getName());
     }
 

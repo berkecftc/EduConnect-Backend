@@ -1,16 +1,20 @@
 package com.educonnect.llmservice.service;
 
+import com.educonnect.llmservice.config.AiToolsConfig;
 import com.educonnect.llmservice.config.LlmSafetyProperties;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.client.advisor.MessageChatMemoryAdvisor;
 import org.springframework.ai.chat.memory.ChatMemory;
+import org.springframework.ai.tool.ToolCallback;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Flux;
 
 import java.time.Clock;
+import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 @Service
 public class UnifiedAgentService {
@@ -21,7 +25,7 @@ public class UnifiedAgentService {
 
     private static final int MEMORY_WINDOW_SIZE = 10;
 
-    private static final String[] STUDENT_TOOLS = {"getAssignmentsTool", "searchClubsTool"};
+    private static final Set<String> STUDENT_TOOLS = Set.of(AiToolsConfig.ASSIGNMENTS_TOOL, AiToolsConfig.CLUBS_TOOL);
 
     private static final String STUDENT_SYSTEM_PROMPT = """
             You are a helpful academic assistant for EduConnect, a university education platform.
@@ -43,11 +47,16 @@ public class UnifiedAgentService {
 
     private final ChatClient agentChatClient;
     private final LlmRateLimiter rateLimiter;
+    private final ToolCallback[] studentTools;
 
     public UnifiedAgentService(ChatClient.Builder chatClientBuilder,
                                LlmRateLimiter rateLimiter,
-                               LlmSafetyProperties properties) {
+                               LlmSafetyProperties properties,
+                               List<ToolCallback> toolCallbacks) {
         this.rateLimiter = rateLimiter;
+        this.studentTools = toolCallbacks.stream()
+                .filter(tool -> STUDENT_TOOLS.contains(tool.getToolDefinition().name()))
+                .toArray(ToolCallback[]::new);
         LlmSafetyProperties.Memory memory = properties.memory();
         BoundedChatMemory chatMemory = new BoundedChatMemory(memory.maxConversations(),
                 Math.min(memory.maxMessages(), MEMORY_WINDOW_SIZE),
@@ -64,7 +73,7 @@ public class UnifiedAgentService {
         String fullResponse = agentChatClient.prompt()
                 .system(STUDENT_SYSTEM_PROMPT)
                 .user(userMessage)
-                .toolNames(STUDENT_TOOLS)
+                .tools((Object[]) studentTools)
                 .toolContext(Map.of(STUDENT_ID_CONTEXT_KEY, studentId))
                 .advisors(spec -> spec.param(ChatMemory.CONVERSATION_ID, studentId))
                 .call()

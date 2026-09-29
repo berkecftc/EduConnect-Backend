@@ -9,7 +9,7 @@ import org.springframework.amqp.core.Queue;
 import org.springframework.amqp.core.QueueBuilder;
 import org.springframework.amqp.rabbit.connection.ConnectionFactory;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
-import org.springframework.amqp.support.converter.Jackson2JsonMessageConverter;
+import org.springframework.amqp.support.converter.JacksonJsonMessageConverter;
 import org.springframework.amqp.support.converter.MessageConverter;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -50,11 +50,11 @@ public class ClubRabbitMQConfig {
      * RabbitMQ mesajlarını (örn: UUID içeren mesajlar) Java nesnelerinden
      * JSON formatına ve tam tersine dönüştürmek için bir MessageConverter bean'i oluşturur.
      * Bu, RabbitTemplate'in .convertAndSend() metodunun JSON kullanmasını sağlar.
-     * @return Jackson2JsonMessageConverter bean'i
+     * @return JacksonJsonMessageConverter bean'i
      */
     @Bean
     public MessageConverter jsonMessageConverter() {
-        return new Jackson2JsonMessageConverter();
+        return new JacksonJsonMessageConverter();
     }
 
     // Teşhis amaçlı publish confirm ve return callback'leri ekleyelim

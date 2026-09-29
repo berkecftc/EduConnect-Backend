@@ -11,13 +11,17 @@ import org.springframework.amqp.rabbit.retry.MessageRecoverer;
 import org.springframework.beans.BeansException;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.config.BeanPostProcessor;
-import org.springframework.retry.backoff.ExponentialBackOffPolicy;
-import org.springframework.retry.policy.SimpleRetryPolicy;
-import org.springframework.retry.support.RetryTemplate;
+import org.springframework.core.retry.RetryPolicy;
 
-import java.util.Map;
+import java.util.List;
 
 public class ListenerRetryConfigurer implements BeanPostProcessor {
+
+    private static final List<Class<? extends Throwable>> PERMANENT_FAILURES = List.of(
+            AmqpRejectAndDontRequeueException.class,
+            org.springframework.amqp.support.converter.MessageConversionException.class,
+            org.springframework.messaging.converter.MessageConversionException.class,
+            org.springframework.messaging.handler.invocation.MethodArgumentResolutionException.class);
 
     private final MessagingProperties properties;
     private final ObjectProvider<AmqpTemplate> amqpTemplate;
@@ -39,7 +43,7 @@ public class ListenerRetryConfigurer implements BeanPostProcessor {
             if (factory.getAdviceChain() == null || factory.getAdviceChain().length == 0) {
                 factory.setAdviceChain(
                         RetryInterceptorBuilder.stateless()
-                                .retryOperations(retryTemplate(properties))
+                                .retryPolicy(retryPolicy(properties))
                                 .recoverer(recoverer())
                                 .build(),
                         new DuplicateMessageFilter(processedMessageStore));
@@ -48,23 +52,28 @@ public class ListenerRetryConfigurer implements BeanPostProcessor {
         return bean;
     }
 
-    static RetryTemplate retryTemplate(MessagingProperties properties) {
-        SimpleRetryPolicy retryPolicy = new SimpleRetryPolicy(Math.max(1, properties.maxAttempts()), Map.of(
-                AmqpRejectAndDontRequeueException.class, false,
-                org.springframework.amqp.support.converter.MessageConversionException.class, false,
-                org.springframework.messaging.converter.MessageConversionException.class, false,
-                org.springframework.messaging.handler.invocation.MethodArgumentResolutionException.class, false
-        ), true, true);
+    static RetryPolicy retryPolicy(MessagingProperties properties) {
+        return RetryPolicy.builder()
+                .maxRetries(Math.max(0, properties.maxAttempts() - 1))
+                .delay(properties.initialInterval())
+                .multiplier(Math.max(1.0, properties.multiplier()))
+                .maxDelay(properties.maxInterval())
+                .predicate(failure -> !isPermanent(failure))
+                .build();
+    }
 
-        ExponentialBackOffPolicy backOff = new ExponentialBackOffPolicy();
-        backOff.setInitialInterval(properties.initialInterval().toMillis());
-        backOff.setMultiplier(properties.multiplier());
-        backOff.setMaxInterval(properties.maxInterval().toMillis());
-
-        RetryTemplate template = new RetryTemplate();
-        template.setRetryPolicy(retryPolicy);
-        template.setBackOffPolicy(backOff);
-        return template;
+    static boolean isPermanent(Throwable failure) {
+        for (Throwable current = failure; current != null; current = current.getCause()) {
+            for (Class<? extends Throwable> type : PERMANENT_FAILURES) {
+                if (type.isInstance(current)) {
+                    return true;
+                }
+            }
+            if (current.getCause() == current) {
+                break;
+            }
+        }
+        return false;
     }
 
     private MessageRecoverer recoverer() {

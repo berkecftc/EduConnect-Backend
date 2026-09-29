@@ -3,8 +3,7 @@ package com.educonnect.authservices;
 import com.educonnect.common.test.MinioTestContainer;
 import com.educonnect.common.test.PostgresTestContainer;
 import com.educonnect.common.test.RabbitTestContainer;
-import com.educonnect.common.test.RedisTestContainer;
-import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
+import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Import;
 
@@ -17,7 +16,7 @@ import java.lang.annotation.Target;
 @Retention(RetentionPolicy.RUNTIME)
 @SpringBootTest
 @AutoConfigureMockMvc
-@Import({PostgresTestContainer.class, RabbitTestContainer.class, RedisTestContainer.class, MinioTestContainer.class,
+@Import({PostgresTestContainer.class, RabbitTestContainer.class, MinioTestContainer.class,
 		AuthTestProperties.class})
 public @interface AuthIntegrationTest {
 }

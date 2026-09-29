@@ -2,11 +2,10 @@ package com.educonnect.eventservice.dto.response;
 
 import com.educonnect.eventservice.model.Event;
 import com.educonnect.eventservice.model.EventStatus;
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.SerializationFeature;
+import tools.jackson.core.type.TypeReference;
+import tools.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
-import org.springframework.http.converter.json.Jackson2ObjectMapperBuilder;
+import tools.jackson.databind.json.JsonMapper;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -20,8 +19,7 @@ class EventResponseTest {
     private static final TypeReference<Map<String, Object>> JSON_MAP = new TypeReference<>() {
     };
 
-    private final ObjectMapper objectMapper = Jackson2ObjectMapperBuilder.json()
-            .featuresToDisable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS).build();
+    private final ObjectMapper objectMapper = JsonMapper.builder().build();
 
     @Test
     void serializesTheFieldsTheFrontendReadsWithoutCreatorId() throws Exception {

@@ -1,8 +1,8 @@
 package com.educonnect.llmservice.config;
 
 import org.springframework.boot.http.client.ClientHttpRequestFactoryBuilder;
-import org.springframework.boot.http.client.ClientHttpRequestFactorySettings;
-import org.springframework.boot.web.client.RestClientCustomizer;
+import org.springframework.boot.http.client.HttpClientSettings;
+import org.springframework.boot.restclient.RestClientCustomizer;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
@@ -19,7 +19,7 @@ public class HttpConfig {
     public RestClientCustomizer restClientCustomizer() {
         return builder -> builder.requestFactory(
                 ClientHttpRequestFactoryBuilder.detect().build(
-                        ClientHttpRequestFactorySettings.defaults()
+                        HttpClientSettings.defaults()
                                 .withConnectTimeout(Duration.ofSeconds(10))
                                 .withReadTimeout(Duration.ofMinutes(10))
                 )
