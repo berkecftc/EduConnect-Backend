@@ -360,7 +360,7 @@ services:
       test: ["CMD-SHELL", "wget -qO- http://localhost:8089/actuator/health | grep -q UP"]
 
   caddy:
-    image: caddy:2.10-alpine
+    image: caddy:2.11-alpine
     restart: unless-stopped
     profiles: ["edge"]
     environment:
