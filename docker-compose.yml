@@ -87,7 +87,7 @@ services:
 
   # RabbitMQ mesaj kuyruğu servisi
   rabbitmq:
-    image: rabbitmq:3.13.7-management
+    image: rabbitmq:4.3.6-management
     container_name: educonnect-rabbitmq
     hostname: educonnect-rabbitmq
     restart: unless-stopped
