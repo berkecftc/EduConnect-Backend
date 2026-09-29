@@ -75,7 +75,7 @@ jobs:
       - name: Build a service image
         env:
           TAG: scan
-        run: docker buildx bake --load auth-services
+        run: docker buildx bake -f docker-bake.hcl --load auth-services
 
       - name: Trivy (OS packages and bundled libraries)
         run: >
