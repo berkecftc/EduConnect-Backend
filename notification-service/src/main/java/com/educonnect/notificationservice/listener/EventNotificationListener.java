@@ -1,5 +1,6 @@
 package com.educonnect.notificationservice.listener;
 
+import com.educonnect.common.web.LogValues;
 import com.educonnect.notificationservice.config.NotificationRabbitMQConfig;
 import com.educonnect.notificationservice.dto.message.EventCreatedMessage; // YENİ DTO
 import com.educonnect.notificationservice.service.EmailService;
@@ -53,7 +54,7 @@ public class EventNotificationListener {
         );
         List<UUID> memberIds = memberIdsResponse.getBody();
 
-        log.info("Member IDs received: {}", memberIds);
+        log.info("Member IDs received: {}", LogValues.safe(memberIds));
 
         if (memberIds == null || memberIds.isEmpty()) {
             log.warn("No members found for club '{}' (ID: {}). Skipping emails.", clubName, clubId);

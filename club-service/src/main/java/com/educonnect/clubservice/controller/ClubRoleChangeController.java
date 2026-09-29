@@ -1,5 +1,6 @@
 package com.educonnect.clubservice.controller;
 
+import com.educonnect.common.web.LogValues;
 import com.educonnect.clubservice.dto.request.CreateRoleChangeRequestDTO;
 import com.educonnect.clubservice.dto.request.RejectRoleChangeRequestDTO;
 import com.educonnect.clubservice.dto.request.RejectionReasonRequest;
@@ -54,7 +55,7 @@ public class ClubRoleChangeController {
 
         UUID requesterId = UUID.fromString(userIdHeader);
         log.info("Creating role change request: clubId={}, requesterId={}, targetStudentId={}, targetStudentNumber={}, requestedRole={}",
-                clubId, requesterId, request.getStudentId(), request.getStudentNumber(), request.getRequestedRole());
+                clubId, LogValues.safe(requesterId), LogValues.safe(request.getStudentId()), LogValues.safe(request.getStudentNumber()), LogValues.safe(request.getRequestedRole()));
 
         RoleChangeRequestDTO response = roleChangeRequestService.createRoleChangeRequest(clubId, request, requesterId);
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
@@ -134,7 +135,7 @@ public class ClubRoleChangeController {
 
         UUID advisorId = UUID.fromString(userIdHeader);
         log.info("Rejecting role change request: requestId={}, advisorId={}, reason={}",
-                requestId, advisorId, dto != null ? dto.getRejectionReason() : "N/A");
+                requestId, LogValues.safe(advisorId), LogValues.safe(dto != null ? dto.getRejectionReason() : "N/A"));
 
         RoleChangeRequestDTO response = roleChangeRequestService.rejectRoleChangeRequest(requestId, advisorId, dto);
         return ResponseEntity.ok(response);

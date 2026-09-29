@@ -1,5 +1,6 @@
 package com.educonnect.notificationservice.service;
 
+import com.educonnect.common.web.LogValues;
 import com.educonnect.common.security.LogMasking;
 import jakarta.mail.MessagingException;
 import jakarta.mail.internet.MimeMessage;
@@ -36,10 +37,10 @@ public class EmailService {
             message.setText(text);
 
             mailSender.send(message);
-            log.info("Email sent successfully to: {} | Subject: {}", LogMasking.email(to), subject);
+            log.info("Email sent successfully to: {} | Subject: {}", LogValues.safe(LogMasking.email(to)), LogValues.safe(subject));
 
         } catch (Exception e) {
-            log.error("Error sending email to {}: {}", LogMasking.email(to), e.getMessage());
+            log.error("Error sending email to {}: {}", LogValues.safe(LogMasking.email(to)), LogValues.safe(e.getMessage()));
         }
     }
 
@@ -54,10 +55,10 @@ public class EmailService {
             helper.setText(htmlBody, true);
 
             mailSender.send(message);
-            log.info("HTML Email sent successfully to: {} | Subject: {}", LogMasking.email(to), subject);
+            log.info("HTML Email sent successfully to: {} | Subject: {}", LogValues.safe(LogMasking.email(to)), LogValues.safe(subject));
 
         } catch (MessagingException e) {
-            log.error("Error sending HTML email to {}: {}", LogMasking.email(to), e.getMessage());
+            log.error("Error sending HTML email to {}: {}", LogValues.safe(LogMasking.email(to)), LogValues.safe(e.getMessage()));
         }
     }
 
@@ -74,10 +75,10 @@ public class EmailService {
             helper.addInline(contentId, new ByteArrayResource(image), imageContentType);
 
             mailSender.send(message);
-            log.info("HTML Email sent successfully to: {} | Subject: {}", LogMasking.email(to), subject);
+            log.info("HTML Email sent successfully to: {} | Subject: {}", LogValues.safe(LogMasking.email(to)), LogValues.safe(subject));
 
         } catch (MessagingException e) {
-            log.error("Error sending HTML email to {}: {}", LogMasking.email(to), e.getMessage());
+            log.error("Error sending HTML email to {}: {}", LogValues.safe(LogMasking.email(to)), LogValues.safe(e.getMessage()));
         }
     }
 }

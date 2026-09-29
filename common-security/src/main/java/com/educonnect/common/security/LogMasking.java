@@ -17,4 +17,8 @@ public final class LogMasking {
         String visible = local.length() <= 2 ? local.substring(0, 1) : local.substring(0, 2);
         return visible + "***" + email.substring(at);
     }
+
+    public static String safe(Object value) {
+        return value == null ? null : String.valueOf(value).replaceAll("\\R", "_");
+    }
 }

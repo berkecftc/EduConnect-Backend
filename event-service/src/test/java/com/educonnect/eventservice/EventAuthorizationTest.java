@@ -339,11 +339,29 @@ class EventAuthorizationTest {
 
 	@Test
 	void eventCreationAnswersServiceUnavailableWhenTheClubLookupIsUnreachable() throws Exception {
+		Request request = Request.create(Request.HttpMethod.GET, "http://club-service", Map.of(), null,
+				StandardCharsets.UTF_8, null);
+		willThrow(new FeignException.ServiceUnavailable("club-service down", request, null, null))
+				.given(clubClient).getClubIdByName(any());
+
 		mockMvc.perform(multipart("/api/events/manage").file(eventData()).file(poster()))
 				.andExpect(status().isUnauthorized());
 		mockMvc.perform(as(multipart("/api/events/manage").file(eventData()).file(poster()), TestTokens.student(member)))
 				.andExpect(status().isServiceUnavailable())
 				.andExpect(jsonPath("$.errorCode").value("UPSTREAM_UNAVAILABLE"));
+		assertThat(eventRepository.findByClubId(clubId)).hasSize(2);
+	}
+
+	@Test
+	void eventCreationForAnUnknownClubIsABadRequest() throws Exception {
+		Request request = Request.create(Request.HttpMethod.GET, "http://club-service", Map.of(), null,
+				StandardCharsets.UTF_8, null);
+		willThrow(new FeignException.NotFound("club not found", request, null, null))
+				.given(clubClient).getClubIdByName(any());
+
+		mockMvc.perform(as(multipart("/api/events/manage").file(eventData()).file(poster()), TestTokens.student(member)))
+				.andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.errorCode").value("BAD_REQUEST"));
 		assertThat(eventRepository.findByClubId(clubId)).hasSize(2);
 	}
 

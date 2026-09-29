@@ -1,5 +1,6 @@
 package com.educonnect.assignmentservice.service;
 
+import com.educonnect.common.web.LogValues;
 import com.educonnect.assignmentservice.client.CourseClient;
 import com.educonnect.assignmentservice.client.CourseInternalClient;
 import com.educonnect.assignmentservice.client.InternalUserClient;
@@ -136,7 +137,7 @@ public class AssignmentService {
 
             assignmentProducer.sendAssignmentCreatedNotification(event);
             log.info("Ödev bildirimi gönderildi: {} öğrenciye -> {} ({})",
-                    enrolledStudentIds.size(), assignment.getTitle(), courseTitle);
+                    enrolledStudentIds.size(), LogValues.safe(assignment.getTitle()), LogValues.safe(courseTitle));
         } catch (Exception e) {
             log.error("Ödev bildirimi gönderilemedi: {}", e.getMessage());
         }

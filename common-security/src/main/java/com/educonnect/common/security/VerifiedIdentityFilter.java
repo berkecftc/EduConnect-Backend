@@ -51,7 +51,7 @@ public class VerifiedIdentityFilter extends OncePerRequestFilter {
         try {
             jwt = jwtDecoder.decode(token);
         } catch (JwtException e) {
-            log.debug("Rejected JWT on {} {}: {}", request.getMethod(), request.getRequestURI(), e.getMessage());
+            log.debug("Rejected JWT on {} {}: {}", request.getMethod(), LogMasking.safe(request.getRequestURI()), LogMasking.safe(e.getMessage()));
             filterChain.doFilter(new VerifiedIdentityRequestWrapper(request, Map.of()), response);
             return;
         }
@@ -60,8 +60,8 @@ public class VerifiedIdentityFilter extends OncePerRequestFilter {
             if (ServiceIdentity.INTERNAL_PATH.matcher(request.getRequestURI()).matches()) {
                 authenticateService(jwt);
             } else {
-                log.debug("Ignored service token from '{}' on non-internal path {}", jwt.getSubject(),
-                        request.getRequestURI());
+                log.debug("Ignored service token from '{}' on non-internal path {}", LogMasking.safe(jwt.getSubject()),
+                        LogMasking.safe(request.getRequestURI()));
             }
             filterChain.doFilter(new VerifiedIdentityRequestWrapper(request, Map.of()), response);
             return;

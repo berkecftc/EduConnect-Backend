@@ -1,5 +1,6 @@
 package com.educonnect.courseservice.service;
 
+import com.educonnect.common.web.LogValues;
 import com.educonnect.courseservice.client.UserClient;
 import com.educonnect.courseservice.client.UserLookup;
 import com.educonnect.courseservice.dto.CourseApplicationResponse;
@@ -200,7 +201,7 @@ public class CourseApplicationService {
         courseCaches.evictInstructorCourses(course.getInstructorId());
 
         log.info("Başvuru reddedildi: Öğrenci {} -> Ders {} ({}). Sebep: {}",
-                application.getStudentId(), course.getTitle(), course.getCode(), rejectionReason);
+                application.getStudentId(), LogValues.safe(course.getTitle()), LogValues.safe(course.getCode()), LogValues.safe(rejectionReason));
 
         return mapToResponse(application, course);
     }

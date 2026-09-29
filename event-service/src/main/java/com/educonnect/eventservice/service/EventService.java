@@ -19,6 +19,7 @@ import com.educonnect.eventservice.Repository.EventRepository;
 import com.educonnect.eventservice.model.EventRegistration;
 import com.educonnect.eventservice.Repository.EventRegistrationRepository;
 import com.educonnect.eventservice.security.EventAuthorizationService;
+import feign.FeignException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import com.educonnect.common.messaging.outbox.OutboxPublisher;
@@ -28,12 +29,7 @@ import org.springframework.cache.annotation.Cacheable;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.client.HttpClientErrorException;
-import org.springframework.web.client.RestClientException;
-import org.springframework.web.client.RestTemplate;
 import org.springframework.web.multipart.MultipartFile;
-import org.springframework.web.util.UriComponentsBuilder;
-import java.net.URI;
 import java.time.LocalDateTime;
 import org.springframework.web.server.ResponseStatusException;
 
@@ -53,7 +49,6 @@ public class EventService {
     private final MinioService minioService;
     private final OutboxPublisher outboxPublisher;
     private final EventRegistrationRepository eventRegistrationRepository;
-    private final RestTemplate restTemplate;
     private final UserClient userClient;
     private final ClubClient clubClient;
     private final EventAuthorizationService eventAuthorizationService;
@@ -63,7 +58,6 @@ public class EventService {
                        MinioService minioService,
                        OutboxPublisher outboxPublisher,
                        EventRegistrationRepository eventRegistrationRepository,
-                       RestTemplate restTemplate,
                        UserClient userClient,
                        ClubClient clubClient,
                        EventAuthorizationService eventAuthorizationService,
@@ -72,7 +66,6 @@ public class EventService {
         this.minioService = minioService;
         this.outboxPublisher = outboxPublisher;
         this.eventRegistrationRepository = eventRegistrationRepository;
-        this.restTemplate = restTemplate;
         this.userClient = userClient;
         this.clubClient = clubClient;
         this.eventAuthorizationService = eventAuthorizationService;
@@ -90,30 +83,17 @@ public class EventService {
         }
         minioService.validateImage(posterFile);
 
-        URI clubServiceUrl = UriComponentsBuilder.fromUriString("http://CLUB-SERVICE/api/clubs/search")
-                .queryParam("name", "{name}")
-                .encode()
-                .buildAndExpand(request.getClubName())
-                .toUri();
-
         UUID resolvedClubId;
         try {
-            // Karşı servisten gelen cevabı (DTO'yu) al
-            // ClubSummaryDTO benzeri bir iç sınıf veya Map kullanabiliriz
-            // Pratiklik adına Map kullanıyorum:
-            Map<String, Object> response = restTemplate.getForObject(clubServiceUrl, Map.class);
-
-            // ID'yi çek (String gelir, UUID'ye çevir)
-            String idString = (String) response.get("id");
-            resolvedClubId = UUID.fromString(idString);
-
-        } catch (HttpClientErrorException e) {
+            resolvedClubId = clubClient.getClubIdByName(request.getClubName());
+        } catch (FeignException.FeignClientException e) {
             throw new IllegalArgumentException("Invalid club name: " + request.getClubName() + ". Club not found.");
-        } catch (RestClientException | IllegalStateException e) {
-            log.warn("Club lookup by name failed: {}", e.getClass().getSimpleName());
+        } catch (FeignException e) {
+            log.warn("Club lookup by name failed: status={}", e.status());
             throw new ApiException(HttpStatus.SERVICE_UNAVAILABLE, "UPSTREAM_UNAVAILABLE",
                     "Kulüp bilgisi şu anda alınamıyor. Lütfen daha sonra tekrar deneyin.");
-        } catch (RuntimeException e) {
+        }
+        if (resolvedClubId == null) {
             throw new IllegalArgumentException("Invalid club name: " + request.getClubName() + ". Club not found.");
         }
 

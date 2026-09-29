@@ -12,7 +12,6 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import com.educonnect.common.messaging.outbox.OutboxPublisher;
 import org.springframework.http.HttpStatus;
-import org.springframework.web.client.RestTemplate;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDateTime;
@@ -49,7 +48,7 @@ class EventServiceAuthorizationTest {
         clubClient = mock(ClubClient.class);
         authorizationService = mock(EventAuthorizationService.class);
         service = new EventService(eventRepository, mock(MinioService.class), mock(OutboxPublisher.class),
-                registrationRepository, mock(RestTemplate.class), mock(UserClient.class), clubClient, authorizationService,
+                registrationRepository, mock(UserClient.class), clubClient, authorizationService,
                 mock(EventCaches.class));
 
         event = new Event();

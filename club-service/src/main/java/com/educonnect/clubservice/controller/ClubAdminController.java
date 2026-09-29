@@ -1,5 +1,6 @@
 package com.educonnect.clubservice.controller;
 
+import com.educonnect.common.web.LogValues;
 import com.educonnect.clubservice.dto.request.CreateClubRequest;
 import com.educonnect.clubservice.dto.request.UpdateClubRequest;
 import com.educonnect.clubservice.dto.response.ArchivedClubDTO;
@@ -18,6 +19,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
@@ -48,7 +50,7 @@ public class ClubAdminController {
             @RequestHeader(value = "X-Authenticated-User-Id", required = false) String userId,
             @RequestHeader(value = "X-Authenticated-User-Email", required = false) String userEmail) {
 
-        log.info("Creating club: {}, requested by userId: {}", request.getName(), userId);
+        log.info("Creating club: {}, requested by userId: {}", LogValues.safe(request.getName()), LogValues.safe(userId));
 
         Club createdClub = clubService.createClub(request);
         AuditLog.record("CREATE_CLUB", "CLUB", createdClub.getId());
@@ -149,7 +151,7 @@ public class ClubAdminController {
     }
 
     // MinIO Logo Yükleme Endpointi
-    @PostMapping(value = "/{clubId}/logo", consumes = "multipart/form-data")
+    @PostMapping(value = "/{clubId}/logo", consumes = "multipart/form-data", produces = MediaType.TEXT_PLAIN_VALUE)
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<String> updateClubLogo(
             @PathVariable UUID clubId,

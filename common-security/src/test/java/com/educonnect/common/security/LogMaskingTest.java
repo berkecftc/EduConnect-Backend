@@ -13,4 +13,10 @@ class LogMaskingTest {
         assertThat(LogMasking.email("gecersiz")).isEqualTo("***");
         assertThat(LogMasking.email(null)).isEqualTo("-");
     }
+
+    @Test
+    void safe_shouldReplaceLineBreaks() {
+        assertThat(LogMasking.safe("/api/x\r\nFORGED")).isEqualTo("/api/x_FORGED");
+        assertThat(LogMasking.safe(null)).isNull();
+    }
 }

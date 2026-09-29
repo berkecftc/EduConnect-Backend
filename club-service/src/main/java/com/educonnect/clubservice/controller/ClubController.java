@@ -15,6 +15,7 @@ import com.educonnect.common.web.BadRequestException;
 import com.educonnect.common.web.NotFoundException;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
@@ -118,7 +119,7 @@ public class ClubController {
      * @param userIdHeader API Gateway tarafından JWT token'dan eklenen kullanıcı ID'si
      * @return Yüklenen dosyanın adı (objectName)
      */
-    @PostMapping(value = "/{clubId}/logo", consumes = "multipart/form-data")
+    @PostMapping(value = "/{clubId}/logo", consumes = "multipart/form-data", produces = MediaType.TEXT_PLAIN_VALUE)
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<String> uploadClubLogo(
             @PathVariable UUID clubId,

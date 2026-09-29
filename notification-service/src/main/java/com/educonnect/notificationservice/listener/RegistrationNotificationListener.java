@@ -1,5 +1,6 @@
 package com.educonnect.notificationservice.listener;
 
+import com.educonnect.common.web.LogValues;
 import com.educonnect.common.security.LogMasking;
 import com.educonnect.notificationservice.config.NotificationRabbitMQConfig;
 import com.educonnect.notificationservice.dto.message.EventRegistrationMessage;
@@ -102,7 +103,7 @@ public class RegistrationNotificationListener {
             emailService.sendHtmlEmailWithInlineImage(studentEmail, "Biletiniz: " + eventTitle, htmlBody,
                     QR_CONTENT_ID, qrCodeRenderer.renderPng(qrCode), "image/png");
 
-            log.info("Registration email sent to: {}", LogMasking.email(studentEmail));
+            log.info("Registration email sent to: {}", LogValues.safe(LogMasking.email(studentEmail)));
         } else {
             log.warn("No email found for student ID: {}", studentId);
         }

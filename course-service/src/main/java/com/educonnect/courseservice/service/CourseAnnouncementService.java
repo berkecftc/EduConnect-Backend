@@ -1,5 +1,6 @@
 package com.educonnect.courseservice.service;
 
+import com.educonnect.common.web.LogValues;
 import com.educonnect.courseservice.client.UserClient;
 import com.educonnect.courseservice.client.UserLookup;
 import com.educonnect.courseservice.dto.AnnouncementRequest;
@@ -71,7 +72,7 @@ public class CourseAnnouncementService {
 
         CourseAnnouncement saved = announcementRepository.save(announcement);
 
-        log.info("Duyuru oluşturuldu: {} -> Ders: {} ({})", request.getTitle(), course.getTitle(), course.getCode());
+        log.info("Duyuru oluşturuldu: {} -> Ders: {} ({})", LogValues.safe(request.getTitle()), LogValues.safe(course.getTitle()), LogValues.safe(course.getCode()));
 
         // Kayıtlı öğrenci ID'lerini çek ve RabbitMQ ile bildirim gönder
         sendNotificationToEnrolledStudents(course, "ANNOUNCEMENT", request.getTitle(), request.getContent());

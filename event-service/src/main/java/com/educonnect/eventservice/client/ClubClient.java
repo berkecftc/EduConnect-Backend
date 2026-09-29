@@ -5,6 +5,7 @@ import com.educonnect.eventservice.dto.response.ClubAccess;
 import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestParam;
 
 import java.util.List;
 import java.util.UUID;
@@ -41,4 +42,7 @@ public interface ClubClient {
 
     @GetMapping("/users/{userId}/access")
     List<ClubAccess> getUserAccess(@PathVariable("userId") UUID userId);
+
+    @GetMapping("/by-name")
+    UUID getClubIdByName(@RequestParam("name") String name);
 }

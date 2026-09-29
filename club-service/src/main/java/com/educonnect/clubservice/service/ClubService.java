@@ -1,5 +1,6 @@
 package com.educonnect.clubservice.service;
 
+import com.educonnect.common.web.LogValues;
 import com.educonnect.clubservice.Repository.ClubCreationRequestRepository;
 import com.educonnect.clubservice.client.UserClient;
 import com.educonnect.clubservice.client.UserLookup;
@@ -364,7 +365,7 @@ public class ClubService {
             String routingKey = "club.updated"; // YENİ ROUTING KEY
             outboxPublisher.publish(ClubRabbitMQConfig.CLUB_EXCHANGE_NAME, routingKey, message);
 
-            log.info("Club updated message sent: {}", updatedClub.getName());
+            log.info("Club updated message sent: {}", LogValues.safe(updatedClub.getName()));
         }
 
         return updatedClub;
@@ -833,6 +834,13 @@ public class ClubService {
      * @param advisorId Danışman akademisyen ID'si
      * @return Kulüp ID listesi
      */
+    @Transactional(readOnly = true)
+    public UUID getClubIdByName(String name) {
+        return clubRepository.findByName(name)
+                .map(Club::getId)
+                .orElseThrow(() -> new NotFoundException("CLUB_NOT_FOUND", "Club not found"));
+    }
+
     @Transactional(readOnly = true)
     public List<UUID> getClubIdsByAdvisorId(UUID advisorId) {
         List<Club> clubs = clubRepository.findByAcademicAdvisorId(advisorId);

@@ -1,5 +1,6 @@
 package com.educonnect.authservices.controller;
 
+import com.educonnect.common.web.LogValues;
 import com.educonnect.authservices.service.AuthServiceImpl;
 import com.educonnect.authservices.service.JWTService;
 import com.educonnect.authservices.service.ServiceClientAuthenticator;
@@ -52,7 +53,7 @@ public class InternalAuthController {
 
         String[] credentials = decodeBasicCredentials(authorization);
         if (credentials == null || !serviceClientAuthenticator.authenticate(credentials[0], credentials[1])) {
-            log.warn("Rejected service token request for client '{}'", credentials == null ? null : credentials[0]);
+            log.warn("Rejected service token request for client '{}'", credentials == null ? null : LogValues.safe(credentials[0]));
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                     .header(HttpHeaders.WWW_AUTHENTICATE, "Basic realm=\"educonnect-internal\"")
                     .body(Map.of("error", "invalid_client"));

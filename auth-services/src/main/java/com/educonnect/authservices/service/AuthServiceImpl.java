@@ -114,10 +114,6 @@ public class AuthServiceImpl {
 
     @Transactional
     public AuthResponse register(RegisterRequest request) {
-        if (request.getEmail() == null || request.getPassword() == null
-                || request.getFirstName() == null || request.getLastName() == null) {
-            throw new IllegalArgumentException("Missing required fields for registration");
-        }
         passwordPolicy.validateNewPassword(request.getPassword(), request.getEmail());
 
         Set<Role> roles = Stream.of(Role.ROLE_STUDENT).collect(Collectors.toSet());

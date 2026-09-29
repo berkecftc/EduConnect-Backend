@@ -55,7 +55,7 @@ public class ProblemExceptionHandler extends ResponseEntityExceptionHandler {
 
     @ExceptionHandler(IllegalArgumentException.class)
     public ResponseEntity<ProblemDetail> handleIllegalArgument(IllegalArgumentException ex, HttpServletRequest request) {
-        log.debug("Bad request on {}: {}", request.getRequestURI(), ex.getMessage());
+        log.debug("Bad request on {}: {}", LogValues.safe(request.getRequestURI()), LogValues.safe(ex.getMessage()));
         return Problems.response(Problems.create(HttpStatus.BAD_REQUEST, "BAD_REQUEST", ex.getMessage(),
                 request.getRequestURI()));
     }
@@ -79,7 +79,7 @@ public class ProblemExceptionHandler extends ResponseEntityExceptionHandler {
 
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ProblemDetail> handleUnexpected(Exception ex, HttpServletRequest request) {
-        log.error("Unexpected error on {} {}", request.getMethod(), request.getRequestURI(), ex);
+        log.error("Unexpected error on {} {}", request.getMethod(), LogValues.safe(request.getRequestURI()), ex);
         return Problems.response(Problems.create(HttpStatus.INTERNAL_SERVER_ERROR, "INTERNAL_ERROR", null,
                 request.getRequestURI()));
     }
@@ -148,7 +148,7 @@ public class ProblemExceptionHandler extends ResponseEntityExceptionHandler {
             problem.setDetail(frameworkDetail(ex, statusCode));
         }
         if (statusCode.is5xxServerError()) {
-            log.warn("Request failed with {} on {}: {}", statusCode.value(), path(request), ex.getMessage());
+            log.warn("Request failed with {} on {}: {}", statusCode.value(), LogValues.safe(path(request)), LogValues.safe(ex.getMessage()));
         }
         Problems.enrich(problem, null, path(request));
         return super.handleExceptionInternal(ex, problem, headers, statusCode, request);

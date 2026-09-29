@@ -156,7 +156,7 @@ public class ProfileController {
 
     // --- YENİ ENDPOINT: Profil Resmi Yükleme ---
     // Bu endpoint, giriş yapmış kullanıcının KENDİ resmini yüklemesi içindir.
-    @PostMapping(value = "/me/profile-picture", consumes = "multipart/form-data")
+    @PostMapping(value = "/me/profile-picture", consumes = "multipart/form-data", produces = MediaType.TEXT_PLAIN_VALUE)
     public ResponseEntity<String> uploadMyProfilePicture(
             @RequestParam("file") MultipartFile file,
             // API Gateway'den (AuthenticationFilter) gelen kullanıcı ID'si

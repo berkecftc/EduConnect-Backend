@@ -21,7 +21,7 @@ public class DataAccessProblemHandler {
     @ExceptionHandler(OptimisticLockingFailureException.class)
     public ResponseEntity<ProblemDetail> handleConcurrentUpdate(OptimisticLockingFailureException ex,
                                                                 HttpServletRequest request) {
-        log.warn("Concurrent update conflict on {}: {}", request.getRequestURI(), ex.getMessage());
+        log.warn("Concurrent update conflict on {}: {}", LogValues.safe(request.getRequestURI()), LogValues.safe(ex.getMessage()));
         return Problems.response(Problems.create(HttpStatus.CONFLICT, "CONCURRENT_UPDATE",
                 "Kayıt başka bir işlem tarafından değiştirildi. Sayfayı yenileyip tekrar deneyin.",
                 request.getRequestURI()));
@@ -30,8 +30,8 @@ public class DataAccessProblemHandler {
     @ExceptionHandler(DataIntegrityViolationException.class)
     public ResponseEntity<ProblemDetail> handleDataIntegrity(DataIntegrityViolationException ex,
                                                              HttpServletRequest request) {
-        log.warn("Data integrity violation on {}: {}", request.getRequestURI(),
-                ex.getMostSpecificCause().getMessage());
+        log.warn("Data integrity violation on {}: {}", LogValues.safe(request.getRequestURI()),
+                LogValues.safe(ex.getMostSpecificCause().getMessage()));
         return Problems.response(Problems.create(HttpStatus.CONFLICT, "DATA_CONFLICT",
                 "Bu işlem mevcut bir kayıtla çakışıyor. Sayfayı yenileyip tekrar deneyin.",
                 request.getRequestURI()));

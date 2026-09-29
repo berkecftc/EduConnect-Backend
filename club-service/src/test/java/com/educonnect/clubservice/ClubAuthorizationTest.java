@@ -457,6 +457,21 @@ class ClubAuthorizationTest {
     }
 
     @Test
+    void clubLookupByNameIsInternalOnly() throws Exception {
+        String name = clubRepository.findById(clubId).orElseThrow().getName();
+        mockMvc.perform(get("/api/clubs/internal/by-name").param("name", name))
+                .andExpect(status().isUnauthorized());
+        mockMvc.perform(as(get("/api/clubs/internal/by-name").param("name", name), TestTokens.student(president)))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(as(get("/api/clubs/internal/by-name").param("name", name), TestTokens.service("event-service")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$").value(clubId.toString()));
+        mockMvc.perform(as(get("/api/clubs/internal/by-name").param("name", "Olmayan Kulüp & Topluluk"),
+                        TestTokens.service("event-service")))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
     void internalAccessEndpointAcceptsOnlyServiceTokens() throws Exception {
         String path = "/api/clubs/internal/{clubId}/access/{userId}";
         mockMvc.perform(get(path, clubId, president))

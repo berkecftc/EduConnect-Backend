@@ -35,7 +35,7 @@ public class LoginAttemptService {
     }
 
     public void ensureNotLocked(String email) {
-        if (!settings.enabled() || email == null) {
+        if (!settings.enabled()) {
             return;
         }
         if (userRepository.isLoginLocked(email, clock.instant())) {
@@ -47,7 +47,7 @@ public class LoginAttemptService {
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void recordFailure(String email) {
-        if (!settings.enabled() || email == null) {
+        if (!settings.enabled()) {
             return;
         }
         if (userRepository.incrementFailedLoginAttempts(email) == 0) {
