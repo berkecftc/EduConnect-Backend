@@ -43,7 +43,7 @@ public class OutboxMetrics implements MeterBinder {
     double pending() {
         try {
             Long count = jdbcTemplate.queryForObject(PENDING_SQL, Long.class);
-            return count != null ? count : 0;
+            return count != null ? count.doubleValue() : 0.0;
         } catch (DataAccessException e) {
             return Double.NaN;
         }

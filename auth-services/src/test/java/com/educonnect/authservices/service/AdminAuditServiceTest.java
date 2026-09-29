@@ -1,6 +1,6 @@
 package com.educonnect.authservices.service;
 
-import com.educonnect.authservices.Repository.AdminAuditRepository;
+import com.educonnect.authservices.repository.AdminAuditRepository;
 import com.educonnect.authservices.models.AdminAuditEntry;
 import com.educonnect.authservices.models.Role;
 import com.educonnect.authservices.models.User;

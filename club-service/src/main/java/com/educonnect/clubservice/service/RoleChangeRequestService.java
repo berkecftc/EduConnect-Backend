@@ -1,78 +1,62 @@
 package com.educonnect.clubservice.service;
 
-import com.educonnect.clubservice.Repository.ClubMembershipRepository;
-import com.educonnect.clubservice.Repository.ClubRepository;
-import com.educonnect.clubservice.Repository.RoleChangeRequestRepository;
 import com.educonnect.clubservice.client.UserClient;
-import com.educonnect.clubservice.config.ClubRabbitMQConfig;
-import com.educonnect.clubservice.dto.message.RoleChangeNotificationMessage;
 import com.educonnect.clubservice.dto.request.CreateRoleChangeRequestDTO;
-import com.educonnect.clubservice.dto.request.RejectRoleChangeRequestDTO;
 import com.educonnect.clubservice.dto.response.RoleChangeRequestDTO;
 import com.educonnect.clubservice.dto.response.UserSummary;
-import com.educonnect.clubservice.model.*;
+import com.educonnect.clubservice.model.Club;
+import com.educonnect.clubservice.model.ClubMembership;
+import com.educonnect.clubservice.model.ClubPosition;
+import com.educonnect.clubservice.model.RoleChangeRequest;
+import com.educonnect.clubservice.model.RoleChangeRequestStatus;
+import com.educonnect.clubservice.repository.ClubMembershipRepository;
+import com.educonnect.clubservice.repository.ClubRepository;
+import com.educonnect.clubservice.repository.RoleChangeRequestRepository;
 import com.educonnect.clubservice.security.ClubAuthorizationService;
 import com.educonnect.clubservice.security.ClubPermission;
 import feign.FeignException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import com.educonnect.common.messaging.outbox.OutboxPublisher;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
-import java.time.LocalDateTime;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
-import java.util.Objects;
 import java.util.UUID;
-import java.util.function.Function;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
-/**
- * Kulüp görev değişikliği taleplerini yöneten servis.
- * Tüm görev değişiklikleri akademisyen danışman onayına tabidir.
- */
 @Service
 @Transactional
 public class RoleChangeRequestService {
 
     private static final Logger log = LoggerFactory.getLogger(RoleChangeRequestService.class);
 
-    private static final String ROUTING_KEY_ROLE_CHANGE_NOTIFICATION = "club.role.change.notification";
-    private static final String UNKNOWN_USER_NAME = "Bilinmeyen Kullanıcı";
-
     private final RoleChangeRequestRepository roleChangeRequestRepository;
     private final ClubMembershipRepository membershipRepository;
     private final ClubRepository clubRepository;
     private final UserClient userClient;
-    private final OutboxPublisher outboxPublisher;
     private final ClubAuthorizationService clubAuthorizationService;
-    private final ClubCacheEvictor cacheEvictor;
-    private final ClubManagementStatusPublisher managementStatusPublisher;
+    private final ClubPositionRules positionRules;
+    private final RoleChangeNotifier notifier;
+    private final RoleChangeRequestMapper mapper;
 
     public RoleChangeRequestService(RoleChangeRequestRepository roleChangeRequestRepository,
-                                     ClubMembershipRepository membershipRepository,
-                                     ClubRepository clubRepository,
-                                     UserClient userClient,
-                                     OutboxPublisher outboxPublisher,
-                                     ClubAuthorizationService clubAuthorizationService,
-                                     ClubCacheEvictor cacheEvictor,
-                                     ClubManagementStatusPublisher managementStatusPublisher) {
+                                    ClubMembershipRepository membershipRepository,
+                                    ClubRepository clubRepository,
+                                    UserClient userClient,
+                                    ClubAuthorizationService clubAuthorizationService,
+                                    ClubPositionRules positionRules,
+                                    RoleChangeNotifier notifier,
+                                    RoleChangeRequestMapper mapper) {
         this.roleChangeRequestRepository = roleChangeRequestRepository;
         this.membershipRepository = membershipRepository;
         this.clubRepository = clubRepository;
         this.userClient = userClient;
-        this.outboxPublisher = outboxPublisher;
         this.clubAuthorizationService = clubAuthorizationService;
-        this.cacheEvictor = cacheEvictor;
-        this.managementStatusPublisher = managementStatusPublisher;
+        this.positionRules = positionRules;
+        this.notifier = notifier;
+        this.mapper = mapper;
     }
-
-    // ==================== KULÜP BAŞKANI İŞLEMLERİ ====================
 
     public RoleChangeRequestDTO createRoleChangeRequest(UUID clubId, CreateRoleChangeRequestDTO dto, UUID requesterId) {
         Club club = clubRepository.findById(clubId)
@@ -98,6 +82,15 @@ public class RoleChangeRequestService {
         return submitRequest(club, studentId, ClubPosition.MEMBER, requesterId);
     }
 
+    @Transactional(readOnly = true)
+    public List<RoleChangeRequestDTO> getClubRoleChangeRequests(UUID clubId, UUID requesterId) {
+        clubAuthorizationService.require(clubId, requesterId, ClubPermission.VIEW_MANAGEMENT_DATA);
+
+        Club club = clubRepository.findById(clubId).orElse(null);
+        List<RoleChangeRequest> requests = roleChangeRequestRepository.findByClubId(clubId);
+        return mapper.toDtos(requests, request -> club);
+    }
+
     private RoleChangeRequestDTO submitRequest(Club club, UUID studentId, ClubPosition requestedRole, UUID requesterId) {
         UUID clubId = club.getId();
         ClubMembership studentMembership = membershipRepository.findByClubIdAndStudentId(clubId, studentId)
@@ -121,8 +114,8 @@ public class RoleChangeRequestService {
         }
 
         if (requestedRole.isManagement()) {
-            ensureCapacity(clubId, requestedRole, true);
-            ensureNoManagementPositionElsewhere(studentId, clubId);
+            positionRules.ensureCapacity(clubId, requestedRole, true);
+            positionRules.ensureNoManagementPositionElsewhere(studentId, clubId);
         }
 
         RoleChangeRequest request = new RoleChangeRequest(clubId, studentId, currentRole, requestedRole, requesterId);
@@ -131,342 +124,14 @@ public class RoleChangeRequestService {
         log.info("Role change request created: clubId={}, studentId={}, from={}, to={}, requesterId={}",
                 clubId, studentId, currentRole, requestedRole, requesterId);
 
-        sendNotificationToAdvisor(club, savedRequest,
+        notifier.notifyAdvisor(club, savedRequest,
                 requestedRole == ClubPosition.MEMBER
                         ? "Yeni bir görevden alma talebi onayınızı bekliyor."
                         : "Yeni görev değişikliği talebi onayınızı bekliyor.");
 
-        return mapToDTO(savedRequest, club);
+        return mapper.toDto(savedRequest, club);
     }
 
-    /**
-     * Kulüp yetkilisinin oluşturduğu talepleri görüntüler.
-     */
-    @Transactional(readOnly = true)
-    public List<RoleChangeRequestDTO> getClubRoleChangeRequests(UUID clubId, UUID requesterId) {
-        clubAuthorizationService.require(clubId, requesterId, ClubPermission.VIEW_MANAGEMENT_DATA);
-
-        Club club = clubRepository.findById(clubId).orElse(null);
-        List<RoleChangeRequest> requests = roleChangeRequestRepository.findByClubId(clubId);
-        Map<UUID, String> names = fetchUserNames(requests);
-
-        return requests.stream()
-                .map(req -> mapToDTO(req, club, names))
-                .collect(Collectors.toList());
-    }
-
-    // ==================== AKADEMİSYEN (DANIŞMAN) İŞLEMLERİ ====================
-
-    /**
-     * Danışmanın sorumlu olduğu kulüplerin bekleyen taleplerini getirir.
-     */
-    @Transactional(readOnly = true)
-    public List<RoleChangeRequestDTO> getPendingRequestsForAdvisor(UUID advisorId) {
-        List<Club> advisorClubs = clubRepository.findByAcademicAdvisorId(advisorId);
-
-        if (advisorClubs.isEmpty()) {
-            return List.of();
-        }
-
-        List<UUID> clubIds = advisorClubs.stream().map(Club::getId).collect(Collectors.toList());
-
-        List<RoleChangeRequest> pendingRequests = roleChangeRequestRepository
-                .findByClubIdInAndStatus(clubIds, RoleChangeRequestStatus.PENDING);
-        Map<UUID, Club> clubsById = advisorClubs.stream().collect(Collectors.toMap(Club::getId, Function.identity()));
-        Map<UUID, String> names = fetchUserNames(pendingRequests);
-
-        return pendingRequests.stream()
-                .map(req -> mapToDTO(req, clubsById.get(req.getClubId()), names))
-                .collect(Collectors.toList());
-    }
-
-    /**
-     * Danışman görev değişikliği talebini onaylar.
-     */
-    public RoleChangeRequestDTO approveRoleChangeRequest(UUID requestId, UUID advisorId) {
-        RoleChangeRequest request = roleChangeRequestRepository.findById(requestId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Talep bulunamadı"));
-
-        Club club = clubRepository.findById(request.getClubId())
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Kulüp bulunamadı"));
-        clubAuthorizationService.require(club.getId(), advisorId, ClubPermission.ADVISE);
-
-        if (request.getStatus() != RoleChangeRequestStatus.PENDING) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Bu talep zaten işlenmiş.");
-        }
-
-        ClubMembership membership = validateRoleChangeStillValid(request);
-
-        ClubPosition previousRole = membership.getClubRole();
-        ClubPosition newRole = request.getRequestedRole();
-        membership.setClubRole(newRole);
-        membership.setActive(true);
-        if (newRole == ClubPosition.MEMBER) {
-            membership.setTermEndDate(LocalDateTime.now());
-        } else {
-            membership.setTermStartDate(LocalDateTime.now());
-            membership.setTermEndDate(null);
-        }
-        membershipRepository.save(membership);
-        cacheEvictor.evictUser(request.getStudentId());
-
-        managementStatusPublisher.publishCurrentStatus(request.getStudentId());
-
-        request.setStatus(RoleChangeRequestStatus.APPROVED);
-        request.setProcessedAt(LocalDateTime.now());
-        request.setProcessedBy(advisorId);
-        roleChangeRequestRepository.save(request);
-
-        log.info("Role change request approved: requestId={}, studentId={}, from={}, to={}",
-                requestId, request.getStudentId(), previousRole, newRole);
-
-        String studentName = fetchUserName(request.getStudentId());
-        String studentMessage = newRole == ClubPosition.MEMBER
-                ? "Kulüpteki göreviniz sonlandırıldı."
-                : "Görev değişikliği talebiniz onaylandı! Yeni göreviniz: " + newRole.displayName();
-        sendRoleChangeNotification(request.getStudentId(), club, request.getStudentId(), studentName,
-                previousRole.name(), newRole.name(), "APPROVED", studentMessage, "ROLE_CHANGE_APPROVED");
-
-        UUID presidentId = getClubPresidentId(request.getClubId());
-        if (presidentId != null && !presidentId.equals(request.getStudentId())) {
-            sendRoleChangeNotification(presidentId, club, request.getStudentId(), studentName,
-                    previousRole.name(), newRole.name(),
-                    "APPROVED", studentName + " için görev değişikliği onaylandı.", "ROLE_CHANGE_APPROVED");
-        }
-
-        return mapToDTO(request, club);
-    }
-
-    /**
-     * Danışman görev değişikliği talebini reddeder.
-     */
-    public RoleChangeRequestDTO rejectRoleChangeRequest(UUID requestId, UUID advisorId,
-                                                         RejectRoleChangeRequestDTO dto) {
-        RoleChangeRequest request = roleChangeRequestRepository.findById(requestId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Talep bulunamadı"));
-
-        Club club = clubRepository.findById(request.getClubId())
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Kulüp bulunamadı"));
-        clubAuthorizationService.require(club.getId(), advisorId, ClubPermission.ADVISE);
-
-        if (request.getStatus() != RoleChangeRequestStatus.PENDING) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Bu talep zaten işlenmiş.");
-        }
-
-        request.setStatus(RoleChangeRequestStatus.REJECTED);
-        request.setProcessedAt(LocalDateTime.now());
-        request.setProcessedBy(advisorId);
-        if (dto != null && dto.getRejectionReason() != null) {
-            request.setRejectionReason(dto.getRejectionReason());
-        }
-        roleChangeRequestRepository.save(request);
-
-        log.info("Role change request rejected: requestId={}, studentId={}", requestId, request.getStudentId());
-
-        String studentName = fetchUserName(request.getStudentId());
-        String rejectionMessage = "Görev değişikliği talebiniz reddedildi.";
-        if (dto != null && dto.getRejectionReason() != null) {
-            rejectionMessage += " Neden: " + dto.getRejectionReason();
-        }
-        String previousRoleName = request.getCurrentRole() != null
-                ? request.getCurrentRole().name() : ClubPosition.MEMBER.name();
-
-        sendRoleChangeNotification(request.getStudentId(), club, request.getStudentId(), studentName,
-                previousRoleName, request.getRequestedRole().name(),
-                "REJECTED", rejectionMessage, "ROLE_CHANGE_REJECTED");
-
-        UUID presidentId = getClubPresidentId(request.getClubId());
-        if (presidentId != null) {
-            sendRoleChangeNotification(presidentId, club, request.getStudentId(), studentName,
-                    previousRoleName, request.getRequestedRole().name(),
-                    "REJECTED", studentName + " için görev değişikliği talebi reddedildi.", "ROLE_CHANGE_REJECTED");
-        }
-
-        return mapToDTO(request, club);
-    }
-
-    public void removePresidentByAdvisor(UUID clubId, UUID advisorId, String reason) {
-        Club club = clubRepository.findById(clubId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Kulüp bulunamadı"));
-        clubAuthorizationService.require(clubId, advisorId, ClubPermission.ADVISE);
-
-        ClubMembership president = membershipRepository
-                .findByClubIdAndClubRoleAndIsActive(clubId, ClubPosition.PRESIDENT, true).stream()
-                .findFirst()
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Kulübün aktif başkanı yok."));
-
-        president.setClubRole(ClubPosition.MEMBER);
-        president.setTermEndDate(LocalDateTime.now());
-        membershipRepository.save(president);
-        cacheEvictor.evictUser(president.getStudentId());
-        managementStatusPublisher.publishCurrentStatus(president.getStudentId());
-
-        log.info("President removed by advisor: clubId={}, studentId={}, advisorId={}",
-                clubId, president.getStudentId(), advisorId);
-
-        String studentName = fetchUserName(president.getStudentId());
-        String message = "Kulüp başkanlığı göreviniz danışman kararıyla sonlandırıldı.";
-        if (reason != null && !reason.isBlank()) {
-            message += " Neden: " + reason;
-        }
-        sendRoleChangeNotification(president.getStudentId(), club, president.getStudentId(), studentName,
-                ClubPosition.PRESIDENT.name(), ClubPosition.MEMBER.name(), "APPROVED", message, "ROLE_REVOKED");
-    }
-
-    /**
-     * Belirli bir kulübün bekleyen talep sayısını döndürür (danışman için).
-     */
-    @Transactional(readOnly = true)
-    public long getPendingRequestCountForClub(UUID clubId, UUID advisorId) {
-        clubAuthorizationService.require(clubId, advisorId, ClubPermission.ADVISE);
-        return roleChangeRequestRepository.countByClubIdAndStatus(clubId, RoleChangeRequestStatus.PENDING);
-    }
-
-    // ==================== YARDIMCI METOTLAR ====================
-
-    private void ensureCapacity(UUID clubId, ClubPosition position, boolean includePending) {
-        long holders = membershipRepository.findByClubIdAndClubRoleAndIsActive(clubId, position, true).size();
-        long pending = includePending
-                ? roleChangeRequestRepository.countByClubIdAndRequestedRoleAndStatus(
-                        clubId, position, RoleChangeRequestStatus.PENDING)
-                : 0;
-        if (holders + pending >= position.maxActiveHolders()) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, position.maxActiveHolders() == 1
-                    ? "Bu görev dolu veya bu görev için bekleyen bir talep var."
-                    : "Bu görev için en fazla " + position.maxActiveHolders() + " kişi olabilir.");
-        }
-    }
-
-    private void ensureNoManagementPositionElsewhere(UUID studentId, UUID clubId) {
-        clubAuthorizationService.activeManagementPositionOf(studentId)
-                .filter(membership -> !membership.getClubId().equals(clubId))
-                .ifPresent(membership -> {
-                    throw new ResponseStatusException(HttpStatus.CONFLICT,
-                            "Bu öğrencinin başka bir kulüpte yönetim görevi var. "
-                                    + "Bir öğrenci yalnızca bir kulüpte yönetim görevi alabilir.");
-                });
-    }
-
-    /**
-     * Onay anında görev değişikliğinin hâlâ geçerli olup olmadığını kontrol eder.
-     */
-    private ClubMembership validateRoleChangeStillValid(RoleChangeRequest request) {
-        ClubMembership membership = membershipRepository
-                .findByClubIdAndStudentId(request.getClubId(), request.getStudentId())
-                .filter(ClubMembership::isActive)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.CONFLICT,
-                        "Öğrenci artık kulüp üyesi değil. Talep geçersiz."));
-
-        if (request.getCurrentRole() != null && membership.getClubRole() != request.getCurrentRole()) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT,
-                    "Öğrencinin görevi talep oluşturulduktan sonra değişmiş. Talep geçersiz.");
-        }
-
-        ClubPosition requestedRole = request.getRequestedRole();
-        if (requestedRole.isManagement()) {
-            ensureCapacity(request.getClubId(), requestedRole, false);
-            ensureNoManagementPositionElsewhere(request.getStudentId(), request.getClubId());
-        }
-        return membership;
-    }
-
-    private UUID getClubPresidentId(UUID clubId) {
-        List<ClubMembership> presidents = membershipRepository
-                .findByClubIdAndClubRoleAndIsActive(clubId, ClubPosition.PRESIDENT, true);
-
-        if (!presidents.isEmpty()) {
-            return presidents.get(0).getStudentId();
-        }
-        return null;
-    }
-
-    private String fetchUserName(UUID userId) {
-        if (userId == null) {
-            return UNKNOWN_USER_NAME;
-        }
-        try {
-            UserSummary user = userClient.getUserById(userId);
-            if (user != null) {
-                return user.getFirstName() + " " + user.getLastName();
-            }
-        } catch (Exception e) {
-            log.warn("Failed to fetch user name for userId={}: {}", userId, e.getMessage());
-        }
-        return UNKNOWN_USER_NAME;
-    }
-
-    private Map<UUID, String> fetchUserNames(List<RoleChangeRequest> requests) {
-        List<UUID> userIds = requests.stream()
-                .flatMap(request -> Stream.of(request.getStudentId(), request.getRequesterId()))
-                .filter(Objects::nonNull)
-                .distinct()
-                .toList();
-        if (userIds.isEmpty()) {
-            return Map.of();
-        }
-        try {
-            return userClient.getUsersByIds(userIds).stream()
-                    .filter(user -> user != null && user.getId() != null)
-                    .collect(Collectors.toMap(UserSummary::getId,
-                            user -> user.getFirstName() + " " + user.getLastName(),
-                            (first, second) -> first));
-        } catch (Exception e) {
-            log.warn("Failed to fetch {} user names: {}", userIds.size(), e.getMessage());
-            return Map.of();
-        }
-    }
-
-    private void sendNotificationToAdvisor(Club club, RoleChangeRequest request, String message) {
-        String studentName = fetchUserName(request.getStudentId());
-
-        sendRoleChangeNotification(
-                club.getAcademicAdvisorId(),
-                club,
-                request.getStudentId(),
-                studentName,
-                request.getCurrentRole() != null ? request.getCurrentRole().name() : ClubPosition.MEMBER.name(),
-                request.getRequestedRole().name(),
-                "PENDING",
-                message,
-                "ROLE_CHANGE_REQUEST"
-        );
-    }
-
-    private void sendRoleChangeNotification(UUID targetUserId, Club club, UUID affectedStudentId,
-                                             String affectedStudentName, String previousRole,
-                                             String newRole, String status, String message,
-                                             String notificationType) {
-        if (targetUserId == null) {
-            return;
-        }
-        try {
-            RoleChangeNotificationMessage notificationMessage = new RoleChangeNotificationMessage(
-                    targetUserId,
-                    club.getId(),
-                    club.getName(),
-                    affectedStudentId,
-                    affectedStudentName,
-                    previousRole,
-                    newRole,
-                    status,
-                    message,
-                    notificationType
-            );
-
-            outboxPublisher.publish(
-                    ClubRabbitMQConfig.CLUB_EXCHANGE_NAME,
-                    ROUTING_KEY_ROLE_CHANGE_NOTIFICATION,
-                    notificationMessage
-            );
-        } catch (Exception e) {
-            log.error("Failed to send role change notification: {}", e.getMessage(), e);
-        }
-    }
-
-    /**
-     * Hybrid DTO'dan öğrenci UUID'sini çözümler.
-     * Öncelik sırası: studentId > studentNumber
-     */
     private UUID resolveStudentId(CreateRoleChangeRequestDTO dto) {
         if (!dto.hasStudentIdentifier()) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
@@ -485,9 +150,6 @@ public class RoleChangeRequestService {
         return resolveStudentIdByStudentNumber(dto.getStudentNumber().trim());
     }
 
-    /**
-     * Öğrenci numarasından UUID'yi çözümler (user-service'e Feign çağrısı).
-     */
     private UUID resolveStudentIdByStudentNumber(String studentNumber) {
         if (studentNumber == null || studentNumber.trim().isEmpty()) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
@@ -518,30 +180,5 @@ public class RoleChangeRequestService {
             throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR,
                     "Öğrenci bilgisi alınırken beklenmeyen bir hata oluştu.");
         }
-    }
-
-    private RoleChangeRequestDTO mapToDTO(RoleChangeRequest request, Club club) {
-        Map<UUID, String> names = new HashMap<>();
-        names.put(request.getStudentId(), fetchUserName(request.getStudentId()));
-        names.put(request.getRequesterId(), fetchUserName(request.getRequesterId()));
-        return mapToDTO(request, club, names);
-    }
-
-    private RoleChangeRequestDTO mapToDTO(RoleChangeRequest request, Club club, Map<UUID, String> names) {
-        RoleChangeRequestDTO dto = new RoleChangeRequestDTO();
-        dto.setId(request.getId());
-        dto.setClubId(request.getClubId());
-        dto.setClubName(club != null ? club.getName() : null);
-        dto.setStudentId(request.getStudentId());
-        dto.setStudentName(names.getOrDefault(request.getStudentId(), UNKNOWN_USER_NAME));
-        dto.setCurrentRole(request.getCurrentRole());
-        dto.setRequestedRole(request.getRequestedRole());
-        dto.setRequesterId(request.getRequesterId());
-        dto.setRequesterName(names.getOrDefault(request.getRequesterId(), UNKNOWN_USER_NAME));
-        dto.setStatus(request.getStatus());
-        dto.setRejectionReason(request.getRejectionReason());
-        dto.setCreatedAt(request.getCreatedAt());
-        dto.setProcessedAt(request.getProcessedAt());
-        return dto;
     }
 }

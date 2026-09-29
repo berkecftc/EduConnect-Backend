@@ -20,8 +20,7 @@ public class GamificationEventListener {
     }
 
     @RabbitListener(
-            queues = RabbitMQConfig.GAMIFICATION_POINTS_QUEUE,
-            containerFactory = "rabbitListenerContainerFactory"
+            queues = RabbitMQConfig.GAMIFICATION_POINTS_QUEUE
     )
     public void consumeGamificationEvent(GamificationEvent event) {
         try {
@@ -36,5 +35,3 @@ public class GamificationEventListener {
         }
     }
 }
-
-

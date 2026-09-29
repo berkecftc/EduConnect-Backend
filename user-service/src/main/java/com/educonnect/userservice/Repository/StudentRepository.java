@@ -1,4 +1,4 @@
-package com.educonnect.userservice.Repository;
+package com.educonnect.userservice.repository;
 
 import com.educonnect.userservice.models.Student;
 import org.springframework.data.jpa.repository.JpaRepository;

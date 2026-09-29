@@ -9,7 +9,9 @@ import com.educonnect.clubservice.dto.response.MemberDTO;
 import com.educonnect.clubservice.dto.response.ClubCreationRequestResponse;
 import com.educonnect.clubservice.dto.response.ClubResponse;
 import com.educonnect.clubservice.model.Club;
-import com.educonnect.clubservice.service.ClubService;
+import com.educonnect.clubservice.service.ClubFoundingService;
+import com.educonnect.clubservice.service.ClubLifecycleService;
+import com.educonnect.clubservice.service.ClubQueryService;
 import com.educonnect.common.security.AuditLog;
 import com.educonnect.common.web.ApiException;
 import com.educonnect.common.web.BadRequestException;
@@ -35,11 +37,17 @@ public class ClubAdminController {
 
     private static final Logger log = LoggerFactory.getLogger(ClubAdminController.class);
 
-    private final ClubService clubService;
+    private final ClubFoundingService clubFoundingService;
+    private final ClubLifecycleService clubLifecycleService;
+    private final ClubQueryService clubQueryService;
 
     @Autowired
-    public ClubAdminController(ClubService clubService) {
-        this.clubService = clubService;
+    public ClubAdminController(ClubFoundingService clubFoundingService,
+                               ClubLifecycleService clubLifecycleService,
+                               ClubQueryService clubQueryService) {
+        this.clubFoundingService = clubFoundingService;
+        this.clubLifecycleService = clubLifecycleService;
+        this.clubQueryService = clubQueryService;
     }
 
     // Yeni Kulüp Oluşturma
@@ -52,7 +60,7 @@ public class ClubAdminController {
 
         log.info("Creating club: {}, requested by userId: {}", LogValues.safe(request.getName()), LogValues.safe(userId));
 
-        Club createdClub = clubService.createClub(request);
+        Club createdClub = clubFoundingService.createClub(request);
         AuditLog.record("CREATE_CLUB", "CLUB", createdClub.getId());
 
         log.info("Club created successfully with ID: {}", createdClub.getId());
@@ -75,7 +83,7 @@ public class ClubAdminController {
             clubId, userId, reason);
 
         UUID adminId = userId != null ? UUID.fromString(userId) : null;
-        clubService.deleteClub(clubId, reason, adminId);
+        clubLifecycleService.deleteClub(clubId, reason, adminId);
         AuditLog.record("ARCHIVE_CLUB", "CLUB", clubId);
 
         log.info("Club archived successfully: {}", clubId);
@@ -88,13 +96,13 @@ public class ClubAdminController {
     @GetMapping("/requests")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<List<ClubCreationRequestResponse>> getPendingRequests() {
-        return ResponseEntity.ok(ClubCreationRequestResponse.from(clubService.getPendingClubRequests()));
+        return ResponseEntity.ok(ClubCreationRequestResponse.from(clubFoundingService.getPendingClubRequests()));
     }
 
     @PostMapping("/requests/{requestId}/approve")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<ClubResponse> approveClubRequest(@PathVariable UUID requestId) {
-        Club approved = clubService.approveClubCreationRequest(requestId);
+        Club approved = clubFoundingService.approveClubCreationRequest(requestId);
         AuditLog.record("APPROVE_CLUB_CREATION", "CLUB_CREATION_REQUEST", requestId);
         return ResponseEntity.ok(ClubResponse.from(approved));
     }
@@ -102,7 +110,7 @@ public class ClubAdminController {
     @PostMapping("/requests/{requestId}/reject")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<String> rejectClubRequest(@PathVariable UUID requestId) {
-        clubService.rejectClubCreationRequest(requestId); // Servisteki metodu çağır
+        clubFoundingService.rejectClubCreationRequest(requestId); // Servisteki metodu çağır
         AuditLog.record("REJECT_CLUB_CREATION", "CLUB_CREATION_REQUEST", requestId);
         return ResponseEntity.ok("Club creation request rejected.");
     }
@@ -110,21 +118,21 @@ public class ClubAdminController {
     @PutMapping("/{clubId}")
     @PreAuthorize("hasRole('ADMIN')") // Veya kulüp başkanı
     public ResponseEntity<ClubResponse> updateClub(@PathVariable UUID clubId, @Valid @RequestBody UpdateClubRequest request) {
-        return ResponseEntity.ok(ClubResponse.from(clubService.updateClub(clubId, request)));
+        return ResponseEntity.ok(ClubResponse.from(clubLifecycleService.updateClub(clubId, request)));
     }
 
     // Aktif Kulüpleri Listele
     @GetMapping("/active")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<List<ClubAdminSummaryDto>> getAllActiveClubs() {
-        return ResponseEntity.ok(clubService.getAllClubsForAdmin());
+        return ResponseEntity.ok(clubQueryService.getAllClubsForAdmin());
     }
 
     // Yönetim Kurulunu Gör
     @GetMapping("/{clubId}/board")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<List<MemberDTO>> getBoardMembers(@PathVariable UUID clubId) {
-        return ResponseEntity.ok(clubService.getClubBoardMembers(clubId));
+        return ResponseEntity.ok(clubQueryService.getClubBoardMembers(clubId));
     }
 
     /**
@@ -147,7 +155,7 @@ public class ClubAdminController {
     @GetMapping("/{clubId}/past-presidents")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<List<MemberDTO>> getPastPresidents(@PathVariable UUID clubId) {
-        return ResponseEntity.ok(clubService.getPastPresidents(clubId));
+        return ResponseEntity.ok(clubQueryService.getPastPresidents(clubId));
     }
 
     // MinIO Logo Yükleme Endpointi
@@ -162,7 +170,7 @@ public class ClubAdminController {
             throw new BadRequestException("FILE_EMPTY", "Dosya seçilmedi.");
         }
 
-        String newLogoUrl = clubService.updateClubLogoByAdmin(clubId, file);
+        String newLogoUrl = clubLifecycleService.updateClubLogoByAdmin(clubId, file);
         return ResponseEntity.ok(newLogoUrl); // Yeni MinIO URL'ini dönüyoruz
     }
 
@@ -171,7 +179,7 @@ public class ClubAdminController {
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<List<ArchivedClubDTO>> getAllArchivedClubs() {
         log.info("Fetching all archived clubs");
-        List<ArchivedClubDTO> archivedClubs = clubService.getAllArchivedClubs();
+        List<ArchivedClubDTO> archivedClubs = clubQueryService.getAllArchivedClubs();
         log.info("Found {} archived clubs", archivedClubs.size());
         return ResponseEntity.ok(archivedClubs);
     }

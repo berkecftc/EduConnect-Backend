@@ -1,5 +1,7 @@
 package com.educonnect.llmservice.config;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.ai.embedding.EmbeddingModel;
 import org.springframework.ai.vectorstore.SimpleVectorStore;
 import org.springframework.ai.vectorstore.VectorStore;
@@ -10,6 +12,8 @@ import java.io.File;
 
 @Configuration
 public class RagConfig {
+
+    private static final Logger log = LoggerFactory.getLogger(RagConfig.class);
 
     @Value("${vector.store.path:data/vector-store.json}")
     private String vectorStorePath;
@@ -23,8 +27,8 @@ public class RagConfig {
 
         File vectorStoreFile = new File(vectorStorePath);
         File parentDir = vectorStoreFile.getParentFile();
-        if (parentDir != null && !parentDir.exists()) {
-            parentDir.mkdirs();
+        if (parentDir != null && !parentDir.isDirectory() && !parentDir.mkdirs()) {
+            log.warn("Vektör deposu klasörü oluşturulamadı: {}", parentDir);
         }
         if (vectorStoreFile.exists() && !forceIngestion) {
             simpleVectorStore.load(vectorStoreFile);

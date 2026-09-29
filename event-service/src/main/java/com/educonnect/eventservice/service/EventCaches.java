@@ -2,7 +2,7 @@ package com.educonnect.eventservice.service;
 
 import com.educonnect.eventservice.model.Event;
 import com.educonnect.eventservice.model.EventRegistration;
-import com.educonnect.eventservice.Repository.EventRegistrationRepository;
+import com.educonnect.eventservice.repository.EventRegistrationRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.cache.Cache;

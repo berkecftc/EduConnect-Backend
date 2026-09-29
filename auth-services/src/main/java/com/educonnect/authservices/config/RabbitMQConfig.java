@@ -1,30 +1,16 @@
 package com.educonnect.authservices.config;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.amqp.core.Binding;
 import org.springframework.amqp.core.BindingBuilder;
 import org.springframework.amqp.core.DirectExchange;
 import org.springframework.amqp.core.Queue;
 import org.springframework.amqp.core.QueueBuilder;
 import org.springframework.amqp.core.TopicExchange;
-import org.springframework.amqp.rabbit.connection.ConnectionFactory;
-import org.springframework.amqp.rabbit.core.RabbitTemplate;
-import org.springframework.amqp.support.converter.JacksonJsonMessageConverter;
-import org.springframework.amqp.support.converter.MessageConverter;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 @Configuration
 public class RabbitMQConfig {
-
-    private static final Logger LOGGER = LoggerFactory.getLogger(RabbitMQConfig.class);
-
-    // Göndereceğimiz ve alacağımız mesajların JSON formatında olmasını sağlar.
-    @Bean
-    public MessageConverter jsonMessageConverter() {
-        return new JacksonJsonMessageConverter();
-    }
 
     // Exchange ve Queue isimlerini sabit olarak tanımlarız.
     public static final String EXCHANGE_NAME = "user-exchange";
@@ -132,28 +118,5 @@ public class RabbitMQConfig {
     @Bean
     public Binding passwordResetBinding(Queue passwordResetQueue, DirectExchange userExchange) {
         return BindingBuilder.bind(passwordResetQueue).to(userExchange).with(PASSWORD_RESET_ROUTING_KEY);
-    }
-
-    @Bean
-    public RabbitTemplate rabbitTemplate(ConnectionFactory connectionFactory, MessageConverter jsonMessageConverter) {
-        RabbitTemplate template = new RabbitTemplate(connectionFactory);
-        template.setMessageConverter(jsonMessageConverter);
-        // Unroutable mesajlar icin geri bildirim al
-        template.setMandatory(true);
-        template.setReturnsCallback(returned -> {
-            LOGGER.warn("Rabbit RETURN: routing failed. exchange={}, routingKey={}, replyCode={}, replyText={}, correlationId={}",
-                    returned.getExchange(), returned.getRoutingKey(), returned.getReplyCode(), returned.getReplyText(),
-                    returned.getMessage().getMessageProperties().getCorrelationId());
-        });
-        template.setConfirmCallback((correlationData, ack, cause) -> {
-            if (!ack) {
-                LOGGER.warn("Rabbit CONFIRM: NACK publish. correlationId={}, cause={}",
-                        correlationData != null ? correlationData.getId() : null, cause);
-            } else {
-                LOGGER.debug("Rabbit CONFIRM: ACK publish. correlationId={}",
-                        correlationData != null ? correlationData.getId() : null);
-            }
-        });
-        return template;
     }
 }

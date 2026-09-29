@@ -4,7 +4,7 @@ import com.educonnect.eventservice.dto.MyEventRegistrationDTO;
 import com.educonnect.eventservice.dto.response.EventResponse;
 import com.educonnect.eventservice.dto.response.PageResponse;
 import com.educonnect.eventservice.model.Event;
-import com.educonnect.eventservice.service.EventService;
+import com.educonnect.eventservice.service.EventQueryService;
 import com.educonnect.common.web.ApiException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -18,10 +18,10 @@ import java.util.UUID;
 @RequestMapping("/api/events") // Public/Öğrenci rotası
 public class EventController {
 
-    private final EventService eventService;
+    private final EventQueryService eventQueryService;
 
-    public EventController(EventService eventService) {
-        this.eventService = eventService;
+    public EventController(EventQueryService eventQueryService) {
+        this.eventQueryService = eventQueryService;
     }
 
     /**
@@ -29,13 +29,13 @@ public class EventController {
      */
     @GetMapping
     public ResponseEntity<List<EventResponse>> getAllActiveEvents() {
-        return ResponseEntity.ok(EventResponse.from(eventService.getAllActiveEvents()));
+        return ResponseEntity.ok(EventResponse.from(eventQueryService.getAllActiveEvents()));
     }
 
     @GetMapping(params = "page")
     public ResponseEntity<PageResponse<EventResponse>> getActiveEventsPage(@RequestParam int page,
                                                                             @RequestParam(required = false) Integer size) {
-        return ResponseEntity.ok(eventService.getActiveEventsPage(page, size).map(EventResponse::from));
+        return ResponseEntity.ok(eventQueryService.getActiveEventsPage(page, size).map(EventResponse::from));
     }
 
     // 👇 ADMİN İÇİN ÖZEL ENDPOINT
@@ -43,7 +43,7 @@ public class EventController {
     @GetMapping("/admin/all")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<List<EventResponse>> getAllEventsForAdmin() {
-        return ResponseEntity.ok(EventResponse.from(eventService.getAllEventsForAdmin()));
+        return ResponseEntity.ok(EventResponse.from(eventQueryService.getAllEventsForAdmin()));
     }
 
     /**
@@ -55,7 +55,7 @@ public class EventController {
             @RequestHeader(value = "X-Authenticated-User-Id", required = false) String userIdHeader
     ) {
         UUID viewerId = userIdHeader != null ? UUID.fromString(userIdHeader) : null;
-        return ResponseEntity.ok(EventResponse.from(eventService.getEventDetailsForViewer(eventId, viewerId)));
+        return ResponseEntity.ok(EventResponse.from(eventQueryService.getEventDetailsForViewer(eventId, viewerId)));
     }
 
     @PostMapping("/{eventId}/register")
@@ -72,7 +72,7 @@ public class EventController {
             @RequestHeader("X-Authenticated-User-Id") String studentIdHeader
     ) {
         UUID studentId = UUID.fromString(studentIdHeader);
-        return ResponseEntity.ok(eventService.getStudentEventRegistrations(studentId));
+        return ResponseEntity.ok(eventQueryService.getStudentEventRegistrations(studentId));
     }
 
     /**
@@ -81,7 +81,7 @@ public class EventController {
      */
     @GetMapping("/club/{clubId}")
     public ResponseEntity<List<EventResponse>> getClubEvents(@PathVariable UUID clubId) {
-        List<Event> events = eventService.getEventsByClubId(clubId);
+        List<Event> events = eventQueryService.getEventsByClubId(clubId);
         // Sadece aktif etkinlikleri filtrele (öğrenciler için)
         List<Event> activeEvents = events.stream()
                 .filter(e -> e.getStatus() == com.educonnect.eventservice.model.EventStatus.ACTIVE)
@@ -89,4 +89,3 @@ public class EventController {
         return ResponseEntity.ok(EventResponse.from(activeEvents));
     }
 }
-

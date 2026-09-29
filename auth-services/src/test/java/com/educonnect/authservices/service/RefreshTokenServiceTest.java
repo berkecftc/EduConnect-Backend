@@ -1,6 +1,6 @@
 package com.educonnect.authservices.service;
 
-import com.educonnect.authservices.Repository.RefreshTokenRepository;
+import com.educonnect.authservices.repository.RefreshTokenRepository;
 import com.educonnect.authservices.config.AuthSecurityProperties;
 import com.educonnect.authservices.models.RefreshToken;
 import org.junit.jupiter.api.BeforeEach;

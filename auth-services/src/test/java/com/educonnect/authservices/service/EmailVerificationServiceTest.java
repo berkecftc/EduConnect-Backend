@@ -1,8 +1,8 @@
 package com.educonnect.authservices.service;
 
-import com.educonnect.authservices.Repository.EmailVerificationTokenRepository;
-import com.educonnect.authservices.Repository.StudentRequestRepository;
-import com.educonnect.authservices.Repository.UserRepository;
+import com.educonnect.authservices.repository.EmailVerificationTokenRepository;
+import com.educonnect.authservices.repository.StudentRequestRepository;
+import com.educonnect.authservices.repository.UserRepository;
 import com.educonnect.authservices.config.AuthSecurityProperties;
 import com.educonnect.authservices.config.RabbitMQConfig;
 import com.educonnect.authservices.dto.message.EmailVerificationMessage;

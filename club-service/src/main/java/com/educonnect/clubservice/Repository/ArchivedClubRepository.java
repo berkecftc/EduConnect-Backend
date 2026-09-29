@@ -1,4 +1,4 @@
-package com.educonnect.clubservice.Repository;
+package com.educonnect.clubservice.repository;
 
 import com.educonnect.clubservice.model.ArchivedClub;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -20,4 +20,3 @@ public interface ArchivedClubRepository extends JpaRepository<ArchivedClub, UUID
     // İsme göre arşivlenmiş kulüpleri bul
     List<ArchivedClub> findByNameContainingIgnoreCase(String name);
 }
-

@@ -34,6 +34,7 @@ import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExcep
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.stream.Collectors;
 
@@ -143,8 +144,7 @@ public class ProblemExceptionHandler extends ResponseEntityExceptionHandler {
         ProblemDetail problem = body instanceof ProblemDetail detail
                 ? detail
                 : ProblemDetail.forStatus(statusCode);
-        if (!(ex instanceof ResponseStatusException) && !(body instanceof ProblemDetail detail
-                && detail.getProperties() != null && detail.getProperties().containsKey(Problems.ERROR_CODE))) {
+        if (!(ex instanceof ResponseStatusException) && !hasErrorCode(body)) {
             problem.setDetail(frameworkDetail(ex, statusCode));
         }
         if (statusCode.is5xxServerError()) {
@@ -169,6 +169,14 @@ public class ProblemExceptionHandler extends ResponseEntityExceptionHandler {
         return VALIDATION_MESSAGE + " " + errors.stream()
                 .map(error -> error.field() + ": " + error.message())
                 .collect(Collectors.joining(", "));
+    }
+
+    private static boolean hasErrorCode(Object body) {
+        if (!(body instanceof ProblemDetail detail)) {
+            return false;
+        }
+        Map<String, Object> properties = detail.getProperties();
+        return properties != null && properties.containsKey(Problems.ERROR_CODE);
     }
 
     private static String frameworkDetail(Exception ex, HttpStatusCode status) {

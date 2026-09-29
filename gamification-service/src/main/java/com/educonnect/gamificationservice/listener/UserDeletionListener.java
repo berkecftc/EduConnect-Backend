@@ -16,7 +16,7 @@ public class UserDeletionListener {
         this.cleanupService = cleanupService;
     }
 
-    @RabbitListener(queues = RabbitMQConfig.USER_DELETED_QUEUE, containerFactory = "rabbitListenerContainerFactory")
+    @RabbitListener(queues = RabbitMQConfig.USER_DELETED_QUEUE)
     public void onUserDeleted(UserDeletedMessage message) {
         if (message == null || message.userId() == null) {
             throw new AmqpRejectAndDontRequeueException("UserDeletedMessage without userId");

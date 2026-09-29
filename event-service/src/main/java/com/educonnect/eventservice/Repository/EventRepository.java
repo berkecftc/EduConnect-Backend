@@ -1,4 +1,4 @@
-package com.educonnect.eventservice.Repository;
+package com.educonnect.eventservice.repository;
 
 import com.educonnect.eventservice.model.Event;
 import com.educonnect.eventservice.model.EventStatus;

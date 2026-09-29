@@ -1,10 +1,10 @@
 package com.educonnect.clubservice;
 
-import com.educonnect.clubservice.Repository.ClubCreationRequestRepository;
-import com.educonnect.clubservice.Repository.ClubMembershipRepository;
-import com.educonnect.clubservice.Repository.ClubMembershipRequestRepository;
-import com.educonnect.clubservice.Repository.ClubRepository;
-import com.educonnect.clubservice.Repository.RoleChangeRequestRepository;
+import com.educonnect.clubservice.repository.ClubCreationRequestRepository;
+import com.educonnect.clubservice.repository.ClubMembershipRepository;
+import com.educonnect.clubservice.repository.ClubMembershipRequestRepository;
+import com.educonnect.clubservice.repository.ClubRepository;
+import com.educonnect.clubservice.repository.RoleChangeRequestRepository;
 import com.educonnect.clubservice.model.Club;
 import com.educonnect.clubservice.model.ClubCreationRequest;
 import com.educonnect.clubservice.model.ClubCreationRequestStatus;

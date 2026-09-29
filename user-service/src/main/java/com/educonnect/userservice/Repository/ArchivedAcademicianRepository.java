@@ -1,4 +1,4 @@
-package com.educonnect.userservice.Repository;
+package com.educonnect.userservice.repository;
 
 import com.educonnect.userservice.models.ArchivedAcademician;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -23,4 +23,3 @@ public interface ArchivedAcademicianRepository extends JpaRepository<ArchivedAca
     // Bölüme göre arşivlenmiş akademisyenleri bul
     List<ArchivedAcademician> findByDepartment(String department);
 }
-

@@ -8,6 +8,16 @@ import java.io.Serializable;
  */
 public class UserAccountStatusMessage implements Serializable {
 
+    public enum Status {
+        APPROVED,
+        REJECTED
+    }
+
+    public enum UserType {
+        STUDENT,
+        ACADEMICIAN
+    }
+
     private String email;
     private String firstName;
     private String lastName;
@@ -46,4 +56,3 @@ public class UserAccountStatusMessage implements Serializable {
     public String getRejectionReason() { return rejectionReason; }
     public void setRejectionReason(String rejectionReason) { this.rejectionReason = rejectionReason; }
 }
-

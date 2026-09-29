@@ -9,10 +9,10 @@ import com.educonnect.userservice.models.Academician;
 import com.educonnect.userservice.models.ArchivedAcademician;
 import com.educonnect.userservice.models.ArchivedStudent;
 import com.educonnect.userservice.models.Student;
-import com.educonnect.userservice.Repository.AcademicianRepository;
-import com.educonnect.userservice.Repository.ArchivedAcademicianRepository;
-import com.educonnect.userservice.Repository.ArchivedStudentRepository;
-import com.educonnect.userservice.Repository.StudentRepository;
+import com.educonnect.userservice.repository.AcademicianRepository;
+import com.educonnect.userservice.repository.ArchivedAcademicianRepository;
+import com.educonnect.userservice.repository.ArchivedStudentRepository;
+import com.educonnect.userservice.repository.StudentRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.cache.Cache;
@@ -188,7 +188,7 @@ public class ProfileService {
     @CacheEvict(value = USER_PROFILE_CACHE, key = "#userId")
     public void archiveStudent(UUID userId, String reason) {
         Student student = studentRepository.findById(userId)
-            .orElseThrow(() -> new RuntimeException("Student not found with ID: " + userId));
+            .orElseThrow(() -> new NotFoundException("PROFILE_NOT_FOUND", "Student not found with ID: " + userId));
         evictStudentNumber(student.getStudentNumber());
 
         // Arşiv kaydı oluştur
@@ -223,7 +223,7 @@ public class ProfileService {
     @CacheEvict(value = USER_PROFILE_CACHE, key = "#userId")
     public void archiveAcademician(UUID userId, String reason) {
         Academician academician = academicianRepository.findById(userId)
-            .orElseThrow(() -> new RuntimeException("Academician not found with ID: " + userId));
+            .orElseThrow(() -> new NotFoundException("PROFILE_NOT_FOUND", "Academician not found with ID: " + userId));
 
         // Arşiv kaydı oluştur
         ArchivedAcademician archivedAcademician = new ArchivedAcademician(
@@ -301,13 +301,11 @@ public class ProfileService {
     /**
      * Öğrenci numarasına göre öğrenci profili getirir.
      * @param studentNumber Öğrenci numarası
-     * @return Öğrenci profil bilgileri
-     * @throws RuntimeException Öğrenci bulunamazsa
-     */
+     * @return Öğrenci profil bilgileri     */
     @Cacheable(value = USER_PROFILE_BY_STUDENT_NUMBER_CACHE, key = "#studentNumber")
     public UserProfileResponse getStudentByStudentNumber(String studentNumber) {
         Student student = studentRepository.findByStudentNumber(studentNumber)
-                .orElseThrow(() -> new RuntimeException(
+                .orElseThrow(() -> new NotFoundException("PROFILE_NOT_FOUND",
                         "Bu öğrenci numarasına sahip kullanıcı bulunamadı: " + studentNumber));
 
         return mapToResponse(student);

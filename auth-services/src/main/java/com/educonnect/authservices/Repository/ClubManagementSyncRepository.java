@@ -1,4 +1,4 @@
-package com.educonnect.authservices.Repository;
+package com.educonnect.authservices.repository;
 
 import com.educonnect.authservices.models.ClubManagementSync;
 import org.springframework.data.jpa.repository.JpaRepository;

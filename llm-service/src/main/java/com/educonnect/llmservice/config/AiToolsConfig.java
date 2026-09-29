@@ -15,6 +15,7 @@ import org.springframework.context.annotation.Configuration;
 import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Objects;
 import java.util.function.BiFunction;
 import java.util.function.Function;
 
@@ -149,7 +150,7 @@ public class AiToolsConfig {
     }
 
     private ClubInfo toClubInfo(Document document) {
-        String content = document.getText();
+        String content = Objects.requireNonNullElse(document.getText(), "");
         String name = parseField(content, "Kulüp Adı:");
         String description = parseField(content, "Açıklama:");
         return new ClubInfo(

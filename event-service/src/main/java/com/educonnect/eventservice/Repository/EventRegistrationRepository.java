@@ -1,4 +1,4 @@
-package com.educonnect.eventservice.Repository;
+package com.educonnect.eventservice.repository;
 
 import com.educonnect.eventservice.model.EventRegistration;
 import org.springframework.data.jpa.repository.JpaRepository;

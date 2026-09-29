@@ -1,4 +1,4 @@
-package com.educonnect.authservices.Repository;
+package com.educonnect.authservices.repository;
 
 import com.educonnect.authservices.models.AdminAuditEntry;
 import org.springframework.data.domain.Page;

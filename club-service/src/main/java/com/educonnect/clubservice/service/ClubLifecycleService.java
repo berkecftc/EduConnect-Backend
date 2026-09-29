@@ -1,0 +1,188 @@
+package com.educonnect.clubservice.service;
+
+import com.educonnect.clubservice.config.ClubRabbitMQConfig;
+import com.educonnect.clubservice.dto.message.ClubUpdateMessage;
+import com.educonnect.clubservice.dto.request.UpdateClubRequest;
+import com.educonnect.clubservice.model.ArchivedClub;
+import com.educonnect.clubservice.model.Club;
+import com.educonnect.clubservice.model.ClubMembership;
+import com.educonnect.clubservice.model.ClubPosition;
+import com.educonnect.clubservice.repository.ArchivedClubRepository;
+import com.educonnect.clubservice.repository.ClubMembershipRepository;
+import com.educonnect.clubservice.repository.ClubRepository;
+import com.educonnect.clubservice.security.ClubAuthorizationService;
+import com.educonnect.clubservice.security.ClubPermission;
+import com.educonnect.common.messaging.outbox.OutboxPublisher;
+import com.educonnect.common.web.LogValues;
+import com.educonnect.common.web.NotFoundException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.http.HttpStatus;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
+import org.springframework.web.server.ResponseStatusException;
+
+import java.time.LocalDateTime;
+import java.util.List;
+import java.util.UUID;
+
+@Service
+@Transactional
+public class ClubLifecycleService {
+
+    private static final Logger log = LoggerFactory.getLogger(ClubLifecycleService.class);
+
+    private static final String ROUTING_KEY_CLUB_UPDATED = "club.updated";
+    private static final String ROUTING_KEY_CLUB_DELETED = "club.deleted";
+
+    private final ClubRepository clubRepository;
+    private final ClubMembershipRepository membershipRepository;
+    private final ArchivedClubRepository archivedClubRepository;
+    private final OutboxPublisher outboxPublisher;
+    private final MinioService minioService;
+    private final ClubAuthorizationService clubAuthorizationService;
+    private final ClubCacheEvictor cacheEvictor;
+    private final ClubManagementStatusPublisher managementStatusPublisher;
+
+    public ClubLifecycleService(ClubRepository clubRepository,
+                                ClubMembershipRepository membershipRepository,
+                                ArchivedClubRepository archivedClubRepository,
+                                OutboxPublisher outboxPublisher,
+                                MinioService minioService,
+                                ClubAuthorizationService clubAuthorizationService,
+                                ClubCacheEvictor cacheEvictor,
+                                ClubManagementStatusPublisher managementStatusPublisher) {
+        this.clubRepository = clubRepository;
+        this.membershipRepository = membershipRepository;
+        this.archivedClubRepository = archivedClubRepository;
+        this.outboxPublisher = outboxPublisher;
+        this.minioService = minioService;
+        this.clubAuthorizationService = clubAuthorizationService;
+        this.cacheEvictor = cacheEvictor;
+        this.managementStatusPublisher = managementStatusPublisher;
+    }
+
+    public Club updateClub(UUID clubId, UpdateClubRequest request) {
+        Club club = clubRepository.findById(clubId)
+                .orElseThrow(() -> new NotFoundException("CLUB_NOT_FOUND", "Club not found"));
+
+        if (request.getName() != null) club.setName(request.getName());
+        if (request.getAbout() != null) club.setAbout(request.getAbout());
+        if (request.getAcademicAdvisorId() != null) club.setAcademicAdvisorId(request.getAcademicAdvisorId());
+
+        Club updatedClub = clubRepository.save(club);
+
+        if (request.getName() != null) {
+            ClubUpdateMessage message = new ClubUpdateMessage(
+                    updatedClub.getId(),
+                    updatedClub.getName(),
+                    updatedClub.getLogoUrl()
+            );
+            outboxPublisher.publish(ClubRabbitMQConfig.CLUB_EXCHANGE_NAME, ROUTING_KEY_CLUB_UPDATED, message);
+
+            log.info("Club updated message sent: {}", LogValues.safe(updatedClub.getName()));
+        }
+
+        return updatedClub;
+    }
+
+    public String updateClubLogo(UUID clubId, MultipartFile file, UUID requestingStudentId) {
+        Club club = clubRepository.findById(clubId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Club not found"));
+
+        clubAuthorizationService.require(clubId, requestingStudentId, ClubPermission.UPDATE_CLUB_PROFILE);
+
+        String objectName = minioService.uploadFile(file, "logos", clubId.toString());
+
+        club.setLogoUrl(objectName);
+        clubRepository.save(club);
+
+        return objectName;
+    }
+
+    @Transactional
+    public String updateClubLogoByAdmin(UUID clubId, MultipartFile file) {
+        log.debug("Logo güncelleme başladı. clubId={}", clubId);
+
+        Club club = clubRepository.findById(clubId)
+                .orElseThrow(() -> new NotFoundException("CLUB_NOT_FOUND", "Kulüp bulunamadı"));
+
+        log.debug("Kulüp bulundu. Mevcut logo: {}", club.getLogoUrl());
+
+        log.debug("Logo MinIO'ya yükleniyor");
+        String newLogoUrl = minioService.uploadFile(file, "logos", clubId.toString());
+        log.debug("Logo yüklendi: {}", newLogoUrl);
+
+        club.setLogoUrl(newLogoUrl);
+        clubRepository.saveAndFlush(club);
+        log.debug("Kulüp logosu veritabanında güncellendi");
+
+        return newLogoUrl;
+    }
+
+    @Transactional
+    public void deleteClub(UUID clubId, String reason, UUID adminId) {
+        Club club = clubRepository.findById(clubId)
+                .orElseThrow(() -> new NotFoundException("CLUB_NOT_FOUND", "Club not found with id: " + clubId));
+
+        log.info("Archiving club: {} (ID: {}), reason: {}, by admin: {}",
+            club.getName(), clubId, reason, adminId);
+
+        ArchivedClub archivedClub = new ArchivedClub(
+            club.getId(),
+            club.getName(),
+            club.getAbout(),
+            club.getLogoUrl(),
+            club.getAcademicAdvisorId(),
+            LocalDateTime.now(),
+            reason != null ? reason : "Admin tarafından kapatıldı",
+            adminId
+        );
+        archivedClubRepository.save(archivedClub);
+        log.info("Club archived successfully: {}", club.getName());
+
+        List<ClubMembership> members = membershipRepository.findByClubId(clubId);
+        membershipRepository.deleteAll(members);
+        membershipRepository.flush();
+        members.forEach(member -> {
+            cacheEvictor.evictUser(member.getStudentId());
+            if (member.isActive() && member.getClubRole().isManagement()) {
+                managementStatusPublisher.publishCurrentStatus(member.getStudentId());
+            }
+        });
+        log.info("Deleted {} memberships for club: {}", members.size(), club.getName());
+
+        clubRepository.delete(club);
+        log.info("Club removed from active table: {}", club.getName());
+
+        try {
+            ClubUpdateMessage message = new ClubUpdateMessage(clubId, club.getName(), null);
+            outboxPublisher.publish(ClubRabbitMQConfig.CLUB_EXCHANGE_NAME, ROUTING_KEY_CLUB_DELETED, message);
+
+            log.info("Club deletion message sent to event-service for club: {}", clubId);
+        } catch (Exception e) {
+            log.error("Failed to send club deletion message: {}", e.getMessage(), e);
+        }
+    }
+
+    public void leaveClub(UUID clubId, UUID studentId) {
+        if (!clubRepository.existsById(clubId)) {
+            throw new NotFoundException("CLUB_NOT_FOUND", "Club not found with id: " + clubId);
+        }
+        ClubMembership membership = membershipRepository.findByClubIdAndStudentId(clubId, studentId)
+                .orElseThrow(() -> new NotFoundException("MEMBERSHIP_NOT_FOUND", "Membership not found for this user and club"));
+
+        if (membership.isActive() && membership.getClubRole() == ClubPosition.PRESIDENT) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "Başkan, görevi danışman kararıyla sona ermeden kulüpten ayrılamaz.");
+        }
+
+        membershipRepository.delete(membership);
+        membershipRepository.flush();
+        cacheEvictor.evictUser(studentId);
+        if (membership.isActive() && membership.getClubRole().isManagement()) {
+            managementStatusPublisher.publishCurrentStatus(studentId);
+        }
+    }
+}

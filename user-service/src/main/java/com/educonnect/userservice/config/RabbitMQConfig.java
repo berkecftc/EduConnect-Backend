@@ -4,11 +4,6 @@ import org.springframework.amqp.core.Binding;
 import org.springframework.amqp.core.BindingBuilder;
 import org.springframework.amqp.core.DirectExchange;
 import org.springframework.amqp.core.Queue;
-import org.springframework.amqp.rabbit.config.SimpleRabbitListenerContainerFactory;
-import org.springframework.amqp.rabbit.connection.ConnectionFactory;
-import org.springframework.amqp.support.converter.JacksonJsonMessageConverter;
-import org.springframework.amqp.support.converter.MessageConverter;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
@@ -30,13 +25,6 @@ public class RabbitMQConfig {
     public static final String GAMIFICATION_EXCHANGE = "gamification.exchange";
     public static final String GAMIFICATION_PROFILE_COMPLETED_ROUTING_KEY = "gamification.user.profile_completed";
 
-    @Value("${user.listener.auto-start:true}")
-    private boolean listenerAutoStart;
-
-    @Bean
-    public MessageConverter jsonMessageConverter() {
-        return new JacksonJsonMessageConverter();
-    }
 
     @Bean
     public Queue userProfileCreationQueue() {
@@ -71,19 +59,5 @@ public class RabbitMQConfig {
     @Bean
     public Binding userDeleteBinding(Queue userDeleteQueue, DirectExchange userExchange) {
         return BindingBuilder.bind(userDeleteQueue).to(userExchange).with(USER_DELETE_ROUTING_KEY);
-    }
-
-    @Bean
-    public SimpleRabbitListenerContainerFactory rabbitListenerContainerFactory(ConnectionFactory connectionFactory,
-                                                                               MessageConverter jsonMessageConverter) {
-        SimpleRabbitListenerContainerFactory factory = new SimpleRabbitListenerContainerFactory();
-        factory.setConnectionFactory(connectionFactory);
-        factory.setMessageConverter(jsonMessageConverter);
-        factory.setAutoStartup(listenerAutoStart);
-        factory.setConcurrentConsumers(1);
-        factory.setMaxConcurrentConsumers(3);
-        factory.setDefaultRequeueRejected(false);
-        factory.setMissingQueuesFatal(false);
-        return factory;
     }
 }

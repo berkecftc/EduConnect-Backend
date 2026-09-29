@@ -5,6 +5,7 @@ import com.educonnect.clubservice.dto.request.CreateRoleChangeRequestDTO;
 import com.educonnect.clubservice.dto.request.RejectRoleChangeRequestDTO;
 import com.educonnect.clubservice.dto.request.RejectionReasonRequest;
 import com.educonnect.clubservice.dto.response.RoleChangeRequestDTO;
+import com.educonnect.clubservice.service.RoleChangeDecisionService;
 import com.educonnect.clubservice.service.RoleChangeRequestService;
 import jakarta.validation.Valid;
 import org.slf4j.Logger;
@@ -36,9 +37,12 @@ public class ClubRoleChangeController {
     private static final Logger log = LoggerFactory.getLogger(ClubRoleChangeController.class);
 
     private final RoleChangeRequestService roleChangeRequestService;
+    private final RoleChangeDecisionService roleChangeDecisionService;
 
-    public ClubRoleChangeController(RoleChangeRequestService roleChangeRequestService) {
+    public ClubRoleChangeController(RoleChangeRequestService roleChangeRequestService,
+                                    RoleChangeDecisionService roleChangeDecisionService) {
         this.roleChangeRequestService = roleChangeRequestService;
+        this.roleChangeDecisionService = roleChangeDecisionService;
     }
 
     // ==================== KULÜP YETKİLİSİ ENDPOINT'LERİ ====================
@@ -103,7 +107,7 @@ public class ClubRoleChangeController {
         UUID advisorId = UUID.fromString(userIdHeader);
         log.info("Fetching pending role change requests for advisor: {}", advisorId);
 
-        List<RoleChangeRequestDTO> requests = roleChangeRequestService.getPendingRequestsForAdvisor(advisorId);
+        List<RoleChangeRequestDTO> requests = roleChangeDecisionService.getPendingRequestsForAdvisor(advisorId);
         return ResponseEntity.ok(requests);
     }
 
@@ -119,7 +123,7 @@ public class ClubRoleChangeController {
         UUID advisorId = UUID.fromString(userIdHeader);
         log.info("Approving role change request: requestId={}, advisorId={}", requestId, advisorId);
 
-        RoleChangeRequestDTO response = roleChangeRequestService.approveRoleChangeRequest(requestId, advisorId);
+        RoleChangeRequestDTO response = roleChangeDecisionService.approveRoleChangeRequest(requestId, advisorId);
         return ResponseEntity.ok(response);
     }
 
@@ -137,7 +141,7 @@ public class ClubRoleChangeController {
         log.info("Rejecting role change request: requestId={}, advisorId={}, reason={}",
                 requestId, LogValues.safe(advisorId), LogValues.safe(dto != null ? dto.getRejectionReason() : "N/A"));
 
-        RoleChangeRequestDTO response = roleChangeRequestService.rejectRoleChangeRequest(requestId, advisorId, dto);
+        RoleChangeRequestDTO response = roleChangeDecisionService.rejectRoleChangeRequest(requestId, advisorId, dto);
         return ResponseEntity.ok(response);
     }
 
@@ -151,7 +155,7 @@ public class ClubRoleChangeController {
             @RequestHeader("X-Authenticated-User-Id") String userIdHeader) {
 
         UUID advisorId = UUID.fromString(userIdHeader);
-        long count = roleChangeRequestService.getPendingRequestCountForClub(clubId, advisorId);
+        long count = roleChangeDecisionService.getPendingRequestCountForClub(clubId, advisorId);
         return ResponseEntity.ok(count);
     }
 
@@ -165,9 +169,8 @@ public class ClubRoleChangeController {
         UUID advisorId = UUID.fromString(userIdHeader);
         log.info("Advisor removing president: clubId={}, advisorId={}", clubId, advisorId);
 
-        roleChangeRequestService.removePresidentByAdvisor(clubId, advisorId,
+        roleChangeDecisionService.removePresidentByAdvisor(clubId, advisorId,
                 reason != null ? reason.rejectionReason() : null);
         return ResponseEntity.ok("Kulüp başkanı görevden alındı. Yeni başkan atanana kadar başkan yardımcısı vekâlet eder.");
     }
 }
-

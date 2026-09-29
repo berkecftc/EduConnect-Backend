@@ -8,6 +8,11 @@ import java.util.UUID;
  */
 public class MembershipRequestMessage implements Serializable {
 
+    public enum Status {
+        APPROVED,
+        REJECTED
+    }
+
     private UUID studentId;
     private UUID clubId;
     private String clubName;
@@ -40,4 +45,3 @@ public class MembershipRequestMessage implements Serializable {
     public String getMessage() { return message; }
     public void setMessage(String message) { this.message = message; }
 }
-

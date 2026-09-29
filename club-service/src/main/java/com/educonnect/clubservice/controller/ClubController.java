@@ -1,6 +1,6 @@
 package com.educonnect.clubservice.controller;
 
-import com.educonnect.clubservice.Repository.ClubRepository;
+import com.educonnect.clubservice.repository.ClubRepository;
 import com.educonnect.clubservice.dto.request.SubmitClubRequest;
 import com.educonnect.clubservice.dto.request.UpdateMemberRoleRequest;
 import com.educonnect.clubservice.dto.response.ClubDetailsDTO;
@@ -9,7 +9,9 @@ import com.educonnect.clubservice.dto.response.MemberDTO;
 import com.educonnect.clubservice.dto.response.MyClubMembershipDTO;
 import com.educonnect.clubservice.dto.response.PageResponse;
 import com.educonnect.clubservice.model.Club;
-import com.educonnect.clubservice.service.ClubService;
+import com.educonnect.clubservice.service.ClubFoundingService;
+import com.educonnect.clubservice.service.ClubLifecycleService;
+import com.educonnect.clubservice.service.ClubQueryService;
 import com.educonnect.common.web.ApiException;
 import com.educonnect.common.web.BadRequestException;
 import com.educonnect.common.web.NotFoundException;
@@ -29,26 +31,31 @@ import java.util.UUID;
 @RequestMapping("/api/clubs") // Public rota
 public class ClubController {
 
-    private final ClubService clubService;
+    private final ClubQueryService clubQueryService;
+    private final ClubLifecycleService clubLifecycleService;
+    private final ClubFoundingService clubFoundingService;
     private final ClubRepository clubRepository;
 
-    // --- MANUEL CONSTRUCTOR ---
-    // Lombok'un @RequiredArgsConstructor ile arka planda yaptığı iş budur
-    public ClubController(ClubService clubService, ClubRepository clubRepository) {
-        this.clubService = clubService;
+    public ClubController(ClubQueryService clubQueryService,
+                          ClubLifecycleService clubLifecycleService,
+                          ClubFoundingService clubFoundingService,
+                          ClubRepository clubRepository) {
+        this.clubQueryService = clubQueryService;
+        this.clubLifecycleService = clubLifecycleService;
+        this.clubFoundingService = clubFoundingService;
         this.clubRepository = clubRepository;
     }
 
     // Tüm Kulüpleri Listele (Özet Bilgi)
     @GetMapping
     public ResponseEntity<List<ClubSummaryDTO>> getAllClubs() {
-        return ResponseEntity.ok(clubService.getAllClubs());
+        return ResponseEntity.ok(clubQueryService.getAllClubs());
     }
 
     @GetMapping(params = "page")
     public ResponseEntity<PageResponse<ClubSummaryDTO>> getClubsPage(@RequestParam int page,
                                                                     @RequestParam(required = false) Integer size) {
-        return ResponseEntity.ok(clubService.getClubsPage(page, size));
+        return ResponseEntity.ok(clubQueryService.getClubsPage(page, size));
     }
 
     // Tek Bir Kulübün Detaylarını Getir (Üyelerle Birlikte)
@@ -58,7 +65,7 @@ public class ClubController {
             @RequestHeader(value = "X-Authenticated-User-Id", required = false) String userIdHeader
     ) {
         UUID viewerId = userIdHeader != null ? UUID.fromString(userIdHeader) : null;
-        return ResponseEntity.ok(clubService.getClubDetails(clubId, viewerId));
+        return ResponseEntity.ok(clubQueryService.getClubDetails(clubId, viewerId));
     }
 
     @PostMapping("/{clubId}/join")
@@ -107,7 +114,7 @@ public class ClubController {
         } catch (IllegalArgumentException e) {
             throw new BadRequestException("INVALID_USER_ID", "Invalid user id format.");
         }
-        clubService.leaveClub(clubId, studentId);
+        clubLifecycleService.leaveClub(clubId, studentId);
         return ResponseEntity.ok("Successfully left the club.");
     }
 
@@ -133,7 +140,7 @@ public class ClubController {
         UUID requestingStudentId = UUID.fromString(userIdHeader);
 
         // Servis katmanı hem yetkiyi kontrol edecek hem de yüklemeyi yapacak
-        String objectName = clubService.updateClubLogo(clubId, file, requestingStudentId);
+        String objectName = clubLifecycleService.updateClubLogo(clubId, file, requestingStudentId);
 
         return ResponseEntity.ok(objectName);
     }
@@ -149,7 +156,7 @@ public class ClubController {
         boolean requesterIsStudent = roles != null && Arrays.stream(roles.split(","))
                 .map(String::trim)
                 .anyMatch("ROLE_STUDENT"::equals);
-        clubService.submitClubCreationRequest(request, studentId, requesterIsStudent);
+        clubFoundingService.submitClubCreationRequest(request, studentId, requesterIsStudent);
         return ResponseEntity.ok("Club creation request submitted. Pending advisor approval.");
     }
 
@@ -171,7 +178,7 @@ public class ClubController {
             @RequestHeader("X-Authenticated-User-Id") String studentIdHeader
     ) {
         UUID studentId = UUID.fromString(studentIdHeader);
-        return ResponseEntity.ok(clubService.getStudentClubMemberships(studentId));
+        return ResponseEntity.ok(clubQueryService.getStudentClubMemberships(studentId));
     }
 
     // ==================== CLUB OFFICIAL DASHBOARD ENDPOINTS ====================
@@ -183,7 +190,7 @@ public class ClubController {
      */
     @GetMapping("/{clubId}/board-members")
     public ResponseEntity<List<MemberDTO>> getClubBoardMembers(@PathVariable UUID clubId) {
-        List<MemberDTO> boardMembers = clubService.getClubBoardMembers(clubId);
+        List<MemberDTO> boardMembers = clubQueryService.getClubBoardMembers(clubId);
         return ResponseEntity.ok(boardMembers);
     }
 
@@ -198,7 +205,7 @@ public class ClubController {
             @RequestHeader("X-Authenticated-User-Id") String userIdHeader
     ) {
         UUID userId = UUID.fromString(userIdHeader);
-        List<MyClubMembershipDTO> managedClubs = clubService.getManagedClubs(userId);
+        List<MyClubMembershipDTO> managedClubs = clubQueryService.getManagedClubs(userId);
         return ResponseEntity.ok(managedClubs);
     }
 }

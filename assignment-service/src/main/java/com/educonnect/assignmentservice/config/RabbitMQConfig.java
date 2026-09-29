@@ -1,8 +1,6 @@
 package com.educonnect.assignmentservice.config;
 
 import org.springframework.amqp.core.*;
-import org.springframework.amqp.support.converter.JacksonJsonMessageConverter;
-import org.springframework.amqp.support.converter.MessageConverter;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
@@ -56,11 +54,5 @@ public class RabbitMQConfig {
     @Bean
     public Binding userDeletedBinding(Queue userDeletedQueue, DirectExchange userExchange) {
         return BindingBuilder.bind(userDeletedQueue).to(userExchange).with(USER_DELETED_ROUTING_KEY);
-    }
-
-    // JSON Dönüştürücü
-    @Bean
-    public MessageConverter messageConverter() {
-        return new JacksonJsonMessageConverter();
     }
 }

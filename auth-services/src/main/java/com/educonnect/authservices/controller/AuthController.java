@@ -12,9 +12,10 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import java.net.URI;
 import com.educonnect.authservices.dto.response.AuthResponse;
-import com.educonnect.authservices.service.AuthServiceImpl;
-import com.educonnect.authservices.Repository.UserRepository;
-import com.educonnect.authservices.models.User;
+import com.educonnect.authservices.service.AuthSessionService;
+import com.educonnect.authservices.service.PasswordService;
+import com.educonnect.authservices.service.RegistrationService;
+import com.educonnect.authservices.repository.UserRepository;
 import com.educonnect.common.web.ApiException;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -22,12 +23,8 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.web.server.ResponseStatusException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.Authentication;
-import org.springframework.security.core.GrantedAuthority;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
-import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -36,25 +33,29 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.http.MediaType;
 
-import java.util.List;
 import java.util.NoSuchElementException;
-import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/auth")
 public class AuthController {
 
-    private final AuthServiceImpl authService;
+    private final AuthSessionService authSessionService;
+    private final RegistrationService registrationService;
+    private final PasswordService passwordService;
     private final UserRepository userRepository;
     private final boolean openRegistrationEnabled;
     private final EmailVerificationService emailVerificationService;
 
     @Autowired
-    public AuthController(AuthServiceImpl authService,
+    public AuthController(AuthSessionService authSessionService,
+                          RegistrationService registrationService,
+                          PasswordService passwordService,
                           UserRepository userRepository,
                           @Value("${auth.registration.open-enabled:false}") boolean openRegistrationEnabled,
                           EmailVerificationService emailVerificationService) {
-        this.authService = authService;
+        this.authSessionService = authSessionService;
+        this.registrationService = registrationService;
+        this.passwordService = passwordService;
         this.userRepository = userRepository;
         this.openRegistrationEnabled = openRegistrationEnabled;
         this.emailVerificationService = emailVerificationService;
@@ -68,7 +69,7 @@ public class AuthController {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN,
                     "Doğrudan kayıt kapalıdır. Lütfen öğrenci veya akademisyen başvurusu yapın.");
         }
-        return ResponseEntity.ok(authService.register(request));
+        return ResponseEntity.ok(registrationService.register(request));
     }
 
     // --- YENİ ENDPOINT: Öğrenci Başvurusu (Belge ile) ---
@@ -77,7 +78,7 @@ public class AuthController {
             @Valid @RequestPart("request") RegisterRequest request,
             @RequestPart("studentDocument") MultipartFile studentDocument
     ) {
-        authService.requestStudentAccount(request, studentDocument);
+        registrationService.requestStudentAccount(request, studentDocument);
         return ResponseEntity.ok("Student account request received. Pending admin approval.");
     }
 
@@ -86,7 +87,7 @@ public class AuthController {
             @Valid @RequestBody LoginRequest request
     ) {
 
-        return ResponseEntity.ok(authService.login(request));
+        return ResponseEntity.ok(authSessionService.login(request));
     }
 
     // --- YENİ ENDPOINT: Akademisyen Başvurusu ---
@@ -96,7 +97,7 @@ public class AuthController {
             @RequestPart("idCardImage") MultipartFile idCardImage
     ) {
         // Servis katmanında bu isteği işleyeceğiz (kimlik kartı fotoğrafı ile birlikte)
-        authService.requestAcademicianAccount(request, idCardImage);
+        registrationService.requestAcademicianAccount(request, idCardImage);
         return ResponseEntity.ok("Academician account request received. Pending admin approval.");
     }
 
@@ -131,10 +132,11 @@ public class AuthController {
             @Valid @RequestBody ChangePasswordRequest request,
             Authentication authentication // Spring Security, token'dan kimliği doğrulanmış kullanıcıyı buraya inject eder
     ) {
-        // 'authentication.getPrincipal()' bize 'User' (UserDetails) nesnesini verir
-        UserDetails userDetails = (UserDetails) authentication.getPrincipal();
+        if (!(authentication.getPrincipal() instanceof UserDetails userDetails)) {
+            throw new ApiException(HttpStatus.UNAUTHORIZED, "UNAUTHENTICATED", "Kimlik doğrulanamadı.");
+        }
 
-        authService.changePassword(request, userDetails);
+        passwordService.changePassword(request, userDetails);
 
         return ResponseEntity.ok("Password changed successfully.");
     }
@@ -145,7 +147,7 @@ public class AuthController {
      */
     @PostMapping("/refresh")
     public ResponseEntity<?> refreshToken(@Valid @RequestBody RefreshTokenRequest request) {
-        AuthResponse response = authService.refreshAccessToken(request.refreshToken());
+        AuthResponse response = authSessionService.refreshAccessToken(request.refreshToken());
         return ResponseEntity.ok(response);
     }
 
@@ -155,7 +157,7 @@ public class AuthController {
      */
     @PostMapping("/logout")
     public ResponseEntity<String> logout(@Valid @RequestBody RefreshTokenRequest request) {
-        authService.logout(request.refreshToken());
+        authSessionService.logout(request.refreshToken());
         return ResponseEntity.ok("Logged out successfully");
     }
 
@@ -166,7 +168,7 @@ public class AuthController {
     @PostMapping("/forgot-password")
     public ResponseEntity<String> forgotPassword(@Valid @RequestBody ForgotPasswordRequest request) {
         try {
-            authService.forgotPassword(request);
+            passwordService.forgotPassword(request);
         } catch (NoSuchElementException ignored) {
         }
         return ResponseEntity.ok("Bu e-posta adresi kayıtlıysa şifre sıfırlama linki gönderildi.");
@@ -178,7 +180,7 @@ public class AuthController {
      */
     @PostMapping("/reset-password")
     public ResponseEntity<String> resetPassword(@Valid @RequestBody ResetPasswordRequest request) {
-        authService.resetPassword(request);
+        passwordService.resetPassword(request);
         return ResponseEntity.ok("Şifreniz başarıyla sıfırlandı. Artık yeni şifrenizle giriş yapabilirsiniz.");
     }
 }

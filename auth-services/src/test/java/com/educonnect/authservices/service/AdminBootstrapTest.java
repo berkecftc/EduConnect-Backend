@@ -1,6 +1,6 @@
 package com.educonnect.authservices.service;
 
-import com.educonnect.authservices.Repository.UserRepository;
+import com.educonnect.authservices.repository.UserRepository;
 import com.educonnect.authservices.config.AuthSecurityProperties;
 import com.educonnect.authservices.models.Role;
 import com.educonnect.authservices.models.User;

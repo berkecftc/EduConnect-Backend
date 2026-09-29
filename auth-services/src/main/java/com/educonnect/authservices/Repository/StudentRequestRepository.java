@@ -1,4 +1,4 @@
-package com.educonnect.authservices.Repository;
+package com.educonnect.authservices.repository;
 
 import com.educonnect.authservices.models.StudentRegistrationRequest;
 import org.springframework.data.jpa.repository.JpaRepository;

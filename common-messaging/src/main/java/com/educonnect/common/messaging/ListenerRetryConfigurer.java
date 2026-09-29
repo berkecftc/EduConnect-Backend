@@ -2,6 +2,7 @@ package com.educonnect.common.messaging;
 
 import com.educonnect.common.messaging.dedup.DuplicateMessageFilter;
 import com.educonnect.common.messaging.dedup.ProcessedMessageStore;
+import org.aopalliance.aop.Advice;
 import org.springframework.amqp.AmqpRejectAndDontRequeueException;
 import org.springframework.amqp.core.AmqpTemplate;
 import org.springframework.amqp.core.Message;
@@ -40,7 +41,8 @@ public class ListenerRetryConfigurer implements BeanPostProcessor {
         if (properties.enabled() && bean instanceof AbstractRabbitListenerContainerFactory<?> factory) {
             factory.setDefaultRequeueRejected(false);
             factory.setObservationEnabled(true);
-            if (factory.getAdviceChain() == null || factory.getAdviceChain().length == 0) {
+            Advice[] adviceChain = factory.getAdviceChain();
+            if (adviceChain == null || adviceChain.length == 0) {
                 factory.setAdviceChain(
                         RetryInterceptorBuilder.stateless()
                                 .retryPolicy(retryPolicy(properties))

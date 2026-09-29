@@ -1,5 +1,6 @@
 package com.educonnect.userservice.service;
 
+import com.educonnect.common.web.NotFoundException;
 import com.educonnect.userservice.dto.response.UserProfileResponse;
 import com.educonnect.userservice.dto.response.UserProfileResponseDTO;
 import org.junit.jupiter.api.BeforeEach;
@@ -98,7 +99,7 @@ class ProfileViewServiceTest {
 
     @Test
     void getProfile_whenProfileMissing_shouldReturnNotFound() {
-        when(profileService.getUserProfile(ownerId)).thenThrow(new RuntimeException("Profile not found"));
+        when(profileService.getUserProfile(ownerId)).thenThrow(new NotFoundException("PROFILE_NOT_FOUND", "Profile not found"));
 
         assertThatThrownBy(() -> profileViewService.getProfile(ownerId, ownerId, null))
                 .isInstanceOf(ResponseStatusException.class)

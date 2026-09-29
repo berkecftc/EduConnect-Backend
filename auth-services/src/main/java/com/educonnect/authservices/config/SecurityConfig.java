@@ -1,6 +1,6 @@
 package com.educonnect.authservices.config;
 
-import com.educonnect.authservices.Repository.UserRepository;
+import com.educonnect.authservices.repository.UserRepository;
 import com.educonnect.authservices.security.JwtAuthenticationFilter;
 import com.educonnect.authservices.service.JWTService;
 import com.educonnect.common.web.ProblemSecurityHandlers;
@@ -24,12 +24,7 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
-import org.springframework.web.cors.CorsConfiguration;
-import org.springframework.web.cors.CorsConfigurationSource;
-import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
-import java.util.Arrays;
-import java.util.List;
 
 @Configuration
 @EnableWebSecurity
