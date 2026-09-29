@@ -26,7 +26,7 @@ import org.springframework.web.multipart.MultipartFile;
 import java.util.List;
 import java.util.UUID;
 
-@ConditionalOnProperty(name = "educonnect.club.admin-access.enabled", havingValue = "true", matchIfMissing = true)
+@ConditionalOnProperty(name = "educonnect.club.admin-access.enabled", havingValue = "true", matchIfMissing = false)
 @RestController
 @RequestMapping("/api/admin/clubs") // Admin rotası
 public class ClubAdminController {

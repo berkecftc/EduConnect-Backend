@@ -16,7 +16,7 @@ import java.lang.annotation.Target;
 
 @Target(ElementType.TYPE)
 @Retention(RetentionPolicy.RUNTIME)
-@SpringBootTest(properties = "educonnect.club.admin-access.enabled=false")
+@SpringBootTest
 @AutoConfigureMockMvc
 @Import({PostgresTestContainer.class, RabbitTestContainer.class, RedisTestContainer.class, MinioTestContainer.class,
         TestJwtDecoder.class})

@@ -14,6 +14,11 @@ public final class SafeFileNames {
     private SafeFileNames() {
     }
 
+    public static String pathSegment(String value, String fallback) {
+        String cleaned = value == null ? "" : value.replaceAll("[^A-Za-z0-9_-]", "");
+        return cleaned.isEmpty() ? fallback : cleaned;
+    }
+
     public static String sanitize(String originalName) {
         if (originalName == null || originalName.isBlank()) {
             return FALLBACK;

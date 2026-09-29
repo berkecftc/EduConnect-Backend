@@ -1,5 +1,6 @@
 package com.educonnect.eventservice.config;
 
+import com.educonnect.common.web.cache.CacheValueSerializers;
 import com.educonnect.eventservice.model.Event;
 import com.educonnect.eventservice.model.EventStatus;
 import org.junit.jupiter.api.Test;
@@ -17,7 +18,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class RedisCacheConfigTest {
 
-    private final GenericJacksonJsonRedisSerializer serializer = RedisCacheConfig.cacheValueSerializer();
+    private final GenericJacksonJsonRedisSerializer serializer = CacheValueSerializers.typed();
 
     @Test
     void cacheValueSerializer_withApplicationTypes_shouldRoundTrip() {

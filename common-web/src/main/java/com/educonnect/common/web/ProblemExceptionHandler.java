@@ -20,7 +20,9 @@ import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.ErrorResponse;
 import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.MissingRequestHeaderException;
 import org.springframework.web.bind.MissingServletRequestParameterException;
+import org.springframework.web.bind.ServletRequestBindingException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.context.request.ServletWebRequest;
@@ -42,6 +44,8 @@ public class ProblemExceptionHandler extends ResponseEntityExceptionHandler {
     private static final Logger log = LoggerFactory.getLogger(ProblemExceptionHandler.class);
 
     static final String VALIDATION_MESSAGE = "Girilen bilgiler geçersiz.";
+
+    static final String IDENTITY_HEADER_PREFIX = "X-Authenticated-";
 
     @ExceptionHandler(ApiException.class)
     public ResponseEntity<ProblemDetail> handleApiException(ApiException ex, HttpServletRequest request) {
@@ -114,6 +118,20 @@ public class ProblemExceptionHandler extends ResponseEntityExceptionHandler {
         ProblemDetail problem = ProblemDetail.forStatusAndDetail(status, "İstek gövdesi okunamadı veya geçersiz.");
         problem.setProperty(Problems.ERROR_CODE, "MALFORMED_REQUEST");
         return handleExceptionInternal(ex, problem, headers, status, request);
+    }
+
+    @Override
+    protected ResponseEntity<Object> handleServletRequestBindingException(ServletRequestBindingException ex,
+                                                                          HttpHeaders headers, HttpStatusCode status,
+                                                                          WebRequest request) {
+        if (ex instanceof MissingRequestHeaderException missing
+                && missing.getHeaderName().startsWith(IDENTITY_HEADER_PREFIX)) {
+            ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.UNAUTHORIZED,
+                    Problems.defaultMessage(HttpStatus.UNAUTHORIZED.value()));
+            problem.setProperty(Problems.ERROR_CODE, "UNAUTHENTICATED");
+            return handleExceptionInternal(ex, problem, headers, HttpStatus.UNAUTHORIZED, request);
+        }
+        return super.handleServletRequestBindingException(ex, headers, status, request);
     }
 
     @Override

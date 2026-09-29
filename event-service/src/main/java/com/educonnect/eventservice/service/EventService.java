@@ -22,11 +22,14 @@ import com.educonnect.eventservice.security.EventAuthorizationService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import com.educonnect.common.messaging.outbox.OutboxPublisher;
+import com.educonnect.common.web.ApiException;
 import com.educonnect.common.web.BadRequestException;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.client.HttpClientErrorException;
+import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.util.UriComponentsBuilder;
@@ -104,7 +107,13 @@ public class EventService {
             String idString = (String) response.get("id");
             resolvedClubId = UUID.fromString(idString);
 
-        } catch (Exception e) {
+        } catch (HttpClientErrorException e) {
+            throw new IllegalArgumentException("Invalid club name: " + request.getClubName() + ". Club not found.");
+        } catch (RestClientException | IllegalStateException e) {
+            log.warn("Club lookup by name failed: {}", e.getClass().getSimpleName());
+            throw new ApiException(HttpStatus.SERVICE_UNAVAILABLE, "UPSTREAM_UNAVAILABLE",
+                    "Kulüp bilgisi şu anda alınamıyor. Lütfen daha sonra tekrar deneyin.");
+        } catch (RuntimeException e) {
             throw new IllegalArgumentException("Invalid club name: " + request.getClubName() + ". Club not found.");
         }
 

@@ -152,7 +152,7 @@ public class ClubMembershipRequestService {
 
         // İstek bu kulübe mi ait?
         if (!request.getClubId().equals(clubId)) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Bu istek belirtilen kulübe ait değil");
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Üyelik isteği bulunamadı");
         }
 
         // Zaten işlenmiş mi?
@@ -204,7 +204,7 @@ public class ClubMembershipRequestService {
 
         // İstek bu kulübe mi ait?
         if (!request.getClubId().equals(clubId)) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Bu istek belirtilen kulübe ait değil");
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Üyelik isteği bulunamadı");
         }
 
         // Zaten işlenmiş mi?

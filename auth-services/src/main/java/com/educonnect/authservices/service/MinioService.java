@@ -1,7 +1,7 @@
 package com.educonnect.authservices.service;
 
-import io.minio.*;
-import com.educonnect.common.storage.PresignedUrls;
+import com.educonnect.common.storage.ObjectStorage;
+import com.educonnect.common.storage.ObjectStorage.BucketAccess;
 import com.educonnect.common.storage.StorageUrls;
 import com.educonnect.common.storage.UploadKind;
 import com.educonnect.common.storage.UploadValidator;
@@ -21,14 +21,7 @@ public class MinioService {
     private static final Logger log = LoggerFactory.getLogger(MinioService.class);
     private static final Duration PRESIGNED_URL_EXPIRY = Duration.ofMinutes(15);
 
-    private final MinioClient minioClient;
-    private final PresignedUrls presignedUrls;
-
-    @Value("${minio.bucket.name}")
-    private String bucketName;
-
-    private final StorageUrls storageUrls;
-    private final UploadValidator uploadValidator;
+    private final ObjectStorage storage;
 
     public MinioService(@Value("${minio.url}") String url,
                         @Value("${minio.access-key}") String accessKey,
@@ -36,177 +29,37 @@ public class MinioService {
                         @Value("${minio.bucket.name}") String bucketName,
                         StorageUrls storageUrls,
                         UploadValidator uploadValidator) {
-        try {
-            this.minioClient = MinioClient.builder()
-                    .endpoint(url)
-                    .credentials(accessKey, secretKey)
-                    .build();
-            this.presignedUrls = new PresignedUrls(storageUrls, accessKey, secretKey);
-            this.bucketName = bucketName;
-            this.storageUrls = storageUrls;
-            this.uploadValidator = uploadValidator;
-
-            ensureBucketExists();
-        } catch (Exception e) {
-            throw new RuntimeException("Error initializing Minio client", e);
-        }
-    }
-
-    /**
-     * Bucket'ı kontrol eder, yoksa oluşturur.
-     */
-    private void ensureBucketExists() {
-        try {
-            boolean exists = minioClient.bucketExists(
-                    BucketExistsArgs.builder()
-                            .bucket(bucketName)
-                            .build()
-            );
-
-            if (!exists) {
-                minioClient.makeBucket(
-                        MakeBucketArgs.builder()
-                                .bucket(bucketName)
-                                .build()
-                );
-                log.info("MinIO bucket created: {}", bucketName);
-            }
-
-            minioClient.deleteBucketPolicy(
-                    DeleteBucketPolicyArgs.builder()
-                            .bucket(bucketName)
-                            .build()
-            );
-            log.info("MinIO bucket '{}' is private (public policy removed)", bucketName);
-
-        } catch (Exception e) {
-            throw new RuntimeException("Error checking/creating MinIO bucket: " + e.getMessage(), e);
-        }
+        this.storage = ObjectStorage.connect(url, accessKey, secretKey, bucketName, BucketAccess.PRIVATE,
+                storageUrls, uploadValidator);
     }
 
     public String createPresignedUrl(String storedUrl) {
-        String objectName = extractObjectName(storedUrl);
-        if (objectName == null) {
-            return null;
-        }
         try {
-            return presignedUrls.get(bucketName, objectName, PRESIGNED_URL_EXPIRY);
+            return storage.presignedGet(storedUrl, PRESIGNED_URL_EXPIRY);
         } catch (RuntimeException e) {
-            log.error("Could not create presigned URL for object {}", objectName, e);
+            log.error("Could not create presigned URL in bucket {}", storage.bucket(), e);
             return null;
         }
     }
 
-    /**
-     * Akademisyen kimlik kartı fotoğrafını MinIO'ya yükler ve TAM URL döner.
-     */
     public String uploadIdCardImage(MultipartFile file, UUID userId) {
-        ValidatedUpload upload = uploadValidator.validate(file, UploadKind.DOCUMENT);
-        String objectName = "id-cards/" + userId + extensionOrDefault(upload);
-        try {
-
-            minioClient.putObject(
-                    PutObjectArgs.builder()
-                            .bucket(bucketName)
-                            .object(objectName)
-                            .stream(file.getInputStream(), file.getSize(), null)
-                            .contentType(upload.contentType())
-                            .build()
-            );
-
-            return storageUrls.url(bucketName, objectName);
-
-        } catch (Exception e) {
-            throw new RuntimeException("Error uploading ID card image to MinIO: " + e.getMessage(), e);
-        }
+        return uploadDocument(file, "id-cards/", userId);
     }
 
-    /**
-     * MinIO'dan kimlik kartı fotoğrafını siler.
-     * @param imageUrl Silinecek fotoğrafın tam URL'si
-     */
     public void deleteIdCardImage(String imageUrl) {
-        if (imageUrl == null || imageUrl.isEmpty()) {
-            return;
-        }
-        try {
-            // URL'den object name'i çıkar: http://localhost:9000/bucket/id-cards/uuid.jpg -> id-cards/uuid.jpg
-            String objectName = extractObjectName(imageUrl);
-            if (objectName != null) {
-                minioClient.removeObject(
-                        RemoveObjectArgs.builder()
-                                .bucket(bucketName)
-                                .object(objectName)
-                                .build()
-                );
-                log.info("Kimlik kartı fotoğrafı silindi: {}", objectName);
-            }
-        } catch (Exception e) {
-            log.warn("Kimlik kartı fotoğrafı MinIO'dan silinemedi: {}", e.getMessage());
-            // Silme hatası kritik değil, işlemi durdurmuyoruz
-        }
+        storage.delete(imageUrl);
     }
 
-    /**
-     * URL'den object name'i çıkarır.
-     */
-    private String extractObjectName(String imageUrl) {
-        if (imageUrl == null || imageUrl.isBlank()) {
-            return null;
-        }
-        return storageUrls.objectName(imageUrl, bucketName);
-    }
-
-    private static String extensionOrDefault(ValidatedUpload upload) {
-        return upload.extension().isEmpty() ? ".jpg" : upload.extension();
-    }
-
-    /**
-     * Öğrenci belgesini MinIO'ya yükler ve TAM URL döner.
-     */
     public String uploadStudentDocument(MultipartFile file, UUID userId) {
-        ValidatedUpload upload = uploadValidator.validate(file, UploadKind.DOCUMENT);
-        String objectName = "student-documents/" + userId + extensionOrDefault(upload);
-        try {
-
-            minioClient.putObject(
-                    PutObjectArgs.builder()
-                            .bucket(bucketName)
-                            .object(objectName)
-                            .stream(file.getInputStream(), file.getSize(), null)
-                            .contentType(upload.contentType())
-                            .build()
-            );
-
-            return storageUrls.url(bucketName, objectName);
-
-        } catch (Exception e) {
-            throw new RuntimeException("Error uploading student document to MinIO: " + e.getMessage(), e);
-        }
+        return uploadDocument(file, "student-documents/", userId);
     }
 
-    /**
-     * MinIO'dan öğrenci belgesini siler.
-     * @param documentUrl Silinecek belgenin tam URL'si
-     */
     public void deleteStudentDocument(String documentUrl) {
-        if (documentUrl == null || documentUrl.isEmpty()) {
-            return;
-        }
-        try {
-            String objectName = extractObjectName(documentUrl);
-            if (objectName != null) {
-                minioClient.removeObject(
-                        RemoveObjectArgs.builder()
-                                .bucket(bucketName)
-                                .object(objectName)
-                                .build()
-                );
-                log.info("Öğrenci belgesi silindi: {}", objectName);
-            }
-        } catch (Exception e) {
-            log.warn("Öğrenci belgesi MinIO'dan silinemedi: {}", e.getMessage());
-        }
+        storage.delete(documentUrl);
+    }
+
+    private String uploadDocument(MultipartFile file, String folder, UUID userId) {
+        ValidatedUpload upload = storage.validate(file, UploadKind.DOCUMENT);
+        return storage.put(file, upload, folder + userId + upload.extensionOr(".jpg"));
     }
 }
-

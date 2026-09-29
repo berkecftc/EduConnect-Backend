@@ -165,7 +165,7 @@ class ClubAuthorizationTest {
                     .andExpect(status().isForbidden());
         }
         mockMvc.perform(as(put(path, otherClubId, requestId), TestTokens.student(otherPresident)))
-                .andExpect(status().isBadRequest());
+                .andExpect(status().isNotFound());
         assertThat(membershipRequestRepository.findById(requestId).orElseThrow().getStatus())
                 .isEqualTo(MembershipRequestStatus.PENDING);
         assertThat(membershipRepository.existsByClubIdAndStudentId(clubId, student)).isFalse();
@@ -182,6 +182,8 @@ class ClubAuthorizationTest {
         String path = "/api/clubs/{clubId}/membership-requests/{requestId}/reject";
         mockMvc.perform(as(put(path, clubId, requestId), TestTokens.student(officer)))
                 .andExpect(status().isForbidden());
+        mockMvc.perform(as(put(path, otherClubId, requestId), TestTokens.student(otherPresident)))
+                .andExpect(status().isNotFound());
         assertThat(membershipRequestRepository.findById(requestId).orElseThrow().getStatus())
                 .isEqualTo(MembershipRequestStatus.PENDING);
 
@@ -432,7 +434,7 @@ class ClubAuthorizationTest {
     }
 
     @Test
-    void adminClubEndpointsAreSwitchedOffWithTheProductionFlag() throws Exception {
+    void adminClubEndpointsAreSwitchedOffUnlessExplicitlyEnabled() throws Exception {
         String body = "{\"name\":\"Admin Kulübü\",\"academicAdvisorId\":\"" + advisor
                 + "\",\"clubPresidentId\":\"" + student + "\"}";
         mockMvc.perform(json(post("/api/admin/clubs"), TestTokens.admin(admin), body))

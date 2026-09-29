@@ -116,7 +116,7 @@ class UserAuthorizationTest {
 			mockMvc.perform(as(get(path), TestTokens.academician(academician)))
 					.andExpect(status().isForbidden());
 			mockMvc.perform(get(path))
-					.andExpect(status().isForbidden());
+					.andExpect(status().isUnauthorized());
 			mockMvc.perform(as(get(path), TestTokens.admin(admin)))
 					.andExpect(status().isOk());
 		}
@@ -188,19 +188,19 @@ class UserAuthorizationTest {
 	void aServiceTokenIsIgnoredOnPublicPaths() throws Exception {
 		mockMvc.perform(as(put("/api/users/profile/{id}", owner), TestTokens.service("club-service"))
 						.contentType(MediaType.APPLICATION_JSON).content("{\"firstName\":\"Servis\"}"))
-				.andExpect(status().isBadRequest());
+				.andExpect(status().isUnauthorized());
 		assertThat(studentRepository.findById(owner).orElseThrow().getFirstName()).isEqualTo("Ayşe");
 	}
 
 	@Test
-	void updatesWithoutATokenAreRejectedByTheMissingIdentityHeader() throws Exception {
+	void updatesWithoutATokenAreUnauthenticatedEvenWithAForgedIdentityHeader() throws Exception {
 		mockMvc.perform(put("/api/users/profile/{id}", owner)
 						.contentType(MediaType.APPLICATION_JSON).content("{\"firstName\":\"Anonim\"}"))
-				.andExpect(status().isBadRequest());
+				.andExpect(status().isUnauthorized());
 		mockMvc.perform(put("/api/users/profile/{id}", owner)
 						.header("X-Authenticated-User-Id", owner.toString())
 						.contentType(MediaType.APPLICATION_JSON).content("{\"firstName\":\"Sahte\"}"))
-				.andExpect(status().isBadRequest());
+				.andExpect(status().isUnauthorized());
 		assertThat(studentRepository.findById(owner).orElseThrow().getFirstName()).isEqualTo("Ayşe");
 	}
 

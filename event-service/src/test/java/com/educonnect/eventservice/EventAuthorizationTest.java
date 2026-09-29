@@ -338,12 +338,12 @@ class EventAuthorizationTest {
 	}
 
 	@Test
-	void eventCreationFailsBeforeTheRoleCheckWhenTheClubLookupIsUnreachable() throws Exception {
+	void eventCreationAnswersServiceUnavailableWhenTheClubLookupIsUnreachable() throws Exception {
 		mockMvc.perform(multipart("/api/events/manage").file(eventData()).file(poster()))
 				.andExpect(status().isUnauthorized());
 		mockMvc.perform(as(multipart("/api/events/manage").file(eventData()).file(poster()), TestTokens.student(member)))
-				.andExpect(status().isBadRequest())
-				.andExpect(jsonPath("$.errorCode").value("BAD_REQUEST"));
+				.andExpect(status().isServiceUnavailable())
+				.andExpect(jsonPath("$.errorCode").value("UPSTREAM_UNAVAILABLE"));
 		assertThat(eventRepository.findByClubId(clubId)).hasSize(2);
 	}
 

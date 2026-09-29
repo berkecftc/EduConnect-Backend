@@ -15,16 +15,20 @@ import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.authentication.BadCredentialsException;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.UUID;
@@ -154,13 +158,34 @@ class ProblemExceptionHandlerTest {
 
     @Test
     void securityExceptions_map403And401() throws Exception {
-        mockMvc.perform(get("/test/denied"))
-                .andExpect(status().isForbidden())
-                .andExpect(jsonPath("$.message").value("Bu işlem için yetkiniz yok."));
+        SecurityContextHolder.getContext().setAuthentication(
+                UsernamePasswordAuthenticationToken.authenticated("user", null, List.of()));
+        try {
+            mockMvc.perform(get("/test/denied"))
+                    .andExpect(status().isForbidden())
+                    .andExpect(jsonPath("$.message").value("Bu işlem için yetkiniz yok."));
+        } finally {
+            SecurityContextHolder.clearContext();
+        }
         mockMvc.perform(get("/test/bad-credentials"))
                 .andExpect(status().isUnauthorized())
                 .andExpect(jsonPath("$.errorCode").value("BAD_CREDENTIALS"))
                 .andExpect(jsonPath("$.message").value("E-posta veya parola hatalı."));
+    }
+
+    @Test
+    void anonymousRequests_map401WhenDeniedOrWithoutTheIdentityHeader() throws Exception {
+        mockMvc.perform(get("/test/denied"))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.errorCode").value("UNAUTHENTICATED"));
+        mockMvc.perform(get("/test/identity"))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.errorCode").value("UNAUTHENTICATED"))
+                .andExpect(jsonPath("$.message").value("Oturum açmanız gerekiyor."));
+        mockMvc.perform(get("/test/identity").header("X-Authenticated-User-Id", "u-1"))
+                .andExpect(status().isOk());
+        mockMvc.perform(get("/test/other-header"))
+                .andExpect(status().isBadRequest());
     }
 
     @Test
@@ -262,6 +287,16 @@ class ProblemExceptionHandlerTest {
         @GetMapping("/test/denied")
         String denied() {
             throw new AccessDeniedException("denied");
+        }
+
+        @GetMapping("/test/identity")
+        String identity(@RequestHeader("X-Authenticated-User-Id") String userId) {
+            return userId;
+        }
+
+        @GetMapping("/test/other-header")
+        String otherHeader(@RequestHeader("X-Client-Version") String version) {
+            return version;
         }
 
         @GetMapping("/test/bad-credentials")

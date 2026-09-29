@@ -1,6 +1,6 @@
 package com.educonnect.clubservice.config;
 
-import tools.jackson.databind.json.JsonMapper;
+import com.educonnect.common.web.cache.CacheValueSerializers;
 import org.springframework.cache.CacheManager;
 import org.springframework.cache.annotation.CachingConfigurer;
 import org.springframework.cache.annotation.EnableCaching;
@@ -28,7 +28,7 @@ public class RedisCacheConfig implements CachingConfigurer {
 
     @Bean
     public CacheManager cacheManager(RedisConnectionFactory connectionFactory) {
-        GenericJacksonJsonRedisSerializer serializer = new GenericJacksonJsonRedisSerializer(JsonMapper.builder().build());
+        GenericJacksonJsonRedisSerializer serializer = CacheValueSerializers.typed();
 
         RedisCacheConfiguration config = RedisCacheConfiguration.defaultCacheConfig()
                 .entryTtl(Duration.ofMinutes(5)) // TTL: 5 dakika

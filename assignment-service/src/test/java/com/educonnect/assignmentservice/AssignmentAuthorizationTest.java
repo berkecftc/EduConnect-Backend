@@ -223,11 +223,11 @@ class AssignmentAuthorizationTest {
 	@Test
 	void requestsWithoutATokenAreRejectedAndForgedIdentityHeadersAreIgnored() throws Exception {
 		mockMvc.perform(get("/api/assignments/course/{courseId}", courseId))
-				.andExpect(status().isBadRequest());
+				.andExpect(status().isUnauthorized());
 		mockMvc.perform(get("/api/assignments/course/{courseId}", courseId)
 						.header("X-Authenticated-User-Id", instructor.toString())
 						.header("X-Authenticated-User-Roles", "ROLE_ADMIN"))
-				.andExpect(status().isBadRequest());
+				.andExpect(status().isUnauthorized());
 	}
 
 	@Test

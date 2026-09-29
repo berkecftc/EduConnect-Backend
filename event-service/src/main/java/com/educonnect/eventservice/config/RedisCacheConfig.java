@@ -1,10 +1,6 @@
 package com.educonnect.eventservice.config;
 
-import com.fasterxml.jackson.annotation.JsonTypeInfo;
-import tools.jackson.databind.DefaultTyping;
-import tools.jackson.databind.json.JsonMapper;
-import tools.jackson.databind.jsontype.BasicPolymorphicTypeValidator;
-import tools.jackson.databind.jsontype.PolymorphicTypeValidator;
+import com.educonnect.common.web.cache.CacheValueSerializers;
 import org.springframework.cache.CacheManager;
 import org.springframework.cache.annotation.CachingConfigurer;
 import org.springframework.cache.annotation.EnableCaching;
@@ -32,7 +28,7 @@ public class RedisCacheConfig implements CachingConfigurer {
 
     @Bean
     public CacheManager cacheManager(RedisConnectionFactory connectionFactory) {
-        GenericJacksonJsonRedisSerializer serializer = cacheValueSerializer();
+        GenericJacksonJsonRedisSerializer serializer = CacheValueSerializers.typed();
 
         RedisCacheConfiguration config = RedisCacheConfiguration.defaultCacheConfig()
                 .entryTtl(Duration.ofMinutes(5)) // TTL: 5 dakika
@@ -45,23 +41,4 @@ public class RedisCacheConfig implements CachingConfigurer {
                 .transactionAware()
                 .build();
     }
-
-    static GenericJacksonJsonRedisSerializer cacheValueSerializer() {
-        JsonMapper objectMapper = JsonMapper.builder()
-                .activateDefaultTyping(
-                        cacheTypeValidator(),
-                        DefaultTyping.NON_FINAL,
-                        JsonTypeInfo.As.PROPERTY)
-                .build();
-        return new GenericJacksonJsonRedisSerializer(objectMapper);
-    }
-
-    static PolymorphicTypeValidator cacheTypeValidator() {
-        return BasicPolymorphicTypeValidator.builder()
-                .allowIfSubType("com.educonnect.")
-                .allowIfSubType("java.util.")
-                .allowIfSubType("java.time.")
-                .build();
-    }
 }
-

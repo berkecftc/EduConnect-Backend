@@ -291,21 +291,21 @@ class PostAuthorizationTest {
     }
 
     @Test
-    void userRoutesWithoutAVerifiedUserTokenFailAsMissingIdentity() throws Exception {
+    void userRoutesWithoutAVerifiedUserTokenAreUnauthenticated() throws Exception {
         mockMvc.perform(get("/api/posts"))
-                .andExpect(status().isBadRequest());
+                .andExpect(status().isUnauthorized());
         mockMvc.perform(get("/api/posts")
                         .header("X-Authenticated-User-Id", author.toString())
                         .header("X-Authenticated-User-Roles", "ROLE_STUDENT"))
-                .andExpect(status().isBadRequest());
+                .andExpect(status().isUnauthorized());
         mockMvc.perform(delete("/api/posts/{id}", publishedId)
                         .header("X-Authenticated-User-Id", author.toString())
                         .header("X-Authenticated-User-Roles", "ROLE_STUDENT"))
-                .andExpect(status().isBadRequest());
+                .andExpect(status().isUnauthorized());
         mockMvc.perform(as(delete("/api/posts/{id}", publishedId), TestTokens.service("llm-service")))
-                .andExpect(status().isBadRequest());
+                .andExpect(status().isUnauthorized());
         mockMvc.perform(get("/api/posts").header(HttpHeaders.AUTHORIZATION, "Bearer not-a-jwt"))
-                .andExpect(status().isBadRequest());
+                .andExpect(status().isUnauthorized());
         assertThat(postRepository.existsById(publishedId)).isTrue();
     }
 
