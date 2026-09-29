@@ -3,8 +3,8 @@
 <div align="center">
 
 [![Java 21](https://img.shields.io/badge/Java-21%20LTS-007396?logo=openjdk&logoColor=white)](#)
-[![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3.3.0-6DB33F?logo=spring-boot&logoColor=white)](#)
-[![Spring Cloud](https://img.shields.io/badge/Spring%20Cloud-2023.0.3-6DB33F)](#)
+[![Spring Boot](https://img.shields.io/badge/Spring%20Boot-4.0.8-6DB33F?logo=spring-boot&logoColor=white)](#)
+[![Spring Cloud](https://img.shields.io/badge/Spring%20Cloud-2025.1.3-6DB33F)](#)
 [![Docker](https://img.shields.io/badge/Docker-Ready-2496ED?logo=docker&logoColor=white)](#)
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-14-336791?logo=postgresql&logoColor=white)](#)
 [![RabbitMQ](https://img.shields.io/badge/RabbitMQ-3-FF6600?logo=rabbitmq&logoColor=white)](#)
@@ -65,7 +65,7 @@
 ## 🌟 Özellikler
 
 ### 🔐 Kimlik Doğrulama & Yetkilendirme
-- JWT tabanlı oturumsuz kimlik doğrulama (JJWT 0.12.6)
+- JWT tabanlı oturumsuz kimlik doğrulama (JJWT 0.12.7)
 - Çok aşamalı hesap onay süreci (öğrenci/akademisyen/kulüp görevlisi)
 - Belgeli başvuru desteği (MinIO ile dosya yönetimi)
 - Access/Refresh token akışı
@@ -133,8 +133,8 @@
 | Teknoloji | Versiyon | Amaç |
 |-----------|---------|------|
 | **Java** | 21 LTS | Programlama dili |
-| **Spring Boot** | 3.3.0 | Uygulama çerçevesi |
-| **Spring Cloud** | 2023.0.3 | Bulut-yerel bileşenler |
+| **Spring Boot** | 4.0.8 | Uygulama çerçevesi |
+| **Spring Cloud** | 2025.1.3 | Bulut-yerel bileşenler |
 | **Spring Cloud Gateway** | Reaktif (WebFlux + Netty) | API geçidi |
 | **Spring Cloud Netflix Eureka** | Yerleşik | Servis keşfi |
 | **Spring Cloud Config Server** | Yerleşik | Merkezi yapılandırma |
@@ -142,7 +142,7 @@
 | **Spring Cache** | Yerleşik | Önbellekleme soyutlaması |
 | **Spring AMQP** | Yerleşik | RabbitMQ entegrasyonu |
 | **Spring Security** | Yerleşik | Kimlik doğrulama/yetkilendirme |
-| **Spring AI** | 1.0.0-M6 | LLM abstraction / RAG |
+| **Spring AI** | 2.0.1 | LLM abstraction / RAG |
 
 ### Altyapı & Kütüphaneleri
 | Teknoloji | Versiyon | Amaç |
@@ -150,21 +150,20 @@
 | **PostgreSQL** | 14 | İlişkisel veritabanı |
 | **Redis** | 6.2 (Stack) | Bellek içi cache, vektör araması |
 | **RabbitMQ** | 3 | AMQP mesajlaşması |
-| **MinIO** | 8.5.11 | S3 uyumlu nesne depolama |
-| **Ollama** | latest | Yerel LLM runtime |
-| **Mailpit** | latest | Geliştirme SMTP sunucusu |
+| **MinIO** | sunucu: topluluk fork'u `pgsty/minio` (RELEASE.2026-08-04), istemci: minio-java 9.0.3 | S3 uyumlu nesne depolama |
+| **Ollama** | 0.34.3 | Yerel LLM runtime |
+| **Mailpit** | 1.31.2 | Geliştirme SMTP sunucusu |
 | **Docker Compose** | v2 | Konteynerleştirilmiş altyapı |
 
 ### Spesifik Kütüphaneler
 | Kütüphane | Versiyon | Amaç |
 |-----------|---------|------|
-| **JJWT** | 0.12.6 | JWT oluşturma/doğrulama |
+| **JJWT** | 0.12.7 | JWT oluşturma/doğrulama |
 | **Spring Cloud OpenFeign** | Yerleşik | Deklaratif HTTP istemci |
 | **Resilience4j** | Yerleşik | Devre kesici, dayanıklılık |
-| **Lombok** | Yerleşik | Boilerplate kod azaltma |
-| **Jackson** | Yerleşik | JSON serileştirme |
+| **Jackson** | 3 (Boot yönetiyor) | JSON serileştirme |
 | **Google Guava ZXing** | 3.5.x | QR kod oluşturma |
-| **Flyway** | Maven | Sürüm kontrollü şema göçü |
+| **Flyway** | 11 (Boot yönetiyor) | Sürüm kontrollü şema göçü |
 | **Apache Maven** | 3.x | Multi-modül build aracı |
 
 ---
@@ -220,7 +219,7 @@
         └────────────────┘         └──────────────────┘
 
         ┌────────────────┐         ┌──────────────────┐
-        │  Event Service │  ◄──────┤   MinIO 8.5.11   │
+        │  Event Service │  ◄──────┤   MinIO          │
         │ (etkinlik/QR)  │         │  (nesne stor.)   │
         └────────────────┘         └──────────────────┘
 
@@ -285,8 +284,11 @@ cd EduConnect-Backend
 ### 2️⃣ Docker Altyapısını Başlatın
 
 ```bash
-docker-compose up -d
+cp .env.example .env   # parolaları ve anahtarları doldurun
+docker compose up -d
 ```
+
+Tüm uygulama servisleri de Docker'da çalışacaksa `--profile app` (izleme yığını için `--profile observability`, TLS'li ters vekil için `--profile edge`) ekleyin.
 
 Konteynerlar başlatılacak:
 - ✅ **PostgreSQL** (port 5432)
@@ -296,7 +298,7 @@ Konteynerlar başlatılacak:
 - ✅ **Mailpit** (port 1025 SMTP, UI: 8025)
 - ✅ **Ollama** (port 11434)
 
-MinIO ve Mailpit için varsayılan kimlik bilgileri `docker-compose.yml` dosyasında bulunur.
+Veritabanı, RabbitMQ, Redis ve MinIO kimlik bilgileri `.env` dosyasından gelir (`.env.example`'daki anahtarlar).
 
 ### 3️⃣ Modelleri İndir (LLM için)
 
