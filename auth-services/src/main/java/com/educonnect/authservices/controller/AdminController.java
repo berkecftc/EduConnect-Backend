@@ -4,10 +4,19 @@ import com.educonnect.authservices.Repository.UserRepository;
 import com.educonnect.authservices.models.AcademicianRegistrationRequest;
 import com.educonnect.authservices.models.Role;
 import com.educonnect.authservices.models.User;
+import com.educonnect.authservices.dto.request.SuspendAccountRequest;
+import com.educonnect.authservices.service.AccountStatusService;
+import com.educonnect.authservices.service.AcademicianAssignmentGuard;
+import com.educonnect.authservices.service.AdminAuditService;
+import com.educonnect.authservices.dto.response.AdminAuditPage;
 import com.educonnect.authservices.service.AuthServiceImpl;
+import com.educonnect.common.web.ApiException;
+import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -25,72 +34,30 @@ public class AdminController {
     @Autowired
     private UserRepository userRepository;
 
+    @Autowired
+    private AccountStatusService accountStatusService;
+
+    @Autowired
+    private AdminAuditService adminAuditService;
+
+    @Autowired
+    private AcademicianAssignmentGuard academicianAssignmentGuard;
 
 
-    // Kulüp görevlisi talebini onayla
+
     @PreAuthorize("hasRole('ADMIN')")
-    @PostMapping("/approve/club-official/{userId}")
-    public ResponseEntity<String> approveClubOfficial(@PathVariable UUID userId) {
-        authService.approveClubOfficial(userId);
-        return ResponseEntity.ok("Club official request approved.");
+    @PostMapping({"/promote/{userId}", "/revoke/{userId}"})
+    public ResponseEntity<String> changeAdminRole(@PathVariable UUID userId) {
+        throw new ApiException(HttpStatus.GONE, "ENDPOINT_GONE",
+                "Admin rolü mevcut hesaplara verilip alınamaz. Admin hesapları ayrı platform hesaplarıdır ve yalnız ilk kurulumda (educonnect.auth.bootstrap-admin) açılır.");
     }
 
-    // Kulüp görevlisi talebini reddet
     @PreAuthorize("hasRole('ADMIN')")
-    @PostMapping("/reject/club-official/{userId}")
-    public ResponseEntity<String> rejectClubOfficial(@PathVariable UUID userId) {
-        authService.rejectClubOfficial(userId);
-        return ResponseEntity.ok("Club official request rejected.");
-    }
-
-    // Bekleyen kulüp görevlisi taleplerini listele
-    @PreAuthorize("hasRole('ADMIN')")
-    @GetMapping("/pending/club-official")
-    public ResponseEntity<List<Map<String, Object>>> listPendingClubOfficialRequests() {
-        try {
-            System.out.println("DEBUG: /pending/club-official endpoint'ine istek geldi");
-            List<User> users = userRepository.findAllByRolesContaining(Role.ROLE_PENDING_CLUB_OFFICIAL);
-            System.out.println("DEBUG: Bulunan kullanıcı sayısı: " + users.size());
-
-            List<Map<String, Object>> result = users.stream()
-                    .map(u -> {
-                        try {
-                            return Map.of(
-                                    "id", u.getId(),
-                                    "email", u.getEmail(),
-                                    "roles", u.getRoles().stream()
-                                            .map(Role::name)
-                                            .collect(Collectors.toSet())
-                            );
-                        } catch (Exception e) {
-                            System.err.println("Kullanıcı map'leme hatası: " + e.getMessage());
-                            e.printStackTrace();
-                            throw e;
-                        }
-                    })
-                    .collect(Collectors.toList());
-            return ResponseEntity.ok(result);
-        } catch (Exception e) {
-            System.err.println("🔥 /pending/club-official endpoint hatası:");
-            e.printStackTrace();
-            return ResponseEntity.internalServerError().body(null);
-        }
-    }
-
-    // Kullanıcıyı admin yap
-    @PreAuthorize("hasRole('ADMIN')")
-    @PostMapping("/promote/{userId}")
-    public ResponseEntity<String> promoteToAdmin(@PathVariable UUID userId) {
-        authService.promoteToAdmin(userId);
-        return ResponseEntity.ok("User promoted to ROLE_ADMIN.");
-    }
-
-    // Kullanıcıdan admin rolünü al
-    @PreAuthorize("hasRole('ADMIN')")
-    @PostMapping("/revoke/{userId}")
-    public ResponseEntity<String> revokeAdmin(@PathVariable UUID userId) {
-        authService.revokeAdmin(userId);
-        return ResponseEntity.ok("User admin role revoked.");
+    @RequestMapping(value = {"/pending/club-official", "/approve/club-official/{userId}", "/reject/club-official/{userId}"},
+            method = {RequestMethod.GET, RequestMethod.POST})
+    public ResponseEntity<String> clubOfficialRequests() {
+        throw new ApiException(HttpStatus.GONE, "ENDPOINT_GONE",
+                "Genel kulüp yetkilisi başvurusu kapatıldı. Kulüp görevleri kulüp kuruluş başvurusu ve danışman onaylı görev atamasıyla verilir.");
     }
 
     // --- AKADEMİSYEN İŞLEMLERİ ---
@@ -98,16 +65,7 @@ public class AdminController {
     @GetMapping("/requests/academicians")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<?> getAcademicianRequests() {
-        try {
-            System.out.println("DEBUG: Controller'a girildi. Servis çağrılıyor...");
-            var result = authService.getAllAcademicianRequests();
-            System.out.println("DEBUG: Servisten veri geldi. Boyut: " + (result != null ? result.size() : "null"));
-            return ResponseEntity.ok(result);
-        } catch (Exception e) {
-            System.err.println("🔥🔥🔥 BEKLENMEYEN HATA DETAYI 🔥🔥🔥");
-            e.printStackTrace(); // <--- BU SATIR HATAYI GÖSTERİR
-            return ResponseEntity.internalServerError().body("Sunucu Hatası: " + e.getMessage());
-        }
+        return ResponseEntity.ok(authService.getAllAcademicianRequests());
     }
 
     // 2. Onayla
@@ -115,6 +73,7 @@ public class AdminController {
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<String> approveAcademician(@PathVariable UUID userId) {
         authService.approveAcademician(userId);
+        adminAuditService.record("APPROVE_ACADEMICIAN", "USER", userId, null);
         return ResponseEntity.ok("Akademisyen onaylandı.");
     }
 
@@ -125,6 +84,7 @@ public class AdminController {
             @PathVariable UUID userId,
             @RequestParam(value = "reason", required = false) String reason) {
         authService.rejectAcademician(userId, reason);
+        adminAuditService.record("REJECT_ACADEMICIAN", "USER", userId, reason);
         return ResponseEntity.ok("Akademisyen başvurusu reddedildi.");
     }
 
@@ -134,16 +94,7 @@ public class AdminController {
     @GetMapping("/requests/students")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<?> getStudentRequests() {
-        try {
-            System.out.println("DEBUG: /requests/students endpoint'ine istek geldi");
-            var result = authService.getAllStudentRequests();
-            System.out.println("DEBUG: Servisten veri geldi. Boyut: " + (result != null ? result.size() : "null"));
-            return ResponseEntity.ok(result);
-        } catch (Exception e) {
-            System.err.println("🔥🔥🔥 BEKLENMEYEN HATA DETAYI 🔥🔥🔥");
-            e.printStackTrace();
-            return ResponseEntity.internalServerError().body("Sunucu Hatası: " + e.getMessage());
-        }
+        return ResponseEntity.ok(authService.getAllStudentRequests());
     }
 
     // 2. Öğrenci başvurusunu onayla (requestId ile)
@@ -151,6 +102,7 @@ public class AdminController {
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<String> approveStudent(@PathVariable Long requestId) {
         authService.approveStudent(requestId);
+        adminAuditService.record("APPROVE_STUDENT", "STUDENT_REQUEST", requestId, null);
         return ResponseEntity.ok("Öğrenci onaylandı.");
     }
 
@@ -161,6 +113,7 @@ public class AdminController {
             @PathVariable Long requestId,
             @RequestParam(value = "reason", required = false) String reason) {
         authService.rejectStudent(requestId, reason);
+        adminAuditService.record("REJECT_STUDENT", "STUDENT_REQUEST", requestId, reason);
         return ResponseEntity.ok("Öğrenci başvurusu reddedildi.");
     }
 
@@ -175,7 +128,34 @@ public class AdminController {
     @DeleteMapping("/users/{userId}")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<String> deleteUser(@PathVariable UUID userId) {
+        academicianAssignmentGuard.requireNoActiveAssignments(userId);
         authService.deleteUser(userId);
+        adminAuditService.record("DELETE_USER", "USER", userId, null);
         return ResponseEntity.ok("Kullanıcı başarıyla silindi.");
+    }
+
+    @PutMapping("/users/{userId}/suspend")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<String> suspendUser(@PathVariable UUID userId,
+                                              @Valid @RequestBody(required = false) SuspendAccountRequest request,
+                                              Authentication authentication) {
+        accountStatusService.suspend(userId, authentication.getName(), request != null ? request.reason() : null);
+        adminAuditService.record("SUSPEND_USER", "USER", userId, request != null ? request.reason() : null);
+        return ResponseEntity.ok("Kullanıcı hesabı askıya alındı.");
+    }
+
+    @PutMapping("/users/{userId}/reactivate")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<String> reactivateUser(@PathVariable UUID userId, Authentication authentication) {
+        accountStatusService.reactivate(userId, authentication.getName());
+        adminAuditService.record("REACTIVATE_USER", "USER", userId, null);
+        return ResponseEntity.ok("Kullanıcı hesabı yeniden etkinleştirildi.");
+    }
+
+    @GetMapping("/audit-log")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<AdminAuditPage> getAuditLog(@RequestParam(defaultValue = "0") int page,
+                                                      @RequestParam(defaultValue = "50") int size) {
+        return ResponseEntity.ok(adminAuditService.list(page, size));
     }
 }

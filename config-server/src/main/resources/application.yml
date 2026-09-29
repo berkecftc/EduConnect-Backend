@@ -1,8 +1,17 @@
 server:
   port: 8888
+  address: 127.0.0.1
+
+encrypt:
+  key: ${ENCRYPT_KEY}
+
 spring:
   application:
     name: config-server
+  security:
+    user:
+      name: ${CONFIG_SERVER_USER:educonnect}
+      password: ${CONFIG_SERVER_PASSWORD}
   cloud:
     config:
       server:
@@ -10,6 +19,9 @@ spring:
           uri: https://github.com/berkecftc/educonnect-config-repo.git
           # Yapılandırma dosyalarının olduğu Git deposu
           clone-on-start: true
+          default-label: main
+          username: ${CONFIG_GIT_USERNAME}
+          password: ${CONFIG_GIT_TOKEN}
 eureka:
   client:
     register-with-eureka: false

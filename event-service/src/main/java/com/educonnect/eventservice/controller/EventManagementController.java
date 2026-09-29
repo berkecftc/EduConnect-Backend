@@ -1,16 +1,18 @@
 package com.educonnect.eventservice.controller;
 
 import com.educonnect.eventservice.dto.request.CreateEventRequest;
+import com.educonnect.eventservice.dto.request.VerifyQrRequest;
 import com.educonnect.eventservice.dto.response.EventRegistrantDTO;
+import com.educonnect.eventservice.dto.response.EventResponse;
 import com.educonnect.eventservice.model.Event;
 import com.educonnect.eventservice.service.EventService;
+import com.educonnect.common.web.ApiException;
+import com.educonnect.common.web.BadRequestException;
+import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.GrantedAuthority;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -32,9 +34,9 @@ public class EventManagementController {
      * RequestPart kullanıyoruz çünkü hem JSON hem Dosya aynı anda gelecek.
      */
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    @PreAuthorize("hasAnyRole('ADMIN', 'CLUB_OFFICIAL')")
-    public ResponseEntity<Event> createEvent(
-            @RequestPart("data") CreateEventRequest request, // JSON verisi
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<EventResponse> createEvent(
+            @Valid @RequestPart("data") CreateEventRequest request, // JSON verisi
             @RequestPart(value = "poster") MultipartFile poster, // Afiş dosyası (zorunlu)
             @RequestHeader("X-Authenticated-User-Id") String userIdHeader
     ) {
@@ -42,53 +44,38 @@ public class EventManagementController {
 
         // Afiş dosyası boş olamaz
         if (poster == null || poster.isEmpty()) {
-            return ResponseEntity.badRequest().build();
+            throw new BadRequestException("POSTER_REQUIRED", "Afiş dosyası zorunludur.");
         }
 
         // Dosya türü kontrolü - sadece resim dosyaları kabul edilir
         String contentType = poster.getContentType();
         if (contentType == null || !contentType.startsWith("image/")) {
-            return ResponseEntity.badRequest().build();
+            throw new BadRequestException("INVALID_POSTER_TYPE", "Afiş yalnızca resim dosyası olabilir.");
         }
 
-        // TODO: (Güvenlik) creatorId'nin, request.getClubId() kulübünün yetkilisi olup olmadığı kontrol edilebilir.
 
         Event createdEvent = eventService.createEvent(request, poster, creatorId);
-        return ResponseEntity.status(HttpStatus.CREATED).body(createdEvent);
+        return ResponseEntity.status(HttpStatus.CREATED).body(EventResponse.from(createdEvent));
     }
 
-    // --- Bekleyen Etkinlikleri Listele (Danışman Akademisyen İçin) ---
     @GetMapping("/pending")
-    @PreAuthorize("hasRole('ACADEMICIAN')") // Sadece Akademisyen görebilir
-    public ResponseEntity<List<Event>> getPendingEvents(
-            @RequestHeader("X-Authenticated-User-Id") String userIdHeader
-    ) {
-        UUID advisorId = UUID.fromString(userIdHeader);
-        return ResponseEntity.ok(eventService.getPendingEventsForAdvisor(advisorId));
+    public ResponseEntity<String> getPendingEvents() {
+        throw advisorFlowOnly();
     }
 
-    // --- Etkinliği Onayla (Danışman Akademisyen İçin) ---
     @PostMapping("/{eventId}/approve")
-    @PreAuthorize("hasRole('ACADEMICIAN')") // Sadece Akademisyen onaylayabilir
-    public ResponseEntity<Event> approveEvent(
-            @PathVariable UUID eventId,
-            @RequestHeader("X-Authenticated-User-Id") String userIdHeader
-    ) {
-        UUID approverId = UUID.fromString(userIdHeader);
-        Event approvedEvent = eventService.approveEvent(eventId, approverId);
-        return ResponseEntity.ok(approvedEvent);
+    public ResponseEntity<String> approveEvent(@PathVariable UUID eventId) {
+        throw advisorFlowOnly();
     }
 
-    // --- Etkinliği Reddet (Danışman Akademisyen İçin) ---
     @PostMapping("/{eventId}/reject")
-    @PreAuthorize("hasRole('ACADEMICIAN')") // Sadece Akademisyen reddedebilir
-    public ResponseEntity<Event> rejectEvent(
-            @PathVariable UUID eventId,
-            @RequestHeader("X-Authenticated-User-Id") String userIdHeader
-    ) {
-        UUID rejectorId = UUID.fromString(userIdHeader);
-        Event rejectedEvent = eventService.rejectEvent(eventId, rejectorId);
-        return ResponseEntity.ok(rejectedEvent);
+    public ResponseEntity<String> rejectEvent(@PathVariable UUID eventId) {
+        throw advisorFlowOnly();
+    }
+
+    private static ApiException advisorFlowOnly() {
+        return new ApiException(HttpStatus.GONE, "ENDPOINT_GONE",
+                "Bu uç kapatıldı. Etkinlik onayı için /api/events/advisor/pending, /api/events/advisor/{eventId}/approve ve /reject kullanın.");
     }
 
     /**
@@ -96,67 +83,54 @@ public class EventManagementController {
      * QR kodu query param (?qrCode=xxx) veya JSON body ({"qrCode": "xxx"}) olarak gönderilebilir.
      */
     @PostMapping("/verify-qr")
-    @PreAuthorize("hasAnyRole('ADMIN', 'CLUB_OFFICIAL')")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<String> verifyTicket(
             @RequestParam(required = false) String qrCode,
-            @RequestBody(required = false) java.util.Map<String, String> body
+            @Valid @RequestBody(required = false) VerifyQrRequest body,
+            @RequestHeader("X-Authenticated-User-Id") String userIdHeader
     ) {
         // QR kodu önce query param'dan, yoksa body'den al
         String code = qrCode;
         if (code == null && body != null) {
-            code = body.get("qrCode");
+            code = body.qrCode();
         }
 
         if (code == null || code.isBlank()) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("QR code is required.");
+            throw new BadRequestException("QR_CODE_REQUIRED", "QR code is required.");
         }
 
-        try {
-            boolean verified = eventService.verifyTicket(code);
-            if (verified) {
-                return ResponseEntity.ok("ACCESS GRANTED: Ticket verified successfully.");
-            } else {
-                return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Verification failed.");
-            }
-        } catch (RuntimeException e) {
-            // "Invalid ticket" veya "Already used" hataları
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("ACCESS DENIED: " + e.getMessage());
+        boolean verified = eventService.verifyTicket(code, UUID.fromString(userIdHeader));
+        if (!verified) {
+            throw new BadRequestException("VERIFICATION_FAILED", "Verification failed.");
         }
+        return ResponseEntity.ok("ACCESS GRANTED: Ticket verified successfully.");
     }
 
     // ==================== CLUB OFFICIAL DASHBOARD ENDPOINTS ====================
 
-    /**
-     * Kulüp yetkilisinin oluşturduğu tüm etkinlikleri getirir.
-     * Cache: 5 dakika TTL
-     */
     @GetMapping("/my-events")
-    @PreAuthorize("hasAnyRole('ADMIN', 'CLUB_OFFICIAL')")
-    public ResponseEntity<List<Event>> getMyCreatedEvents(
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<List<EventResponse>> getMyCreatedEvents(
             @RequestHeader("X-Authenticated-User-Id") String userIdHeader
     ) {
-        UUID creatorId = UUID.fromString(userIdHeader);
-        List<Event> events = eventService.getEventsCreatedByUser(creatorId);
-        return ResponseEntity.ok(events);
+        List<Event> events = eventService.getEventsOfManagedClubs(UUID.fromString(userIdHeader));
+        return ResponseEntity.ok(EventResponse.from(events));
     }
 
     /**
      * Bir etkinliğe kayıtlı tüm kullanıcıları getirir.
      * User-service'den isim/email bilgisi ile zenginleştirilmiş.
      *
-     * Yetki: Sadece etkinliği oluşturan kişi, ilgili kulübün yetkilisi veya ADMIN erişebilir.
-     * Cache: 5 dakika TTL
+     * Yetki: Sadece ilgili kulübün yönetim kurulu veya danışmanı erişebilir.
      */
     @GetMapping("/{eventId}/registrations")
-    @PreAuthorize("hasAnyRole('ADMIN', 'CLUB_OFFICIAL')")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<List<EventRegistrantDTO>> getEventRegistrations(
             @PathVariable UUID eventId,
             @RequestHeader("X-Authenticated-User-Id") String userIdHeader
     ) {
         UUID requesterId = UUID.fromString(userIdHeader);
-        boolean isAdmin = checkIfAdmin();
-
-        List<EventRegistrantDTO> registrants = eventService.getEventRegistrantsWithUserInfo(eventId, requesterId, isAdmin);
+        List<EventRegistrantDTO> registrants = eventService.getEventRegistrantsWithUserInfo(eventId, requesterId);
         return ResponseEntity.ok(registrants);
     }
 
@@ -165,23 +139,13 @@ public class EventManagementController {
      * Kulüp yetkilisi kendi kulübünün etkinliklerini görmek için kullanır.
      */
     @GetMapping("/club/{clubId}/events")
-    @PreAuthorize("hasAnyRole('ADMIN', 'CLUB_OFFICIAL')")
-    public ResponseEntity<List<Event>> getClubEvents(@PathVariable UUID clubId) {
-        List<Event> events = eventService.getEventsByClubId(clubId);
-        return ResponseEntity.ok(events);
-    }
-
-    /**
-     * SecurityContext'ten kullanıcının ADMIN rolüne sahip olup olmadığını kontrol eder.
-     */
-    private boolean checkIfAdmin() {
-        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-        if (auth == null || auth.getAuthorities() == null) {
-            return false;
-        }
-        return auth.getAuthorities().stream()
-                .map(GrantedAuthority::getAuthority)
-                .anyMatch(role -> role.equals("ROLE_ADMIN"));
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<List<EventResponse>> getClubEvents(
+            @PathVariable UUID clubId,
+            @RequestHeader("X-Authenticated-User-Id") String userIdHeader
+    ) {
+        List<Event> events = eventService.getEventsByClubIdForManagement(clubId, UUID.fromString(userIdHeader));
+        return ResponseEntity.ok(EventResponse.from(events));
     }
 
     // Etkinlik İptal Etme (DELETE) de buraya eklenebilir

@@ -9,6 +9,7 @@ import com.educonnect.postservice.exception.PostNotFoundException;
 import com.educonnect.postservice.exception.UnauthorizedPostAccessException;
 import com.educonnect.postservice.model.Comment;
 import com.educonnect.postservice.model.CommentStatus;
+import com.educonnect.postservice.model.Post;
 import com.educonnect.postservice.model.PostStatus;
 import com.educonnect.postservice.repository.CommentRepository;
 import com.educonnect.postservice.repository.PostRepository;
@@ -20,7 +21,10 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Collection;
 import java.util.Collections;
+import java.util.HashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -103,9 +107,9 @@ public class CommentService {
         Comment savedComment = commentRepository.save(comment);
 
         if (status == CommentStatus.REJECTED) {
-            log.warn("🚫 Yorum reddedildi (kötü kelime tespit edildi) — commentId: {}, postId: {}", savedComment.getId(), postId);
+            log.warn("Yorum reddedildi (kötü kelime tespit edildi) — commentId: {}, postId: {}", savedComment.getId(), postId);
         } else {
-            log.info("💬 Yorum oluşturuldu — commentId: {}, postId: {}, authorId: {}", savedComment.getId(), postId, authorId);
+            log.info("Yorum oluşturuldu — commentId: {}, postId: {}, authorId: {}", savedComment.getId(), postId, authorId);
         }
 
         UserSummaryDto user = fetchUserSafely(authorId);
@@ -125,13 +129,13 @@ public class CommentService {
             throw new IllegalArgumentException("Yorum bu post'a ait değil.");
         }
 
-        if (!comment.getAuthorId().equals(authorId)) {
+        if (!authorId.equals(comment.getAuthorId())) {
             throw new UnauthorizedPostAccessException(
                     "Bu yorumu sadece yazarı silebilir. commentId: " + commentId);
         }
 
         commentRepository.delete(comment);
-        log.info("🗑️ Yorum silindi — commentId: {}, postId: {}, authorId: {}", commentId, postId, authorId);
+        log.info("Yorum silindi — commentId: {}, postId: {}, authorId: {}", commentId, postId, authorId);
     }
 
     /**
@@ -144,9 +148,10 @@ public class CommentService {
      * - Her üst yorum için yanıtlar ayrı sorgu ile alınır (sayfa başına yorum sayısı sınırlı olduğu için kabul edilebilir).
      */
     @Transactional(readOnly = true)
-    public Page<CommentResponse> getCommentsByPostId(UUID postId, Pageable pageable) {
-        // Post var mı kontrol et
-        if (!postRepository.existsById(postId)) {
+    public Page<CommentResponse> getCommentsByPostId(UUID postId, UUID viewerId, Pageable pageable) {
+        Post post = postRepository.findById(postId)
+                .orElseThrow(() -> new PostNotFoundException("Post bulunamadı: " + postId));
+        if (!isVisibleTo(post, viewerId)) {
             throw new PostNotFoundException("Post bulunamadı: " + postId);
         }
 
@@ -172,13 +177,7 @@ public class CommentService {
                 .forEach(allAuthorIds::add);
 
         // Benzersiz author bilgilerini batch olarak çek
-        Map<UUID, UserSummaryDto> userCache = allAuthorIds.stream()
-                .distinct()
-                .collect(Collectors.toMap(
-                        Function.identity(),
-                        this::fetchUserSafely,
-                        (existing, replacement) -> existing
-                ));
+        Map<UUID, UserSummaryDto> userCache = fetchUsersSafely(allAuthorIds);
 
         return topLevelComments.map(comment -> {
             List<Comment> replies = repliesMap.getOrDefault(comment.getId(), Collections.emptyList());
@@ -192,6 +191,10 @@ public class CommentService {
     /**
      * Bir post'a ait yayınlanmış yorum sayısını döndürür.
      */
+    private static boolean isVisibleTo(Post post, UUID viewerId) {
+        return post.getStatus() == PostStatus.PUBLISHED || post.getAuthorId().equals(viewerId);
+    }
+
     public long getPublishedCommentCount(UUID postId) {
         return commentRepository.countByPostIdAndStatus(postId, CommentStatus.PUBLISHED);
     }
@@ -205,6 +208,12 @@ public class CommentService {
     public CommentResponse createReply(UUID parentCommentId, String content, UUID authorId) {
         Comment parentComment = commentRepository.findById(parentCommentId)
                 .orElseThrow(() -> new CommentNotFoundException("Yanıt verilecek yorum bulunamadı: " + parentCommentId));
+
+        Post post = postRepository.findById(parentComment.getPostId())
+                .orElseThrow(() -> new CommentNotFoundException("Yanıt verilecek yorum bulunamadı: " + parentCommentId));
+        if (post.getStatus() != PostStatus.PUBLISHED) {
+            throw new IllegalArgumentException("Sadece yayınlanmış postlara yorum yapılabilir.");
+        }
 
         // Yanıta yanıt verilemez — sadece üst seviye yorumlara yanıt verilebilir
         if (parentComment.getParentCommentId() != null) {
@@ -226,9 +235,9 @@ public class CommentService {
         Comment savedReply = commentRepository.save(reply);
 
         if (status == CommentStatus.REJECTED) {
-            log.warn("🚫 Yanıt reddedildi (kötü kelime tespit edildi) — replyId: {}, parentId: {}", savedReply.getId(), parentCommentId);
+            log.warn("Yanıt reddedildi (kötü kelime tespit edildi) — replyId: {}, parentId: {}", savedReply.getId(), parentCommentId);
         } else {
-            log.info("↩️ Yanıt oluşturuldu — replyId: {}, parentId: {}, authorId: {}", savedReply.getId(), parentCommentId, authorId);
+            log.info("↩Yanıt oluşturuldu — replyId: {}, parentId: {}, authorId: {}", savedReply.getId(), parentCommentId, authorId);
         }
 
         UserSummaryDto user = fetchUserSafely(authorId);
@@ -239,22 +248,20 @@ public class CommentService {
      * Bir yorumun yayınlanmış yanıtlarını döndürür.
      */
     @Transactional(readOnly = true)
-    public List<CommentResponse> getRepliesByCommentId(UUID commentId) {
-        if (!commentRepository.existsById(commentId)) {
+    public List<CommentResponse> getRepliesByCommentId(UUID commentId, UUID viewerId) {
+        Comment parentComment = commentRepository.findById(commentId)
+                .orElseThrow(() -> new CommentNotFoundException("Yorum bulunamadı: " + commentId));
+        boolean visible = postRepository.findById(parentComment.getPostId())
+                .map(post -> isVisibleTo(post, viewerId))
+                .orElse(false);
+        if (!visible) {
             throw new CommentNotFoundException("Yorum bulunamadı: " + commentId);
         }
 
         List<Comment> replies = commentRepository.findByParentCommentIdAndStatus(commentId, CommentStatus.PUBLISHED);
 
         // Benzersiz author bilgilerini batch olarak çek
-        Map<UUID, UserSummaryDto> userCache = replies.stream()
-                .map(Comment::getAuthorId)
-                .distinct()
-                .collect(Collectors.toMap(
-                        Function.identity(),
-                        this::fetchUserSafely,
-                        (existing, replacement) -> existing
-                ));
+        Map<UUID, UserSummaryDto> userCache = fetchUsersSafely(replies.stream().map(Comment::getAuthorId).toList());
 
         return replies.stream()
                 .map(reply -> mapToResponse(reply, userCache.get(reply.getAuthorId()), Collections.emptyList()))
@@ -267,7 +274,9 @@ public class CommentService {
 
     private CommentResponse mapToResponse(Comment comment, UserSummaryDto user, List<CommentResponse> replies) {
         String authorName = null;
-        if (user != null) {
+        if (comment.getAuthorId() == null) {
+            authorName = DeletedUser.DISPLAY_NAME;
+        } else if (user != null) {
             authorName = user.getFirstName() + " " + user.getLastName();
         }
 
@@ -285,11 +294,25 @@ public class CommentService {
         );
     }
 
+    private Map<UUID, UserSummaryDto> fetchUsersSafely(Collection<UUID> userIds) {
+        Map<UUID, UserSummaryDto> users = new HashMap<>();
+        for (UUID userId : new LinkedHashSet<>(userIds)) {
+            UserSummaryDto user = fetchUserSafely(userId);
+            if (user != null) {
+                users.put(userId, user);
+            }
+        }
+        return users;
+    }
+
     private UserSummaryDto fetchUserSafely(UUID userId) {
+        if (userId == null) {
+            return null;
+        }
         try {
             return userClient.getUserById(userId);
         } catch (Exception e) {
-            log.warn("⚠️ Kullanıcı bilgisi alınamadı — userId: {}", userId);
+            log.warn("Kullanıcı bilgisi alınamadı — userId: {}", userId);
             return null;
         }
     }

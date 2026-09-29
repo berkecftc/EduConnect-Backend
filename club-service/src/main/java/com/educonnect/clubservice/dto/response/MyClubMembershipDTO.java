@@ -1,6 +1,6 @@
 package com.educonnect.clubservice.dto.response;
 
-import com.educonnect.clubservice.model.ClubRole;
+import com.educonnect.clubservice.model.ClubPosition;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
@@ -8,7 +8,7 @@ public class MyClubMembershipDTO {
     private UUID clubId;
     private String clubName;
     private String logoUrl;
-    private ClubRole clubRole;
+    private ClubPosition clubRole;
     private boolean isActive;
     private LocalDateTime termStartDate;
 
@@ -24,8 +24,8 @@ public class MyClubMembershipDTO {
     public String getLogoUrl() { return logoUrl; }
     public void setLogoUrl(String logoUrl) { this.logoUrl = logoUrl; }
 
-    public ClubRole getClubRole() { return clubRole; }
-    public void setClubRole(ClubRole clubRole) { this.clubRole = clubRole; }
+    public ClubPosition getClubRole() { return clubRole; }
+    public void setClubRole(ClubPosition clubRole) { this.clubRole = clubRole; }
 
     public boolean isActive() { return isActive; }
     public void setActive(boolean active) { isActive = active; }

@@ -2,20 +2,20 @@ package com.educonnect.assignmentservice.publisher;
 
 import com.educonnect.assignmentservice.config.RabbitMQConfig;
 import com.educonnect.assignmentservice.event.AssignmentNotificationEvent;
-import org.springframework.amqp.rabbit.core.RabbitTemplate;
+import com.educonnect.common.messaging.outbox.OutboxPublisher;
 import org.springframework.stereotype.Service;
 
 @Service
 public class AssignmentProducer {
 
-    private final RabbitTemplate rabbitTemplate;
+    private final OutboxPublisher outboxPublisher;
 
-    public AssignmentProducer(RabbitTemplate rabbitTemplate) {
-        this.rabbitTemplate = rabbitTemplate;
+    public AssignmentProducer(OutboxPublisher outboxPublisher) {
+        this.outboxPublisher = outboxPublisher;
     }
 
     public void sendAssignmentCreatedNotification(AssignmentNotificationEvent event) {
-        rabbitTemplate.convertAndSend(
+        outboxPublisher.publish(
                 RabbitMQConfig.COURSE_EXCHANGE,
                 RabbitMQConfig.ROUTING_KEY_ASSIGNMENT_CREATED,
                 event

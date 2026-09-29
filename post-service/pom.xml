@@ -18,6 +18,10 @@
     <description>EduConnect Blog / İçerik Moderasyonu Servisi</description>
 
     <dependencies>
+        <dependency>
+            <groupId>com.educonnect</groupId>
+            <artifactId>common-security</artifactId>
+        </dependency>
         <!-- Spring Data JPA -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
@@ -33,13 +37,29 @@
         <!-- Spring Web -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-web</artifactId>
+            <artifactId>spring-boot-starter-webmvc</artifactId>
         </dependency>
 
         <!-- RabbitMQ (AMQP) -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-amqp</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.educonnect</groupId>
+            <artifactId>common-messaging</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.educonnect</groupId>
+            <artifactId>common-observability</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.educonnect</groupId>
+            <artifactId>common-web</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.educonnect</groupId>
+            <artifactId>common-resilience</artifactId>
         </dependency>
 
         <!-- Spring Cloud Config Client -->
@@ -81,21 +101,31 @@
 
         <!-- Flyway Core -->
         <dependency>
-            <groupId>org.flywaydb</groupId>
-            <artifactId>flyway-core</artifactId>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-flyway</artifactId>
         </dependency>
 
         <!-- Flyway PostgreSQL -->
         <dependency>
             <groupId>org.flywaydb</groupId>
             <artifactId>flyway-database-postgresql</artifactId>
-            <version>10.10.0</version>
         </dependency>
 
         <!-- RabbitMQ Test -->
         <dependency>
             <groupId>org.springframework.amqp</groupId>
             <artifactId>spring-rabbit-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>com.educonnect</groupId>
+            <artifactId>common-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-webmvc-test</artifactId>
             <scope>test</scope>
         </dependency>
     </dependencies>
@@ -109,17 +139,17 @@
             <plugin>
                 <groupId>org.flywaydb</groupId>
                 <artifactId>flyway-maven-plugin</artifactId>
-                <version>10.18.2</version>
+                <version>${flyway.version}</version>
                 <dependencies>
                     <dependency>
                         <groupId>org.flywaydb</groupId>
                         <artifactId>flyway-database-postgresql</artifactId>
-                        <version>10.18.2</version>
+                        <version>${flyway.version}</version>
                     </dependency>
                     <dependency>
                         <groupId>org.postgresql</groupId>
                         <artifactId>postgresql</artifactId>
-                        <version>42.7.3</version>
+                        <version>${postgresql.version}</version>
                     </dependency>
                 </dependencies>
                 <configuration>

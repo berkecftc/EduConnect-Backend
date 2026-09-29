@@ -1,6 +1,8 @@
 package com.educonnect.courseservice.service;
 
+import com.educonnect.common.web.LogValues;
 import com.educonnect.courseservice.client.UserClient;
+import com.educonnect.courseservice.client.UserLookup;
 import com.educonnect.courseservice.dto.AnnouncementRequest;
 import com.educonnect.courseservice.dto.AnnouncementResponse;
 import com.educonnect.courseservice.dto.UserSummaryDto;
@@ -18,8 +20,10 @@ import com.educonnect.courseservice.repository.EnrollmentRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -49,6 +53,7 @@ public class CourseAnnouncementService {
     /**
      * Hoca duyuru oluşturur ve kayıtlı öğrencilere bildirim gönderir.
      */
+    @Transactional
     public AnnouncementResponse createAnnouncement(UUID courseId, AnnouncementRequest request, UUID instructorId) {
         Course course = courseRepository.findById(courseId)
                 .orElseThrow(() -> new CourseNotFoundException("Ders bulunamadı: " + courseId));
@@ -67,7 +72,7 @@ public class CourseAnnouncementService {
 
         CourseAnnouncement saved = announcementRepository.save(announcement);
 
-        log.info("📢 Duyuru oluşturuldu: {} -> Ders: {} ({})", request.getTitle(), course.getTitle(), course.getCode());
+        log.info("Duyuru oluşturuldu: {} -> Ders: {} ({})", LogValues.safe(request.getTitle()), LogValues.safe(course.getTitle()), LogValues.safe(course.getCode()));
 
         // Kayıtlı öğrenci ID'lerini çek ve RabbitMQ ile bildirim gönder
         sendNotificationToEnrolledStudents(course, "ANNOUNCEMENT", request.getTitle(), request.getContent());
@@ -75,15 +80,23 @@ public class CourseAnnouncementService {
         return mapToResponse(saved, course);
     }
 
-    /**
-     * Bir derse ait duyuruları listeler.
-     */
-    public List<AnnouncementResponse> getAnnouncementsByCourse(UUID courseId) {
+    public List<AnnouncementResponse> getAnnouncementsByCourse(UUID courseId, UUID viewerId, boolean viewerIsAdmin) {
         Course course = courseRepository.findById(courseId)
                 .orElseThrow(() -> new CourseNotFoundException("Ders bulunamadı: " + courseId));
 
-        return announcementRepository.findByCourseIdOrderByCreatedAtDesc(courseId).stream()
-                .map(a -> mapToResponse(a, course))
+        boolean allowed = viewerIsAdmin
+                || course.getInstructorId().equals(viewerId)
+                || enrollmentRepository.existsByCourseIdAndStudentIdAndIsActive(courseId, viewerId, true);
+        if (!allowed) {
+            throw new UnauthorizedCourseAccessException("Bu dersin duyurularını görme yetkiniz yok.");
+        }
+
+        List<CourseAnnouncement> announcements = announcementRepository.findByCourseIdOrderByCreatedAtDesc(courseId);
+        Map<UUID, UserSummaryDto> authors = UserLookup.usersById(userClient,
+                announcements.stream().map(CourseAnnouncement::getCreatedBy).toList());
+
+        return announcements.stream()
+                .map(a -> toResponse(a, course, a.getCreatedBy() == null ? null : authors.get(a.getCreatedBy())))
                 .collect(Collectors.toList());
     }
 
@@ -102,42 +115,48 @@ public class CourseAnnouncementService {
         }
 
         announcementRepository.deleteById(announcementId);
-        log.info("🗑️ Duyuru silindi: {}", announcementId);
+        log.info("Duyuru silindi: {}", announcementId);
     }
 
     /**
      * Kayıtlı öğrencilere RabbitMQ üzerinden bildirim gönderir.
      */
     private void sendNotificationToEnrolledStudents(Course course, String type, String title, String description) {
-        try {
-            List<StudentCourseEnrollment> enrollments = enrollmentRepository.findByCourseIdAndIsActive(course.getId(), true);
-            List<UUID> studentIds = enrollments.stream()
-                    .map(StudentCourseEnrollment::getStudentId)
-                    .collect(Collectors.toList());
+        List<StudentCourseEnrollment> enrollments = enrollmentRepository.findByCourseIdAndIsActive(course.getId(), true);
+        List<UUID> studentIds = enrollments.stream()
+                .map(StudentCourseEnrollment::getStudentId)
+                .collect(Collectors.toList());
 
-            if (studentIds.isEmpty()) {
-                log.info("📭 Derste kayıtlı öğrenci yok, bildirim gönderilmedi.");
-                return;
-            }
-
-            CourseNotificationEvent event = new CourseNotificationEvent(
-                    course.getId(),
-                    course.getTitle(),
-                    course.getCode(),
-                    type,
-                    title,
-                    description,
-                    studentIds
-            );
-
-            courseProducer.sendAnnouncementNotification(event);
-            log.info("📤 Bildirim event'i gönderildi: {} öğrenciye {} bildirimi", studentIds.size(), type);
-        } catch (Exception e) {
-            log.error("❌ Bildirim gönderme hatası: {}", e.getMessage());
+        if (studentIds.isEmpty()) {
+            log.info("Derste kayıtlı öğrenci yok, bildirim gönderilmedi.");
+            return;
         }
+
+        CourseNotificationEvent event = new CourseNotificationEvent(
+                course.getId(),
+                course.getTitle(),
+                course.getCode(),
+                type,
+                title,
+                description,
+                studentIds
+        );
+
+        courseProducer.sendAnnouncementNotification(event);
+        log.info("Bildirim event'i kuyruğa alındı: {} öğrenciye {} bildirimi", studentIds.size(), type);
     }
 
     private AnnouncementResponse mapToResponse(CourseAnnouncement announcement, Course course) {
+        UserSummaryDto author;
+        try {
+            author = userClient.getUserById(announcement.getCreatedBy());
+        } catch (Exception e) {
+            author = null;
+        }
+        return toResponse(announcement, course, author);
+    }
+
+    private AnnouncementResponse toResponse(CourseAnnouncement announcement, Course course, UserSummaryDto author) {
         AnnouncementResponse dto = new AnnouncementResponse();
         dto.setId(announcement.getId());
         dto.setCourseId(announcement.getCourseId());
@@ -146,14 +165,7 @@ public class CourseAnnouncementService {
         dto.setContent(announcement.getContent());
         dto.setCreatedAt(announcement.getCreatedAt());
         dto.setCreatedBy(announcement.getCreatedBy());
-
-        try {
-            UserSummaryDto user = userClient.getUserById(announcement.getCreatedBy());
-            dto.setCreatedByName(user.getFirstName() + " " + user.getLastName());
-        } catch (Exception e) {
-            dto.setCreatedByName("Bilinmiyor");
-        }
-
+        dto.setCreatedByName(author != null ? author.getFirstName() + " " + author.getLastName() : "Bilinmiyor");
         return dto;
     }
 }

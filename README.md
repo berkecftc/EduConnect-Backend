@@ -3,8 +3,8 @@
 <div align="center">
 
 [![Java 21](https://img.shields.io/badge/Java-21%20LTS-007396?logo=openjdk&logoColor=white)](#)
-[![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3.3.0-6DB33F?logo=spring-boot&logoColor=white)](#)
-[![Spring Cloud](https://img.shields.io/badge/Spring%20Cloud-2023.0.3-6DB33F)](#)
+[![Spring Boot](https://img.shields.io/badge/Spring%20Boot-4.0.8-6DB33F?logo=spring-boot&logoColor=white)](#)
+[![Spring Cloud](https://img.shields.io/badge/Spring%20Cloud-2025.1.3-6DB33F)](#)
 [![Docker](https://img.shields.io/badge/Docker-Ready-2496ED?logo=docker&logoColor=white)](#)
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-14-336791?logo=postgresql&logoColor=white)](#)
 [![RabbitMQ](https://img.shields.io/badge/RabbitMQ-3-FF6600?logo=rabbitmq&logoColor=white)](#)
@@ -65,7 +65,7 @@
 ## 🌟 Özellikler
 
 ### 🔐 Kimlik Doğrulama & Yetkilendirme
-- JWT tabanlı oturumsuz kimlik doğrulama (JJWT 0.12.6)
+- JWT tabanlı oturumsuz kimlik doğrulama (JJWT 0.12.7)
 - Çok aşamalı hesap onay süreci (öğrenci/akademisyen/kulüp görevlisi)
 - Belgeli başvuru desteği (MinIO ile dosya yönetimi)
 - Access/Refresh token akışı
@@ -133,8 +133,8 @@
 | Teknoloji | Versiyon | Amaç |
 |-----------|---------|------|
 | **Java** | 21 LTS | Programlama dili |
-| **Spring Boot** | 3.3.0 | Uygulama çerçevesi |
-| **Spring Cloud** | 2023.0.3 | Bulut-yerel bileşenler |
+| **Spring Boot** | 4.0.8 | Uygulama çerçevesi |
+| **Spring Cloud** | 2025.1.3 | Bulut-yerel bileşenler |
 | **Spring Cloud Gateway** | Reaktif (WebFlux + Netty) | API geçidi |
 | **Spring Cloud Netflix Eureka** | Yerleşik | Servis keşfi |
 | **Spring Cloud Config Server** | Yerleşik | Merkezi yapılandırma |
@@ -142,7 +142,7 @@
 | **Spring Cache** | Yerleşik | Önbellekleme soyutlaması |
 | **Spring AMQP** | Yerleşik | RabbitMQ entegrasyonu |
 | **Spring Security** | Yerleşik | Kimlik doğrulama/yetkilendirme |
-| **Spring AI** | 1.0.0-M6 | LLM abstraction / RAG |
+| **Spring AI** | 2.0.1 | LLM abstraction / RAG |
 
 ### Altyapı & Kütüphaneleri
 | Teknoloji | Versiyon | Amaç |
@@ -150,21 +150,20 @@
 | **PostgreSQL** | 14 | İlişkisel veritabanı |
 | **Redis** | 6.2 (Stack) | Bellek içi cache, vektör araması |
 | **RabbitMQ** | 3 | AMQP mesajlaşması |
-| **MinIO** | 8.5.11 | S3 uyumlu nesne depolama |
-| **Ollama** | latest | Yerel LLM runtime |
-| **Mailpit** | latest | Geliştirme SMTP sunucusu |
+| **MinIO** | sunucu: topluluk fork'u `pgsty/minio` (RELEASE.2026-08-04), istemci: minio-java 9.0.3 | S3 uyumlu nesne depolama |
+| **Ollama** | 0.34.3 | Yerel LLM runtime |
+| **Mailpit** | 1.31.2 | Geliştirme SMTP sunucusu |
 | **Docker Compose** | v2 | Konteynerleştirilmiş altyapı |
 
 ### Spesifik Kütüphaneler
 | Kütüphane | Versiyon | Amaç |
 |-----------|---------|------|
-| **JJWT** | 0.12.6 | JWT oluşturma/doğrulama |
+| **JJWT** | 0.12.7 | JWT oluşturma/doğrulama |
 | **Spring Cloud OpenFeign** | Yerleşik | Deklaratif HTTP istemci |
 | **Resilience4j** | Yerleşik | Devre kesici, dayanıklılık |
-| **Lombok** | Yerleşik | Boilerplate kod azaltma |
-| **Jackson** | Yerleşik | JSON serileştirme |
+| **Jackson** | 3 (Boot yönetiyor) | JSON serileştirme |
 | **Google Guava ZXing** | 3.5.x | QR kod oluşturma |
-| **Flyway** | Maven | Sürüm kontrollü şema göçü |
+| **Flyway** | 11 (Boot yönetiyor) | Sürüm kontrollü şema göçü |
 | **Apache Maven** | 3.x | Multi-modül build aracı |
 
 ---
@@ -220,7 +219,7 @@
         └────────────────┘         └──────────────────┘
 
         ┌────────────────┐         ┌──────────────────┐
-        │  Event Service │  ◄──────┤   MinIO 8.5.11   │
+        │  Event Service │  ◄──────┤   MinIO          │
         │ (etkinlik/QR)  │         │  (nesne stor.)   │
         └────────────────┘         └──────────────────┘
 
@@ -285,8 +284,11 @@ cd EduConnect-Backend
 ### 2️⃣ Docker Altyapısını Başlatın
 
 ```bash
-docker-compose up -d
+cp .env.example .env   # parolaları ve anahtarları doldurun
+docker compose up -d
 ```
+
+Tüm uygulama servisleri de Docker'da çalışacaksa `--profile app` (izleme yığını için `--profile observability`, TLS'li ters vekil için `--profile edge`) ekleyin.
 
 Konteynerlar başlatılacak:
 - ✅ **PostgreSQL** (port 5432)
@@ -296,15 +298,15 @@ Konteynerlar başlatılacak:
 - ✅ **Mailpit** (port 1025 SMTP, UI: 8025)
 - ✅ **Ollama** (port 11434)
 
-MinIO ve Mailpit için varsayılan kimlik bilgileri `docker-compose.yml` dosyasında bulunur.
+Veritabanı, RabbitMQ, Redis ve MinIO kimlik bilgileri `.env` dosyasından gelir (`.env.example`'daki anahtarlar).
 
 ### 3️⃣ Modelleri İndir (LLM için)
 
-Eğer Ollama modelleri yüklü değilse:
+`docker compose up` sırasında `ollama-models` servisi eksik modelleri kendisi indirir (`.env`: `OLLAMA_PULL_MODELS`, varsayılan `llama3.1:8b nomic-embed-text`). Elle indirmek için:
 
 ```bash
 # Sohbet modeli
-docker exec ollama ollama pull llama3.2:1b
+docker exec ollama ollama pull llama3.1:8b
 
 # Gömme modeli (RAG için)
 docker exec ollama ollama pull nomic-embed-text
@@ -1024,8 +1026,8 @@ DELETE /api/clubs/{id}/leave                           # Kulüpten ayrıl
 POST   /api/clubs/{id}/logo                            # Logo yükle
 GET    /api/clubs/my-memberships                       # Üyeliklerim
 POST   /api/clubs/{id}/membership-request              # Üyelik talebi (onay tabanlı)
-GET    /api/clubs/{id}/members/ids                     # Üye ID listesi (internal, Event için)
-GET    /api/clubs/{id}/advisor-id                      # Danışman ID'si (internal, advisor approval)
+GET    /api/clubs/internal/{id}/members/ids            # Üye ID listesi (yalnızca servis token)
+GET    /api/clubs/internal/{id}/advisor-id             # Danışman ID'si (yalnızca servis token)
 GET    /api/clubs/search?name=...                      # İsme göre arama
 POST   /api/admin/clubs                                # Kulüp oluştur (Admin)
 DELETE /api/admin/clubs/{id}                           # Kulüp sil/arşivle (Admin)
@@ -1348,6 +1350,23 @@ public class ProfileAggregationService {
 - Zaman aşımı: 500ms (connectTimeout + readTimeout)
 - Yük dengeleme: Eureka müteşekkil (round-robin)
 - Devre kesici: Resilience4j
+
+### Servis Kimliği (İç Uçlar)
+
+Servisler arası uçlar `/api/<servis>/internal/**` altında toplanır. Gateway bu yolları dışarıya 404 ile kapatır; servisler ise yalnızca `ROLE_SERVICE` taşıyan servis token'ını kabul eder.
+
+- Çağıran servis, auth-service'ten **client credentials** ile kısa ömürlü bir token alır: `POST /api/auth/internal/token` (HTTP Basic `client_id:client_secret`, `grant_type=client_credentials`).
+- Token RS256 ile imzalanır; `aud` = `educonnect-internal`, `token_use` = `service`, `sub` = istemci adı. Gateway bu audience'ı kabul etmediği için servis token'ı dışarıdan kullanılamaz.
+- Servis token'ı yalnızca iç yollarda geçerlidir; diğer uçlarda anonim istek gibi değerlendirilir.
+- `common-security` token'ı önbelleğe alır ve süresi dolmadan yeniler. Feign istemcileri `configuration = ServiceTokenFeignConfiguration.class`, RestTemplate'ler `ServiceTokenHttpRequestInterceptor` ile token ekler.
+- İstemci sırları config repo'da `{cipher}` ile saklanır: çağıran serviste `educonnect.security.service-client.secret`, auth-service'te `educonnect.security.service-clients.<istemci>` (bcrypt karması).
+
+| Çağıran | İç uç |
+|---|---|
+| notification-service | `POST /api/auth/internal/users/emails`, `GET /api/clubs/internal/{id}/members/ids` |
+| event-service | `GET /api/clubs/internal/{id}/advisor-id`, `/by-advisor/{id}/ids`, `/{id}/is-member/{studentId}` |
+| user-service | `GET /api/gamification/internal/users/{id}/summary`, `GET /api/posts/internal/users/{id}/recent` |
+| llm-service | `PUT /api/posts/internal/{postId}/moderation` |
 
 ### Asenkron İletişim (RabbitMQ)
 
@@ -1678,7 +1697,7 @@ HMACSHA256(
 
 ```bash
 # Modelleri indir
-docker exec ollama ollama pull llama3.2:1b      # Sohbet modeli (1B params)
+docker exec ollama ollama pull llama3.1:8b      # Sohbet modeli (8B params)
 docker exec ollama ollama pull nomic-embed-text # Gömme modeli (768 boyut)
 
 # Doğrulama
@@ -1688,7 +1707,7 @@ curl http://localhost:11434/api/tags
 {
   "models": [
     {
-      "name": "llama3.2:1b",
+      "name": "llama3.1:8b",
       "size": 2000000000,
       ...
     },
@@ -1712,7 +1731,7 @@ spring:
       # Sohbet Modeli
       chat:
         options:
-          model: llama3.2:1b
+          model: llama3.1:8b
           temperature: 0.0      # Deterministik (moderasyon)
           top_p: 0.1           # Düşük varyans
           num_predict: 128     # Max 128 token yanıt
@@ -2276,7 +2295,7 @@ mc mb minio/course-covers
 docker exec ollama ollama list
 
 # Model indir (tekrar deneyin)
-docker exec ollama ollama pull llama3.2:1b
+docker exec ollama ollama pull llama3.1:8b
 
 # Ollama servisi log'ları
 docker logs ollama
@@ -2285,7 +2304,7 @@ docker logs ollama
 curl -X POST http://localhost:11434/api/generate \
   -H "Content-Type: application/json" \
   -d '{
-    "model": "llama3.2:1b",
+    "model": "llama3.1:8b",
     "prompt": "Hello"
   }'
 ```

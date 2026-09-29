@@ -113,6 +113,17 @@ public class PostController {
      * Tek bir post'u ID'siyle getirir.
      * Sadece ROLE_STUDENT ve ROLE_CLUB_OFFICIAL rolleri erişebilir.
      */
+    @GetMapping("/me")
+    public ResponseEntity<Page<PostResponse>> getMyPosts(
+            @RequestHeader("X-Authenticated-User-Id") String authenticatedUserId,
+            @RequestHeader("X-Authenticated-User-Roles") String roles,
+            @PageableDefault(size = 10, sort = "createdAt", direction = org.springframework.data.domain.Sort.Direction.DESC)
+            Pageable pageable
+    ) {
+        postService.validatePostAccess(roles);
+        return ResponseEntity.ok(postService.getMyPosts(UUID.fromString(authenticatedUserId), pageable));
+    }
+
     @GetMapping("/{postId}")
     public ResponseEntity<PostResponse> getPostById(
             @PathVariable UUID postId,

@@ -1,0 +1,19 @@
+spring:
+  datasource:
+    hikari:
+      schema: club_db
+  application:
+    name: club-service
+  config:
+    import: "classpath:educonnect-integration.yml"
+  jpa:
+    properties:
+      hibernate:
+        default_schema: club_db
+  flyway:
+    schemas: club_db
+    default-schema: club_db
+
+minio:
+  bucket:
+    name: club-bucket

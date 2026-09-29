@@ -1,0 +1,18 @@
+spring:
+  datasource:
+    hikari:
+      schema: assignment_db
+  application:
+    name: assignment-service
+  config:
+    import: "classpath:educonnect-integration.yml"
+  jpa:
+    properties:
+      hibernate:
+        default_schema: assignment_db
+  flyway:
+    schemas: assignment_db
+    default-schema: assignment_db
+
+minio:
+  bucket-name: educonnect-assignments

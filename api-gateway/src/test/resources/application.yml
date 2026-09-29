@@ -1,0 +1,28 @@
+spring:
+  application:
+    name: api-gateway
+  main:
+    web-application-type: reactive
+  config:
+    import: "classpath:educonnect-integration.yml"
+  cloud:
+    gateway:
+      server:
+        webflux:
+          discovery:
+            locator:
+              enabled: false
+          default-filters:
+            - name: AuthenticationFilter
+          routes:
+            - id: course-service
+              uri: lb://course-service
+              predicates:
+                - Path=/api/courses/**
+
+educonnect:
+  gateway:
+    auth-rate-limit:
+      enabled: true
+    rate-limit:
+      enabled: true

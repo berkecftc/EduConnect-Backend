@@ -2,6 +2,8 @@ package com.educonnect.eventservice.Repository;
 
 import com.educonnect.eventservice.model.Event;
 import com.educonnect.eventservice.model.EventStatus;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 import java.util.List;
@@ -18,6 +20,10 @@ public interface EventRepository extends JpaRepository<Event, UUID> {
     // --- YENİ METOT ---
     // Belirli bir durumdaki (örn: PENDING) etkinlikleri getir
     List<Event> findByStatus(EventStatus status);
+
+    List<Event> findByStatusOrderByEventTimeAsc(EventStatus status);
+
+    Page<Event> findByStatus(EventStatus status, Pageable pageable);
 
     // --- CLUB OFFICIAL DASHBOARD İÇİN ---
     // Kulüp yetkilisinin oluşturduğu etkinlikleri getir

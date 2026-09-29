@@ -1,15 +1,22 @@
 package com.educonnect.authservices.models;
 
 import jakarta.persistence.*;
+import com.educonnect.common.storage.ObjectUrlConverter;
+import org.hibernate.annotations.CreationTimestamp;
+import java.time.Instant;
 
 @Entity
-@Table(name = "student_requests", schema = "auth_db")
+@Table(name = "student_requests")
 @SuppressWarnings("JpaDataSourceORMInspection")
 public class StudentRegistrationRequest {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
+
+    @CreationTimestamp
+    @Column(name = "created_at", nullable = false, updatable = false)
+    private Instant createdAt;
 
     @Column(name = "first_name")
     private String firstName;
@@ -30,7 +37,19 @@ public class StudentRegistrationRequest {
     private String department;
 
     @Column(name = "student_document_url")
+    @Convert(converter = ObjectUrlConverter.class)
     private String studentDocumentUrl; // Öğrenci belgesi URL'si (MinIO'da)
+
+    @Column(name = "email_verified_at")
+    private java.time.Instant emailVerifiedAt;
+
+    public java.time.Instant getEmailVerifiedAt() {
+        return emailVerifiedAt;
+    }
+
+    public void setEmailVerifiedAt(java.time.Instant emailVerifiedAt) {
+        this.emailVerifiedAt = emailVerifiedAt;
+    }
 
     // Getter ve Setter metodları
     public Long getId() {
@@ -96,5 +115,7 @@ public class StudentRegistrationRequest {
     public void setStudentDocumentUrl(String studentDocumentUrl) {
         this.studentDocumentUrl = studentDocumentUrl;
     }
+
+    public Instant getCreatedAt() { return createdAt; }
 }
 

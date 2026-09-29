@@ -1,0 +1,18 @@
+spring:
+  datasource:
+    hikari:
+      schema: course_db
+  application:
+    name: course-service
+  config:
+    import: "classpath:educonnect-integration.yml"
+  jpa:
+    properties:
+      hibernate:
+        default_schema: course_db
+  flyway:
+    schemas: course_db
+    default-schema: course_db
+
+minio:
+  bucket-name: courses-bucket

@@ -1,8 +1,9 @@
 package com.educonnect.courseservice.exception;
 
-public class CourseCapacityFullException extends RuntimeException {
+import com.educonnect.common.web.BadRequestException;
+
+public class CourseCapacityFullException extends BadRequestException {
     public CourseCapacityFullException(String message) {
-        super(message);
+        super("COURSE_CAPACITY_FULL", message);
     }
 }
-

@@ -2,10 +2,9 @@ spring:
   application:
     name: notification-service
   config:
-    import: "configserver:"
+    import: "configserver:${CONFIG_SERVER_URL:http://localhost:8888}"
   cloud:
     config:
-      uri: http://localhost:8888
       fail-fast: true
-
-# Mail ayarları Config Server'dan geliyor (Mailpit: localhost:1025)
+      username: ${CONFIG_SERVER_USER:educonnect}
+      password: ${CONFIG_SERVER_PASSWORD}

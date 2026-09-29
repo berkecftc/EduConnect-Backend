@@ -1,17 +1,25 @@
 package com.educonnect.clubservice.controller;
 
+import com.educonnect.common.web.LogValues;
 import com.educonnect.clubservice.dto.request.CreateClubRequest;
 import com.educonnect.clubservice.dto.request.UpdateClubRequest;
 import com.educonnect.clubservice.dto.response.ArchivedClubDTO;
 import com.educonnect.clubservice.dto.response.ClubAdminSummaryDto;
 import com.educonnect.clubservice.dto.response.MemberDTO;
+import com.educonnect.clubservice.dto.response.ClubCreationRequestResponse;
+import com.educonnect.clubservice.dto.response.ClubResponse;
 import com.educonnect.clubservice.model.Club;
-import com.educonnect.clubservice.model.ClubCreationRequest;
 import com.educonnect.clubservice.service.ClubService;
+import com.educonnect.common.security.AuditLog;
+import com.educonnect.common.web.ApiException;
+import com.educonnect.common.web.BadRequestException;
+import jakarta.validation.Valid;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
@@ -20,6 +28,7 @@ import org.springframework.web.multipart.MultipartFile;
 import java.util.List;
 import java.util.UUID;
 
+@ConditionalOnProperty(name = "educonnect.club.admin-access.enabled", havingValue = "true", matchIfMissing = false)
 @RestController
 @RequestMapping("/api/admin/clubs") // Admin rotası
 public class ClubAdminController {
@@ -36,22 +45,22 @@ public class ClubAdminController {
     // Yeni Kulüp Oluşturma
     @PostMapping
     @PreAuthorize("hasRole('ADMIN')") // Sadece Admin rolü
-    public ResponseEntity<Club> createClub(
-            @RequestBody CreateClubRequest request,
+    public ResponseEntity<ClubResponse> createClub(
+            @Valid @RequestBody CreateClubRequest request,
             @RequestHeader(value = "X-Authenticated-User-Id", required = false) String userId,
             @RequestHeader(value = "X-Authenticated-User-Email", required = false) String userEmail) {
 
-        log.info("Creating club: {}, requested by userId: {}, email: {}",
-                 request.getName(), userId, userEmail);
+        log.info("Creating club: {}, requested by userId: {}", LogValues.safe(request.getName()), LogValues.safe(userId));
 
         Club createdClub = clubService.createClub(request);
+        AuditLog.record("CREATE_CLUB", "CLUB", createdClub.getId());
 
         log.info("Club created successfully with ID: {}", createdClub.getId());
 
         return ResponseEntity
                 .status(HttpStatus.CREATED)
                 .header("X-Created-Club-Id", createdClub.getId().toString())
-                .body(createdClub);
+                .body(ClubResponse.from(createdClub));
     }
 
     // Kulüp Kapatma/Arşivleme (Soft Delete)
@@ -67,6 +76,7 @@ public class ClubAdminController {
 
         UUID adminId = userId != null ? UUID.fromString(userId) : null;
         clubService.deleteClub(clubId, reason, adminId);
+        AuditLog.record("ARCHIVE_CLUB", "CLUB", clubId);
 
         log.info("Club archived successfully: {}", clubId);
 
@@ -77,27 +87,30 @@ public class ClubAdminController {
 
     @GetMapping("/requests")
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<List<ClubCreationRequest>> getPendingRequests() {
-        return ResponseEntity.ok(clubService.getPendingClubRequests());
+    public ResponseEntity<List<ClubCreationRequestResponse>> getPendingRequests() {
+        return ResponseEntity.ok(ClubCreationRequestResponse.from(clubService.getPendingClubRequests()));
     }
 
     @PostMapping("/requests/{requestId}/approve")
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<Club> approveClubRequest(@PathVariable UUID requestId) {
-        return ResponseEntity.ok(clubService.approveClubCreationRequest(requestId));
+    public ResponseEntity<ClubResponse> approveClubRequest(@PathVariable UUID requestId) {
+        Club approved = clubService.approveClubCreationRequest(requestId);
+        AuditLog.record("APPROVE_CLUB_CREATION", "CLUB_CREATION_REQUEST", requestId);
+        return ResponseEntity.ok(ClubResponse.from(approved));
     }
 
     @PostMapping("/requests/{requestId}/reject")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<String> rejectClubRequest(@PathVariable UUID requestId) {
         clubService.rejectClubCreationRequest(requestId); // Servisteki metodu çağır
+        AuditLog.record("REJECT_CLUB_CREATION", "CLUB_CREATION_REQUEST", requestId);
         return ResponseEntity.ok("Club creation request rejected.");
     }
 
     @PutMapping("/{clubId}")
     @PreAuthorize("hasRole('ADMIN')") // Veya kulüp başkanı
-    public ResponseEntity<Club> updateClub(@PathVariable UUID clubId, @RequestBody UpdateClubRequest request) {
-        return ResponseEntity.ok(clubService.updateClub(clubId, request));
+    public ResponseEntity<ClubResponse> updateClub(@PathVariable UUID clubId, @Valid @RequestBody UpdateClubRequest request) {
+        return ResponseEntity.ok(ClubResponse.from(clubService.updateClub(clubId, request)));
     }
 
     // Aktif Kulüpleri Listele
@@ -124,8 +137,8 @@ public class ClubAdminController {
     @PutMapping("/{clubId}/change-president")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<String> changePresident(@PathVariable UUID clubId, @RequestParam UUID newPresidentId) {
-        return ResponseEntity.status(HttpStatus.GONE)
-                .body("Bu endpoint artık kullanılmamaktadır. Başkan değişiklikleri danışman onayına tabidir. " +
+        throw new ApiException(HttpStatus.GONE, "ENDPOINT_GONE",
+                "Bu endpoint artık kullanılmamaktadır. Başkan değişiklikleri danışman onayına tabidir. " +
                         "Önce mevcut başkanı görevden almak için DELETE /api/clubs/{clubId}/members/{studentId}/role, " +
                         "ardından yeni başkan atamak için POST /api/clubs/{clubId}/role-change-requests kullanın.");
     }
@@ -138,7 +151,7 @@ public class ClubAdminController {
     }
 
     // MinIO Logo Yükleme Endpointi
-    @PostMapping(value = "/{clubId}/logo", consumes = "multipart/form-data")
+    @PostMapping(value = "/{clubId}/logo", consumes = "multipart/form-data", produces = MediaType.TEXT_PLAIN_VALUE)
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<String> updateClubLogo(
             @PathVariable UUID clubId,
@@ -146,15 +159,11 @@ public class ClubAdminController {
 
         // Dosya boş mu kontrolü
         if (file.isEmpty()) {
-            return ResponseEntity.badRequest().body("Dosya seçilmedi.");
+            throw new BadRequestException("FILE_EMPTY", "Dosya seçilmedi.");
         }
 
-        try {
-            String newLogoUrl = clubService.updateClubLogoByAdmin(clubId, file);
-            return ResponseEntity.ok(newLogoUrl); // Yeni MinIO URL'ini dönüyoruz
-        } catch (Exception e) {
-            return ResponseEntity.internalServerError().body("Logo yüklenirken hata: " + e.getMessage());
-        }
+        String newLogoUrl = clubService.updateClubLogoByAdmin(clubId, file);
+        return ResponseEntity.ok(newLogoUrl); // Yeni MinIO URL'ini dönüyoruz
     }
 
     // Arşivlenmiş Kulüpleri Listele

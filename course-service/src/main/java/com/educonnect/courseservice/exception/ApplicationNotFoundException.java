@@ -1,8 +1,9 @@
 package com.educonnect.courseservice.exception;
 
-public class ApplicationNotFoundException extends RuntimeException {
+import com.educonnect.common.web.NotFoundException;
+
+public class ApplicationNotFoundException extends NotFoundException {
     public ApplicationNotFoundException(String message) {
-        super(message);
+        super("APPLICATION_NOT_FOUND", message);
     }
 }
-

@@ -1,8 +1,12 @@
 package com.educonnect.eventservice.model;
 
 import jakarta.persistence.*;
+import com.educonnect.common.storage.ObjectUrlConverter;
 import java.time.LocalDateTime;
 import java.util.UUID;
+import org.hibernate.annotations.CreationTimestamp;
+import java.time.Instant;
+import org.hibernate.annotations.UpdateTimestamp;
 
 @Entity
 @Table(name = "events")
@@ -11,6 +15,18 @@ public class Event {
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
+
+    @CreationTimestamp
+    @Column(name = "created_at", nullable = false, updatable = false)
+    private Instant createdAt;
+
+    @UpdateTimestamp
+    @Column(name = "updated_at", nullable = false)
+    private Instant updatedAt;
+
+    @Version
+    @Column(nullable = false)
+    private Long version;
 
     @Column(nullable = false)
     private String title;
@@ -23,6 +39,7 @@ public class Event {
 
     private String location; // Yer
 
+    @Convert(converter = ObjectUrlConverter.class)
     private String imageUrl; // Afiş (MinIO URL)
 
     @Column(nullable = false)
@@ -35,7 +52,7 @@ public class Event {
     @Enumerated(EnumType.STRING)
     private EventStatus status = EventStatus.ACTIVE;
 
-    @Column(nullable = false)
+    @Column
     private UUID createdByStudentId;
 
     // --- Getter & Setter (Lombok yoksa manuel ekleyin) ---
@@ -68,4 +85,6 @@ public class Event {
         this.createdByStudentId = createdByStudentId;
     }
 
+    public Instant getCreatedAt() { return createdAt; }
+    public Instant getUpdatedAt() { return updatedAt; }
 }

@@ -3,7 +3,7 @@ package com.educonnect.userservice.service;
 import com.educonnect.userservice.config.RabbitMQConfig;
 import com.educonnect.userservice.dto.message.GamificationActionType;
 import com.educonnect.userservice.dto.message.GamificationEventMessage;
-import org.springframework.amqp.rabbit.core.RabbitTemplate;
+import com.educonnect.common.messaging.outbox.OutboxPublisher;
 import org.springframework.stereotype.Component;
 
 import java.time.OffsetDateTime;
@@ -13,10 +13,10 @@ import java.util.UUID;
 @Component
 public class GamificationEventPublisher {
 
-    private final RabbitTemplate rabbitTemplate;
+    private final OutboxPublisher outboxPublisher;
 
-    public GamificationEventPublisher(RabbitTemplate rabbitTemplate) {
-        this.rabbitTemplate = rabbitTemplate;
+    public GamificationEventPublisher(OutboxPublisher outboxPublisher) {
+        this.outboxPublisher = outboxPublisher;
     }
 
     public void publishProfileCompleted(UUID userId) {
@@ -27,7 +27,7 @@ public class GamificationEventPublisher {
                 OffsetDateTime.now(ZoneId.of("Europe/Istanbul"))
         );
 
-        rabbitTemplate.convertAndSend(
+        outboxPublisher.publish(
                 RabbitMQConfig.GAMIFICATION_EXCHANGE,
                 RabbitMQConfig.GAMIFICATION_PROFILE_COMPLETED_ROUTING_KEY,
                 event

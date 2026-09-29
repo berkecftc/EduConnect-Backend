@@ -24,11 +24,10 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.support.TransactionSynchronization;
-import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -102,13 +101,7 @@ public class PostService {
     /**
      * Yeni post oluşturur.
      * - Status başlangıçta PENDING olarak kaydedilir.
-     * - Moderasyon olayı transaction commit'inden sonra RabbitMQ'ya fırlatılır.
-     *
-     * Mesaj kaybı analizi:
-     * - @Transactional sayesinde DB kaydı garanti altındadır.
-     * - Event, DB commit'inden sonra fırlatılır. Eğer publish sırasında hata olursa
-     *   post PENDING kalır ve manuel moderasyon ile çözülebilir.
-     * - Kuyruk durable olduğu için broker tarafında mesaj kaybı olmaz.
+     * - Moderasyon olayı aynı transaction'da outbox tablosuna yazılır, commit sonrası RabbitMQ'ya gönderilir.
      */
     @Transactional
     public PostResponse createPost(CreatePostRequest request, UUID authorId) {
@@ -120,7 +113,7 @@ public class PostService {
         post.setAuthorId(authorId);
 
         Post savedPost = postRepository.save(post);
-        log.info("📝 Post oluşturuldu (PENDING) — postId: {}, authorId: {}", savedPost.getId(), authorId);
+        log.info("Post oluşturuldu (PENDING) — postId: {}, authorId: {}", savedPost.getId(), authorId);
 
         // Moderasyon olayını commit sonrası yayınla
         publishModerationEvent(savedPost);
@@ -145,7 +138,7 @@ public class PostService {
         post.setStatus(PostStatus.PENDING); // Güncelleme sonrası tekrar moderasyona gider
 
         Post updatedPost = postRepository.save(post);
-        log.info("✏️ Post güncellendi (PENDING) — postId: {}, authorId: {}", updatedPost.getId(), authorId);
+        log.info("Post güncellendi (PENDING) — postId: {}, authorId: {}", updatedPost.getId(), authorId);
 
         // Yeni moderasyon olayını commit sonrası yayınla
         publishModerationEvent(updatedPost);
@@ -164,7 +157,7 @@ public class PostService {
         validateAuthor(post, authorId);
 
         postRepository.delete(post);
-        log.info("🗑️ Post silindi — postId: {}, authorId: {}", postId, authorId);
+        log.info("Post silindi — postId: {}, authorId: {}", postId, authorId);
     }
 
     /**
@@ -187,10 +180,7 @@ public class PostService {
                 .distinct()
                 .toList();
 
-        Map<UUID, UserSummaryDto> userCache = uniqueAuthorIds.stream()
-                .map(id -> Map.entry(id, fetchUserSafely(id)))
-                .filter(entry -> entry.getValue() != null)
-                .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
+        Map<UUID, UserSummaryDto> userCache = fetchUsersSafely(uniqueAuthorIds);
 
         return postPage.map(post -> mapToResponseWithUser(post, userCache.get(post.getAuthorId()), currentUserId));
     }
@@ -215,10 +205,7 @@ public class PostService {
                 .distinct()
                 .toList();
 
-        Map<UUID, UserSummaryDto> userCache = uniqueAuthorIds.stream()
-                .map(id -> Map.entry(id, fetchUserSafely(id)))
-                .filter(entry -> entry.getValue() != null)
-                .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
+        Map<UUID, UserSummaryDto> userCache = fetchUsersSafely(uniqueAuthorIds);
 
         List<PostResponse> responses = bookmarkPage.getContent().stream()
                 .filter(bookmark -> postMap.containsKey(bookmark.getPostId()))
@@ -235,8 +222,18 @@ public class PostService {
      * Tek bir post'u ID'sine göre getirir.
      */
     @Transactional(readOnly = true)
+    public Page<PostResponse> getMyPosts(UUID authorId, Pageable pageable) {
+        Page<Post> postPage = postRepository.findByAuthorId(authorId, pageable);
+        UserSummaryDto author = postPage.isEmpty() ? null : fetchUserSafely(authorId);
+        return postPage.map(post -> mapToResponseWithUser(post, author, authorId));
+    }
+
+    @Transactional(readOnly = true)
     public PostResponse getPostById(UUID postId, UUID currentUserId) {
         Post post = findPostOrThrow(postId);
+        if (post.getStatus() != PostStatus.PUBLISHED && !currentUserId.equals(post.getAuthorId())) {
+            throw new PostNotFoundException("Post bulunamadı: " + postId);
+        }
         UserSummaryDto user = fetchUserSafely(post.getAuthorId());
         return mapToResponseWithUser(post, user, currentUserId);
     }
@@ -271,7 +268,7 @@ public class PostService {
      * Eşleşmezse UnauthorizedPostAccessException fırlatılır.
      */
     private void validateAuthor(Post post, UUID authorId) {
-        if (!post.getAuthorId().equals(authorId)) {
+        if (!authorId.equals(post.getAuthorId())) {
             throw new UnauthorizedPostAccessException(
                     "Bu işlemi sadece post'un yazarı yapabilir. postId: " + post.getId()
             );
@@ -286,18 +283,6 @@ public class PostService {
                 UUID.randomUUID() // Her olay için benzersiz eventId
         );
 
-        // Consumer aynı serviste çalıştığı için commit öncesi publish edilirse
-        // listener post'u henüz göremeyebilir; bu nedenle publish'i commit sonrasına erteliyoruz.
-        if (TransactionSynchronizationManager.isActualTransactionActive()) {
-            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
-                @Override
-                public void afterCommit() {
-                    eventPublisher.publishModerationEvent(event);
-                }
-            });
-            return;
-        }
-
         eventPublisher.publishModerationEvent(event);
     }
 
@@ -305,7 +290,9 @@ public class PostService {
         String authorName = null;
         String authorDepartment = null;
 
-        if (user != null) {
+        if (post.getAuthorId() == null) {
+            authorName = DeletedUser.DISPLAY_NAME;
+        } else if (user != null) {
             authorName = user.getFirstName() + " " + user.getLastName();
             authorDepartment = user.getDepartment();
         }
@@ -337,11 +324,25 @@ public class PostService {
      * user-service'ten kullanıcı bilgilerini güvenli şekilde çeker.
      * Servis erişilemezse veya hata olursa null döner — post response'u yine de oluşturulur.
      */
+    private Map<UUID, UserSummaryDto> fetchUsersSafely(List<UUID> userIds) {
+        Map<UUID, UserSummaryDto> users = new HashMap<>();
+        for (UUID userId : userIds) {
+            UserSummaryDto user = fetchUserSafely(userId);
+            if (user != null) {
+                users.put(userId, user);
+            }
+        }
+        return users;
+    }
+
     private UserSummaryDto fetchUserSafely(UUID userId) {
+        if (userId == null) {
+            return null;
+        }
         try {
             return userClient.getUserById(userId);
         } catch (Exception e) {
-            log.warn("⚠️ Kullanıcı bilgisi alınamadı (user-service erişilemez olabilir) — userId: {}", userId);
+            log.warn("Kullanıcı bilgisi alınamadı (user-service erişilemez olabilir) — userId: {}", userId);
             return null;
         }
     }

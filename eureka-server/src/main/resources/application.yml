@@ -1,9 +1,18 @@
 server:
   port: 8761
+  address: 127.0.0.1
 spring:
   application:
     name: discovery-server
+  security:
+    user:
+      name: ${EUREKA_USER:educonnect}
+      password: ${EUREKA_PASSWORD}
 eureka:
+  instance:
+    hostname: localhost
   client:
     register-with-eureka: false
     fetch-registry: false
+    service-url:
+      defaultZone: http://localhost:${server.port}/eureka/

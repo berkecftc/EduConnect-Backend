@@ -1,32 +1,41 @@
 package com.educonnect.clubservice.service;
 
+import com.educonnect.common.web.LogValues;
 import com.educonnect.clubservice.Repository.ClubCreationRequestRepository;
 import com.educonnect.clubservice.client.UserClient;
+import com.educonnect.clubservice.client.UserLookup;
 import com.educonnect.clubservice.config.ClubRabbitMQConfig; // RabbitMQ yapılandırmamız
-import com.educonnect.clubservice.dto.message.AssignClubRoleMessage;
 import com.educonnect.clubservice.dto.message.ClubUpdateMessage;
-import com.educonnect.clubservice.dto.message.RevokeClubRoleMessage;
 import com.educonnect.clubservice.dto.request.*;
+import com.educonnect.clubservice.dto.response.AcademicianSummary;
 import com.educonnect.clubservice.dto.response.ArchivedClubDTO;
+import com.educonnect.clubservice.dto.response.ClubCatalogEntry;
 import com.educonnect.clubservice.dto.response.ClubAdminSummaryDto;
 import com.educonnect.clubservice.dto.response.ClubDetailsDTO;
 import com.educonnect.clubservice.dto.response.ClubSummaryDTO;
 import com.educonnect.clubservice.dto.response.MemberDTO;
 import com.educonnect.clubservice.dto.response.MyClubMembershipDTO;
+import com.educonnect.clubservice.dto.response.PageResponse;
 import com.educonnect.clubservice.dto.response.UserSummary;
 import com.educonnect.clubservice.model.ArchivedClub;
 import com.educonnect.clubservice.model.Club;
 import com.educonnect.clubservice.model.ClubCreationRequest;
+import com.educonnect.clubservice.model.ClubCreationRequestStatus;
 import com.educonnect.clubservice.model.ClubMembership;
-import com.educonnect.clubservice.model.ClubRole;
+import com.educonnect.clubservice.model.ClubPosition;
 import com.educonnect.clubservice.Repository.ArchivedClubRepository;
 import com.educonnect.clubservice.Repository.ClubMembershipRepository;
 import com.educonnect.clubservice.Repository.ClubRepository;
+import com.educonnect.clubservice.security.ClubAuthorizationService;
+import com.educonnect.clubservice.security.ClubPermission;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.amqp.rabbit.core.RabbitTemplate;
-import org.springframework.cache.annotation.CacheEvict;
+import com.educonnect.common.messaging.outbox.OutboxPublisher;
+import com.educonnect.common.web.ConflictException;
+import com.educonnect.common.web.NotFoundException;
 import org.springframework.cache.annotation.Cacheable;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -34,11 +43,12 @@ import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDateTime;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
+import java.util.function.Function;
 import java.util.stream.Collectors;
-import org.springframework.security.core.GrantedAuthority;
-import org.springframework.security.core.context.SecurityContextHolder;
 
 @Service
 @Transactional // Bu sınıftaki tüm metotlar veritabanı işlemi yapabilir
@@ -49,26 +59,41 @@ public class ClubService {
     // Gerekli bağımlılıklar
     private final ClubRepository clubRepository;
     private final ClubMembershipRepository membershipRepository;
-    private final RabbitTemplate rabbitTemplate; // RabbitMQ ile konuşmak için
+    private final OutboxPublisher outboxPublisher;
     private final MinioService minioService;
     private final ClubCreationRequestRepository requestRepository; // Kulüp talepleri
     private final UserClient userClient;
     private final ArchivedClubRepository archivedClubRepository;
+    private final ClubAuthorizationService clubAuthorizationService;
+    private final ClubCacheEvictor cacheEvictor;
+    private final ClubManagementStatusPublisher managementStatusPublisher;
+    private final ClubNotificationPublisher notificationPublisher;
+    private final UserLookup userLookup;
 
     public ClubService(ClubRepository clubRepository,
                        ClubMembershipRepository membershipRepository,
-                       RabbitTemplate rabbitTemplate,
+                       OutboxPublisher outboxPublisher,
                        MinioService minioService,
                        ClubCreationRequestRepository requestRepository,
                        UserClient userClient,
-                       ArchivedClubRepository archivedClubRepository) {
+                       ArchivedClubRepository archivedClubRepository,
+                       ClubAuthorizationService clubAuthorizationService,
+                       ClubCacheEvictor cacheEvictor,
+                       ClubManagementStatusPublisher managementStatusPublisher,
+                       ClubNotificationPublisher notificationPublisher,
+                       UserLookup userLookup) {
         this.clubRepository = clubRepository;
         this.membershipRepository = membershipRepository;
-        this.rabbitTemplate = rabbitTemplate;
+        this.outboxPublisher = outboxPublisher;
         this.minioService = minioService;
         this.requestRepository = requestRepository;
         this.userClient = userClient;
         this.archivedClubRepository = archivedClubRepository;
+        this.clubAuthorizationService = clubAuthorizationService;
+        this.cacheEvictor = cacheEvictor;
+        this.managementStatusPublisher = managementStatusPublisher;
+        this.notificationPublisher = notificationPublisher;
+        this.userLookup = userLookup;
     }
 
     /**
@@ -79,8 +104,13 @@ public class ClubService {
 
         // 1. Aynı isimde kulüp var mı diye kontrol et (opsiyonel ama önerilir)
         if (clubRepository.findByName(request.getName()).isPresent()) {
-            throw new IllegalStateException("Club with this name already exists.");
+            throw new ConflictException("CLUB_NAME_TAKEN", "Club with this name already exists.");
         }
+        if (request.getClubPresidentId() == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Kulüp başkanı zorunludur.");
+        }
+        ensureValidAdvisor(request.getAcademicAdvisorId());
+        ensureEligibleForManagement(request.getClubPresidentId());
 
         // 2. DTO'dan gelen bilgilerle yeni Club Entity'si oluştur
         Club newClub = new Club();
@@ -99,34 +129,13 @@ public class ClubService {
         ClubMembership presidentMembership = new ClubMembership(
                 savedClub.getId(),
                 request.getClubPresidentId(),
-                ClubRole.ROLE_CLUB_OFFICIAL // Başkan rolü (enum'da bu isimde)
+                ClubPosition.PRESIDENT // Başkan rolü (enum'da bu isimde)
         );
         presidentMembership.setActive(true);
         presidentMembership.setTermStartDate(java.time.LocalDateTime.now());
         membershipRepository.save(presidentMembership);
-
-        // 5. RabbitMQ ile auth-service'e mesaj gönder: Başkana ROLE_CLUB_OFFICIAL rolü ata
-        try {
-            AssignClubRoleMessage message = new AssignClubRoleMessage(
-                    request.getClubPresidentId(),
-                    "ROLE_CLUB_OFFICIAL",
-                    savedClub.getId()
-            );
-
-            String routingKey = "user.role.assign";
-            rabbitTemplate.convertAndSend(
-                    ClubRabbitMQConfig.EXCHANGE_NAME,
-                    routingKey,
-                    message
-            );
-
-            log.info("Sent role assignment message for user {} to become ROLE_CLUB_OFFICIAL of club {}",
-                    request.getClubPresidentId(), savedClub.getId());
-        } catch (Exception e) {
-            log.error("Failed to send role assignment message: {}", e.getMessage(), e);
-            // İsterse burada exception fırlatabilirsiniz veya sadece log bırakabilirsiniz
-            // Şu an için sadece log bırakıyoruz, kulüp oluşumu başarılı olsun
-        }
+        cacheEvictor.evictUser(request.getClubPresidentId());
+        managementStatusPublisher.publishCurrentStatus(request.getClubPresidentId());
 
         return savedClub;
     }
@@ -137,34 +146,34 @@ public class ClubService {
      */
     @Transactional(readOnly = true) // Bu metot sadece okuma yapar
     public List<ClubSummaryDTO> getAllClubs() {
-        // 1. Tüm kulüp Entity'lerini veritabanından çek
-        List<Club> clubs = clubRepository.findAll();
+        return toClubSummaries(clubRepository.findAll());
+    }
 
-        // 2. Entity listesini DTO listesine dönüştür (üye sayısı ve danışman bilgisi dahil)
+    @Transactional(readOnly = true)
+    public PageResponse<ClubSummaryDTO> getClubsPage(int page, Integer size) {
+        Page<Club> clubs = clubRepository.findAll(PageResponse.request(page, size, Sort.by("name").and(Sort.by("id"))));
+        return PageResponse.of(clubs, toClubSummaries(clubs.getContent()));
+    }
+
+    private List<ClubSummaryDTO> toClubSummaries(List<Club> clubs) {
+        if (clubs.isEmpty()) {
+            return List.of();
+        }
+        Map<UUID, Long> memberCounts = membershipRepository.countByClubIds(clubs.stream().map(Club::getId).toList()).stream()
+                .collect(Collectors.toMap(ClubMembershipRepository.ClubMemberCount::getClubId,
+                        ClubMembershipRepository.ClubMemberCount::getTotal));
+        Map<UUID, AcademicianSummary> advisors = userLookup.academiciansById(
+                clubs.stream().map(Club::getAcademicAdvisorId).toList());
+
         return clubs.stream()
                 .map(club -> {
-                    // Üye sayısını al
-                    long memberCount = membershipRepository.countByClubId(club.getId());
-
-                    // Danışman hoca bilgisini al
-                    String advisorName = null;
-                    try {
-                        if (club.getAcademicAdvisorId() != null) {
-                            var advisor = userClient.getAcademicianById(club.getAcademicAdvisorId());
-                            if (advisor != null) {
-                                advisorName = advisor.getFullName();
-                            }
-                        }
-                    } catch (Exception e) {
-                        log.warn("Could not fetch advisor info for club {}: {}", club.getId(), e.getMessage());
-                    }
-
+                    AcademicianSummary advisor = advisors.get(club.getAcademicAdvisorId());
                     return new ClubSummaryDTO(
                             club.getId(),
                             club.getName(),
                             club.getLogoUrl(),
-                            memberCount,
-                            advisorName,
+                            memberCounts.getOrDefault(club.getId(), 0L),
+                            advisor != null ? advisor.getFullName() : null,
                             club.getAcademicAdvisorId()
                     );
                 })
@@ -176,16 +185,19 @@ public class ClubService {
      * (ClubDetailsDTO ve MemberDTO'yu kullanır)
      */
     @Transactional(readOnly = true)
-    public ClubDetailsDTO getClubDetails(UUID clubId) {
+    public ClubDetailsDTO getClubDetails(UUID clubId, UUID viewerId) {
         // 1. Kulübü ID ile bul (bulamazsa hata fırlat)
         Club club = clubRepository.findById(clubId)
-                .orElseThrow(() -> new RuntimeException("Club not found with id: " + clubId));
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Kulüp bulunamadı"));
 
         // 2. Bu kulübün tüm üyeliklerini (ClubMembership Entity) veritabanından çek
         List<ClubMembership> memberships = membershipRepository.findByClubId(clubId);
 
         // 3. 'ClubMembership' listesini 'MemberDTO' listesine dönüştür
+        boolean canViewAllMembers = clubAuthorizationService.accessOf(club, viewerId).has(ClubPermission.VIEW_MEMBERS);
         List<MemberDTO> memberDTOs = memberships.stream()
+                .filter(ClubMembership::isActive)
+                .filter(membership -> canViewAllMembers || membership.getClubRole().isManagement())
                 .map(membership -> new MemberDTO(
                         membership.getStudentId(),
                         membership.getClubRole()
@@ -225,24 +237,12 @@ public class ClubService {
         return detailsDTO;
     }
 
-    /**
-     * Bir kulübe yeni bir üye ekler (Kulüp Yetkilisi yapar).
-     * (AddMemberRequest DTO'sunu kullanır)
-     */
-    public ClubMembership addMemberToClub(UUID clubId, AddMemberRequest request) {
-
-        // 1. Zaten üye mi diye kontrol et
-        if (membershipRepository.findByClubIdAndStudentId(clubId, request.getStudentId()).isPresent()) {
-            throw new IllegalStateException("This student is already a member.");
-        }
-
-        // 2. Yeni üyeliği oluştur
-        ClubMembership newMembership = new ClubMembership(
-                clubId,
-                request.getStudentId(),
-                request.getClubRole() // DTO'dan gelen rol (örn: ROLE_BOARD_MEMBER)
-        );
-        return membershipRepository.save(newMembership);
+    @Transactional(readOnly = true)
+    public List<UUID> getActiveMemberIds(UUID clubId) {
+        return membershipRepository.findByClubId(clubId).stream()
+                .filter(ClubMembership::isActive)
+                .map(ClubMembership::getStudentId)
+                .toList();
     }
 
     /**
@@ -273,7 +273,7 @@ public class ClubService {
     @Transactional
     public void deleteClub(UUID clubId, String reason, UUID adminId) {
         Club club = clubRepository.findById(clubId)
-                .orElseThrow(() -> new RuntimeException("Club not found with id: " + clubId));
+                .orElseThrow(() -> new NotFoundException("CLUB_NOT_FOUND", "Club not found with id: " + clubId));
 
         log.info("Archiving club: {} (ID: {}), reason: {}, by admin: {}",
             club.getName(), clubId, reason, adminId);
@@ -297,6 +297,13 @@ public class ClubService {
         // 3. Kulübün tüm üyeliklerini sil
         List<ClubMembership> members = membershipRepository.findByClubId(clubId);
         membershipRepository.deleteAll(members);
+        membershipRepository.flush();
+        members.forEach(member -> {
+            cacheEvictor.evictUser(member.getStudentId());
+            if (member.isActive() && member.getClubRole().isManagement()) {
+                managementStatusPublisher.publishCurrentStatus(member.getStudentId());
+            }
+        });
         log.info("Deleted {} memberships for club: {}", members.size(), club.getName());
 
         // 4. Aktif tablodan kulübü sil
@@ -306,15 +313,11 @@ public class ClubService {
         // 5. RabbitMQ ile event-service'e haber ver
         // Bu kulübün etkinliklerinin iptal edilmesi için
         try {
-            ClubUpdateMessage message = new ClubUpdateMessage(
-                clubId,
-                "CLUB_DELETED",
-                club.getName()
-            );
+            ClubUpdateMessage message = new ClubUpdateMessage(clubId, club.getName(), null);
 
             String routingKey = "club.deleted";
-            rabbitTemplate.convertAndSend(
-                ClubRabbitMQConfig.EXCHANGE_NAME,
+            outboxPublisher.publish(
+                ClubRabbitMQConfig.CLUB_EXCHANGE_NAME,
                 routingKey,
                 message
             );
@@ -342,7 +345,7 @@ public class ClubService {
      */
     public Club updateClub(UUID clubId, UpdateClubRequest request) {
         Club club = clubRepository.findById(clubId)
-                .orElseThrow(() -> new RuntimeException("Club not found"));
+                .orElseThrow(() -> new NotFoundException("CLUB_NOT_FOUND", "Club not found"));
 
         // 1. Bilgileri Güncelle
         if (request.getName() != null) club.setName(request.getName());
@@ -360,48 +363,12 @@ public class ClubService {
             );
 
             String routingKey = "club.updated"; // YENİ ROUTING KEY
-            rabbitTemplate.convertAndSend(ClubRabbitMQConfig.EXCHANGE_NAME, routingKey, message);
+            outboxPublisher.publish(ClubRabbitMQConfig.CLUB_EXCHANGE_NAME, routingKey, message);
 
-            System.out.println("Club updated message sent: " + updatedClub.getName());
+            log.info("Club updated message sent: {}", LogValues.safe(updatedClub.getName()));
         }
 
         return updatedClub;
-    }
-
-    // --- YENİ METOT: ÖĞRENCİNİN KULÜBE KATILMASI ---
-    /**
-     * Bir öğrencinin bir kulübe 'ROLE_MEMBER' (Normal Üye) olarak katılmasını sağlar.
-     * @param clubId Katılmak istenen kulübün ID'si
-     * @param studentId Katılmak isteyen öğrencinin ID'si (Token'dan alınacak)
-     */
-    @CacheEvict(value = "studentClubMemberships", key = "#studentId")
-    public void joinClub(UUID clubId, UUID studentId) {
-
-        // 1. Kulübün var olup olmadığını kontrol et
-        if (!clubRepository.existsById(clubId)) {
-            throw new RuntimeException("Club not found with id: " + clubId);
-            // (Daha iyisi: Kendi 'ResourceNotFoundException' sınıfınızı kullanın)
-        }
-
-        // 2. Öğrencinin bu kulübe zaten üye olup olmadığını kontrol et
-        if (membershipRepository.findByClubIdAndStudentId(clubId, studentId).isPresent()) {
-            throw new IllegalStateException("Student is already a member of this club.");
-            // (Daha iyisi: 409 Conflict hatası döndürün)
-        }
-
-        // 3. Yeni üyelik kaydını oluştur
-        // DİKKAT: Rol, DTO'dan değil, doğrudan 'ROLE_MEMBER' olarak atanır
-        ClubMembership newMembership = new ClubMembership(
-                clubId,
-                studentId,
-                ClubRole.ROLE_MEMBER // Katılan kişi her zaman 'Normal Üye' olarak başlar
-        );
-
-        // 4. Yeni üyeliği veritabanına kaydet
-        membershipRepository.save(newMembership);
-
-        // Opsiyonel: Kulüp yetkilisine (Başkan/YK) yeni bir üye katıldığına
-        // dair bir bildirim (RabbitMQ mesajı) gönderilebilir.
     }
 
     // --- YENİ METOT: ÖĞRENCİNİN KULÜPTEN AYRILMASI ---
@@ -414,21 +381,28 @@ public class ClubService {
     public void leaveClub(UUID clubId, UUID studentId) {
         // Kulüp var mı kontrolü
         if (!clubRepository.existsById(clubId)) {
-            throw new RuntimeException("Club not found with id: " + clubId);
+            throw new NotFoundException("CLUB_NOT_FOUND", "Club not found with id: " + clubId);
         }
         // Üyelik var mı kontrolü
         ClubMembership membership = membershipRepository.findByClubIdAndStudentId(clubId, studentId)
-                .orElseThrow(() -> new RuntimeException("Membership not found for this user and club"));
+                .orElseThrow(() -> new NotFoundException("MEMBERSHIP_NOT_FOUND", "Membership not found for this user and club"));
 
-        // TODO: Eğer membership.getClubRole() == ROLE_CLUB_OFFICIAL ise ve kulüpte başka resmi yetkili yoksa ayrılmasını engelle.
+        if (membership.isActive() && membership.getClubRole() == ClubPosition.PRESIDENT) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "Başkan, görevi danışman kararıyla sona ermeden kulüpten ayrılamaz.");
+        }
 
         membershipRepository.delete(membership);
+        membershipRepository.flush();
+        cacheEvictor.evictUser(studentId);
+        if (membership.isActive() && membership.getClubRole().isManagement()) {
+            managementStatusPublisher.publishCurrentStatus(studentId);
+        }
     }
 
     // --- YENİ METOT: KULÜP LOGOSU YÜKLEME ---
     /**
      * Bir kulübün logosunu MinIO'ya yükler ve veritabanını günceller.
-     * Sadece Admin veya o kulübün YK üyesi/Başkanı yapabilir.
      *
      * @param clubId        Güncellenecek kulübün ID'si
      * @param file          Logo dosyası (multipart)
@@ -436,20 +410,13 @@ public class ClubService {
      * @return Yüklenen dosyanın MinIO'daki object name'i (örn: "logos/club-uuid.png")
      */
     public String updateClubLogo(UUID clubId, MultipartFile file, UUID requestingStudentId) {
-        var auth = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
-        if (auth != null) {
-            log.debug("updateClubLogo invoked by principal={}, authorities={}", auth.getPrincipal(), auth.getAuthorities());
-        } else {
-            log.debug("updateClubLogo invoked with no authentication in context");
-        }
-
         // 1. Kulübü bul
         Club club = clubRepository.findById(clubId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Club not found"));
 
         // 2. GÜVENLİK KONTROLÜ: İsteği yapan, bu kulübün yetkilisi mi?
         // (Bu kontrolü Service katmanında yapmak daha güvenlidir)
-        checkClubOfficialAuthorization(clubId, requestingStudentId);
+        clubAuthorizationService.require(clubId, requestingStudentId, ClubPermission.UPDATE_CLUB_PROFILE);
 
         // 3. Dosyayı MinIO'ya yükle
         // (Dosya adını MinIO servisi belirlesin, örn: "logos/abc-123.png")
@@ -469,12 +436,12 @@ public class ClubService {
 
     @Transactional
     public String updateClubLogoByAdmin(UUID clubId, MultipartFile file) {
-        System.out.println("DEBUG: Logo güncelleme başladı. ClubID: " + clubId);
+        log.debug("Logo güncelleme başladı. clubId={}", clubId);
 
         Club club = clubRepository.findById(clubId)
-                .orElseThrow(() -> new RuntimeException("Kulüp bulunamadı"));
+                .orElseThrow(() -> new NotFoundException("CLUB_NOT_FOUND", "Kulüp bulunamadı"));
 
-        System.out.println("DEBUG: Kulüp bulundu. Mevcut Logo URL: " + club.getLogoUrl());
+        log.debug("Kulüp bulundu. Mevcut logo: {}", club.getLogoUrl());
 
         // Eski logoyu silme işlemini ŞİMDİLİK YAPMIYORUZ.
         // Çünkü eski URL bozuksa veya MinIO'da yoksa kod burada patlar ve işlem durur.
@@ -482,54 +449,69 @@ public class ClubService {
 
         try {
             // 1. Yeni dosyayı yükle
-            System.out.println("DEBUG: MinIO'ya yükleme başlıyor...");
+            log.debug("Logo MinIO'ya yükleniyor");
             String newLogoUrl = minioService.uploadFile(file, "logos", clubId.toString());
-            System.out.println("DEBUG: MinIO Yükleme Başarılı. Yeni URL: " + newLogoUrl);
+            log.debug("Logo yüklendi: {}", newLogoUrl);
 
             // 2. Yeni URL'i Set et
             club.setLogoUrl(newLogoUrl);
 
             // 3. Kaydet
             clubRepository.saveAndFlush(club); // save() yerine saveAndFlush() kullanıyoruz ki hatayı hemen görelim
-            System.out.println("DEBUG: Veritabanı güncellendi.");
+            log.debug("Kulüp logosu veritabanında güncellendi");
 
             return newLogoUrl;
 
+        } catch (ResponseStatusException e) {
+            throw e;
         } catch (Exception e) {
-            log.error("🔥🔥🔥 LOGO GÜNCELLEME HATASI 🔥🔥🔥", e);
+            log.error("Logo güncelleme hatası", e);
             throw new RuntimeException("Logo güncellenemedi: " + e.getMessage());
         }
     }
 
-    // --- YENİ YARDIMCI METOT (Güvenlik için) ---
-    private void checkClubOfficialAuthorization(UUID clubId, UUID studentId) {
-        // Önce SecurityContext'ten ADMIN rolü var mı bak. Varsa direkt izin ver.
-        var auth = SecurityContextHolder.getContext().getAuthentication();
-        if (auth != null && auth.getAuthorities() != null) {
-            boolean isAdmin = auth.getAuthorities().stream()
-                    .map(GrantedAuthority::getAuthority)
-                    .anyMatch(a -> a.equals("ROLE_ADMIN"));
-            if (isAdmin) {
-                return; // Admin her kulüp üzerinde işlem yapabilir
-            }
+    private void ensureValidAdvisor(UUID advisorId) {
+        if (advisorId == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Kulübün bir danışman akademisyeni olmalıdır.");
         }
-
-        ClubMembership membership = membershipRepository.findByClubIdAndStudentId(clubId, studentId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.FORBIDDEN, "You are not a member of this club"));
-
-        // Eğer üye ama rolü Başkan, Bşk. Yrd. veya YK Üyesi DEĞİLSE, reddet
-        if (membership.getClubRole() != ClubRole.ROLE_CLUB_OFFICIAL&&
-                membership.getClubRole() != ClubRole.ROLE_VICE_PRESIDENT &&
-                membership.getClubRole() != ClubRole.ROLE_BOARD_MEMBER) {
-
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "You do not have permission to manage this club's logo");
+        AcademicianSummary advisor;
+        try {
+            advisor = userClient.getAcademicianById(advisorId);
+        } catch (Exception e) {
+            log.warn("Advisor lookup failed for {}: {}", advisorId, e.getMessage());
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Danışman akademisyen bulunamadı.");
+        }
+        if (advisor == null || !"Academician".equalsIgnoreCase(advisor.getRole())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Danışman olarak yalnızca bir akademisyen seçilebilir.");
         }
     }
 
+    private void ensureEligibleForManagement(UUID studentId) {
+        if (clubAuthorizationService.activeManagementPositionOf(studentId).isPresent()) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "Bu öğrencinin başka bir kulüpte yönetim görevi var. Bir öğrenci yalnızca bir kulüpte yönetim görevi alabilir.");
+        }
+    }
 
     // --- 1. ÖĞRENCİ: Talep Oluşturma ---
-    public void submitClubCreationRequest(SubmitClubRequest request, UUID studentId) {
-        // Aynı isimde kulüp var mı veya bekleyen talep var mı kontrol et (Opsiyonel)
+    public ClubCreationRequest submitClubCreationRequest(SubmitClubRequest request, UUID studentId, boolean requesterIsStudent) {
+        if (!requesterIsStudent) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Kulüp kuruluş başvurusunu yalnızca öğrenciler yapabilir.");
+        }
+        if (request.getName() == null || request.getName().isBlank()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Kulüp adı zorunludur.");
+        }
+        if (studentId.equals(request.getAcademicAdvisorId())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Başvuru sahibi kulübün danışmanı olamaz.");
+        }
+        ensureValidAdvisor(request.getAcademicAdvisorId());
+        ensureEligibleForManagement(studentId);
+        if (requestRepository.existsByRequestingStudentIdAndStatus(studentId, ClubCreationRequestStatus.PENDING)) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Bekleyen bir kulüp kuruluş başvurunuz zaten var.");
+        }
+        if (clubRepository.findByName(request.getName()).isPresent()) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Bu isimde bir kulüp zaten var.");
+        }
 
         ClubCreationRequest newRequest = new ClubCreationRequest();
         newRequest.setClubName(request.getName());
@@ -537,72 +519,118 @@ public class ClubService {
         newRequest.setSuggestedAdvisorId(request.getAcademicAdvisorId());
         newRequest.setRequestingStudentId(studentId); // Token'dan gelen ID
 
-        requestRepository.save(newRequest);
+        ClubCreationRequest saved = requestRepository.save(newRequest);
+        notificationPublisher.notifyUserAboutClubName(request.getAcademicAdvisorId(), request.getName(),
+                "Kulüp kuruluş başvurusu",
+                "\"" + request.getName() + "\" kulübü için danışmanlık onayınız bekleniyor.");
+        return saved;
     }
 
     // --- 2. ADMIN: Talebi Onaylama ---
     public Club approveClubCreationRequest(UUID requestId) {
-        // Talebi bul
         ClubCreationRequest request = requestRepository.findById(requestId)
-                .orElseThrow(() -> new RuntimeException("Request not found"));
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Başvuru bulunamadı"));
+        return approveCreationRequest(request, null);
+    }
 
-        if (!"PENDING".equals(request.getStatus())) {
-            throw new IllegalStateException("Request is already processed.");
+    public List<ClubCreationRequest> getPendingCreationRequestsForAdvisor(UUID advisorId) {
+        return requestRepository.findByStatusAndSuggestedAdvisorId(ClubCreationRequestStatus.PENDING, advisorId);
+    }
+
+    public Club approveClubCreationRequestByAdvisor(UUID requestId, UUID advisorId) {
+        ClubCreationRequest request = findCreationRequestForAdvisor(requestId, advisorId);
+        return approveCreationRequest(request, advisorId);
+    }
+
+    public ClubCreationRequest rejectClubCreationRequestByAdvisor(UUID requestId, UUID advisorId, String reason) {
+        ClubCreationRequest request = findCreationRequestForAdvisor(requestId, advisorId);
+        request.setStatus(ClubCreationRequestStatus.REJECTED);
+        request.setRejectionReason(reason);
+        request.setProcessedAt(LocalDateTime.now());
+        request.setProcessedBy(advisorId);
+        ClubCreationRequest saved = requestRepository.save(request);
+
+        String message = "\"" + request.getClubName() + "\" kulübü için kuruluş başvurunuz danışman tarafından reddedildi.";
+        if (reason != null && !reason.isBlank()) {
+            message += " Neden: " + reason;
+        }
+        notificationPublisher.notifyUserAboutClubName(request.getRequestingStudentId(), request.getClubName(),
+                "Kulüp kuruluş başvurusu", message);
+        return saved;
+    }
+
+    private ClubCreationRequest findCreationRequestForAdvisor(UUID requestId, UUID advisorId) {
+        ClubCreationRequest request = requestRepository.findById(requestId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Başvuru bulunamadı"));
+        if (!advisorId.equals(request.getSuggestedAdvisorId())) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Bu başvurunun önerilen danışmanı değilsiniz.");
+        }
+        return request;
+    }
+
+    private Club approveCreationRequest(ClubCreationRequest request, UUID approverId) {
+        if (request.getStatus() != ClubCreationRequestStatus.PENDING) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Bu başvuru zaten işlenmiş.");
+        }
+        if (request.getRequestingStudentId().equals(request.getSuggestedAdvisorId())) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Başvuru sahibi kendi kulübünün danışmanı olamaz.");
         }
 
-        // Mevcut 'createClub' mantığını kullanarak gerçek kulübü oluştur
-        // Bunun için CreateClubRequest DTO'sunu manuel dolduruyoruz
         CreateClubRequest createDto = new CreateClubRequest();
         createDto.setName(request.getClubName());
         createDto.setAbout(request.getAbout());
         createDto.setAcademicAdvisorId(request.getSuggestedAdvisorId());
         createDto.setClubPresidentId(request.getRequestingStudentId()); // Talep eden kişi BAŞKAN olur
 
-        // Mevcut metodu çağır (Bu metot kulübü kurar, başkanı atar ve RabbitMQ mesajını atar)
         Club newClub = createClub(createDto);
 
-        // Talebin durumunu güncelle
-        request.setStatus("APPROVED");
+        request.setStatus(ClubCreationRequestStatus.APPROVED);
+        request.setProcessedAt(LocalDateTime.now());
+        request.setProcessedBy(approverId);
         requestRepository.save(request);
 
+        notificationPublisher.notifyUser(request.getRequestingStudentId(), newClub, "Kulüp kuruluş başvurusu",
+                "\"" + newClub.getName() + "\" kulübünün kuruluşu onaylandı. Kulüp başkanı olarak atandınız.");
         return newClub;
     }
 
     // --- 3. ADMIN: Talepleri Listeleme ---
     public List<ClubCreationRequest> getPendingClubRequests() {
-        return requestRepository.findByStatus("PENDING");
+        return requestRepository.findByStatus(ClubCreationRequestStatus.PENDING);
     }
 
     /// İsteği reddetme metodu
     public void rejectClubCreationRequest(UUID requestId) {
         ClubCreationRequest request = requestRepository.findById(requestId)
-                .orElseThrow(() -> new RuntimeException("İstek bulunamadı"));
+                .orElseThrow(() -> new NotFoundException("REQUEST_NOT_FOUND", "İstek bulunamadı"));
 
-        // YÖNTEM 1: Durumu REJECTED yapıp saklamak (Tavsiye edilen)
-        // Eğer Status enum'ında REJECTED yoksa eklemen gerekir.
-        // request.setStatus(RequestStatus.REJECTED);
-        // requestRepository.save(request);
-
-        // YÖNTEM 2: Direkt Silmek (Daha basit)
-        requestRepository.delete(request);
+        request.setStatus(ClubCreationRequestStatus.REJECTED);
+        request.setProcessedAt(LocalDateTime.now());
+        requestRepository.save(request);
     }
 
     // 1. ADMIN İÇİN TÜM AKTİF KULÜPLERİ GETİR
     public List<ClubAdminSummaryDto> getAllClubsForAdmin() {
         List<Club> clubs = clubRepository.findAll();
+        if (clubs.isEmpty()) {
+            return List.of();
+        }
+        Map<UUID, List<ClubMembership>> membershipsByClub = membershipRepository
+                .findByClubIdIn(clubs.stream().map(Club::getId).toList()).stream()
+                .collect(Collectors.groupingBy(ClubMembership::getClubId));
+        Map<UUID, UUID> presidentByClub = new HashMap<>();
+        membershipsByClub.forEach((clubId, memberships) -> memberships.stream()
+                .filter(m -> m.getClubRole() == ClubPosition.PRESIDENT)
+                .findFirst()
+                .ifPresent(m -> presidentByClub.put(clubId, m.getStudentId())));
+        Map<UUID, UserSummary> presidents = userLookup.usersById(presidentByClub.values());
 
         return clubs.stream().map(club -> {
-            // Başkanı Bul (Rolü CLUB_OFFICIAL olan)
-            List<ClubMembership> memberships = membershipRepository.findByClubId(club.getId());
-
-            UUID presidentId = memberships.stream()
-                    .filter(m -> m.getClubRole() == ClubRole.ROLE_CLUB_OFFICIAL)
-                    .findFirst()
-                    .map(ClubMembership::getStudentId)
-                    .orElse(null);
-
-            // TODO: presidentId ile user-service'e istek atarak ismi çek
-            String presidentName = presidentId != null ? presidentId.toString() : "Atanmamış";
+            List<ClubMembership> memberships = membershipsByClub.getOrDefault(club.getId(), List.of());
+            UUID presidentId = presidentByClub.get(club.getId());
+            UserSummary president = presidentId != null ? presidents.get(presidentId) : null;
+            String presidentName = president != null ? president.getFullName()
+                    : presidentId != null ? presidentId.toString() : "Atanmamış";
 
             return new ClubAdminSummaryDto(
                     club.getId(),
@@ -617,41 +645,23 @@ public class ClubService {
     // 2. YÖNETİM KURULUNU GETİR (GÜNCELLENDİ)
     public List<MemberDTO> getClubBoardMembers(UUID clubId) {
         if (!clubRepository.existsById(clubId)) {
-            throw new RuntimeException("Kulüp bulunamadı");
+            throw new NotFoundException("CLUB_NOT_FOUND", "Kulüp bulunamadı");
         }
 
-        List<ClubMembership> memberships = membershipRepository.findByClubId(clubId);
+        List<ClubMembership> boardMembers = membershipRepository.findByClubId(clubId).stream()
+                .filter(ClubMembership::isActive)
+                .filter(m -> m.getClubRole().isManagement())
+                .toList();
+        Map<UUID, UserSummary> users = userLookup.usersById(boardMembers.stream().map(ClubMembership::getStudentId).toList());
 
-        return memberships.stream()
-                // 👇 FİLTRE BURADA GÜNCELLENDİ:
-                // Sadece Başkan ve Yetkilileri değil, "BOARD" (Yönetim Kurulu) üyelerini de dahil et.
-                .filter(m -> {
-                    String r = m.getClubRole().toString();
-                    return r.contains("OFFICIAL") ||
-                            r.contains("PRESIDENT") ||
-                            r.contains("BOARD") ||   // <-- EKLENDİ (Yönetim Kurulu)
-                            r.contains("ADMIN");     // <-- EKLENDİ (Varsa adminler)
-                })
+        return boardMembers.stream()
                 .map(m -> {
-                    // 1. User Service'ten ismi çek
-                    String fName = "Bilinmiyor";
-                    String lName = "User";
-                    try {
-                        UserSummary user = userClient.getUserById(m.getStudentId());
-                        if (user != null) {
-                            fName = user.getFirstName();
-                            lName = user.getLastName();
-                        }
-                    } catch (Exception e) {
-                        System.err.println("User Service hatası: " + e.getMessage());
-                    }
-
-                    // 2. DTO oluştur
+                    UserSummary user = users.get(m.getStudentId());
                     return new MemberDTO(
                             m.getStudentId(),
-                            fName,
-                            lName,
-                            m.getClubRole().toString() // Rolü string olarak gönderiyoruz
+                            user != null ? user.getFirstName() : "Bilinmiyor",
+                            user != null ? user.getLastName() : "User",
+                            m.getClubRole().apiName()
                     );
                 })
                 .collect(Collectors.toList());
@@ -678,7 +688,7 @@ public class ClubService {
     public List<MemberDTO> getPastPresidents(UUID clubId) {
         // Kulübün var olup olmadığını kontrol et
         if (!clubRepository.existsById(clubId)) {
-            throw new RuntimeException("Kulüp bulunamadı");
+            throw new NotFoundException("CLUB_NOT_FOUND", "Kulüp bulunamadı");
         }
 
         // Pasif olan ve ROLE_MEMBER'a dönüştürülmüş eski başkanları getir
@@ -689,27 +699,15 @@ public class ClubService {
                 .sorted((a, b) -> b.getTermStartDate().compareTo(a.getTermStartDate())) // En yeniden eskiye
                 .toList();
 
-        // DTO'ya dönüştür
+        Map<UUID, UserSummary> users = userLookup.usersById(pastPresidents.stream().map(ClubMembership::getStudentId).toList());
+
         return pastPresidents.stream()
                 .map(m -> {
-                    // User Service'ten ismi çek
-                    String fName = "Bilinmiyor";
-                    String lName = "User";
-                    try {
-                        UserSummary user = userClient.getUserById(m.getStudentId());
-                        if (user != null) {
-                            fName = user.getFirstName();
-                            lName = user.getLastName();
-                        }
-                    } catch (Exception e) {
-                        log.error("User Service hatası: {}", e.getMessage());
-                    }
-
-                    // DTO oluştur (tarih bilgisiyle birlikte)
+                    UserSummary user = users.get(m.getStudentId());
                     return new MemberDTO(
                             m.getStudentId(),
-                            fName,
-                            lName,
+                            user != null ? user.getFirstName() : "Bilinmiyor",
+                            user != null ? user.getLastName() : "User",
                             "Geçmiş Başkan", // Eski başkan olduğunu belirt
                             m.isActive(),
                             m.getTermStartDate(),
@@ -750,9 +748,10 @@ public class ClubService {
     @Cacheable(value = "studentClubMemberships", key = "#studentId")
     public List<MyClubMembershipDTO> getStudentClubMemberships(UUID studentId) {
         List<ClubMembership> memberships = membershipRepository.findByStudentId(studentId);
+        Map<UUID, Club> clubs = clubsById(memberships);
 
         return memberships.stream().map(membership -> {
-            Club club = clubRepository.findById(membership.getClubId()).orElse(null);
+            Club club = clubs.get(membership.getClubId());
             if (club == null) return null;
 
             MyClubMembershipDTO dto = new MyClubMembershipDTO();
@@ -777,22 +776,15 @@ public class ClubService {
      */
     @Cacheable(value = "managedClubs", key = "#userId")
     public List<MyClubMembershipDTO> getManagedClubs(UUID userId) {
-        List<ClubMembership> memberships = membershipRepository.findByStudentId(userId);
+        List<ClubMembership> memberships = membershipRepository.findByStudentId(userId).stream()
+                .filter(membership -> membership.getClubRole().isManagement())
+                .filter(ClubMembership::isActive)
+                .toList();
+        Map<UUID, Club> clubs = clubsById(memberships);
 
         return memberships.stream()
-                // Sadece yönetim kurulu rollerini filtrele
-                .filter(membership -> {
-                    ClubRole role = membership.getClubRole();
-                    return role == ClubRole.ROLE_CLUB_OFFICIAL ||
-                           role == ClubRole.ROLE_VICE_PRESIDENT ||
-                           role == ClubRole.ROLE_BOARD_MEMBER ||
-                           role == ClubRole.ROLE_SECRETARY ||
-                           role == ClubRole.ROLE_TREASURER;
-                })
-                // Sadece aktif üyelikleri al
-                .filter(ClubMembership::isActive)
                 .map(membership -> {
-                    Club club = clubRepository.findById(membership.getClubId()).orElse(null);
+                    Club club = clubs.get(membership.getClubId());
                     if (club == null) return null;
 
                     MyClubMembershipDTO dto = new MyClubMembershipDTO();
@@ -843,10 +835,33 @@ public class ClubService {
      * @return Kulüp ID listesi
      */
     @Transactional(readOnly = true)
+    public UUID getClubIdByName(String name) {
+        return clubRepository.findByName(name)
+                .map(Club::getId)
+                .orElseThrow(() -> new NotFoundException("CLUB_NOT_FOUND", "Club not found"));
+    }
+
+    @Transactional(readOnly = true)
     public List<UUID> getClubIdsByAdvisorId(UUID advisorId) {
         List<Club> clubs = clubRepository.findByAcademicAdvisorId(advisorId);
         return clubs.stream()
                 .map(Club::getId)
                 .collect(Collectors.toList());
+    }
+
+    private Map<UUID, Club> clubsById(List<ClubMembership> memberships) {
+        List<UUID> clubIds = memberships.stream().map(ClubMembership::getClubId).distinct().toList();
+        if (clubIds.isEmpty()) {
+            return Map.of();
+        }
+        return clubRepository.findAllById(clubIds).stream()
+                .collect(Collectors.toMap(Club::getId, Function.identity()));
+    }
+
+    @Transactional(readOnly = true)
+    public List<ClubCatalogEntry> getClubCatalog() {
+        return clubRepository.findAll(Sort.by("name")).stream()
+                .map(club -> new ClubCatalogEntry(club.getId(), club.getName(), club.getAbout()))
+                .toList();
     }
 }

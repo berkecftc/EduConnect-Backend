@@ -1,13 +1,10 @@
 spring:
   application:
     name: gamification-service
-  main:
-    web-application-type: servlet
   config:
-    import: "optional:configserver:http://localhost:8888"
+    import: "configserver:${CONFIG_SERVER_URL:http://localhost:8888}"
   cloud:
     config:
-      uri: http://localhost:8888
       fail-fast: true
-
-
+      username: ${CONFIG_SERVER_USER:educonnect}
+      password: ${CONFIG_SERVER_PASSWORD}

@@ -3,25 +3,28 @@ package com.educonnect.eventservice.service;
 import com.educonnect.eventservice.Repository.EventParticipationRequestRepository;
 import com.educonnect.eventservice.Repository.EventRegistrationRepository;
 import com.educonnect.eventservice.Repository.EventRepository;
+import com.educonnect.eventservice.client.ClubClient;
 import com.educonnect.eventservice.client.UserClient;
+import com.educonnect.eventservice.client.UserLookup;
 import com.educonnect.eventservice.config.EventRabbitMQConfig;
 import com.educonnect.eventservice.dto.message.EventRegistrationMessage;
 import com.educonnect.eventservice.dto.response.EventParticipationRequestDTO;
 import com.educonnect.eventservice.dto.response.UserSummary;
 import com.educonnect.eventservice.model.*;
+import com.educonnect.eventservice.security.EventAuthorizationService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.amqp.rabbit.core.RabbitTemplate;
+import com.educonnect.common.messaging.outbox.OutboxPublisher;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.client.RestTemplate;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 /**
@@ -38,23 +41,29 @@ public class EventParticipationRequestService {
     private final EventParticipationRequestRepository participationRequestRepository;
     private final EventRepository eventRepository;
     private final EventRegistrationRepository eventRegistrationRepository;
-    private final RestTemplate restTemplate;
-    private final RabbitTemplate rabbitTemplate;
+    private final EventAuthorizationService eventAuthorizationService;
+    private final OutboxPublisher outboxPublisher;
     private final UserClient userClient;
+    private final ClubClient clubClient;
+    private final EventCaches eventCaches;
 
     public EventParticipationRequestService(
             EventParticipationRequestRepository participationRequestRepository,
             EventRepository eventRepository,
             EventRegistrationRepository eventRegistrationRepository,
-            RestTemplate restTemplate,
-            RabbitTemplate rabbitTemplate,
-            UserClient userClient) {
+            EventAuthorizationService eventAuthorizationService,
+            OutboxPublisher outboxPublisher,
+            UserClient userClient,
+            ClubClient clubClient,
+            EventCaches eventCaches) {
         this.participationRequestRepository = participationRequestRepository;
         this.eventRepository = eventRepository;
         this.eventRegistrationRepository = eventRegistrationRepository;
-        this.restTemplate = restTemplate;
-        this.rabbitTemplate = rabbitTemplate;
+        this.eventAuthorizationService = eventAuthorizationService;
+        this.outboxPublisher = outboxPublisher;
         this.userClient = userClient;
+        this.clubClient = clubClient;
+        this.eventCaches = eventCaches;
     }
 
     /**
@@ -74,6 +83,9 @@ public class EventParticipationRequestService {
         if (event.getStatus() != EventStatus.ACTIVE) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Bu etkinlik artık aktif değil");
         }
+        if (event.getEventTime() != null && event.getEventTime().isBefore(LocalDateTime.now())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Geçmiş bir etkinliğe katılım isteği gönderilemez");
+        }
 
         // 3. Öğrenci kulübün üyesi mi? (Club-service'e REST çağrısı)
         if (!isStudentMemberOfClub(studentId, event.getClubId())) {
@@ -87,12 +99,22 @@ public class EventParticipationRequestService {
         }
 
         // 5. Daha önce başvuru yapmış mı?
-        if (participationRequestRepository.existsByEventIdAndStudentId(eventId, studentId)) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "Bu etkinlik için zaten bir başvurunuz bulunuyor");
+        EventParticipationRequest request = participationRequestRepository.findByEventIdAndStudentId(eventId, studentId)
+                .orElse(null);
+        if (request != null && request.getStatus() == ParticipationRequestStatus.PENDING) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Bu etkinlik için zaten bekleyen bir başvurunuz bulunuyor");
         }
 
         // 6. Yeni başvuru oluştur
-        EventParticipationRequest request = new EventParticipationRequest(eventId, studentId);
+        if (request == null) {
+            request = new EventParticipationRequest(eventId, studentId);
+        } else {
+            request.setStatus(ParticipationRequestStatus.PENDING);
+            request.setRequestDate(LocalDateTime.now());
+            request.setProcessedDate(null);
+            request.setProcessedBy(null);
+            request.setRejectionReason(null);
+        }
         request.setMessage(message);
 
         EventParticipationRequest savedRequest = participationRequestRepository.save(request);
@@ -125,6 +147,15 @@ public class EventParticipationRequestService {
         if (!isAuthorizedToManageEvent(approverId, event)) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Bu isteği onaylama yetkiniz yok");
         }
+        if (event.getStatus() != EventStatus.ACTIVE) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Etkinlik artık aktif değil; istek onaylanamaz");
+        }
+        if (event.getEventTime() != null && event.getEventTime().isBefore(LocalDateTime.now())) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Geçmiş bir etkinlik için istek onaylanamaz");
+        }
+        if (!isStudentMemberOfClub(request.getStudentId(), event.getClubId())) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Öğrenci artık kulüp üyesi değil; istek onaylanamaz");
+        }
 
         // 5. İsteği onayla
         request.setStatus(ParticipationRequestStatus.APPROVED);
@@ -132,27 +163,13 @@ public class EventParticipationRequestService {
         request.setProcessedBy(approverId);
         participationRequestRepository.save(request);
 
-        // 6. Öğrenci bilgilerini user-service'den al
-        String studentEmail = null;
-        String studentNumber = null;
-        try {
-            UserSummary user = userClient.getUserById(request.getStudentId());
-            if (user != null) {
-                studentEmail = user.getEmail();
-                studentNumber = user.getStudentNumber();
-            }
-        } catch (Exception e) {
-            log.warn("Öğrenci bilgileri alınamadı: {}", e.getMessage());
-        }
-
-        // 7. Etkinlik kaydı oluştur (QR kod ile)
+        // 6. Etkinlik kaydı oluştur (QR kod ile)
         EventRegistration registration = new EventRegistration();
         registration.setEventId(request.getEventId());
         registration.setStudentId(request.getStudentId());
-        registration.setStudentEmail(studentEmail);
-        registration.setStudentNumber(studentNumber);
         registration.setQrCode(UUID.randomUUID().toString());
         EventRegistration savedRegistration = eventRegistrationRepository.save(registration);
+        eventCaches.evictStudentRegistrations(savedRegistration.getStudentId());
 
         // 8. RabbitMQ ile bildirim gönder (mail için)
         EventRegistrationMessage message = new EventRegistrationMessage(
@@ -163,7 +180,7 @@ public class EventParticipationRequestService {
                 savedRegistration.getQrCode()
         );
 
-        rabbitTemplate.convertAndSend(
+        outboxPublisher.publish(
                 EventRabbitMQConfig.CLUB_EXCHANGE_NAME,
                 EventRabbitMQConfig.ROUTING_KEY_EVENT_REGISTERED,
                 message
@@ -253,6 +270,9 @@ public class EventParticipationRequestService {
      */
     public List<EventParticipationRequestDTO> getStudentParticipationRequests(UUID studentId) {
         List<EventParticipationRequest> requests = participationRequestRepository.findByStudentId(studentId);
+        List<UUID> eventIds = requests.stream().map(EventParticipationRequest::getEventId).distinct().toList();
+        Map<UUID, Event> events = eventIds.isEmpty() ? Map.of() : eventRepository.findAllById(eventIds).stream()
+                .collect(Collectors.toMap(Event::getId, Function.identity()));
 
         return requests.stream().map(request -> {
             EventParticipationRequestDTO dto = new EventParticipationRequestDTO();
@@ -265,10 +285,10 @@ public class EventParticipationRequestService {
             dto.setMessage(request.getMessage());
             dto.setRejectionReason(request.getRejectionReason());
 
-            // Etkinlik bilgisini ekle
-            eventRepository.findById(request.getEventId()).ifPresent(event -> {
+            Event event = events.get(request.getEventId());
+            if (event != null) {
                 dto.setEventTitle(event.getTitle());
-            });
+            }
 
             return dto;
         }).collect(Collectors.toList());
@@ -278,8 +298,14 @@ public class EventParticipationRequestService {
      * Kulüp yetkilisinin yönettiği tüm etkinliklerin bekleyen isteklerini getirir.
      */
     public List<EventParticipationRequestDTO> getPendingRequestsForOfficialEvents(UUID officialId) {
-        // 1. Yetkilinin oluşturduğu etkinlikleri bul
-        List<Event> officialEvents = eventRepository.findByCreatedByStudentId(officialId);
+        List<UUID> managedClubIds = eventAuthorizationService.accessesOf(officialId).stream()
+                .filter(access -> access.has(EventAuthorizationService.MANAGE_EVENT_OPERATIONS))
+                .map(access -> access.clubId())
+                .toList();
+        if (managedClubIds.isEmpty()) {
+            return List.of();
+        }
+        List<Event> officialEvents = eventRepository.findByClubIdIn(managedClubIds);
 
         if (officialEvents.isEmpty()) {
             return List.of();
@@ -290,8 +316,10 @@ public class EventParticipationRequestService {
         // 2. Bu etkinliklerin bekleyen isteklerini getir
         List<EventParticipationRequest> requests = participationRequestRepository
                 .findByEventIdInAndStatus(eventIds, ParticipationRequestStatus.PENDING);
+        Map<UUID, Event> eventsById = officialEvents.stream().collect(Collectors.toMap(Event::getId, Function.identity()));
+        Map<UUID, UserSummary> users = UserLookup.usersById(userClient,
+                requests.stream().map(EventParticipationRequest::getStudentId).toList());
 
-        // 3. DTO'ya dönüştür
         return requests.stream().map(request -> {
             EventParticipationRequestDTO dto = new EventParticipationRequestDTO();
             dto.setId(request.getId());
@@ -301,24 +329,11 @@ public class EventParticipationRequestService {
             dto.setRequestDate(request.getRequestDate());
             dto.setMessage(request.getMessage());
 
-            // Etkinlik bilgisini ekle
-            officialEvents.stream()
-                    .filter(e -> e.getId().equals(request.getEventId()))
-                    .findFirst()
-                    .ifPresent(event -> dto.setEventTitle(event.getTitle()));
-
-            // Kullanıcı bilgisini ekle
-            try {
-                UserSummary user = userClient.getUserById(request.getStudentId());
-                if (user != null) {
-                    dto.setStudentName(user.getFirstName() + " " + user.getLastName());
-                    dto.setStudentEmail(user.getEmail());
-                }
-            } catch (Exception e) {
-                log.warn("Kullanıcı bilgisi alınamadı: {}", request.getStudentId());
-                dto.setStudentName("Bilinmiyor");
-                dto.setStudentEmail("N/A");
+            Event event = eventsById.get(request.getEventId());
+            if (event != null) {
+                dto.setEventTitle(event.getTitle());
             }
+            applyStudentInfo(dto, users.get(request.getStudentId()));
 
             return dto;
         }).collect(Collectors.toList());
@@ -326,14 +341,22 @@ public class EventParticipationRequestService {
 
     // ==================== HELPER METHODS ====================
 
+    private void applyStudentInfo(EventParticipationRequestDTO dto, UserSummary user) {
+        if (user != null) {
+            dto.setStudentName(user.getFirstName() + " " + user.getLastName());
+            dto.setStudentEmail(user.getEmail());
+        } else {
+            dto.setStudentName("Bilinmiyor");
+            dto.setStudentEmail("N/A");
+        }
+    }
+
     /**
      * Öğrencinin kulüp üyesi olup olmadığını kontrol eder.
      */
     private boolean isStudentMemberOfClub(UUID studentId, UUID clubId) {
         try {
-            String clubServiceUrl = "http://CLUB-SERVICE/api/clubs/" + clubId + "/is-member/" + studentId;
-            Boolean isMember = restTemplate.getForObject(clubServiceUrl, Boolean.class);
-            return Boolean.TRUE.equals(isMember);
+            return Boolean.TRUE.equals(clubClient.isStudentMemberOfClub(clubId, studentId));
         } catch (Exception e) {
             log.error("Club-service'e üyelik kontrolü yapılamadı: {}", e.getMessage());
             // Güvenli tarafta kal - üyelik doğrulanamadığında izin verme
@@ -345,32 +368,7 @@ public class EventParticipationRequestService {
      * Kullanıcının etkinliği yönetme yetkisi olup olmadığını kontrol eder.
      */
     private boolean isAuthorizedToManageEvent(UUID userId, Event event) {
-        // 1. Etkinliği oluşturan kişi mi?
-        if (event.getCreatedByStudentId().equals(userId)) {
-            return true;
-        }
-
-        // 2. Kulüp yönetim kurulu üyesi mi?
-        try {
-            String clubServiceUrl = "http://CLUB-SERVICE/api/clubs/" + event.getClubId() + "/board-members";
-            List<Map<String, Object>> boardMembers = restTemplate.getForObject(clubServiceUrl, List.class);
-
-            if (boardMembers != null) {
-                return boardMembers.stream()
-                        .anyMatch(member -> {
-                            Object studentIdObj = member.get("studentId");
-                            if (studentIdObj != null) {
-                                UUID memberId = UUID.fromString(studentIdObj.toString());
-                                return memberId.equals(userId);
-                            }
-                            return false;
-                        });
-            }
-        } catch (Exception e) {
-            log.error("Club-service'den yönetim kurulu bilgisi alınamadı: {}", e.getMessage());
-        }
-
-        return false;
+        return eventAuthorizationService.canManageEvent(event, userId);
     }
 
     /**
@@ -378,6 +376,8 @@ public class EventParticipationRequestService {
      */
     private List<EventParticipationRequestDTO> enrichRequestsWithUserInfo(
             List<EventParticipationRequest> requests, Event event) {
+        Map<UUID, UserSummary> users = UserLookup.usersById(userClient,
+                requests.stream().map(EventParticipationRequest::getStudentId).toList());
 
         return requests.stream().map(request -> {
             EventParticipationRequestDTO dto = new EventParticipationRequestDTO();
@@ -390,19 +390,7 @@ public class EventParticipationRequestService {
             dto.setProcessedDate(request.getProcessedDate());
             dto.setMessage(request.getMessage());
             dto.setRejectionReason(request.getRejectionReason());
-
-            // Kullanıcı bilgisini ekle
-            try {
-                UserSummary user = userClient.getUserById(request.getStudentId());
-                if (user != null) {
-                    dto.setStudentName(user.getFirstName() + " " + user.getLastName());
-                    dto.setStudentEmail(user.getEmail());
-                }
-            } catch (Exception e) {
-                log.warn("Kullanıcı bilgisi alınamadı: {}", request.getStudentId());
-                dto.setStudentName("Bilinmiyor");
-                dto.setStudentEmail("N/A");
-            }
+            applyStudentInfo(dto, users.get(request.getStudentId()));
 
             return dto;
         }).collect(Collectors.toList());

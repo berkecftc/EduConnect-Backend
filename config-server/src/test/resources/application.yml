@@ -1,0 +1,28 @@
+server:
+  port: 0
+
+encrypt:
+  key: integration-test-encrypt-key
+
+spring:
+  application:
+    name: config-server
+  profiles:
+    active: native
+  main:
+    banner-mode: "off"
+  security:
+    user:
+      name: integration
+      password: integration-secret
+  cloud:
+    config:
+      server:
+        native:
+          search-locations: "classpath:/config-repo/"
+
+eureka:
+  client:
+    enabled: false
+    register-with-eureka: false
+    fetch-registry: false

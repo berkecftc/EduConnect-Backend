@@ -15,7 +15,7 @@ import java.time.LocalDateTime;
 import java.util.UUID;
 
 @Entity
-@Table(name = "user_badges", schema = "gamification_db",
+@Table(name = "user_badges",
         uniqueConstraints = {
                 @UniqueConstraint(name = "uq_user_badge", columnNames = {"user_id", "badge_type"})
         },

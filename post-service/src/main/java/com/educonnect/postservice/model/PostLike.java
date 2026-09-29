@@ -12,7 +12,7 @@ import java.util.UUID;
  * Bir kullanıcı aynı post'u en fazla bir kez beğenebilir (unique constraint: post_id + user_id).
  */
 @Entity
-@Table(name = "post_likes", schema = "post_db",
+@Table(name = "post_likes",
         uniqueConstraints = @UniqueConstraint(name = "uq_post_like_user", columnNames = {"post_id", "user_id"}),
         indexes = {
                 @Index(name = "idx_like_post_id", columnList = "post_id"),

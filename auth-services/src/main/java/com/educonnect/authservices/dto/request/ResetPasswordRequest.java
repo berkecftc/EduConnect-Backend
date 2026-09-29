@@ -1,9 +1,15 @@
 package com.educonnect.authservices.dto.request;
 
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotEmpty;
+
 public class ResetPasswordRequest {
 
+    @NotBlank(message = "Token gereklidir")
     private String token;
+    @NotEmpty(message = "Yeni şifre boş olamaz")
     private String newPassword;
+    @NotEmpty(message = "Şifre tekrarı boş olamaz")
     private String confirmPassword;
 
     public ResetPasswordRequest() {

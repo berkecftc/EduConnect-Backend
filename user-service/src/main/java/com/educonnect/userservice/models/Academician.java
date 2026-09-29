@@ -1,14 +1,30 @@
 package com.educonnect.userservice.models;
 
 import jakarta.persistence.*;
+import com.educonnect.common.storage.ObjectUrlConverter;
 import java.util.UUID;
+import org.hibernate.annotations.CreationTimestamp;
+import java.time.Instant;
+import org.hibernate.annotations.UpdateTimestamp;
 
 @Entity
-@Table(name = "academicians", schema = "user_db") // 'user_db' içinde 'academicians' tablosunu oluşturur
+@Table(name = "academicians") // 'user_db' içinde 'academicians' tablosunu oluşturur
 public class Academician {
 
     @Id
     private UUID id;
+
+    @CreationTimestamp
+    @Column(name = "created_at", nullable = false, updatable = false)
+    private Instant createdAt;
+
+    @UpdateTimestamp
+    @Column(name = "updated_at", nullable = false)
+    private Instant updatedAt;
+
+    @Version
+    @Column(nullable = false)
+    private Long version;
 
     @Column(nullable = false)
     private String firstName;
@@ -27,8 +43,10 @@ public class Academician {
 
     private String bio;
 
+    @Convert(converter = ObjectUrlConverter.class)
     private String profileImageUrl; // MinIO'da saklanan profil resminin URL'si
 
+    @Convert(converter = ObjectUrlConverter.class)
     private String idCardImageUrl; // Akademisyen kimlik kartı fotoğrafı URL'si (MinIO'da)
 
 
@@ -122,4 +140,7 @@ public class Academician {
     public void setIdCardImageUrl(String idCardImageUrl) {
         this.idCardImageUrl = idCardImageUrl;
     }
+
+    public Instant getCreatedAt() { return createdAt; }
+    public Instant getUpdatedAt() { return updatedAt; }
 }

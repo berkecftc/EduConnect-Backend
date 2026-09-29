@@ -1,5 +1,6 @@
 package com.educonnect.notificationservice.listener;
 
+import com.educonnect.common.security.LogMasking;
 import com.educonnect.notificationservice.config.NotificationRabbitMQConfig;
 import com.educonnect.notificationservice.dto.message.UserAccountStatusMessage;
 import com.educonnect.notificationservice.service.EmailService;
@@ -25,29 +26,57 @@ public class UserAccountStatusListener {
     @RabbitListener(queues = NotificationRabbitMQConfig.USER_ACCOUNT_STATUS_QUEUE)
     public void handleUserAccountStatus(UserAccountStatusMessage message) {
         log.info("Kullanıcı hesap durumu mesajı alındı: email={}, status={}, userType={}",
-                message.getEmail(), message.getStatus(), message.getUserType());
+                LogMasking.email(message.getEmail()), message.getStatus(), message.getUserType());
 
-        try {
-            String subject;
-            String htmlBody;
+        String subject;
+        String htmlBody;
 
-            if ("APPROVED".equals(message.getStatus())) {
-                subject = "EduConnect - Hesabınız Onaylandı!";
-                htmlBody = buildApprovalEmail(message);
-            } else if ("REJECTED".equals(message.getStatus())) {
-                subject = "EduConnect - Başvurunuz Hakkında Bilgilendirme";
-                htmlBody = buildRejectionEmail(message);
-            } else {
-                log.warn("Bilinmeyen durum: {}", message.getStatus());
-                return;
-            }
-
-            emailService.sendHtmlEmail(message.getEmail(), subject, htmlBody);
-            log.info("Hesap durumu e-postası gönderildi: {}", message.getEmail());
-
-        } catch (Exception e) {
-            log.error("Hesap durumu e-postası gönderilemedi: {}", e.getMessage(), e);
+        if ("APPROVED".equals(message.getStatus())) {
+            subject = "EduConnect - Hesabınız Onaylandı!";
+            htmlBody = buildApprovalEmail(message);
+        } else if ("REJECTED".equals(message.getStatus())) {
+            subject = "EduConnect - Başvurunuz Hakkında Bilgilendirme";
+            htmlBody = buildRejectionEmail(message);
+        } else if ("SUSPENDED".equals(message.getStatus())) {
+            subject = "EduConnect - Hesabınız Askıya Alındı";
+            htmlBody = buildStatusChangeEmail("Hesabınız askıya alındı",
+                    "EduConnect hesabınız bir yönetici tarafından askıya alındı. Bu süre boyunca giriş yapamazsınız.",
+                    message.getRejectionReason());
+        } else if ("REACTIVATED".equals(message.getStatus())) {
+            subject = "EduConnect - Hesabınız Yeniden Etkinleştirildi";
+            htmlBody = buildStatusChangeEmail("Hesabınız yeniden etkin",
+                    "EduConnect hesabınız yeniden etkinleştirildi. Artık giriş yapabilirsiniz.", null);
+        } else {
+            log.warn("Bilinmeyen durum: {}", message.getStatus());
+            return;
         }
+
+        emailService.sendHtmlEmail(message.getEmail(), subject, htmlBody);
+        log.info("Hesap durumu e-postası gönderildi: {}", LogMasking.email(message.getEmail()));
+
+    }
+
+    static String buildStatusChangeEmail(String title, String body, String reason) {
+        String reasonBlock = reason != null && !reason.isBlank()
+                ? "<p style=\"font-size: 16px;\"><strong>Gerekçe:</strong> " + HtmlText.escape(reason) + "</p>"
+                : "";
+        return String.format("""
+            <html>
+            <body style="font-family: Arial, sans-serif; color: #333; background-color: #f9f9f9; padding: 20px;">
+                <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 10px; padding: 30px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
+                    <h1 style="color: #3498db; text-align: center;">%s</h1>
+                    <p style="font-size: 16px;">Merhaba,</p>
+                    <p style="font-size: 16px;">%s</p>
+                    %s
+                    <hr style="border: none; border-top: 1px solid #eee; margin: 30px 0;">
+                    <p style="font-size: 14px; color: #888; text-align: center;">
+                        EduConnect Ekibi<br>
+                        <small>Bu e-posta otomatik olarak gönderilmiştir. Lütfen yanıtlamayınız.</small>
+                    </p>
+                </div>
+            </body>
+            </html>
+            """, title, body, reasonBlock);
     }
 
     private String buildApprovalEmail(UserAccountStatusMessage message) {
@@ -88,8 +117,8 @@ public class UserAccountStatusListener {
             </body>
             </html>
             """,
-            message.getFirstName(),
-            message.getLastName(),
+            HtmlText.escape(message.getFirstName()),
+            HtmlText.escape(message.getLastName()),
             userTypeText
         );
     }
@@ -104,7 +133,7 @@ public class UserAccountStatusListener {
                     <strong>Red Nedeni:</strong><br>
                     %s
                 </div>
-                """, message.getRejectionReason());
+                """, HtmlText.escape(message.getRejectionReason()));
         }
 
         return String.format("""
@@ -137,8 +166,8 @@ public class UserAccountStatusListener {
             </body>
             </html>
             """,
-            message.getFirstName(),
-            message.getLastName(),
+            HtmlText.escape(message.getFirstName()),
+            HtmlText.escape(message.getLastName()),
             userTypeText,
             reasonSection
         );

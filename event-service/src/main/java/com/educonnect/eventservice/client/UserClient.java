@@ -1,25 +1,23 @@
 package com.educonnect.eventservice.client;
 
+import com.educonnect.common.security.ServiceTokenFeignConfiguration;
 import com.educonnect.eventservice.dto.response.UserSummary;
 import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 
+import java.util.Collection;
+import java.util.List;
 import java.util.UUID;
 
-/**
- * User Service ile iletişim için Feign Client.
- * Eureka üzerinden "user-service" ismiyle kayıtlı servise bağlanır.
- */
-@FeignClient(name = "user-service", path = "/api/users")
+@FeignClient(name = "user-service", path = "/api/users/internal/profiles", configuration = ServiceTokenFeignConfiguration.class)
 public interface UserClient {
 
-    /**
-     * Kullanıcı bilgilerini ID ile getirir.
-     * @param userId Kullanıcının UUID'si
-     * @return Kullanıcı özet bilgileri (isim, email, bölüm)
-     */
-    @GetMapping("/profile/{userId}")
+    @GetMapping("/{userId}")
     UserSummary getUserById(@PathVariable("userId") UUID userId);
-}
 
+    @PostMapping("/batch")
+    List<UserSummary> getUsersByIds(@RequestBody Collection<UUID> userIds);
+}

@@ -5,7 +5,7 @@ import java.time.LocalDateTime;
 import java.util.UUID;
 
 @Entity
-@Table(name = "course_announcements", schema = "course_db")
+@Table(name = "course_announcements")
 public class CourseAnnouncement {
 
     @Id
@@ -24,7 +24,7 @@ public class CourseAnnouncement {
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt = LocalDateTime.now();
 
-    @Column(name = "created_by", nullable = false)
+    @Column(name = "created_by")
     private UUID createdBy;
 
     public CourseAnnouncement() {}

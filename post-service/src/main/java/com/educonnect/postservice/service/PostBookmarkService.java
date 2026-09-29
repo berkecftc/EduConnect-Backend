@@ -3,6 +3,7 @@ package com.educonnect.postservice.service;
 import com.educonnect.postservice.dto.BookmarkResponse;
 import com.educonnect.postservice.exception.PostNotFoundException;
 import com.educonnect.postservice.model.PostBookmark;
+import com.educonnect.postservice.model.PostStatus;
 import com.educonnect.postservice.repository.PostBookmarkRepository;
 import com.educonnect.postservice.repository.PostRepository;
 import org.slf4j.Logger;
@@ -35,7 +36,10 @@ public class PostBookmarkService {
      */
     @Transactional
     public BookmarkResponse toggleBookmark(UUID postId, UUID userId) {
-        if (!postRepository.existsById(postId)) {
+        boolean visible = postRepository.findById(postId)
+                .map(post -> post.getStatus() == PostStatus.PUBLISHED || post.getAuthorId().equals(userId))
+                .orElse(false);
+        if (!visible) {
             throw new PostNotFoundException("Post bulunamadı: " + postId);
         }
 
@@ -44,7 +48,7 @@ public class PostBookmarkService {
         if (existingBookmark.isPresent()) {
             // Kaydı geri al
             postBookmarkRepository.delete(existingBookmark.get());
-            log.info("🔖 Kayıt geri alındı — postId: {}, userId: {}", postId, userId);
+            log.info("Kayıt geri alındı — postId: {}, userId: {}", postId, userId);
             return new BookmarkResponse(false);
         } else {
             // Kaydet
@@ -52,7 +56,7 @@ public class PostBookmarkService {
             bookmark.setPostId(postId);
             bookmark.setUserId(userId);
             postBookmarkRepository.save(bookmark);
-            log.info("📌 Post kaydedildi — postId: {}, userId: {}", postId, userId);
+            log.info("Post kaydedildi — postId: {}, userId: {}", postId, userId);
             return new BookmarkResponse(true);
         }
     }

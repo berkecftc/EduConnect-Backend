@@ -5,13 +5,16 @@ import java.time.LocalDateTime;
 import java.util.UUID;
 
 @Entity
-@Table(name = "club_membership_requests", schema = "club_db",
-        uniqueConstraints = @UniqueConstraint(columnNames = {"club_id", "student_id"}))
+@Table(name = "club_membership_requests")
 public class ClubMembershipRequest {
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
+
+    @Version
+    @Column(nullable = false)
+    private Long version;
 
     @Column(name = "club_id", nullable = false)
     private UUID clubId;

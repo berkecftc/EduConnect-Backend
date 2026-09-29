@@ -1,6 +1,6 @@
 package com.educonnect.clubservice.Repository;
 
-import com.educonnect.clubservice.model.ClubRole;
+import com.educonnect.clubservice.model.ClubPosition;
 import com.educonnect.clubservice.model.RoleChangeRequest;
 import com.educonnect.clubservice.model.RoleChangeRequestStatus;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -37,7 +37,7 @@ public interface RoleChangeRequestRepository extends JpaRepository<RoleChangeReq
      * Bir kulüpte belirli bir rol için bekleyen talep var mı kontrol eder
      * (Aynı pozisyona birden fazla talep olmasını engellemek için)
      */
-    boolean existsByClubIdAndRequestedRoleAndStatus(UUID clubId, ClubRole requestedRole, RoleChangeRequestStatus status);
+    boolean existsByClubIdAndRequestedRoleAndStatus(UUID clubId, ClubPosition requestedRole, RoleChangeRequestStatus status);
 
     /**
      * Bir öğrenci için belirli bir kulüpte bekleyen talep var mı kontrol eder
@@ -47,11 +47,13 @@ public interface RoleChangeRequestRepository extends JpaRepository<RoleChangeReq
     /**
      * Belirli bir kulüpte belirli bir rol için bekleyen talebi getirir
      */
-    Optional<RoleChangeRequest> findByClubIdAndRequestedRoleAndStatus(UUID clubId, ClubRole requestedRole, RoleChangeRequestStatus status);
+    Optional<RoleChangeRequest> findByClubIdAndRequestedRoleAndStatus(UUID clubId, ClubPosition requestedRole, RoleChangeRequestStatus status);
 
     /**
      * Bir kulüpteki bekleyen talep sayısını döndürür
      */
     long countByClubIdAndStatus(UUID clubId, RoleChangeRequestStatus status);
+
+    long countByClubIdAndRequestedRoleAndStatus(UUID clubId, ClubPosition requestedRole, RoleChangeRequestStatus status);
 }
 

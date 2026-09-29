@@ -1,0 +1,14 @@
+{
+  "extraKnownMarketplaces": {
+    "spring-boot-skills": {
+      "source": {
+        "source": "github",
+        "repo": "rrezartprebreza/spring-boot-skills"
+      }
+    }
+  },
+  "enabledPlugins": {
+    "spring-boot-3-skills@spring-boot-skills": true,
+    "spring-boot-4-skills@spring-boot-skills": false
+  }
+}

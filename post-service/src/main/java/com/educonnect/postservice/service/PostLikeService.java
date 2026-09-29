@@ -63,7 +63,7 @@ public class PostLikeService {
         like.setPostId(postId);
         like.setUserId(userId);
         postLikeRepository.save(like);
-        log.info("👍 Post beğenildi — postId: {}, userId: {}", postId, userId);
+        log.info("Post beğenildi — postId: {}, userId: {}", postId, userId);
 
         long count = postLikeRepository.countByPostId(postId);
         return new LikeResponse(true, count);
@@ -80,7 +80,7 @@ public class PostLikeService {
 
         if (existingLike.isPresent()) {
             postLikeRepository.delete(existingLike.get());
-            log.info("👎 Beğeni geri alındı — postId: {}, userId: {}", postId, userId);
+            log.info("Beğeni geri alındı — postId: {}, userId: {}", postId, userId);
         }
 
         long count = postLikeRepository.countByPostId(postId);

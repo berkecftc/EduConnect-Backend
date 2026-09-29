@@ -1,5 +1,6 @@
 package com.educonnect.eventservice.controller;
 
+import com.educonnect.eventservice.dto.response.EventResponse;
 import com.educonnect.eventservice.model.Event;
 import com.educonnect.eventservice.service.EventService;
 import org.springframework.http.ResponseEntity;
@@ -29,11 +30,11 @@ public class EventAdvisorController {
      */
     @GetMapping("/all")
     @PreAuthorize("hasRole('ACADEMICIAN')")
-    public ResponseEntity<List<Event>> getAllEventsForAdvisor(
+    public ResponseEntity<List<EventResponse>> getAllEventsForAdvisor(
             @RequestHeader("X-Authenticated-User-Id") String userIdHeader
     ) {
         UUID advisorId = UUID.fromString(userIdHeader);
-        return ResponseEntity.ok(eventService.getAllEventsForAdvisor(advisorId));
+        return ResponseEntity.ok(EventResponse.from(eventService.getAllEventsForAdvisor(advisorId)));
     }
 
     /**
@@ -42,11 +43,11 @@ public class EventAdvisorController {
      */
     @GetMapping("/pending")
     @PreAuthorize("hasRole('ACADEMICIAN')")
-    public ResponseEntity<List<Event>> getPendingEvents(
+    public ResponseEntity<List<EventResponse>> getPendingEvents(
             @RequestHeader("X-Authenticated-User-Id") String userIdHeader
     ) {
         UUID advisorId = UUID.fromString(userIdHeader);
-        return ResponseEntity.ok(eventService.getPendingEventsForAdvisor(advisorId));
+        return ResponseEntity.ok(EventResponse.from(eventService.getPendingEventsForAdvisor(advisorId)));
     }
 
     /**
@@ -55,13 +56,13 @@ public class EventAdvisorController {
      */
     @PostMapping("/{eventId}/approve")
     @PreAuthorize("hasRole('ACADEMICIAN')")
-    public ResponseEntity<Event> approveEvent(
+    public ResponseEntity<EventResponse> approveEvent(
             @PathVariable UUID eventId,
             @RequestHeader("X-Authenticated-User-Id") String userIdHeader
     ) {
         UUID approverId = UUID.fromString(userIdHeader);
         Event approvedEvent = eventService.approveEvent(eventId, approverId);
-        return ResponseEntity.ok(approvedEvent);
+        return ResponseEntity.ok(EventResponse.from(approvedEvent));
     }
 
     /**
@@ -70,13 +71,13 @@ public class EventAdvisorController {
      */
     @PostMapping("/{eventId}/reject")
     @PreAuthorize("hasRole('ACADEMICIAN')")
-    public ResponseEntity<Event> rejectEvent(
+    public ResponseEntity<EventResponse> rejectEvent(
             @PathVariable UUID eventId,
             @RequestHeader("X-Authenticated-User-Id") String userIdHeader
     ) {
         UUID rejectorId = UUID.fromString(userIdHeader);
         Event rejectedEvent = eventService.rejectEvent(eventId, rejectorId);
-        return ResponseEntity.ok(rejectedEvent);
+        return ResponseEntity.ok(EventResponse.from(rejectedEvent));
     }
 }
 

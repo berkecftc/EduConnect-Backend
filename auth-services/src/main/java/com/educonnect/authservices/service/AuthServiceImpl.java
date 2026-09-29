@@ -13,11 +13,14 @@ import com.educonnect.authservices.dto.request.ForgotPasswordRequest;
 import com.educonnect.authservices.dto.request.LoginRequest;
 import com.educonnect.authservices.dto.request.RegisterRequest;
 import com.educonnect.authservices.dto.request.ResetPasswordRequest;
+import com.educonnect.authservices.dto.response.AcademicianRequestAdminView;
 import com.educonnect.authservices.dto.response.AuthResponse;
+import com.educonnect.authservices.dto.response.StudentRequestAdminView;
+import org.springframework.http.HttpStatus;
+import org.springframework.web.server.ResponseStatusException;
 import com.educonnect.authservices.models.AcademicianRegistrationRequest; // YENİ IMPORT
 import com.educonnect.authservices.models.PasswordResetToken;
 import com.educonnect.authservices.models.StudentRegistrationRequest; // ÖĞRENCİ BAŞVURU
-import com.educonnect.authservices.models.RefreshToken;
 import com.educonnect.authservices.models.Role;
 import com.educonnect.authservices.models.User;
 import com.educonnect.authservices.Repository.AcademicianRequestRepository; // YENİ IMPORT
@@ -25,18 +28,24 @@ import com.educonnect.authservices.Repository.PasswordResetTokenRepository;
 import com.educonnect.authservices.Repository.StudentRequestRepository; // ÖĞRENCİ REPOSITORY
 import com.educonnect.authservices.Repository.UserRepository;
 import jakarta.transaction.Transactional; // Transaction yönetimi için
-import org.springframework.amqp.rabbit.core.RabbitTemplate;
+import com.educonnect.common.messaging.outbox.OutboxPublisher;
+import com.educonnect.common.web.BadRequestException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.educonnect.authservices.config.AuthSecurityProperties;
+import java.time.Instant;
 import java.util.List;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
@@ -64,9 +73,13 @@ public class AuthServiceImpl {
     private final PasswordEncoder passwordEncoder;
     private final JWTService jwtService;
     private final AuthenticationManager authenticationManager;
-    private final RabbitTemplate rabbitTemplate;
+    private final OutboxPublisher outboxPublisher;
     private final RefreshTokenService refreshTokenService;
     private final MinioService minioService; // Akademisyen kimlik kartı yüklemesi için
+    private final PasswordPolicy passwordPolicy;
+    private final LoginAttemptService loginAttemptService;
+    private final EmailVerificationService emailVerificationService;
+    private final AuthSecurityProperties.Links links;
 
     @Autowired
     public AuthServiceImpl(UserRepository userRepository,
@@ -76,9 +89,17 @@ public class AuthServiceImpl {
                            PasswordEncoder passwordEncoder,
                            JWTService jwtService,
                            AuthenticationManager authenticationManager,
-                           RabbitTemplate rabbitTemplate,
+                           OutboxPublisher outboxPublisher,
                            RefreshTokenService refreshTokenService,
-                           MinioService minioService) {
+                           MinioService minioService,
+                           PasswordPolicy passwordPolicy,
+                           LoginAttemptService loginAttemptService,
+                           EmailVerificationService emailVerificationService,
+                           AuthSecurityProperties authSecurityProperties) {
+        this.passwordPolicy = passwordPolicy;
+        this.loginAttemptService = loginAttemptService;
+        this.emailVerificationService = emailVerificationService;
+        this.links = authSecurityProperties.links();
         this.userRepository = userRepository;
         this.requestRepository = requestRepository;
         this.studentRequestRepository = studentRequestRepository;
@@ -86,16 +107,14 @@ public class AuthServiceImpl {
         this.passwordEncoder = passwordEncoder;
         this.jwtService = jwtService;
         this.authenticationManager = authenticationManager;
-        this.rabbitTemplate = rabbitTemplate;
+        this.outboxPublisher = outboxPublisher;
         this.refreshTokenService = refreshTokenService;
         this.minioService = minioService;
     }
 
+    @Transactional
     public AuthResponse register(RegisterRequest request) {
-        if (request.getEmail() == null || request.getPassword() == null
-                || request.getFirstName() == null || request.getLastName() == null) {
-            throw new IllegalArgumentException("Missing required fields for registration");
-        }
+        passwordPolicy.validateNewPassword(request.getPassword(), request.getEmail());
 
         Set<Role> roles = Stream.of(Role.ROLE_STUDENT).collect(Collectors.toSet());
 
@@ -104,8 +123,10 @@ public class AuthServiceImpl {
                 passwordEncoder.encode(request.getPassword()),
                 roles
         );
+        user.setEmailVerifiedAt(emailVerificationService.verifiedAtForNewAccount());
 
         User savedUser = userRepository.save(user);
+        emailVerificationService.sendVerification(savedUser.getEmail(), request.getFirstName());
 
         Set<String> roleStrings = roles.stream().map(Role::name).collect(Collectors.toSet());
 
@@ -119,24 +140,15 @@ public class AuthServiceImpl {
                 request.getDepartment()
         );
 
-        rabbitTemplate.convertAndSend(
+        outboxPublisher.publish(
                 RabbitMQConfig.EXCHANGE_NAME,
                 RabbitMQConfig.ROUTING_KEY,
                 message
         );
 
         var jwtToken = jwtService.generateToken(savedUser);
-        var refreshToken = refreshTokenService.createRefreshToken(savedUser.getId());
-        Set<String> userRoles = savedUser.getRoles().stream()
-                .sorted((r1, r2) -> {
-                    if (r1.name().equals("ROLE_ADMIN")) return -1;
-                    if (r2.name().equals("ROLE_ADMIN")) return 1;
-                    return r1.name().compareTo(r2.name());
-                })
-                .map(Role::name)
-                .collect(Collectors.toCollection(java.util.LinkedHashSet::new));
-        return new AuthResponse(jwtToken, refreshToken.getToken(), "User registered successfully.",
-                savedUser.getId().toString(), savedUser.getEmail(), userRoles);
+        String refreshToken = refreshTokenService.issue(savedUser.getId());
+        return buildAuthResponse(jwtToken, refreshToken, "User registered successfully.", savedUser);
     }
 
     // --- ÖĞRENCİ BAŞVURU İŞLEMİ ---
@@ -145,16 +157,17 @@ public class AuthServiceImpl {
 
         // Email kontrolü - hem users hem de student_requests tablosunda kontrol et
         if (userRepository.findByEmail(request.getEmail()).isPresent()) {
-            throw new IllegalStateException("Email already registered");
+            throw new BadRequestException("EMAIL_ALREADY_REGISTERED", "Email already registered");
         }
         if (studentRequestRepository.findByEmail(request.getEmail()).isPresent()) {
-            throw new IllegalStateException("Bu email ile zaten bir başvuru mevcut");
+            throw new BadRequestException("STUDENT_REQUEST_ALREADY_EXISTS", "Bu email ile zaten bir başvuru mevcut");
         }
 
         // Öğrenci belgesi zorunlu
         if (studentDocument == null || studentDocument.isEmpty()) {
             throw new IllegalArgumentException("Öğrenci belgesi zorunludur");
         }
+        passwordPolicy.validateNewPassword(request.getPassword(), request.getEmail());
 
         // 1. Öğrenci belgesini MinIO'ya yükle (geçici UUID ile)
         UUID tempId = UUID.randomUUID();
@@ -170,15 +183,12 @@ public class AuthServiceImpl {
         stuReq.setStudentNumber(request.getStudentId());
         stuReq.setDepartment(request.getDepartment());
         stuReq.setStudentDocumentUrl(studentDocumentUrl);
-
-        // DEBUG LOG
-        LOGGER.info("DEBUG - Student Request Data: firstName={}, lastName={}, email={}, studentId={}, department={}",
-                request.getFirstName(), request.getLastName(), request.getEmail(),
-                request.getStudentId(), request.getDepartment());
+        stuReq.setEmailVerifiedAt(emailVerificationService.verifiedAtForNewAccount());
 
         studentRequestRepository.save(stuReq);
+        emailVerificationService.sendVerification(request.getEmail(), request.getFirstName());
 
-        LOGGER.info("Öğrenci başvurusu alındı. Email: {} - Admin onayı bekleniyor.", request.getEmail());
+        LOGGER.info("Öğrenci başvurusu alındı; admin onayı bekleniyor.");
     }
 
     // --- ÖĞRENCİ ONAY İŞLEMİ ---
@@ -187,6 +197,7 @@ public class AuthServiceImpl {
         // 1. Bekleyen başvuru detaylarını bul
         StudentRegistrationRequest req = studentRequestRepository.findById(requestId)
                 .orElseThrow(() -> new NoSuchElementException("Öğrenci başvuru formu bulunamadı!"));
+        requireVerifiedEmail(req.getEmailVerifiedAt());
 
         // 2. Kullanıcıyı USERS tablosuna kaydet (ŞİMDİ kaydediyoruz!)
         Set<Role> roles = Stream.of(Role.ROLE_STUDENT).collect(Collectors.toSet());
@@ -196,6 +207,7 @@ public class AuthServiceImpl {
                 req.getPassword(), // Zaten hashlenmiş şifre
                 roles
         );
+        user.setEmailVerifiedAt(req.getEmailVerifiedAt() != null ? req.getEmailVerifiedAt() : Instant.now());
 
         User savedUser = userRepository.save(user);
 
@@ -213,7 +225,7 @@ public class AuthServiceImpl {
                 req.getStudentDocumentUrl()
         );
 
-        rabbitTemplate.convertAndSend(
+        outboxPublisher.publish(
                 RabbitMQConfig.EXCHANGE_NAME,
                 RabbitMQConfig.ROUTING_KEY,
                 message
@@ -228,7 +240,7 @@ public class AuthServiceImpl {
                 "STUDENT",
                 null
         );
-        rabbitTemplate.convertAndSend(
+        outboxPublisher.publish(
                 RabbitMQConfig.EXCHANGE_NAME,
                 RabbitMQConfig.USER_ACCOUNT_STATUS_ROUTING_KEY,
                 statusMessage
@@ -256,13 +268,12 @@ public class AuthServiceImpl {
                 "STUDENT",
                 rejectionReason
         );
-        rabbitTemplate.convertAndSend(
+        outboxPublisher.publish(
                 RabbitMQConfig.EXCHANGE_NAME,
                 RabbitMQConfig.USER_ACCOUNT_STATUS_ROUTING_KEY,
                 statusMessage
         );
-        LOGGER.info("Öğrenci red bildirimi RabbitMQ'ya gönderildi. Email: {}, RoutingKey: {}",
-                req.getEmail(), RabbitMQConfig.USER_ACCOUNT_STATUS_ROUTING_KEY);
+        LOGGER.info("Öğrenci red bildirimi RabbitMQ'ya gönderildi. RoutingKey: {}", RabbitMQConfig.USER_ACCOUNT_STATUS_ROUTING_KEY);
 
         // 3. MinIO'dan belgeyi sil
         minioService.deleteStudentDocument(req.getStudentDocumentUrl());
@@ -270,12 +281,23 @@ public class AuthServiceImpl {
         // 4. Başvuru kaydını sil (users tablosunda kayıt yok, silmeye gerek yok)
         studentRequestRepository.delete(req);
 
-        LOGGER.info("Öğrenci başvurusu reddedildi. Email: {}", req.getEmail());
+        LOGGER.info("Öğrenci başvurusu reddedildi. RequestId: {}", req.getId());
     }
 
     // --- TÜM ÖĞRENCİ BAŞVURULARINI LİSTELE ---
-    public List<StudentRegistrationRequest> getAllStudentRequests() {
-        return studentRequestRepository.findAll();
+    public List<StudentRequestAdminView> getAllStudentRequests() {
+        return studentRequestRepository.findAll().stream()
+                .map(req -> new StudentRequestAdminView(
+                        req.getId(),
+                        req.getFirstName(),
+                        req.getLastName(),
+                        req.getEmail(),
+                        req.getStudentNumber(),
+                        req.getDepartment(),
+                        minioService.createPresignedUrl(req.getStudentDocumentUrl()),
+                        req.getEmailVerifiedAt() != null
+                ))
+                .toList();
     }
 
     // --- AKADEMİSYEN BAŞVURU İŞLEMİ (DÜZELTİLDİ) ---
@@ -283,13 +305,14 @@ public class AuthServiceImpl {
     public void requestAcademicianAccount(RegisterRequest request, MultipartFile idCardImage) {
 
         if (userRepository.findByEmail(request.getEmail()).isPresent()) {
-            throw new IllegalStateException("Email already registered");
+            throw new BadRequestException("EMAIL_ALREADY_REGISTERED", "Email already registered");
         }
 
         // Kimlik kartı fotoğrafı zorunlu
         if (idCardImage == null || idCardImage.isEmpty()) {
             throw new IllegalArgumentException("Akademisyen kimlik kartı fotoğrafı zorunludur");
         }
+        passwordPolicy.validateNewPassword(request.getPassword(), request.getEmail());
 
         // 1. Kullanıcıyı 'PENDING' rolüyle USERS tablosuna kaydet
         Set<Role> roles = Stream.of(Role.ROLE_PENDING_ACADEMICIAN).collect(Collectors.toSet());
@@ -299,6 +322,7 @@ public class AuthServiceImpl {
                 passwordEncoder.encode(request.getPassword()),
                 roles
         );
+        user.setEmailVerifiedAt(emailVerificationService.verifiedAtForNewAccount());
 
         User savedUser = userRepository.save(user); // Önce User ID oluşsun
 
@@ -318,6 +342,7 @@ public class AuthServiceImpl {
         accReq.setIdCardImageUrl(idCardImageUrl); // Kimlik kartı URL'sini kaydet
 
         requestRepository.save(accReq);
+        emailVerificationService.sendVerification(savedUser.getEmail(), request.getFirstName());
 
         LOGGER.info("Akademisyen başvurusu alındı. UserID: {}", savedUser.getId());
         // DİKKAT: Burada RabbitMQ mesajı GÖNDERMİYORUZ. Onay bekliyor.
@@ -329,6 +354,7 @@ public class AuthServiceImpl {
         // 1. Kullanıcıyı bul
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new NoSuchElementException("User not found"));
+        requireVerifiedEmail(user.getEmailVerifiedAt());
 
         // 2. Bekleyen başvuru detaylarını (Unvan, Bölüm vs.) bul
         AcademicianRegistrationRequest req = requestRepository.findByUserId(userId)
@@ -360,7 +386,7 @@ public class AuthServiceImpl {
                 req.getIdCardImageUrl() // Kimlik kartı fotoğrafı URL'si
         );
 
-        rabbitTemplate.convertAndSend(EXCHANGE_NAME, ACADEMICIAN_ROUTING_KEY, profileMessage);
+        outboxPublisher.publish(EXCHANGE_NAME, ACADEMICIAN_ROUTING_KEY, profileMessage);
 
         // 5. E-posta bildirimi gönder (onay)
         UserAccountStatusMessage statusMessage = new UserAccountStatusMessage(
@@ -371,7 +397,7 @@ public class AuthServiceImpl {
                 "ACADEMICIAN",
                 null
         );
-        rabbitTemplate.convertAndSend(
+        outboxPublisher.publish(
                 RabbitMQConfig.EXCHANGE_NAME,
                 RabbitMQConfig.USER_ACCOUNT_STATUS_ROUTING_KEY,
                 statusMessage
@@ -385,10 +411,16 @@ public class AuthServiceImpl {
 
 
     public AuthResponse login(LoginRequest loginRequest) {
-        // 1. Önce kimlik doğrulaması (Email & Şifre kontrolü)
-        Authentication authentication = authenticationManager.authenticate(
-                new UsernamePasswordAuthenticationToken(loginRequest.getEmail(), loginRequest.getPassword())
-        );
+        loginAttemptService.ensureNotLocked(loginRequest.getEmail());
+        Authentication authentication;
+        try {
+            authentication = authenticationManager.authenticate(
+                    new UsernamePasswordAuthenticationToken(loginRequest.getEmail(), loginRequest.getPassword())
+            );
+        } catch (BadCredentialsException e) {
+            loginAttemptService.recordFailure(loginRequest.getEmail());
+            throw e;
+        }
 
         // 2. Kullanıcıyı veritabanından çek
         User user = userRepository.findByEmail(loginRequest.getEmail())
@@ -401,27 +433,23 @@ public class AuthServiceImpl {
                 .anyMatch(role -> role.name().equals("ROLE_PENDING_ACADEMICIAN"));
 
         if (isPendingAcademician) {
-            throw new RuntimeException("Hesabınız henüz onaylanmadı. Lütfen yönetici onayını bekleyin.");
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN,
+                    "Hesabınız henüz onaylanmadı. Lütfen yönetici onayını bekleyin.");
         }
         // ---------------------------------------------
+        if (user.isSuspended()) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN,
+                    "Hesabınız askıya alınmıştır. Ayrıntılı bilgi için yönetici ile iletişime geçin.");
+        }
+        if (!emailVerificationService.isVerified(user.getEmailVerifiedAt())) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN,
+                    "E-posta adresinizi doğrulamanız gerekiyor. Gelen kutunuzdaki doğrulama bağlantısını kullanın.");
+        }
 
-        // 3. Her şey yolundaysa Token üret
+        loginAttemptService.recordSuccess(user.getId());
         SecurityContextHolder.getContext().setAuthentication(authentication);
         String jwt = jwtService.generateToken(user);
-
-        // Refresh token oluştur
-        var refreshToken = refreshTokenService.createRefreshToken(user.getId());
-
-        // Tüm rolleri al ve ROLE_ADMIN'i önce koy
-        Set<String> roles = user.getRoles().stream()
-                .sorted((r1, r2) -> {
-                    // ROLE_ADMIN önce gelsin
-                    if (r1.name().equals("ROLE_ADMIN")) return -1;
-                    if (r2.name().equals("ROLE_ADMIN")) return 1;
-                    return r1.name().compareTo(r2.name());
-                })
-                .map(Role::name)
-                .collect(Collectors.toCollection(java.util.LinkedHashSet::new));
+        String refreshToken = refreshTokenService.issue(user.getId());
 
         LocalDate istanbulToday = LocalDate.now(ZoneId.of("Europe/Istanbul"));
         String referenceId = "LOGIN:" + istanbulToday + ":" + user.getId();
@@ -431,108 +459,15 @@ public class AuthServiceImpl {
                 referenceId,
                 OffsetDateTime.now(ZoneId.of("Europe/Istanbul"))
         );
-        rabbitTemplate.convertAndSend(
-                RabbitMQConfig.GAMIFICATION_EXCHANGE,
-                RabbitMQConfig.GAMIFICATION_USER_LOGIN_ROUTING_KEY,
-                gamificationEvent
-        );
-
-        return new AuthResponse(jwt, refreshToken.getToken(), "Login successful",
-                user.getId().toString(), user.getEmail(), roles);
-    }
-
-    // ---- Kulüp Görevlisi Başvuru Akışı ----
-
-    /**
-     * Var olan kullanıcı (örn: ROLE_STUDENT) kulüp görevlisi olmak için başvurur.
-     * Kullanıcının rollerine ROLE_PENDING_CLUB_OFFICIAL eklenir.
-     */
-    public void requestClubOfficialRole(UUID userId) {
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new NoSuchElementException("User not found"));
-
-        Set<Role> roles = user.getRoles();
-        if (roles.contains(Role.ROLE_CLUB_OFFICIAL)) {
-            throw new IllegalStateException("User is already a club official");
+        if (user.getRoles().contains(Role.ROLE_STUDENT)) {
+            outboxPublisher.publish(
+                    RabbitMQConfig.GAMIFICATION_EXCHANGE,
+                    RabbitMQConfig.GAMIFICATION_USER_LOGIN_ROUTING_KEY,
+                    gamificationEvent
+            );
         }
-        if (roles.contains(Role.ROLE_PENDING_CLUB_OFFICIAL)) {
-            // idempotent davran; ikinci kez ekleme
-            return;
-        }
-        roles.add(Role.ROLE_PENDING_CLUB_OFFICIAL);
-        user.setRoles(roles);
-        userRepository.save(user);
-    }
 
-    /**
-     * Admin kulüp görevlisi talebini kabul eder.
-     * ROLE_PENDING_CLUB_OFFICIAL kaldırılır, ROLE_CLUB_OFFICIAL eklenir.
-     * Onaydan sonra profil senkronizasyonu için mesaj gönderilebilir (opsiyonel).
-     */
-    public void approveClubOfficial(UUID userId) {
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new NoSuchElementException("User not found"));
-
-        Set<Role> roles = user.getRoles();
-        if (!roles.contains(Role.ROLE_PENDING_CLUB_OFFICIAL)) {
-            throw new IllegalStateException("User does not have a pending club official request");
-        }
-        roles.remove(Role.ROLE_PENDING_CLUB_OFFICIAL);
-        roles.add(Role.ROLE_CLUB_OFFICIAL);
-        user.setRoles(roles);
-        userRepository.save(user);
-
-        // Opsiyonel: Profili güncellemek/rol senkronu için mesaj gönder
-        String firstName = user.getEmail().split("@")[0];
-        String lastName = "ClubOfficial";
-        sendMessageToUserQueue(user, firstName, lastName, roles);
-    }
-
-    /**
-     * Admin kulüp görevlisi talebini reddeder.
-     * ROLE_PENDING_CLUB_OFFICIAL rolü kaldırılır, diğer roller korunur.
-     */
-    public void rejectClubOfficial(UUID userId) {
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new NoSuchElementException("User not found"));
-
-        Set<Role> roles = user.getRoles();
-        if (!roles.contains(Role.ROLE_PENDING_CLUB_OFFICIAL)) {
-            // İstemciye bilgi; idempotent de davranılabilir
-            throw new IllegalStateException("User does not have a pending club official request");
-        }
-        roles.remove(Role.ROLE_PENDING_CLUB_OFFICIAL);
-        user.setRoles(roles);
-        userRepository.save(user);
-    }
-
-    // ---- Admin Yönetimi ----
-    public void promoteToAdmin(UUID userId) {
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new NoSuchElementException("User not found"));
-
-        // Admin rolü sadece tek başına olmalı - diğer rolleri temizle
-        Set<Role> roles = Stream.of(Role.ROLE_ADMIN).collect(Collectors.toSet());
-        user.setRoles(roles);
-        userRepository.save(user);
-
-        LOGGER.info("User promoted to ADMIN (all other roles removed). UserID: {}", userId);
-    }
-
-    public void revokeAdmin(UUID userId) {
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new NoSuchElementException("User not found"));
-        Set<Role> roles = user.getRoles();
-        if (roles.contains(Role.ROLE_ADMIN)) {
-            roles.remove(Role.ROLE_ADMIN);
-            // Admin rolü kaldırılınca kullanıcının hiç rolü kalmazsa STUDENT yap
-            if (roles.isEmpty()) {
-                roles.add(Role.ROLE_STUDENT);
-                LOGGER.info("Admin role revoked, user set to ROLE_STUDENT. UserID: {}", userId);
-            }
-            user.setRoles(roles);
-            userRepository.save(user);
-        }
+        return buildAuthResponse(jwt, refreshToken, "Login successful", user);
     }
 
     // --- YENİ METOT: ŞİFRE DEĞİŞTİRME ---
@@ -549,92 +484,80 @@ public class AuthServiceImpl {
 
         // 2. Mevcut şifre doğru mu diye kontrol et
         if (!passwordEncoder.matches(request.getCurrentPassword(), user.getPassword())) {
-            throw new IllegalStateException("Wrong current password");
-            // (Daha iyisi: 400 Bad Request hatası fırlat)
+            throw new BadRequestException("WRONG_CURRENT_PASSWORD", "Wrong current password");
         }
 
         // 3. Yeni şifre ve onayı eşleşiyor mu diye kontrol et
         if (!request.getNewPassword().equals(request.getConfirmationPassword())) {
-            throw new IllegalStateException("New password and confirmation do not match");
+            throw new BadRequestException("PASSWORD_CONFIRMATION_MISMATCH", "New password and confirmation do not match");
         }
 
         // 4. (Opsiyonel) Yeni şifre, eski şifreyle aynı olamaz kontrolü
         if (passwordEncoder.matches(request.getNewPassword(), user.getPassword())) {
-            throw new IllegalStateException("New password cannot be the same as the old password");
+            throw new BadRequestException("PASSWORD_UNCHANGED", "New password cannot be the same as the old password");
         }
+        passwordPolicy.validateNewPassword(request.getNewPassword(), user.getEmail());
 
-        // 5. Her şey yolundaysa, yeni şifreyi HASH'le ve kaydet
         user.setPassword(passwordEncoder.encode(request.getNewPassword()));
         userRepository.save(user);
-
-        // NOT: (İleri Seviye Güvenlik)
-        // Şifre değiştiğinde, bu kullanıcıya ait diğer tüm JWT token'ları
-        // geçersiz kılmak için bir mekanizma (örn: 'passwordChangedAt' timestamp'i)
-        // eklenebilir. Şimdilik bu adımı atlıyoruz.
+        refreshTokenService.revokeAllSessions(user.getId());
     }
 
     public List<String> getEmailsByUserIds(List<UUID> userIds) {
         return userRepository.findEmailsByIds(userIds);
     }
 
-    /**
-     * Refresh token ile yeni access token oluşturur
-     */
     public AuthResponse refreshAccessToken(String refreshTokenStr) {
-        RefreshToken refreshToken = refreshTokenService.findByToken(refreshTokenStr);
-        refreshTokenService.verifyExpiration(refreshToken);
+        RefreshTokenService.RotatedRefreshToken rotated = refreshTokenService.rotate(refreshTokenStr);
 
-        User user = userRepository.findById(refreshToken.getUserId())
-                .orElseThrow(() -> new RuntimeException("User not found"));
+        User user = userRepository.findById(rotated.userId())
+                .orElseThrow(() -> new RefreshTokenService.InvalidRefreshTokenException("Invalid refresh token"));
+        if (user.isSuspended()) {
+            refreshTokenService.revokeAllSessions(user.getId());
+            throw new RefreshTokenService.InvalidRefreshTokenException("Account is suspended");
+        }
 
         String newAccessToken = jwtService.generateToken(user);
-        Set<String> roles = user.getRoles().stream()
-                .map(Role::name)
-                .collect(Collectors.toSet());
-
-        return new AuthResponse(newAccessToken, refreshTokenStr, "Token refreshed successfully",
-                user.getId().toString(), user.getEmail(), roles);
+        return buildAuthResponse(newAccessToken, rotated.rawToken(), "Token refreshed successfully", user);
     }
 
-    /**
-     * Logout - refresh token'ı siler
-     */
-    @Transactional
+    private void requireVerifiedEmail(Instant emailVerifiedAt) {
+        if (!emailVerificationService.isVerified(emailVerifiedAt)) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "Başvuru sahibi e-posta adresini henüz doğrulamadı.");
+        }
+    }
+
+    private AuthResponse buildAuthResponse(String token, String refreshToken, String message, User user) {
+        Set<Role> roles = user.getRoles() != null ? user.getRoles() : Set.of();
+        return new AuthResponse(token, refreshToken, message, user.getId().toString(), user.getEmail(),
+                RolePresentation.orderedRoles(roles), RolePresentation.primaryRole(roles),
+                RolePresentation.pendingRequests(roles));
+    }
+
     public void logout(String refreshToken) {
-        refreshTokenService.deleteByToken(refreshToken);
-        LOGGER.info("User logged out, refresh token deleted");
-    }
-
-    /**
-     * Helper metod: User-service'e kullanıcı profil güncelleme mesajı gönderir.
-     */
-    private void sendMessageToUserQueue(User user, String firstName, String lastName, Set<Role> roles) {
-        Set<String> roleStrings = roles.stream().map(Role::name).collect(Collectors.toSet());
-
-        UserRegisteredMessage message = new UserRegisteredMessage(
-                user.getId(),
-                firstName,
-                lastName,
-                user.getEmail(),
-                roleStrings,
-                null, // studentId yok
-                null  // department yok
-        );
-
-        rabbitTemplate.convertAndSend(
-                RabbitMQConfig.EXCHANGE_NAME,
-                RabbitMQConfig.ROUTING_KEY,
-                message
-        );
-
-        LOGGER.info("User profile update message sent for user: {}", user.getId());
+        refreshTokenService.revokeSession(refreshToken);
     }
 
     // ... Diğer metodlar ...
 
     // 1. BEKLEYEN AKADEMİSYEN İSTEKLERİNİ LİSTELE
-    public List<AcademicianRegistrationRequest> getAllAcademicianRequests() {
-        return requestRepository.findAll();
+    public List<AcademicianRequestAdminView> getAllAcademicianRequests() {
+        return requestRepository.findAll().stream()
+                .map(req -> new AcademicianRequestAdminView(
+                        req.getId(),
+                        req.getUserId(),
+                        req.getFirstName(),
+                        req.getLastName(),
+                        req.getTitle(),
+                        req.getDepartment(),
+                        req.getOfficeNumber(),
+                        minioService.createPresignedUrl(req.getIdCardImageUrl()),
+                        userRepository.findById(req.getUserId())
+                                .map(u -> u.getEmailVerifiedAt() != null)
+                                .orElse(false)
+                ))
+                .toList();
     }
 
     // 2. AKADEMİSYEN İSTEĞİNİ REDDET
@@ -651,7 +574,7 @@ public class AuthServiceImpl {
         // Kullanıcının sadece PENDING_ACADEMICIAN rolü olduğunu doğrula
         Set<Role> roles = user.getRoles();
         if (!roles.contains(Role.ROLE_PENDING_ACADEMICIAN)) {
-            throw new IllegalStateException("User does not have a pending academician request");
+            throw new BadRequestException("NO_PENDING_ACADEMICIAN_REQUEST", "User does not have a pending academician request");
         }
 
         // 1. E-posta bildirimi gönder (red) - Silmeden önce bilgileri al
@@ -663,13 +586,12 @@ public class AuthServiceImpl {
                 "ACADEMICIAN",
                 rejectionReason
         );
-        rabbitTemplate.convertAndSend(
+        outboxPublisher.publish(
                 RabbitMQConfig.EXCHANGE_NAME,
                 RabbitMQConfig.USER_ACCOUNT_STATUS_ROUTING_KEY,
                 statusMessage
         );
-        LOGGER.info("Akademisyen red bildirimi RabbitMQ'ya gönderildi. Email: {}, RoutingKey: {}",
-                user.getEmail(), RabbitMQConfig.USER_ACCOUNT_STATUS_ROUTING_KEY);
+        LOGGER.info("Akademisyen red bildirimi RabbitMQ'ya gönderildi. RoutingKey: {}", RabbitMQConfig.USER_ACCOUNT_STATUS_ROUTING_KEY);
 
         // 2. MinIO'dan kimlik kartı fotoğrafını sil
         if (req.getIdCardImageUrl() != null) {
@@ -692,7 +614,9 @@ public class AuthServiceImpl {
                 .map(user -> new com.educonnect.authservices.dto.response.UserSummaryDto(
                         user.getId(),
                         user.getEmail(),
-                        user.getRoles().stream().map(Enum::name).collect(Collectors.toSet())
+                        user.getRoles().stream().map(Enum::name).collect(Collectors.toSet()),
+                        user.getStatus() != null ? user.getStatus().name() : null,
+                        user.getEmailVerifiedAt() != null
                 ))
                 .collect(Collectors.toList());
     }
@@ -702,6 +626,10 @@ public class AuthServiceImpl {
     public void deleteUser(UUID userId) {
         User user = userRepository.findById(userId)
             .orElseThrow(() -> new NoSuchElementException("Kullanıcı bulunamadı"));
+        if (user.getRoles().contains(Role.ROLE_ADMIN)
+                && userRepository.findAllByRolesContaining(Role.ROLE_ADMIN).size() <= 1) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Son admin hesabı silinemez.");
+        }
 
         // Kullanıcının rolüne göre mesaj tipini belirle
         String userType = "UNKNOWN";
@@ -718,16 +646,25 @@ public class AuthServiceImpl {
             "Admin tarafından silindi"
         );
 
-        try {
-            rabbitTemplate.convertAndSend(
-                RabbitMQConfig.EXCHANGE_NAME,
-                RabbitMQConfig.USER_DELETE_ROUTING_KEY,
-                message
-            );
-            LOGGER.info("User deletion message sent to queue. UserID: {}, Type: {}", userId, userType);
-        } catch (Exception e) {
-            LOGGER.error("Failed to send user deletion message for UserID: {}. Error: {}", userId, e.getMessage());
-        }
+        outboxPublisher.publish(
+            RabbitMQConfig.EXCHANGE_NAME,
+            RabbitMQConfig.USER_DELETE_ROUTING_KEY,
+            message
+        );
+        LOGGER.info("User deletion message queued. UserID: {}, Type: {}", userId, userType);
+
+        requestRepository.findByUserId(userId).ifPresent(request -> {
+            requestRepository.delete(request);
+            String idCardImageUrl = request.getIdCardImageUrl();
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    minioService.deleteIdCardImage(idCardImageUrl);
+                }
+            });
+        });
+        studentRequestRepository.findByEmail(user.getEmail()).ifPresent(studentRequestRepository::delete);
+        emailVerificationService.discardTokens(user.getEmail());
 
         // Auth DB'den kullanıcıyı sil
         userRepository.deleteById(userId);
@@ -746,19 +683,16 @@ public class AuthServiceImpl {
         // 2. Önceki tokenları temizle
         passwordResetTokenRepository.deleteByUserId(user.getId());
 
-        // 3. Yeni token oluştur (UUID benzersiz token)
-        String token = UUID.randomUUID().toString();
+        String token = OpaqueTokens.generate();
 
-        // 4. Token'ı 15 dakika geçerli olacak şekilde kaydet
         PasswordResetToken resetToken = new PasswordResetToken(
-                token,
+                OpaqueTokens.hash(token),
                 user.getId(),
                 java.time.Instant.now().plusSeconds(15 * 60) // 15 dakika
         );
         passwordResetTokenRepository.save(resetToken);
 
-        // 5. Şifre sıfırlama linkini oluştur (Frontend URL - daha sonra yapılandırılabilir)
-        String resetLink = "http://localhost:5173/reset-password?token=" + token;
+        String resetLink = links.frontendBaseUrl() + "/reset-password?token=" + token;
 
         // 6. RabbitMQ ile notification-service'e mesaj gönder
         PasswordResetMessage message = new PasswordResetMessage(
@@ -769,13 +703,13 @@ public class AuthServiceImpl {
                 resetLink
         );
 
-        rabbitTemplate.convertAndSend(
+        outboxPublisher.publish(
                 RabbitMQConfig.EXCHANGE_NAME,
                 RabbitMQConfig.PASSWORD_RESET_ROUTING_KEY,
                 message
         );
 
-        LOGGER.info("Şifre sıfırlama e-postası gönderildi. Email: {}", email);
+        LOGGER.info("Şifre sıfırlama e-postası kuyruğa alındı. UserID: {}", user.getId());
     }
 
     // --- ŞİFRE SIFIRLAMA İŞLEMİ ---
@@ -792,31 +726,27 @@ public class AuthServiceImpl {
 
         // 2. Şifre eşleşme kontrolü
         if (!newPassword.equals(confirmPassword)) {
-            throw new IllegalStateException("Şifreler eşleşmiyor.");
+            throw new BadRequestException("PASSWORD_CONFIRMATION_MISMATCH", "Şifreler eşleşmiyor.");
         }
 
-        // 3. Şifre uzunluk kontrolü
-        if (newPassword.length() < 6) {
-            throw new IllegalArgumentException("Şifre en az 6 karakter olmalıdır.");
-        }
-
-        // 4. Token'ı bul
-        PasswordResetToken resetToken = passwordResetTokenRepository.findByToken(token)
+        PasswordResetToken resetToken = passwordResetTokenRepository.findByTokenHash(OpaqueTokens.hash(token))
                 .orElseThrow(() -> new NoSuchElementException("Geçersiz veya süresi dolmuş token."));
 
         // 5. Token süre kontrolü
         if (resetToken.isExpired()) {
             passwordResetTokenRepository.delete(resetToken);
-            throw new IllegalStateException("Token süresi dolmuş. Lütfen yeni bir şifre sıfırlama talebi oluşturun.");
+            throw new BadRequestException("RESET_TOKEN_EXPIRED", "Token süresi dolmuş. Lütfen yeni bir şifre sıfırlama talebi oluşturun.");
         }
 
         // 6. Kullanıcıyı bul
         User user = userRepository.findById(resetToken.getUserId())
                 .orElseThrow(() -> new NoSuchElementException("Kullanıcı bulunamadı."));
+        passwordPolicy.validateResetPassword(newPassword, user.getEmail());
 
-        // 7. Şifreyi güncelle
         user.setPassword(passwordEncoder.encode(newPassword));
         userRepository.save(user);
+        refreshTokenService.revokeAllSessions(user.getId());
+        loginAttemptService.recordSuccess(user.getId());
 
         // 8. Kullanılan token'ı sil
         passwordResetTokenRepository.delete(resetToken);

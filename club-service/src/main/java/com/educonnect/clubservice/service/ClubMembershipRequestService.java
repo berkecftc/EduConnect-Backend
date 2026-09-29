@@ -4,6 +4,7 @@ import com.educonnect.clubservice.Repository.ClubMembershipRepository;
 import com.educonnect.clubservice.Repository.ClubMembershipRequestRepository;
 import com.educonnect.clubservice.Repository.ClubRepository;
 import com.educonnect.clubservice.client.UserClient;
+import com.educonnect.clubservice.client.UserLookup;
 import com.educonnect.clubservice.config.ClubRabbitMQConfig;
 import com.educonnect.clubservice.dto.message.MembershipRequestMessage;
 import com.educonnect.clubservice.dto.request.CreateMembershipRequestDTO;
@@ -11,9 +12,11 @@ import com.educonnect.clubservice.dto.request.RejectMembershipRequestDTO;
 import com.educonnect.clubservice.dto.response.MembershipRequestDTO;
 import com.educonnect.clubservice.dto.response.UserSummary;
 import com.educonnect.clubservice.model.*;
+import com.educonnect.clubservice.security.ClubAuthorizationService;
+import com.educonnect.clubservice.security.ClubPermission;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.amqp.rabbit.core.RabbitTemplate;
+import com.educonnect.common.messaging.outbox.OutboxPublisher;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -21,7 +24,9 @@ import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 @Service
@@ -36,18 +41,30 @@ public class ClubMembershipRequestService {
     private final ClubMembershipRepository membershipRepository;
     private final ClubRepository clubRepository;
     private final UserClient userClient;
-    private final RabbitTemplate rabbitTemplate;
+    private final OutboxPublisher outboxPublisher;
+    private final ClubAuthorizationService clubAuthorizationService;
+    private final ClubNotificationPublisher notificationPublisher;
+    private final ClubCacheEvictor cacheEvictor;
+    private final UserLookup userLookup;
 
     public ClubMembershipRequestService(ClubMembershipRequestRepository requestRepository,
                                          ClubMembershipRepository membershipRepository,
                                          ClubRepository clubRepository,
                                          UserClient userClient,
-                                         RabbitTemplate rabbitTemplate) {
+                                         OutboxPublisher outboxPublisher,
+                                         ClubAuthorizationService clubAuthorizationService,
+                                         ClubNotificationPublisher notificationPublisher,
+                                         ClubCacheEvictor cacheEvictor,
+                                         UserLookup userLookup) {
+        this.userLookup = userLookup;
         this.requestRepository = requestRepository;
         this.membershipRepository = membershipRepository;
         this.clubRepository = clubRepository;
         this.userClient = userClient;
-        this.rabbitTemplate = rabbitTemplate;
+        this.outboxPublisher = outboxPublisher;
+        this.clubAuthorizationService = clubAuthorizationService;
+        this.notificationPublisher = notificationPublisher;
+        this.cacheEvictor = cacheEvictor;
     }
 
     /**
@@ -86,12 +103,12 @@ public class ClubMembershipRequestService {
     @Transactional(readOnly = true)
     public List<MembershipRequestDTO> getMyMembershipRequests(UUID studentId) {
         List<ClubMembershipRequest> requests = requestRepository.findByStudentId(studentId);
+        List<UUID> clubIds = requests.stream().map(ClubMembershipRequest::getClubId).distinct().toList();
+        Map<UUID, Club> clubs = clubIds.isEmpty() ? Map.of() : clubRepository.findAllById(clubIds).stream()
+                .collect(Collectors.toMap(Club::getId, Function.identity()));
 
         return requests.stream()
-                .map(request -> {
-                    Club club = clubRepository.findById(request.getClubId()).orElse(null);
-                    return mapToDTO(request, club, null);
-                })
+                .map(request -> mapToDTO(request, clubs.get(request.getClubId()), null))
                 .collect(Collectors.toList());
     }
 
@@ -112,17 +129,15 @@ public class ClubMembershipRequestService {
      */
     @Transactional(readOnly = true)
     public List<MembershipRequestDTO> getPendingRequests(UUID clubId, UUID officialId) {
-        // Yetkili kulüp başkanı mı kontrol et
-        verifyClubOfficial(clubId, officialId);
+        clubAuthorizationService.require(clubId, officialId, ClubPermission.MANAGE_MEMBERSHIP_REQUESTS);
 
         List<ClubMembershipRequest> requests = requestRepository.findByClubIdAndStatus(clubId, MembershipRequestStatus.PENDING);
         Club club = clubRepository.findById(clubId).orElse(null);
+        Map<UUID, UserSummary> students = userLookup.usersById(
+                requests.stream().map(ClubMembershipRequest::getStudentId).toList());
 
         return requests.stream()
-                .map(request -> {
-                    UserSummary student = fetchUserSummary(request.getStudentId());
-                    return mapToDTO(request, club, student);
-                })
+                .map(request -> mapToDTO(request, club, students.get(request.getStudentId())))
                 .collect(Collectors.toList());
     }
 
@@ -130,20 +145,23 @@ public class ClubMembershipRequestService {
      * Kulüp başkanı üyelik isteğini onaylar.
      */
     public MembershipRequestDTO approveRequest(UUID clubId, UUID requestId, UUID officialId) {
-        // Yetkili kulüp başkanı mı kontrol et
-        verifyClubOfficial(clubId, officialId);
+        clubAuthorizationService.require(clubId, officialId, ClubPermission.MANAGE_MEMBERSHIP_REQUESTS);
 
         ClubMembershipRequest request = requestRepository.findById(requestId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Üyelik isteği bulunamadı"));
 
         // İstek bu kulübe mi ait?
         if (!request.getClubId().equals(clubId)) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Bu istek belirtilen kulübe ait değil");
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Üyelik isteği bulunamadı");
         }
 
         // Zaten işlenmiş mi?
         if (request.getStatus() != MembershipRequestStatus.PENDING) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Bu istek zaten işlenmiş");
+        }
+
+        if (membershipRepository.existsByClubIdAndStudentId(clubId, request.getStudentId())) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Öğrenci zaten bu kulübün üyesi");
         }
 
         // İsteği onayla
@@ -153,9 +171,10 @@ public class ClubMembershipRequestService {
         requestRepository.save(request);
 
         // Kulüp üyeliği oluştur
-        ClubMembership membership = new ClubMembership(clubId, request.getStudentId(), ClubRole.ROLE_MEMBER);
+        ClubMembership membership = new ClubMembership(clubId, request.getStudentId(), ClubPosition.MEMBER);
         membership.setTermStartDate(LocalDateTime.now());
         membershipRepository.save(membership);
+        cacheEvictor.evictUser(request.getStudentId());
 
         log.info("Membership request approved: requestId={}, studentId={}, clubId={}",
                 requestId, request.getStudentId(), clubId);
@@ -167,6 +186,10 @@ public class ClubMembershipRequestService {
                 "APPROVED",
                 "Üyelik isteğiniz onaylandı! Artık " + (club != null ? club.getName() : "kulüp") + " üyesisiniz.");
 
+        UserSummary student = fetchUserSummary(request.getStudentId());
+        notificationPublisher.notifyAdvisor(club, "Yeni üye",
+                (student != null ? student.getFullName() : "Bir öğrenci") + " kulübe üye olarak kabul edildi.");
+
         return mapToDTO(request, club, null);
     }
 
@@ -174,15 +197,14 @@ public class ClubMembershipRequestService {
      * Kulüp başkanı üyelik isteğini reddeder.
      */
     public MembershipRequestDTO rejectRequest(UUID clubId, UUID requestId, UUID officialId, RejectMembershipRequestDTO dto) {
-        // Yetkili kulüp başkanı mı kontrol et
-        verifyClubOfficial(clubId, officialId);
+        clubAuthorizationService.require(clubId, officialId, ClubPermission.MANAGE_MEMBERSHIP_REQUESTS);
 
         ClubMembershipRequest request = requestRepository.findById(requestId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Üyelik isteği bulunamadı"));
 
         // İstek bu kulübe mi ait?
         if (!request.getClubId().equals(clubId)) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Bu istek belirtilen kulübe ait değil");
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Üyelik isteği bulunamadı");
         }
 
         // Zaten işlenmiş mi?
@@ -220,26 +242,11 @@ public class ClubMembershipRequestService {
      */
     @Transactional(readOnly = true)
     public long getPendingRequestCount(UUID clubId, UUID officialId) {
-        verifyClubOfficial(clubId, officialId);
+        clubAuthorizationService.require(clubId, officialId, ClubPermission.VIEW_MANAGEMENT_DATA);
         return requestRepository.countByClubIdAndStatus(clubId, MembershipRequestStatus.PENDING);
     }
 
     // ==================== YARDIMCI METOTLAR ====================
-
-    /**
-     * Kullanıcının belirtilen kulübün yetkilisi olup olmadığını kontrol eder.
-     */
-    private void verifyClubOfficial(UUID clubId, UUID userId) {
-        List<ClubMembership> memberships = membershipRepository.findByClubIdAndClubRoleAndIsActive(
-                clubId, ClubRole.ROLE_CLUB_OFFICIAL, true);
-
-        boolean isOfficial = memberships.stream()
-                .anyMatch(m -> m.getStudentId().equals(userId));
-
-        if (!isOfficial) {
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Bu işlem için yetkiniz yok");
-        }
-    }
 
     /**
      * User-service'den kullanıcı bilgilerini çeker.
@@ -261,8 +268,8 @@ public class ClubMembershipRequestService {
             MembershipRequestMessage notificationMessage = new MembershipRequestMessage(
                     studentId, clubId, clubName, status, message);
 
-            rabbitTemplate.convertAndSend(
-                    ClubRabbitMQConfig.EXCHANGE_NAME,
+            outboxPublisher.publish(
+                    ClubRabbitMQConfig.CLUB_EXCHANGE_NAME,
                     ROUTING_KEY_MEMBERSHIP_NOTIFICATION,
                     notificationMessage);
 

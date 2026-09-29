@@ -1,7 +1,7 @@
 package com.educonnect.notificationservice.config;
 
 import org.springframework.amqp.core.*;
-import org.springframework.amqp.support.converter.Jackson2JsonMessageConverter;
+import org.springframework.amqp.support.converter.JacksonJsonMessageConverter;
 import org.springframework.amqp.support.converter.MessageConverter;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.annotation.Bean;
@@ -31,6 +31,9 @@ public class NotificationRabbitMQConfig {
     public static final String PASSWORD_RESET_QUEUE = "password-reset-queue";
     public static final String PASSWORD_RESET_ROUTING_KEY = "user.password.reset";
 
+    public static final String EMAIL_VERIFICATION_QUEUE = "email-verification-queue";
+    public static final String EMAIL_VERIFICATION_ROUTING_KEY = "user.email.verify";
+
     // --- ROUTING KEY'LER ---
     public static final String ROUTING_KEY_EVENT_CREATED = "event.created";
     public static final String ROUTING_KEY_COURSE_ANNOUNCEMENT = "course.announcement.created";
@@ -38,6 +41,49 @@ public class NotificationRabbitMQConfig {
 
     public static final String NOTIFICATION_REGISTRATION_QUEUE = "notification-registration-queue";
     public static final String ROUTING_KEY_EVENT_REGISTERED = "event.registered";
+
+    public static final String CLUB_MEMBERSHIP_NOTIFICATION_QUEUE = "notification-club-membership-queue";
+    public static final String ROUTING_KEY_CLUB_MEMBERSHIP = "club.membership.notification";
+    public static final String CLUB_ROLE_CHANGE_NOTIFICATION_QUEUE = "notification-club-role-change-queue";
+    public static final String ROUTING_KEY_CLUB_ROLE_CHANGE = "club.role.change.notification";
+    public static final String CLUB_GENERAL_NOTIFICATION_QUEUE = "notification-club-general-queue";
+    public static final String ROUTING_KEY_CLUB_NOTIFICATION = "club.notification";
+
+    @Bean
+    public Queue clubMembershipNotificationQueue() {
+        return new Queue(CLUB_MEMBERSHIP_NOTIFICATION_QUEUE);
+    }
+
+    @Bean
+    public Binding bindingClubMembershipNotification(
+            @Qualifier("clubMembershipNotificationQueue") Queue queue,
+            @Qualifier("clubExchange") DirectExchange clubExchange) {
+        return BindingBuilder.bind(queue).to(clubExchange).with(ROUTING_KEY_CLUB_MEMBERSHIP);
+    }
+
+    @Bean
+    public Queue clubRoleChangeNotificationQueue() {
+        return new Queue(CLUB_ROLE_CHANGE_NOTIFICATION_QUEUE);
+    }
+
+    @Bean
+    public Binding bindingClubRoleChangeNotification(
+            @Qualifier("clubRoleChangeNotificationQueue") Queue queue,
+            @Qualifier("clubExchange") DirectExchange clubExchange) {
+        return BindingBuilder.bind(queue).to(clubExchange).with(ROUTING_KEY_CLUB_ROLE_CHANGE);
+    }
+
+    @Bean
+    public Queue clubGeneralNotificationQueue() {
+        return new Queue(CLUB_GENERAL_NOTIFICATION_QUEUE);
+    }
+
+    @Bean
+    public Binding bindingClubGeneralNotification(
+            @Qualifier("clubGeneralNotificationQueue") Queue queue,
+            @Qualifier("clubExchange") DirectExchange clubExchange) {
+        return BindingBuilder.bind(queue).to(clubExchange).with(ROUTING_KEY_CLUB_NOTIFICATION);
+    }
 
     @Bean
     public Queue notificationRegistrationQueue() {
@@ -100,7 +146,7 @@ public class NotificationRabbitMQConfig {
     // JSON Dönüştürücü
     @Bean
     public MessageConverter jsonMessageConverter() {
-        return new Jackson2JsonMessageConverter();
+        return new JacksonJsonMessageConverter();
     }
 
     // --- USER EXCHANGE TANIMLARI ---
@@ -124,6 +170,18 @@ public class NotificationRabbitMQConfig {
             @Qualifier("userAccountStatusQueue") Queue userAccountStatusQueue,
             @Qualifier("userExchange") DirectExchange userExchange) {
         return BindingBuilder.bind(userAccountStatusQueue).to(userExchange).with(USER_ACCOUNT_STATUS_ROUTING_KEY);
+    }
+
+    @Bean
+    public Queue emailVerificationQueue() {
+        return new Queue(EMAIL_VERIFICATION_QUEUE);
+    }
+
+    @Bean
+    public Binding bindingEmailVerification(
+            @Qualifier("emailVerificationQueue") Queue emailVerificationQueue,
+            @Qualifier("userExchange") DirectExchange userExchange) {
+        return BindingBuilder.bind(emailVerificationQueue).to(userExchange).with(EMAIL_VERIFICATION_ROUTING_KEY);
     }
 
     @Bean

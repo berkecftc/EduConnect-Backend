@@ -1,0 +1,45 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    system: educonnect
+
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets: ["alertmanager:9093"]
+
+rule_files:
+  - /etc/prometheus/alerts.yml
+
+scrape_configs:
+  - job_name: educonnect
+    metrics_path: /actuator/prometheus
+    static_configs:
+      - targets:
+          - api-gateway:8080
+          - auth-services:9002
+          - user-service:9003
+          - club-service:9005
+          - event-service:9006
+          - course-service:8084
+          - assignment-service:8085
+          - post-service:8086
+          - gamification-service:8091
+          - notification-service:9008
+          - llm-service:8089
+    relabel_configs:
+      - source_labels: [__address__]
+        regex: "([^:]+):.*"
+        target_label: service
+
+  - job_name: rabbitmq
+    metrics_path: /metrics/detailed
+    params:
+      family: [queue_coarse_metrics, queue_consumer_count]
+    static_configs:
+      - targets: ["rabbitmq:15692"]
+
+  - job_name: prometheus
+    static_configs:
+      - targets: ["localhost:9090"]

@@ -1,11 +1,12 @@
 package com.educonnect.authservices.models;
 
 import jakarta.persistence.*;
+import com.educonnect.common.storage.ObjectUrlConverter;
 
 import java.util.UUID;
 
 @Entity
-@Table(name = "academician_requests", schema = "auth_db")
+@Table(name = "academician_requests")
 @SuppressWarnings("JpaDataSourceORMInspection")
 public class AcademicianRegistrationRequest {
 
@@ -31,6 +32,7 @@ public class AcademicianRegistrationRequest {
     private String officeNumber; // Formda varsa
 
     @Column(name = "id_card_image_url")
+    @Convert(converter = ObjectUrlConverter.class)
     private String idCardImageUrl; // Akademisyen kimlik kartı fotoğrafı URL'si (MinIO'da)
 
     // İstersen başvuru tarihi

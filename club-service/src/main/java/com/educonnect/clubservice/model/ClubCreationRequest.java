@@ -12,6 +12,10 @@ public class ClubCreationRequest {
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
 
+    @Version
+    @Column(nullable = false)
+    private Long version;
+
     @Column(nullable = false)
     private String clubName;
 
@@ -23,10 +27,20 @@ public class ClubCreationRequest {
 
     private UUID suggestedAdvisorId; // Önerilen danışman hoca
 
+    @Enumerated(EnumType.STRING)
     @Column(nullable = false)
-    private String status = "PENDING"; // PENDING, APPROVED, REJECTED
+    private ClubCreationRequestStatus status = ClubCreationRequestStatus.PENDING;
 
     private LocalDateTime requestDate = LocalDateTime.now();
+
+    @Column(name = "rejection_reason", columnDefinition = "TEXT")
+    private String rejectionReason;
+
+    @Column(name = "processed_at")
+    private LocalDateTime processedAt;
+
+    @Column(name = "processed_by")
+    private UUID processedBy;
 
     // --- Getter ve Setter ---
     public UUID getId() { return id; }
@@ -39,6 +53,13 @@ public class ClubCreationRequest {
     public void setRequestingStudentId(UUID requestingStudentId) { this.requestingStudentId = requestingStudentId; }
     public UUID getSuggestedAdvisorId() { return suggestedAdvisorId; }
     public void setSuggestedAdvisorId(UUID suggestedAdvisorId) { this.suggestedAdvisorId = suggestedAdvisorId; }
-    public String getStatus() { return status; }
-    public void setStatus(String status) { this.status = status; }
+    public ClubCreationRequestStatus getStatus() { return status; }
+    public void setStatus(ClubCreationRequestStatus status) { this.status = status; }
+    public String getRejectionReason() { return rejectionReason; }
+    public void setRejectionReason(String rejectionReason) { this.rejectionReason = rejectionReason; }
+    public LocalDateTime getProcessedAt() { return processedAt; }
+    public void setProcessedAt(LocalDateTime processedAt) { this.processedAt = processedAt; }
+    public LocalDateTime getRequestDate() { return requestDate; }
+    public UUID getProcessedBy() { return processedBy; }
+    public void setProcessedBy(UUID processedBy) { this.processedBy = processedBy; }
 }

@@ -6,10 +6,11 @@ import org.springframework.amqp.core.Binding;
 import org.springframework.amqp.core.BindingBuilder;
 import org.springframework.amqp.core.DirectExchange;
 import org.springframework.amqp.core.Queue;
+import org.springframework.amqp.core.QueueBuilder;
 import org.springframework.amqp.core.TopicExchange;
 import org.springframework.amqp.rabbit.connection.ConnectionFactory;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
-import org.springframework.amqp.support.converter.Jackson2JsonMessageConverter;
+import org.springframework.amqp.support.converter.JacksonJsonMessageConverter;
 import org.springframework.amqp.support.converter.MessageConverter;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -22,7 +23,7 @@ public class RabbitMQConfig {
     // Göndereceğimiz ve alacağımız mesajların JSON formatında olmasını sağlar.
     @Bean
     public MessageConverter jsonMessageConverter() {
-        return new Jackson2JsonMessageConverter();
+        return new JacksonJsonMessageConverter();
     }
 
     // Exchange ve Queue isimlerini sabit olarak tanımlarız.
@@ -34,13 +35,9 @@ public class RabbitMQConfig {
     public static final String ACADEMICIAN_QUEUE_NAME = "academician-profile-create-queue";
     public static final String ACADEMICIAN_ROUTING_KEY = "profile.academician.create";
 
-    // Kulüp rolü atama için queue ve routing key
-    public static final String ROLE_ASSIGNMENT_QUEUE = "user-role-assignment-queue";
-    public static final String ROLE_ASSIGNMENT_ROUTING_KEY = "user.role.assign";
-
-    // Kulüp rolü kaldırma için queue ve routing key
-    public static final String ROLE_REVOKE_QUEUE = "user-role-revoke-queue";
-    public static final String ROLE_REVOKE_ROUTING_KEY = "user.role.revoke";
+    public static final String CLUB_MANAGEMENT_QUEUE = "user-club-management-queue";
+    public static final String CLUB_MANAGEMENT_DLQ = CLUB_MANAGEMENT_QUEUE + ".dlq";
+    public static final String CLUB_MANAGEMENT_ROUTING_KEY = "user.club-management.changed";
 
     // Kullanıcı silme için queue ve routing key
     public static final String USER_DELETE_QUEUE = "user-delete-queue";
@@ -53,6 +50,7 @@ public class RabbitMQConfig {
     // Şifre sıfırlama için queue ve routing key
     public static final String PASSWORD_RESET_QUEUE = "password-reset-queue";
     public static final String PASSWORD_RESET_ROUTING_KEY = "user.password.reset";
+    public static final String EMAIL_VERIFICATION_ROUTING_KEY = "user.email.verify";
 
     public static final String GAMIFICATION_EXCHANGE = "gamification.exchange";
     public static final String GAMIFICATION_USER_LOGIN_ROUTING_KEY = "gamification.user.login";
@@ -70,16 +68,6 @@ public class RabbitMQConfig {
     @Bean
     public Queue userProfileCreationQueue() {
         return new Queue(QUEUE_NAME);
-    }
-
-    @Bean
-    public Queue userRoleAssignmentQueue() {
-        return new Queue(ROLE_ASSIGNMENT_QUEUE);
-    }
-
-    @Bean
-    public Queue userRoleRevokeQueue() {
-        return new Queue(ROLE_REVOKE_QUEUE);
     }
 
     @Bean
@@ -109,13 +97,21 @@ public class RabbitMQConfig {
     }
 
     @Bean
-    public Binding roleAssignmentBinding(Queue userRoleAssignmentQueue, DirectExchange userExchange) {
-        return BindingBuilder.bind(userRoleAssignmentQueue).to(userExchange).with(ROLE_ASSIGNMENT_ROUTING_KEY);
+    public Queue clubManagementQueue() {
+        return QueueBuilder.durable(CLUB_MANAGEMENT_QUEUE)
+                .deadLetterExchange("")
+                .deadLetterRoutingKey(CLUB_MANAGEMENT_DLQ)
+                .build();
     }
 
     @Bean
-    public Binding roleRevokeBinding(Queue userRoleRevokeQueue, DirectExchange userExchange) {
-        return BindingBuilder.bind(userRoleRevokeQueue).to(userExchange).with(ROLE_REVOKE_ROUTING_KEY);
+    public Queue clubManagementDeadLetterQueue() {
+        return QueueBuilder.durable(CLUB_MANAGEMENT_DLQ).build();
+    }
+
+    @Bean
+    public Binding clubManagementBinding(Queue clubManagementQueue, DirectExchange userExchange) {
+        return BindingBuilder.bind(clubManagementQueue).to(userExchange).with(CLUB_MANAGEMENT_ROUTING_KEY);
     }
 
     @Bean

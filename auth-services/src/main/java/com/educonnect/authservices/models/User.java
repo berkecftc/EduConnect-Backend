@@ -5,18 +5,29 @@ import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 
+import java.time.Instant;
 import java.util.Collection;
 import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
+import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.UpdateTimestamp;
 
 @Entity
-@Table(name = "users", schema = "auth_db")
+@Table(name = "users")
 public class User implements UserDetails {
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
+
+    @CreationTimestamp
+    @Column(name = "created_at", nullable = false, updatable = false)
+    private Instant createdAt;
+
+    @UpdateTimestamp
+    @Column(name = "updated_at", nullable = false)
+    private Instant updatedAt;
 
     @Column(unique = true, nullable = false)
     private String email;
@@ -25,10 +36,23 @@ public class User implements UserDetails {
     private String password;
 
     @ElementCollection(targetClass = Role.class, fetch = FetchType.EAGER)
-    @CollectionTable(name = "user_roles", schema = "auth_db", joinColumns = @JoinColumn(name = "user_id"))
+    @CollectionTable(name = "user_roles", joinColumns = @JoinColumn(name = "user_id"))
     @Enumerated(EnumType.STRING)
     @Column(name = "role", nullable = false)
     private Set<Role> roles;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "status", nullable = false, length = 20)
+    private AccountStatus status = AccountStatus.ACTIVE;
+
+    @Column(name = "status_changed_at")
+    private Instant statusChangedAt;
+
+    @Column(name = "status_reason", columnDefinition = "TEXT")
+    private String statusReason;
+
+    @Column(name = "email_verified_at")
+    private Instant emailVerifiedAt;
 
     public void setEmail(String email) { this.email = email; }
     public void setPassword(String password) { this.password = password; }
@@ -73,4 +97,27 @@ public class User implements UserDetails {
     public void setId(UUID id) { this.id = id; }
     public Set<Role> getRoles() { return roles; }
     public void setRoles(Set<Role> roles) { this.roles = roles; }
+
+    public AccountStatus getStatus() { return status; }
+    public Instant getStatusChangedAt() { return statusChangedAt; }
+    public String getStatusReason() { return statusReason; }
+    public Instant getEmailVerifiedAt() { return emailVerifiedAt; }
+    public void setEmailVerifiedAt(Instant emailVerifiedAt) { this.emailVerifiedAt = emailVerifiedAt; }
+
+    public boolean isSuspended() { return status == AccountStatus.SUSPENDED; }
+
+    public void suspend(String reason, Instant now) {
+        this.status = AccountStatus.SUSPENDED;
+        this.statusReason = reason;
+        this.statusChangedAt = now;
+    }
+
+    public void reactivate(Instant now) {
+        this.status = AccountStatus.ACTIVE;
+        this.statusReason = null;
+        this.statusChangedAt = now;
+    }
+
+    public Instant getCreatedAt() { return createdAt; }
+    public Instant getUpdatedAt() { return updatedAt; }
 }

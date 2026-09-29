@@ -10,7 +10,7 @@ import java.time.LocalDate;
 import java.util.UUID;
 
 @Entity
-@Table(name = "user_reputation", schema = "gamification_db")
+@Table(name = "user_reputation")
 public class UserReputation {
 
     @Id
@@ -42,7 +42,6 @@ public class UserReputation {
         reputation.setTotalPoints(0);
         reputation.setCurrentStreak(0);
         reputation.setHighestStreak(0);
-        reputation.setVersion(0L);
         return reputation;
     }
 

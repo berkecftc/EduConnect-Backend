@@ -60,12 +60,13 @@ public class CommentController {
     @GetMapping
     public ResponseEntity<Page<CommentResponse>> getComments(
             @PathVariable UUID postId,
+            @RequestHeader("X-Authenticated-User-Id") String authenticatedUserId,
             @RequestHeader("X-Authenticated-User-Roles") String roles,
             @PageableDefault(size = 10, sort = "createdAt", direction = org.springframework.data.domain.Sort.Direction.DESC)
             Pageable pageable
     ) {
         postService.validatePostAccess(roles);
-        return ResponseEntity.ok(commentService.getCommentsByPostId(postId, pageable));
+        return ResponseEntity.ok(commentService.getCommentsByPostId(postId, UUID.fromString(authenticatedUserId), pageable));
     }
 
     /**

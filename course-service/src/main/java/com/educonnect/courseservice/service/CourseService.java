@@ -1,6 +1,8 @@
 package com.educonnect.courseservice.service;
 
+import com.educonnect.common.web.NotFoundException;
 import com.educonnect.courseservice.client.UserClient;
+import com.educonnect.courseservice.client.UserLookup;
 import com.educonnect.courseservice.dto.*;
 import com.educonnect.courseservice.event.CourseEvent;
 import com.educonnect.courseservice.exception.*;
@@ -13,19 +15,22 @@ import com.educonnect.courseservice.repository.CourseRepository;
 import com.educonnect.courseservice.repository.EnrollmentRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.cache.CacheManager;
+
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
-import org.springframework.cache.annotation.Caching;
 import org.springframework.core.io.InputStreamResource;
 import org.springframework.core.io.Resource;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.InputStream;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 @Service
@@ -39,19 +44,19 @@ public class CourseService {
     private final UserClient userClient;
     private final MinioService minioService;
     private final CourseProducer courseProducer;
-    private final CacheManager cacheManager;
+    private final CourseCaches courseCaches;
 
     public CourseService(CourseRepository repo, EnrollmentRepository enrollRepo,
                          CourseApplicationRepository appRepo,
                          UserClient user, MinioService minio, CourseProducer producer,
-                         CacheManager cacheManager) {
+                         CourseCaches courseCaches) {
         this.courseRepository = repo;
         this.enrollmentRepository = enrollRepo;
         this.applicationRepository = appRepo;
         this.userClient = user;
         this.minioService = minio;
         this.courseProducer = producer;
-        this.cacheManager = cacheManager;
+        this.courseCaches = courseCaches;
     }
 
     // 1. DERS OLUŞTUR (Resim + Veri + RabbitMQ)
@@ -78,19 +83,20 @@ public class CourseService {
 
         Course savedCourse = courseRepository.save(course);
 
-        // RabbitMQ Bildirimi
-        CourseEvent event = new CourseEvent(savedCourse.getId(), savedCourse.getTitle(), savedCourse.getCode(), "CREATED");
-        courseProducer.sendCourseCreatedEvent(event);
-
         // instructorCourses cache'ini temizle
-        evictInstructorCoursesCache(request.getInstructorId());
+        courseCaches.evictInstructorCourses(request.getInstructorId());
 
         return mapToResponse(savedCourse);
     }
 
     // 2. TÜMÜNÜ GETİR
     public List<CourseResponse> getAllCourses() {
-        return courseRepository.findAll().stream().map(this::mapToResponse).collect(Collectors.toList());
+        return mapToResponses(courseRepository.findAll());
+    }
+
+    public PageResponse<CourseResponse> getCoursesPage(int page, Integer size) {
+        Page<Course> courses = courseRepository.findAll(PageResponse.request(page, size, Sort.by("title").and(Sort.by("id"))));
+        return PageResponse.of(courses, mapToResponses(courses.getContent()));
     }
 
     // 3. ID İLE GETİR
@@ -101,7 +107,7 @@ public class CourseService {
 
     // 4. HOCAYA GÖRE GETİR
     public List<CourseResponse> getCoursesByInstructor(UUID instructorId) {
-        return courseRepository.findByInstructorId(instructorId).stream().map(this::mapToResponse).collect(Collectors.toList());
+        return mapToResponses(courseRepository.findByInstructorId(instructorId));
     }
 
     // 5. SİL (RabbitMQ Tetikler)
@@ -109,53 +115,28 @@ public class CourseService {
     public void deleteCourse(UUID id) {
         Course course = courseRepository.findById(id)
                 .orElseThrow(() -> new CourseNotFoundException("Ders bulunamadı: " + id));
+        courseCaches.evictStudentCourses(getEnrolledStudentIds(id));
         courseRepository.deleteById(id);
 
         CourseEvent event = new CourseEvent(course.getId(), course.getTitle(), course.getCode(), "DELETED");
         courseProducer.sendCourseDeletedEvent(event);
 
         // instructorCourses cache'ini temizle
-        evictInstructorCoursesCache(course.getInstructorId());
-    }
-
-    // 6. ÖĞRENCİ KURSA KAYDET (Akademisyen tarafından - doğrudan ekleme)
-    @Transactional
-    @Caching(evict = {
-            @CacheEvict(value = "studentCourses", key = "#studentId")
-    })
-    public void enrollStudent(UUID courseId, UUID studentId, UUID instructorId) {
-        Course course = courseRepository.findById(courseId)
-                .orElseThrow(() -> new CourseNotFoundException("Ders bulunamadı: " + courseId));
-
-        if (!course.getInstructorId().equals(instructorId)) {
-            throw new UnauthorizedCourseAccessException("Bu dersin hocası değilsiniz, öğrenci ekleyemezsiniz");
-        }
-
-        if (enrollmentRepository.existsByCourseIdAndStudentIdAndIsActive(courseId, studentId, true)) {
-            throw new AlreadyEnrolledException("Öğrenci bu derse zaten kayıtlı");
-        }
-
-        // Kapasite kontrolü
-        long enrolledCount = enrollmentRepository.countActiveByCourseId(courseId);
-        if (enrolledCount >= course.getCapacity()) {
-            throw new CourseCapacityFullException("Ders kapasitesi dolmuş. Öğrenci eklenemez.");
-        }
-
-        StudentCourseEnrollment enrollment = new StudentCourseEnrollment(courseId, studentId);
-        enrollmentRepository.save(enrollment);
-
-        // instructorCourses cache'ini temizle (öğrenci sayısı değişti)
-        evictInstructorCoursesCache(course.getInstructorId());
+        courseCaches.evictInstructorCourses(course.getInstructorId());
     }
 
     // 7. ÖĞRENCİNİN KAYITLI OLDUĞU KURSLARI GETİR (Cache'li)
     @Cacheable(value = "studentCourses", key = "#studentId")
     public List<EnrolledCourseDTO> getStudentCourses(UUID studentId) {
         List<StudentCourseEnrollment> enrollments = enrollmentRepository.findByStudentIdAndIsActive(studentId, true);
+        List<UUID> courseIds = enrollments.stream().map(StudentCourseEnrollment::getCourseId).distinct().toList();
+        Map<UUID, Course> courses = courseIds.isEmpty() ? Map.of() : courseRepository.findAllById(courseIds).stream()
+                .collect(Collectors.toMap(Course::getId, Function.identity()));
+        Map<UUID, UserSummaryDto> instructors = UserLookup.usersById(userClient,
+                courses.values().stream().map(Course::getInstructorId).toList());
 
         return enrollments.stream().map(enrollment -> {
-            Course course = courseRepository.findById(enrollment.getCourseId())
-                    .orElse(null);
+            Course course = courses.get(enrollment.getCourseId());
             if (course == null) return null;
 
             EnrolledCourseDTO dto = new EnrolledCourseDTO();
@@ -168,13 +149,7 @@ public class CourseService {
             dto.setImageUrl(course.getImageUrl());
             dto.setInstructorId(course.getInstructorId());
             dto.setEnrollmentDate(enrollment.getEnrollmentDate());
-
-            try {
-                UserSummaryDto user = userClient.getUserById(course.getInstructorId());
-                dto.setInstructorName(user.getFirstName() + " " + user.getLastName());
-            } catch (Exception e) {
-                dto.setInstructorName("Bilinmiyor");
-            }
+            dto.setInstructorName(instructorName(instructors.get(course.getInstructorId())));
 
             return dto;
         }).filter(dto -> dto != null).collect(Collectors.toList());
@@ -193,7 +168,7 @@ public class CourseService {
         // instructorCourses cache'ini temizle (öğrenci sayısı değişti)
         Course course = courseRepository.findById(courseId).orElse(null);
         if (course != null) {
-            evictInstructorCoursesCache(course.getInstructorId());
+            courseCaches.evictInstructorCourses(course.getInstructorId());
         }
     }
 
@@ -201,6 +176,11 @@ public class CourseService {
     @Cacheable(value = "instructorCourses", key = "#instructorId")
     public List<InstructorCourseDTO> getInstructorCourses(UUID instructorId) {
         List<Course> courses = courseRepository.findByInstructorId(instructorId);
+        List<UUID> courseIds = courses.stream().map(Course::getId).toList();
+        Map<UUID, Long> enrolledCounts = courseIds.isEmpty() ? Map.of()
+                : toCountMap(enrollmentRepository.countActiveByCourseIds(courseIds));
+        Map<UUID, Long> pendingCounts = courseIds.isEmpty() ? Map.of()
+                : toCountMap(applicationRepository.countByCourseIdsAndStatus(courseIds, CourseApplicationStatus.PENDING));
 
         return courses.stream().map(course -> {
             InstructorCourseDTO dto = new InstructorCourseDTO();
@@ -212,9 +192,8 @@ public class CourseService {
             dto.setSemester(course.getSemester());
             dto.setImageUrl(course.getImageUrl());
             dto.setCapacity(course.getCapacity());
-            dto.setEnrolledStudentCount(enrollmentRepository.countActiveByCourseId(course.getId()));
-            dto.setPendingApplicationCount(
-                    applicationRepository.countByCourseIdAndStatus(course.getId(), CourseApplicationStatus.PENDING));
+            dto.setEnrolledStudentCount(enrolledCounts.getOrDefault(course.getId(), 0L));
+            dto.setPendingApplicationCount(pendingCounts.getOrDefault(course.getId(), 0L));
             return dto;
         }).collect(Collectors.toList());
     }
@@ -229,26 +208,39 @@ public class CourseService {
         }
 
         List<StudentCourseEnrollment> enrollments = enrollmentRepository.findByCourseIdAndIsActive(courseId, true);
+        Map<UUID, UserSummaryDto> students = UserLookup.usersById(userClient,
+                enrollments.stream().map(StudentCourseEnrollment::getStudentId).toList());
 
         return enrollments.stream().map(enrollment -> {
             EnrolledStudentDTO dto = new EnrolledStudentDTO();
             dto.setStudentId(enrollment.getStudentId());
             dto.setEnrollmentDate(enrollment.getEnrollmentDate());
 
-            try {
-                UserSummaryDto user = userClient.getUserById(enrollment.getStudentId());
+            UserSummaryDto user = students.get(enrollment.getStudentId());
+            if (user != null) {
                 dto.setFirstName(user.getFirstName());
                 dto.setLastName(user.getLastName());
                 dto.setStudentNumber(user.getStudentNumber());
                 dto.setEmail(user.getEmail());
                 dto.setDepartment(user.getDepartment());
-            } catch (Exception e) {
+            } else {
                 dto.setFirstName("Bilinmiyor");
                 dto.setLastName("");
             }
 
             return dto;
         }).collect(Collectors.toList());
+    }
+
+    public List<UUID> getInstructorCourseIds(UUID instructorId) {
+        return courseRepository.findByInstructorId(instructorId).stream().map(Course::getId).toList();
+    }
+
+    public List<UUID> getActiveCourseIds(UUID studentId) {
+        return enrollmentRepository.findByStudentIdAndIsActive(studentId, true).stream()
+                .map(StudentCourseEnrollment::getCourseId)
+                .distinct()
+                .toList();
     }
 
     // 11. KAYITLI ÖĞRENCİ ID LİSTESİ (Diğer servisler için - notification-service vs.)
@@ -260,6 +252,23 @@ public class CourseService {
     }
 
     // 12. DOSYA İNDİRME
+    public String getCourseFileUrl(UUID courseId) {
+        Course course = courseRepository.findById(courseId)
+                .orElseThrow(() -> new CourseNotFoundException("Ders bulunamadı: " + courseId));
+        if (course.getImageUrl() == null || course.getImageUrl().isBlank()) {
+            throw new NotFoundException("FILE_NOT_FOUND", "Dosya bulunamadı.");
+        }
+        return course.getImageUrl();
+    }
+
+    public String requireCourseFileUrl(String fileUrl) {
+        String canonical = minioService.canonicalUrl(fileUrl);
+        if (canonical == null || !courseRepository.existsByImageUrl(canonical)) {
+            throw new NotFoundException("FILE_NOT_FOUND", "Dosya bulunamadı.");
+        }
+        return canonical;
+    }
+
     public Resource downloadFile(String fileUrl) {
         InputStream inputStream = minioService.downloadFile(fileUrl);
         return new InputStreamResource(inputStream);
@@ -270,6 +279,41 @@ public class CourseService {
      */
     public String getOriginalFileName(String fileUrl) {
         return minioService.extractOriginalFileName(fileUrl);
+    }
+
+    private List<CourseResponse> mapToResponses(List<Course> courses) {
+        if (courses.isEmpty()) {
+            return List.of();
+        }
+        Map<UUID, Long> enrolledCounts = toCountMap(enrollmentRepository.countActiveByCourseIds(
+                courses.stream().map(Course::getId).toList()));
+        Map<UUID, UserSummaryDto> instructors = UserLookup.usersById(userClient,
+                courses.stream().map(Course::getInstructorId).toList());
+
+        return courses.stream().map(course -> {
+            CourseResponse res = new CourseResponse();
+            res.setId(course.getId());
+            res.setTitle(course.getTitle());
+            res.setCode(course.getCode());
+            res.setDescription(course.getDescription());
+            res.setCredit(course.getCredit());
+            res.setSemester(course.getSemester());
+            res.setImageUrl(course.getImageUrl());
+            res.setInstructorId(course.getInstructorId());
+            res.setCapacity(course.getCapacity());
+            res.setEnrolledStudentCount(enrolledCounts.getOrDefault(course.getId(), 0L));
+            res.setInstructorName(instructorName(instructors.get(course.getInstructorId())));
+            return res;
+        }).collect(Collectors.toList());
+    }
+
+    private static Map<UUID, Long> toCountMap(List<EnrollmentRepository.CourseCount> counts) {
+        return counts.stream().collect(Collectors.toMap(EnrollmentRepository.CourseCount::getCourseId,
+                EnrollmentRepository.CourseCount::getTotal));
+    }
+
+    private static String instructorName(UserSummaryDto user) {
+        return user != null ? user.getFirstName() + " " + user.getLastName() : "Bilinmiyor";
     }
 
     private CourseResponse mapToResponse(Course course) {
@@ -292,21 +336,5 @@ public class CourseService {
             res.setInstructorName("Bilinmiyor");
         }
         return res;
-    }
-
-    /**
-     * instructorCourses cache'ini programatik olarak temizler.
-     * Ders oluşturma, silme, öğrenci kayıt/çıkış işlemlerinde kullanılır.
-     */
-    private void evictInstructorCoursesCache(UUID instructorId) {
-        try {
-            var cache = cacheManager.getCache("instructorCourses");
-            if (cache != null) {
-                cache.evict(instructorId);
-                log.debug("instructorCourses cache temizlendi: {}", instructorId);
-            }
-        } catch (Exception e) {
-            log.warn("instructorCourses cache temizleme hatası: {}", e.getMessage());
-        }
     }
 }

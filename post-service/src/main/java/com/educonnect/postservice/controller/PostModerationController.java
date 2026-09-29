@@ -3,6 +3,7 @@ package com.educonnect.postservice.controller;
 import com.educonnect.postservice.dto.ModerationDecision;
 import com.educonnect.postservice.dto.ModerationDecisionRequest;
 import com.educonnect.postservice.service.PostModerationService;
+import jakarta.validation.Valid;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
@@ -27,10 +28,10 @@ public class PostModerationController {
         this.postModerationService = postModerationService;
     }
 
-    @PutMapping("/{postId}/moderation")
+    @PutMapping("/internal/{postId}/moderation")
     public ResponseEntity<Void> applyModeration(
             @PathVariable UUID postId,
-            @RequestBody ModerationDecisionRequest request) {
+            @RequestBody @Valid ModerationDecisionRequest request) {
 
         Optional<ModerationDecision> decision = ModerationDecision.from(request.decision());
         if (decision.isEmpty()) {

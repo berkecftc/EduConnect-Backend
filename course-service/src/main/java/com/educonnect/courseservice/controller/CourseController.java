@@ -1,5 +1,8 @@
 package com.educonnect.courseservice.controller;
 
+import com.educonnect.common.storage.SafeFileNames;
+import com.educonnect.common.web.ApiException;
+import com.educonnect.common.web.ForbiddenException;
 import com.educonnect.courseservice.dto.*;
 import com.educonnect.courseservice.exception.UnauthorizedCourseAccessException;
 import com.educonnect.courseservice.service.CourseAnnouncementService;
@@ -39,6 +42,12 @@ public class CourseController {
         return ResponseEntity.ok(courseService.getAllCourses());
     }
 
+    @GetMapping(params = "page")
+    public ResponseEntity<PageResponse<CourseResponse>> getPage(@RequestParam int page,
+                                                                @RequestParam(required = false) Integer size) {
+        return ResponseEntity.ok(courseService.getCoursesPage(page, size));
+    }
+
     @GetMapping("/{id}")
     public ResponseEntity<CourseResponse> getById(@PathVariable UUID id) {
         return ResponseEntity.ok(courseService.getCourseById(id));
@@ -54,8 +63,12 @@ public class CourseController {
     public ResponseEntity<CourseResponse> create(
             @RequestPart("course") @Valid CourseRequest request,
             @RequestPart(value = "file", required = false) MultipartFile file,
-            @RequestHeader("X-Authenticated-User-Id") String authenticatedUserId
+            @RequestHeader("X-Authenticated-User-Id") String authenticatedUserId,
+            @RequestHeader(value = "X-Authenticated-User-Roles", required = false) String roles
     ) {
+        if (!hasRole(roles, "ROLE_ACADEMICIAN")) {
+            throw new UnauthorizedCourseAccessException("Ders oluşturma yetkisi yalnızca akademisyenlere aittir.");
+        }
         // Header'dan gelen kullanıcı ID ile body'deki instructorId eşleşmeli
         UUID authUserId = UUID.fromString(authenticatedUserId);
         if (!authUserId.equals(request.getInstructorId())) {
@@ -65,26 +78,31 @@ public class CourseController {
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> delete(@PathVariable UUID id) {
+    public ResponseEntity<Void> delete(
+            @PathVariable UUID id,
+            @RequestHeader("X-Authenticated-User-Id") String authenticatedUserId,
+            @RequestHeader(value = "X-Authenticated-User-Roles", required = false) String roles
+    ) {
+        UUID instructorId = courseService.getCourseById(id).getInstructorId();
+        if (!hasRole(roles, "ROLE_ADMIN") && !UUID.fromString(authenticatedUserId).equals(instructorId)) {
+            throw new UnauthorizedCourseAccessException("Bu dersi silme yetkiniz yok.");
+        }
         courseService.deleteCourse(id);
         return ResponseEntity.noContent().build();
+    }
+
+    private static boolean hasRole(String rolesHeader, String role) {
+        return rolesHeader != null && java.util.Arrays.stream(rolesHeader.split(","))
+                .map(String::trim)
+                .anyMatch(role::equals);
     }
 
     // ===================== ÖĞRENCİ KAYIT (DOĞRUDAN - Akademisyen) =====================
 
     @PostMapping("/{courseId}/enroll-student")
-    public ResponseEntity<String> enrollStudent(
-            @PathVariable UUID courseId,
-            @RequestBody EnrollStudentRequest request,
-            @RequestHeader("X-Authenticated-User-Id") String instructorIdHeader
-    ) {
-        try {
-            UUID instructorId = UUID.fromString(instructorIdHeader);
-            courseService.enrollStudent(courseId, request.getStudentId(), instructorId);
-            return ResponseEntity.ok("Öğrenci başarıyla kursa kaydedildi");
-        } catch (RuntimeException e) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
-        }
+    public ResponseEntity<String> enrollStudent(@PathVariable UUID courseId) {
+        throw new ApiException(HttpStatus.GONE, "ENDPOINT_GONE",
+                "Derse doğrudan öğrenci ekleme kapatıldı. Öğrenci POST /api/courses/{courseId}/apply ile başvurur, hoca onaylar.");
     }
 
     // ÖĞRENCİNİN KAYITLI OLDUĞU KURSLARI GETİR
@@ -102,13 +120,8 @@ public class CourseController {
             @PathVariable UUID courseId,
             @RequestHeader("X-Authenticated-User-Id") String studentIdHeader
     ) {
-        try {
-            UUID studentId = UUID.fromString(studentIdHeader);
-            courseService.withdrawStudent(courseId, studentId);
-            return ResponseEntity.ok("Kurstan başarıyla çıkıldı");
-        } catch (RuntimeException e) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
-        }
+        courseService.withdrawStudent(courseId, UUID.fromString(studentIdHeader));
+        return ResponseEntity.ok("Kurstan başarıyla çıkıldı");
     }
 
     // AKADEMİSYENİN DERSLERİNİ GETİR (Öğrenci sayılarıyla + kapasite + bekleyen başvuru sayısı)
@@ -126,15 +139,14 @@ public class CourseController {
     @PostMapping("/{courseId}/apply")
     public ResponseEntity<?> applyToCourse(
             @PathVariable UUID courseId,
-            @RequestHeader("X-Authenticated-User-Id") String studentIdHeader
+            @RequestHeader("X-Authenticated-User-Id") String studentIdHeader,
+            @RequestHeader(value = "X-Authenticated-User-Roles", required = false) String roles
     ) {
-        try {
-            UUID studentId = UUID.fromString(studentIdHeader);
-            CourseApplicationResponse response = applicationService.applyToCourse(courseId, studentId);
-            return ResponseEntity.status(HttpStatus.CREATED).body(response);
-        } catch (RuntimeException e) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
+        if (!hasRole(roles, "ROLE_STUDENT")) {
+            throw new ForbiddenException("Derse yalnızca öğrenciler başvurabilir.");
         }
+        CourseApplicationResponse response = applicationService.applyToCourse(courseId, UUID.fromString(studentIdHeader));
+        return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
     // HOCA BEKLEYEN BAŞVURULARI LİSTELER (Tarih sırasına göre - FCFS)
@@ -143,13 +155,7 @@ public class CourseController {
             @PathVariable UUID courseId,
             @RequestHeader("X-Authenticated-User-Id") String instructorIdHeader
     ) {
-        try {
-            UUID instructorId = UUID.fromString(instructorIdHeader);
-            List<CourseApplicationResponse> applications = applicationService.getPendingApplications(courseId, instructorId);
-            return ResponseEntity.ok(applications);
-        } catch (RuntimeException e) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
-        }
+        return ResponseEntity.ok(applicationService.getPendingApplications(courseId, UUID.fromString(instructorIdHeader)));
     }
 
     // HOCA TEK TEK BAŞVURU ONAYLAR
@@ -158,30 +164,18 @@ public class CourseController {
             @PathVariable UUID applicationId,
             @RequestHeader("X-Authenticated-User-Id") String instructorIdHeader
     ) {
-        try {
-            UUID instructorId = UUID.fromString(instructorIdHeader);
-            CourseApplicationResponse response = applicationService.approveApplication(applicationId, instructorId);
-            return ResponseEntity.ok(response);
-        } catch (RuntimeException e) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
-        }
+        return ResponseEntity.ok(applicationService.approveApplication(applicationId, UUID.fromString(instructorIdHeader)));
     }
 
     // HOCA BAŞVURU REDDEDER
     @PutMapping("/applications/{applicationId}/reject")
     public ResponseEntity<?> rejectApplication(
             @PathVariable UUID applicationId,
-            @RequestBody(required = false) RejectApplicationRequest request,
+            @RequestBody(required = false) @Valid RejectApplicationRequest request,
             @RequestHeader("X-Authenticated-User-Id") String instructorIdHeader
     ) {
-        try {
-            UUID instructorId = UUID.fromString(instructorIdHeader);
-            String reason = (request != null) ? request.getRejectionReason() : null;
-            CourseApplicationResponse response = applicationService.rejectApplication(applicationId, instructorId, reason);
-            return ResponseEntity.ok(response);
-        } catch (RuntimeException e) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
-        }
+        String reason = (request != null) ? request.getRejectionReason() : null;
+        return ResponseEntity.ok(applicationService.rejectApplication(applicationId, UUID.fromString(instructorIdHeader), reason));
     }
 
     // ÖĞRENCİ KENDİ BAŞVURULARINI GÖRÜNTÜLER
@@ -199,22 +193,22 @@ public class CourseController {
     @PostMapping("/{courseId}/announcements")
     public ResponseEntity<?> createAnnouncement(
             @PathVariable UUID courseId,
-            @RequestBody AnnouncementRequest request,
+            @RequestBody @Valid AnnouncementRequest request,
             @RequestHeader("X-Authenticated-User-Id") String instructorIdHeader
     ) {
-        try {
-            UUID instructorId = UUID.fromString(instructorIdHeader);
-            AnnouncementResponse response = announcementService.createAnnouncement(courseId, request, instructorId);
-            return ResponseEntity.status(HttpStatus.CREATED).body(response);
-        } catch (RuntimeException e) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
-        }
+        UUID instructorId = UUID.fromString(instructorIdHeader);
+        AnnouncementResponse response = announcementService.createAnnouncement(courseId, request, instructorId);
+        return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
-    // BİR DERSE AİT DUYURULARI LİSTELER
     @GetMapping("/{courseId}/announcements")
-    public ResponseEntity<List<AnnouncementResponse>> getAnnouncements(@PathVariable UUID courseId) {
-        return ResponseEntity.ok(announcementService.getAnnouncementsByCourse(courseId));
+    public ResponseEntity<List<AnnouncementResponse>> getAnnouncements(
+            @PathVariable UUID courseId,
+            @RequestHeader("X-Authenticated-User-Id") String viewerIdHeader,
+            @RequestHeader(value = "X-Authenticated-User-Roles", required = false) String roles
+    ) {
+        return ResponseEntity.ok(announcementService.getAnnouncementsByCourse(
+                courseId, UUID.fromString(viewerIdHeader), hasRole(roles, "ROLE_ADMIN")));
     }
 
     // DUYURU SİLER
@@ -223,13 +217,9 @@ public class CourseController {
             @PathVariable UUID announcementId,
             @RequestHeader("X-Authenticated-User-Id") String instructorIdHeader
     ) {
-        try {
-            UUID instructorId = UUID.fromString(instructorIdHeader);
-            announcementService.deleteAnnouncement(announcementId, instructorId);
-            return ResponseEntity.ok("Duyuru başarıyla silindi");
-        } catch (RuntimeException e) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
-        }
+        UUID instructorId = UUID.fromString(instructorIdHeader);
+        announcementService.deleteAnnouncement(announcementId, instructorId);
+        return ResponseEntity.ok("Duyuru başarıyla silindi");
     }
 
     // ===================== KAYITLI ÖĞRENCİ LİSTESİ =====================
@@ -240,35 +230,31 @@ public class CourseController {
             @PathVariable UUID courseId,
             @RequestHeader("X-Authenticated-User-Id") String instructorIdHeader
     ) {
-        try {
-            UUID instructorId = UUID.fromString(instructorIdHeader);
-            List<EnrolledStudentDTO> students = courseService.getEnrolledStudents(courseId, instructorId);
-            return ResponseEntity.ok(students);
-        } catch (RuntimeException e) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
-        }
-    }
-
-    // DİĞER SERVİSLER İÇİN - KAYITLI ÖĞRENCİ ID LİSTESİ
-    @GetMapping("/{courseId}/enrolled-students/ids")
-    public ResponseEntity<List<UUID>> getEnrolledStudentIds(@PathVariable UUID courseId) {
-        return ResponseEntity.ok(courseService.getEnrolledStudentIds(courseId));
+        UUID instructorId = UUID.fromString(instructorIdHeader);
+        List<EnrolledStudentDTO> students = courseService.getEnrolledStudents(courseId, instructorId);
+        return ResponseEntity.ok(students);
     }
 
     // ===================== DOSYA İNDİRME =====================
 
+    @GetMapping("/{courseId}/file")
+    public ResponseEntity<Resource> downloadCourseFile(@PathVariable UUID courseId) {
+        return fileResponse(courseService.getCourseFileUrl(courseId));
+    }
+
     @GetMapping("/files/download")
     public ResponseEntity<Resource> downloadFile(@RequestParam("url") String fileUrl) {
-        try {
-            Resource resource = courseService.downloadFile(fileUrl);
-            String fileName = courseService.getOriginalFileName(fileUrl);
+        return fileResponse(courseService.requireCourseFileUrl(fileUrl));
+    }
 
-            return ResponseEntity.ok()
-                    .contentType(MediaType.APPLICATION_OCTET_STREAM)
-                    .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + fileName + "\"")
-                    .body(resource);
-        } catch (RuntimeException e) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
-        }
+    private ResponseEntity<Resource> fileResponse(String fileUrl) {
+        Resource resource = courseService.downloadFile(fileUrl);
+        String fileName = courseService.getOriginalFileName(fileUrl);
+
+        return ResponseEntity.ok()
+                .contentType(MediaType.APPLICATION_OCTET_STREAM)
+                .header(HttpHeaders.CONTENT_DISPOSITION, SafeFileNames.attachmentHeader(fileName))
+                .header("X-Content-Type-Options", "nosniff")
+                .body(resource);
     }
 }

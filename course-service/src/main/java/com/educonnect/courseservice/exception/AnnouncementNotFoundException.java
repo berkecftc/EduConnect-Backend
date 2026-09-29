@@ -1,8 +1,9 @@
 package com.educonnect.courseservice.exception;
 
-public class AnnouncementNotFoundException extends RuntimeException {
+import com.educonnect.common.web.NotFoundException;
+
+public class AnnouncementNotFoundException extends NotFoundException {
     public AnnouncementNotFoundException(String message) {
-        super(message);
+        super("ANNOUNCEMENT_NOT_FOUND", message);
     }
 }
-

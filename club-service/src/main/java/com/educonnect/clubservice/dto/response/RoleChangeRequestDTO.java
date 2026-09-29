@@ -1,6 +1,6 @@
 package com.educonnect.clubservice.dto.response;
 
-import com.educonnect.clubservice.model.ClubRole;
+import com.educonnect.clubservice.model.ClubPosition;
 import com.educonnect.clubservice.model.RoleChangeRequestStatus;
 
 import java.time.LocalDateTime;
@@ -16,8 +16,8 @@ public class RoleChangeRequestDTO {
     private String clubName;
     private UUID studentId;
     private String studentName; // Ad Soyad
-    private ClubRole currentRole;
-    private ClubRole requestedRole;
+    private ClubPosition currentRole;
+    private ClubPosition requestedRole;
     private UUID requesterId;
     private String requesterName; // Talebi oluşturan kişinin adı
     private RoleChangeRequestStatus status;
@@ -43,11 +43,11 @@ public class RoleChangeRequestDTO {
     public String getStudentName() { return studentName; }
     public void setStudentName(String studentName) { this.studentName = studentName; }
 
-    public ClubRole getCurrentRole() { return currentRole; }
-    public void setCurrentRole(ClubRole currentRole) { this.currentRole = currentRole; }
+    public ClubPosition getCurrentRole() { return currentRole; }
+    public void setCurrentRole(ClubPosition currentRole) { this.currentRole = currentRole; }
 
-    public ClubRole getRequestedRole() { return requestedRole; }
-    public void setRequestedRole(ClubRole requestedRole) { this.requestedRole = requestedRole; }
+    public ClubPosition getRequestedRole() { return requestedRole; }
+    public void setRequestedRole(ClubPosition requestedRole) { this.requestedRole = requestedRole; }
 
     public UUID getRequesterId() { return requesterId; }
     public void setRequesterId(UUID requesterId) { this.requesterId = requesterId; }

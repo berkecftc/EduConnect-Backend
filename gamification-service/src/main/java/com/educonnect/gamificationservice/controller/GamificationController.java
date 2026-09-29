@@ -17,6 +17,7 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
+import java.util.Locale;
 import java.util.UUID;
 
 @RestController
@@ -55,7 +56,7 @@ public class GamificationController {
     public ResponseEntity<String> getBadgeImage(@PathVariable String badgeType) {
         BadgeType type;
         try {
-            type = BadgeType.valueOf(badgeType.toUpperCase());
+            type = BadgeType.valueOf(badgeType.toUpperCase(Locale.ROOT));
         } catch (IllegalArgumentException ex) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Rozet bulunamadi: " + badgeType);
         }

@@ -4,6 +4,7 @@ import com.educonnect.clubservice.dto.request.CreateMembershipRequestDTO;
 import com.educonnect.clubservice.dto.request.RejectMembershipRequestDTO;
 import com.educonnect.clubservice.dto.response.MembershipRequestDTO;
 import com.educonnect.clubservice.service.ClubMembershipRequestService;
+import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -33,7 +34,7 @@ public class ClubMembershipRequestController {
     @PreAuthorize("hasRole('STUDENT')")
     public ResponseEntity<MembershipRequestDTO> createMembershipRequest(
             @PathVariable UUID clubId,
-            @RequestBody(required = false) CreateMembershipRequestDTO dto,
+            @Valid @RequestBody(required = false) CreateMembershipRequestDTO dto,
             @RequestHeader("X-Authenticated-User-Id") String userIdHeader) {
 
         UUID studentId = UUID.fromString(userIdHeader);
@@ -77,7 +78,7 @@ public class ClubMembershipRequestController {
      * GET /api/clubs/{clubId}/membership-requests/pending
      */
     @GetMapping("/{clubId}/membership-requests/pending")
-    @PreAuthorize("hasAnyRole('CLUB_OFFICIAL', 'ADMIN')")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<List<MembershipRequestDTO>> getPendingRequests(
             @PathVariable UUID clubId,
             @RequestHeader("X-Authenticated-User-Id") String userIdHeader) {
@@ -92,7 +93,7 @@ public class ClubMembershipRequestController {
      * GET /api/clubs/{clubId}/membership-requests/pending/count
      */
     @GetMapping("/{clubId}/membership-requests/pending/count")
-    @PreAuthorize("hasAnyRole('CLUB_OFFICIAL', 'ADMIN')")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<Map<String, Long>> getPendingRequestCount(
             @PathVariable UUID clubId,
             @RequestHeader("X-Authenticated-User-Id") String userIdHeader) {
@@ -107,7 +108,7 @@ public class ClubMembershipRequestController {
      * PUT /api/clubs/{clubId}/membership-requests/{requestId}/approve
      */
     @PutMapping("/{clubId}/membership-requests/{requestId}/approve")
-    @PreAuthorize("hasAnyRole('CLUB_OFFICIAL', 'ADMIN')")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<MembershipRequestDTO> approveRequest(
             @PathVariable UUID clubId,
             @PathVariable UUID requestId,
@@ -123,11 +124,11 @@ public class ClubMembershipRequestController {
      * PUT /api/clubs/{clubId}/membership-requests/{requestId}/reject
      */
     @PutMapping("/{clubId}/membership-requests/{requestId}/reject")
-    @PreAuthorize("hasAnyRole('CLUB_OFFICIAL', 'ADMIN')")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<MembershipRequestDTO> rejectRequest(
             @PathVariable UUID clubId,
             @PathVariable UUID requestId,
-            @RequestBody(required = false) RejectMembershipRequestDTO dto,
+            @Valid @RequestBody(required = false) RejectMembershipRequestDTO dto,
             @RequestHeader("X-Authenticated-User-Id") String userIdHeader) {
 
         UUID officialId = UUID.fromString(userIdHeader);

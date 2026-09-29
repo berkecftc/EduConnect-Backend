@@ -1,9 +1,12 @@
 package com.educonnect.clubservice.dto.request;
 
+import jakarta.validation.constraints.Size;
+
 import java.util.UUID;
 
 public class UpdateClubRequest {
     // Sadece güncellenmesine izin verdiğimiz alanlar
+    @Size(max = 255, message = "Kulüp adı en fazla 255 karakter olabilir")
     private String name;
     private String about;
     private UUID academicAdvisorId;

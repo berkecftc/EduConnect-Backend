@@ -3,15 +3,30 @@ package com.educonnect.clubservice.model;
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
 import java.util.UUID;
+import org.hibernate.annotations.CreationTimestamp;
+import java.time.Instant;
+import org.hibernate.annotations.UpdateTimestamp;
 
 @Entity
-@Table(name = "club_memberships", schema = "club_db",
+@Table(name = "club_memberships",
         uniqueConstraints = @UniqueConstraint(columnNames = {"club_id", "student_id"}))
 public class ClubMembership {
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
+
+    @CreationTimestamp
+    @Column(name = "created_at", nullable = false, updatable = false)
+    private Instant createdAt;
+
+    @UpdateTimestamp
+    @Column(name = "updated_at", nullable = false)
+    private Instant updatedAt;
+
+    @Version
+    @Column(nullable = false)
+    private Long version;
 
     @Column(name = "club_id", nullable = false)
     private UUID clubId; // Hangi kulüp (clubs.id'ye işaret eder)
@@ -21,7 +36,7 @@ public class ClubMembership {
 
     @Enumerated(EnumType.STRING)
     @Column(name = "club_role", nullable = false)
-    private ClubRole clubRole; // Kulüp içindeki görevi (Başkan, Üye, vb.)
+    private ClubPosition clubRole; // Kulüp içindeki görevi (Başkan, Üye, vb.)
 
     @Column(name = "is_active", nullable = false)
     private boolean isActive = true; // Aktif üyelik durumu
@@ -36,7 +51,7 @@ public class ClubMembership {
     public ClubMembership() {}
 
     // Service katmanında kullanılan convenience constructor
-    public ClubMembership(UUID clubId, UUID studentId, ClubRole clubRole) {
+    public ClubMembership(UUID clubId, UUID studentId, ClubPosition clubRole) {
         this.clubId = clubId;
         this.studentId = studentId;
         this.clubRole = clubRole;
@@ -50,12 +65,15 @@ public class ClubMembership {
     public void setClubId(UUID clubId) { this.clubId = clubId; }
     public UUID getStudentId() { return studentId; }
     public void setStudentId(UUID studentId) { this.studentId = studentId; }
-    public ClubRole getClubRole() { return clubRole; }
-    public void setClubRole(ClubRole clubRole) { this.clubRole = clubRole; }
+    public ClubPosition getClubRole() { return clubRole; }
+    public void setClubRole(ClubPosition clubRole) { this.clubRole = clubRole; }
     public boolean isActive() { return isActive; }
     public void setActive(boolean active) { isActive = active; }
     public LocalDateTime getTermStartDate() { return termStartDate; }
     public void setTermStartDate(LocalDateTime termStartDate) { this.termStartDate = termStartDate; }
     public LocalDateTime getTermEndDate() { return termEndDate; }
     public void setTermEndDate(LocalDateTime termEndDate) { this.termEndDate = termEndDate; }
+
+    public Instant getCreatedAt() { return createdAt; }
+    public Instant getUpdatedAt() { return updatedAt; }
 }

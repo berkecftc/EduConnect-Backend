@@ -1,12 +1,20 @@
 package com.educonnect.clubservice.dto.request; // Sizin paket adınız
 
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
+
 import java.util.UUID;
 
 // Lombok @Data kullanabilirsiniz
 public class CreateClubRequest {
+    @NotBlank(message = "Kulüp adı boş olamaz")
+    @Size(max = 255, message = "Kulüp adı en fazla 255 karakter olabilir")
     private String name;
     private String about;
+    @NotNull(message = "Danışman akademisyen zorunludur")
     private UUID academicAdvisorId;
+    @NotNull(message = "Kulüp başkanı zorunludur")
     private UUID clubPresidentId; // Kulübü kuran ve BAŞKAN olarak atanacak öğrencinin ID'si
 
     // --- Getter/Setter ---

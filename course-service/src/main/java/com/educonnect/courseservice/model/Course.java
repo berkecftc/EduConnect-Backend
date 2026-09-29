@@ -1,15 +1,31 @@
 package com.educonnect.courseservice.model;
 
 import jakarta.persistence.*;
+import com.educonnect.common.storage.ObjectUrlConverter;
 import java.util.UUID;
+import org.hibernate.annotations.CreationTimestamp;
+import java.time.Instant;
+import org.hibernate.annotations.UpdateTimestamp;
 
 @Entity
-@Table(name = "courses", schema = "course_db")
+@Table(name = "courses")
 public class Course {
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
+
+    @CreationTimestamp
+    @Column(name = "created_at", nullable = false, updatable = false)
+    private Instant createdAt;
+
+    @UpdateTimestamp
+    @Column(name = "updated_at", nullable = false)
+    private Instant updatedAt;
+
+    @Version
+    @Column(nullable = false)
+    private Long version;
 
     @Column(nullable = false)
     private String title;
@@ -30,6 +46,7 @@ public class Course {
     private UUID instructorId;
 
     @Column(name = "image_url")
+    @Convert(converter = ObjectUrlConverter.class)
     private String imageUrl; // MinIO URL'i
 
     public Course() {}
@@ -53,4 +70,7 @@ public class Course {
     public void setInstructorId(UUID instructorId) { this.instructorId = instructorId; }
     public String getImageUrl() { return imageUrl; }
     public void setImageUrl(String imageUrl) { this.imageUrl = imageUrl; }
+
+    public Instant getCreatedAt() { return createdAt; }
+    public Instant getUpdatedAt() { return updatedAt; }
 }

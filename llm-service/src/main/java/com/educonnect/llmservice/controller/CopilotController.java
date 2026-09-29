@@ -2,6 +2,8 @@ package com.educonnect.llmservice.controller;
 
 import com.educonnect.llmservice.service.CopilotService;
 import com.educonnect.llmservice.service.UnifiedAgentService;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotBlank;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -29,7 +31,7 @@ public class CopilotController {
         this.unifiedAgentService = unifiedAgentService;
     }
 
-    public record ChatRequest(String message) {}
+    public record ChatRequest(@NotBlank(message = "Mesaj boş olamaz") String message) {}
     public record ChatResponse(String reply) {}
 
     /**
@@ -39,7 +41,7 @@ public class CopilotController {
     @PostMapping("/instructor-copilot")
     public ResponseEntity<ChatResponse> askInstructorCopilot(
             @RequestHeader("X-Authenticated-User-Id") String instructorId,
-            @RequestBody ChatRequest request) {
+            @Valid @RequestBody ChatRequest request) {
 
         String reply = copilotService.chatWithInstructor(request.message(), instructorId);
         return ResponseEntity.ok(new ChatResponse(reply));
@@ -55,7 +57,7 @@ public class CopilotController {
     @PostMapping(value = "/student-assistant", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     public Flux<String> askStudentAssistant(
             @RequestHeader("X-Authenticated-User-Id") String studentId,
-            @RequestBody ChatRequest request) {
+            @Valid @RequestBody ChatRequest request) {
 
         return unifiedAgentService.chatWithStudentStream(studentId, request.message());
     }

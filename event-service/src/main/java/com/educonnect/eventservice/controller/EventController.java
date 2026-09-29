@@ -1,11 +1,14 @@
 package com.educonnect.eventservice.controller;
 
 import com.educonnect.eventservice.dto.MyEventRegistrationDTO;
+import com.educonnect.eventservice.dto.response.EventResponse;
+import com.educonnect.eventservice.dto.response.PageResponse;
 import com.educonnect.eventservice.model.Event;
-import com.educonnect.eventservice.model.EventRegistration;
 import com.educonnect.eventservice.service.EventService;
+import com.educonnect.common.web.ApiException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -25,46 +28,40 @@ public class EventController {
      * Aktif tüm etkinlikleri listeler.
      */
     @GetMapping
-    public ResponseEntity<List<Event>> getAllActiveEvents() {
-        return ResponseEntity.ok(eventService.getAllActiveEvents());
+    public ResponseEntity<List<EventResponse>> getAllActiveEvents() {
+        return ResponseEntity.ok(EventResponse.from(eventService.getAllActiveEvents()));
+    }
+
+    @GetMapping(params = "page")
+    public ResponseEntity<PageResponse<EventResponse>> getActiveEventsPage(@RequestParam int page,
+                                                                            @RequestParam(required = false) Integer size) {
+        return ResponseEntity.ok(eventService.getActiveEventsPage(page, size).map(EventResponse::from));
     }
 
     // 👇 ADMİN İÇİN ÖZEL ENDPOINT
     // Bu endpoint Bekleyen, Onaylanan, Reddedilen, Geçmiş... HEPSİNİ getirir.
     @GetMapping("/admin/all")
-    public ResponseEntity<List<Event>> getAllEventsForAdmin() {
-        return ResponseEntity.ok(eventService.getAllEventsForAdmin());
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<List<EventResponse>> getAllEventsForAdmin() {
+        return ResponseEntity.ok(EventResponse.from(eventService.getAllEventsForAdmin()));
     }
 
     /**
      * Tek bir etkinliğin detaylarını getirir.
      */
     @GetMapping("/{eventId}")
-    public ResponseEntity<Event> getEventDetails(@PathVariable UUID eventId) {
-        return ResponseEntity.ok(eventService.getEventDetails(eventId));
+    public ResponseEntity<EventResponse> getEventDetails(
+            @PathVariable UUID eventId,
+            @RequestHeader(value = "X-Authenticated-User-Id", required = false) String userIdHeader
+    ) {
+        UUID viewerId = userIdHeader != null ? UUID.fromString(userIdHeader) : null;
+        return ResponseEntity.ok(EventResponse.from(eventService.getEventDetailsForViewer(eventId, viewerId)));
     }
 
-    /**
-     * Öğrenci: Etkinliğe Kayıt Ol (Bilet Al).
-     */
     @PostMapping("/{eventId}/register")
-    public ResponseEntity<?> registerForEvent(
-            @PathVariable UUID eventId,
-            @RequestHeader("X-Authenticated-User-Id") String userIdHeader
-    ) {
-        try {
-            UUID studentId = UUID.fromString(userIdHeader);
-            EventRegistration registration = eventService.registerForEvent(eventId, studentId);
-
-            // Başarılı kayıtta bilet bilgisini (QR kod stringini) dönüyoruz
-            return ResponseEntity.status(HttpStatus.CREATED).body(registration);
-
-        } catch (IllegalStateException e) {
-            // "Zaten kayıtlı" veya "İptal edilmiş" hatası
-            return ResponseEntity.status(HttpStatus.CONFLICT).body(e.getMessage());
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Registration failed.");
-        }
+    public ResponseEntity<String> registerForEvent(@PathVariable UUID eventId) {
+        throw new ApiException(HttpStatus.GONE, "ENDPOINT_GONE",
+                "Etkinliğe doğrudan kayıt kapatıldı. Katılım için POST /api/events/{eventId}/participation-request kullanın.");
     }
 
     /**
@@ -83,13 +80,13 @@ public class EventController {
      * Öğrenciler üye oldukları kulübün etkinliklerini görmek için kullanır.
      */
     @GetMapping("/club/{clubId}")
-    public ResponseEntity<List<Event>> getClubEvents(@PathVariable UUID clubId) {
+    public ResponseEntity<List<EventResponse>> getClubEvents(@PathVariable UUID clubId) {
         List<Event> events = eventService.getEventsByClubId(clubId);
         // Sadece aktif etkinlikleri filtrele (öğrenciler için)
         List<Event> activeEvents = events.stream()
                 .filter(e -> e.getStatus() == com.educonnect.eventservice.model.EventStatus.ACTIVE)
                 .toList();
-        return ResponseEntity.ok(activeEvents);
+        return ResponseEntity.ok(EventResponse.from(activeEvents));
     }
 }
 

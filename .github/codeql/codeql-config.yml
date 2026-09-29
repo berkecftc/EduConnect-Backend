@@ -1,0 +1,8 @@
+name: EduConnect CodeQL
+
+queries:
+  - uses: security-extended
+
+query-filters:
+  - exclude:
+      id: java/spring-disabled-csrf-protection

@@ -1,6 +1,9 @@
 package com.educonnect.eventservice.config;
 
-import com.educonnect.eventservice.filter.GatewayAuthenticationFilter; // YENİ FİLTRE
+import com.educonnect.common.security.ServiceIdentity;
+import com.educonnect.common.security.VerifiedIdentityFilter;
+import com.educonnect.common.web.ProblemSecurityHandlers;
+import jakarta.servlet.DispatcherType;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
@@ -16,10 +19,13 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 @EnableMethodSecurity
 public class SecurityConfig {
 
-    private final GatewayAuthenticationFilter gatewayAuthenticationFilter;
+    private final VerifiedIdentityFilter verifiedIdentityFilter;
+    private final ProblemSecurityHandlers problemSecurityHandlers;
 
-    public SecurityConfig(GatewayAuthenticationFilter gatewayAuthenticationFilter) {
-        this.gatewayAuthenticationFilter = gatewayAuthenticationFilter;
+    public SecurityConfig(VerifiedIdentityFilter verifiedIdentityFilter,
+                          ProblemSecurityHandlers problemSecurityHandlers) {
+        this.verifiedIdentityFilter = verifiedIdentityFilter;
+        this.problemSecurityHandlers = problemSecurityHandlers;
     }
 
     @Bean
@@ -28,6 +34,9 @@ public class SecurityConfig {
                 .csrf(csrf -> csrf.disable())
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
+                        .dispatcherTypeMatchers(DispatcherType.ERROR).permitAll()
+                        .requestMatchers("/actuator/health", "/actuator/health/**", "/actuator/info", "/actuator/prometheus").permitAll()
+                        .requestMatchers("/api/*/internal/**").hasRole(ServiceIdentity.ROLE)
                         // ===== ACADEMICIAN (Advisor) endpoints - EN ÖNCE! =====
                         .requestMatchers(HttpMethod.GET, "/api/events/advisor/**").hasRole("ACADEMICIAN")
                         .requestMatchers(HttpMethod.POST, "/api/events/advisor/**").hasRole("ACADEMICIAN")
@@ -43,17 +52,16 @@ public class SecurityConfig {
                         // Participation request endpoints (authenticated)
                         .requestMatchers(HttpMethod.POST, "/api/events/*/participation-request").authenticated()
                         .requestMatchers(HttpMethod.GET, "/api/events/*/participation-requests/**").authenticated()
-                        .requestMatchers(HttpMethod.POST, "/api/events/participation-requests/*/approve").hasAnyRole("ADMIN", "CLUB_OFFICIAL")
-                        .requestMatchers(HttpMethod.POST, "/api/events/participation-requests/*/reject").hasAnyRole("ADMIN", "CLUB_OFFICIAL")
-                        .requestMatchers(HttpMethod.GET, "/api/events/official/pending-requests").hasAnyRole("ADMIN", "CLUB_OFFICIAL")
+                        .requestMatchers(HttpMethod.POST, "/api/events/participation-requests/*/approve").authenticated()
+                        .requestMatchers(HttpMethod.POST, "/api/events/participation-requests/*/reject").authenticated()
+                        .requestMatchers(HttpMethod.GET, "/api/events/official/pending-requests").authenticated()
 
-                        // Club Official/Admin management endpoints
-                        .requestMatchers(HttpMethod.POST, "/api/events/manage").hasAnyRole("ADMIN", "CLUB_OFFICIAL")
+                        .requestMatchers(HttpMethod.POST, "/api/events/manage").authenticated()
                         .requestMatchers(HttpMethod.GET, "/api/events/manage/pending").hasRole("ACADEMICIAN")
                         .requestMatchers(HttpMethod.POST, "/api/events/manage/*/approve").hasRole("ACADEMICIAN")
                         .requestMatchers(HttpMethod.POST, "/api/events/manage/*/reject").hasRole("ACADEMICIAN")
-                        .requestMatchers(HttpMethod.GET, "/api/events/manage/**").hasAnyRole("ADMIN", "CLUB_OFFICIAL", "ACADEMICIAN")
-                        .requestMatchers("/api/events/manage/**").hasAnyRole("ADMIN", "CLUB_OFFICIAL", "ACADEMICIAN")
+                        .requestMatchers("/api/events/manage/**").authenticated()
+                        .requestMatchers("/api/events/admin/**").hasRole("ADMIN")
 
                         // Event registration requires authentication
                         .requestMatchers("/api/events/*/register").authenticated()
@@ -65,7 +73,8 @@ public class SecurityConfig {
                         .anyRequest().authenticated()
                 )
                 // YENİ FİLTREYİ EKLE
-                .addFilterBefore(gatewayAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
+                .addFilterBefore(verifiedIdentityFilter, UsernamePasswordAuthenticationFilter.class)
+                .exceptionHandling(problemSecurityHandlers)
 
                 // Form login ve HTTP Basic'i devre dışı bırak (API Gateway üzerinden JWT kullanıyoruz)
                 .formLogin(form -> form.disable())

@@ -1,211 +1,65 @@
 package com.educonnect.authservices.service;
 
-import io.minio.*;
+import com.educonnect.common.storage.ObjectStorage;
+import com.educonnect.common.storage.ObjectStorage.BucketAccess;
+import com.educonnect.common.storage.StorageUrls;
+import com.educonnect.common.storage.UploadKind;
+import com.educonnect.common.storage.UploadValidator;
+import com.educonnect.common.storage.ValidatedUpload;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.time.Duration;
 import java.util.UUID;
 
 @Service
 public class MinioService {
 
-    private final MinioClient minioClient;
+    private static final Logger log = LoggerFactory.getLogger(MinioService.class);
+    private static final Duration PRESIGNED_URL_EXPIRY = Duration.ofMinutes(15);
 
-    @Value("${minio.bucket.name}")
-    private String bucketName;
-
-    private String minioUrl;
+    private final ObjectStorage storage;
 
     public MinioService(@Value("${minio.url}") String url,
                         @Value("${minio.access-key}") String accessKey,
                         @Value("${minio.secret-key}") String secretKey,
-                        @Value("${minio.bucket.name}") String bucketName) {
-        try {
-            this.minioClient = MinioClient.builder()
-                    .endpoint(url)
-                    .credentials(accessKey, secretKey)
-                    .build();
-            this.bucketName = bucketName;
-            this.minioUrl = url;
+                        @Value("${minio.bucket.name}") String bucketName,
+                        StorageUrls storageUrls,
+                        UploadValidator uploadValidator) {
+        this.storage = ObjectStorage.connect(url, accessKey, secretKey, bucketName, BucketAccess.PRIVATE,
+                storageUrls, uploadValidator);
+    }
 
-            ensureBucketExists();
-        } catch (Exception e) {
-            throw new RuntimeException("Error initializing Minio client", e);
+    public String createPresignedUrl(String storedUrl) {
+        try {
+            return storage.presignedGet(storedUrl, PRESIGNED_URL_EXPIRY);
+        } catch (RuntimeException e) {
+            log.error("Could not create presigned URL in bucket {}", storage.bucket(), e);
+            return null;
         }
     }
 
-    /**
-     * Bucket'ı kontrol eder, yoksa oluşturur ve Public Read yapar.
-     */
-    private void ensureBucketExists() {
-        try {
-            boolean exists = minioClient.bucketExists(
-                    BucketExistsArgs.builder()
-                            .bucket(bucketName)
-                            .build()
-            );
-
-            if (!exists) {
-                minioClient.makeBucket(
-                        MakeBucketArgs.builder()
-                                .bucket(bucketName)
-                                .build()
-                );
-                System.out.println("Auth Service: MinIO bucket oluşturuldu -> " + bucketName);
-            }
-
-            // Bucket politikasını "Public Read" olarak ayarla
-            String policyJson = String.format(
-                    "{\n" +
-                            "    \"Version\": \"2012-10-17\",\n" +
-                            "    \"Statement\": [\n" +
-                            "        {\n" +
-                            "            \"Effect\": \"Allow\",\n" +
-                            "            \"Principal\": {\"AWS\": [\"*\"]},\n" +
-                            "            \"Action\": [\"s3:GetObject\"],\n" +
-                            "            \"Resource\": [\"arn:aws:s3:::%s/*\"]\n" +
-                            "        }\n" +
-                            "    ]\n" +
-                            "}", bucketName);
-
-            minioClient.setBucketPolicy(
-                    SetBucketPolicyArgs.builder()
-                            .bucket(bucketName)
-                            .config(policyJson)
-                            .build()
-            );
-
-            System.out.println("Auth Service: Bucket politikası 'Public Read' olarak güncellendi.");
-
-        } catch (Exception e) {
-            throw new RuntimeException("Error checking/creating MinIO bucket: " + e.getMessage(), e);
-        }
-    }
-
-    /**
-     * Akademisyen kimlik kartı fotoğrafını MinIO'ya yükler ve TAM URL döner.
-     */
     public String uploadIdCardImage(MultipartFile file, UUID userId) {
-        try {
-            String fileExtension = getFileExtension(file.getOriginalFilename());
-            String objectName = "id-cards/" + userId.toString() + fileExtension;
-
-            minioClient.putObject(
-                    PutObjectArgs.builder()
-                            .bucket(bucketName)
-                            .object(objectName)
-                            .stream(file.getInputStream(), file.getSize(), -1)
-                            .contentType(file.getContentType())
-                            .build()
-            );
-
-            // Tam URL döner: http://localhost:9000/academician-id-cards/id-cards/uuid.jpg
-            return minioUrl + "/" + bucketName + "/" + objectName;
-
-        } catch (Exception e) {
-            throw new RuntimeException("Error uploading ID card image to MinIO: " + e.getMessage(), e);
-        }
+        return uploadDocument(file, "id-cards/", userId);
     }
 
-    /**
-     * MinIO'dan kimlik kartı fotoğrafını siler.
-     * @param imageUrl Silinecek fotoğrafın tam URL'si
-     */
     public void deleteIdCardImage(String imageUrl) {
-        if (imageUrl == null || imageUrl.isEmpty()) {
-            return;
-        }
-        try {
-            // URL'den object name'i çıkar: http://localhost:9000/bucket/id-cards/uuid.jpg -> id-cards/uuid.jpg
-            String objectName = extractObjectName(imageUrl);
-            if (objectName != null) {
-                minioClient.removeObject(
-                        RemoveObjectArgs.builder()
-                                .bucket(bucketName)
-                                .object(objectName)
-                                .build()
-                );
-                System.out.println("Auth Service: Kimlik kartı fotoğrafı silindi -> " + objectName);
-            }
-        } catch (Exception e) {
-            System.err.println("Error deleting ID card image from MinIO: " + e.getMessage());
-            // Silme hatası kritik değil, işlemi durdurmuyoruz
-        }
+        storage.delete(imageUrl);
     }
 
-    /**
-     * URL'den object name'i çıkarır.
-     */
-    private String extractObjectName(String imageUrl) {
-        if (imageUrl == null) return null;
-        // URL formatı: http://localhost:9000/bucket-name/id-cards/uuid.jpg
-        String bucketPath = "/" + bucketName + "/";
-        int bucketIndex = imageUrl.indexOf(bucketPath);
-        if (bucketIndex > 0) {
-            return imageUrl.substring(bucketIndex + bucketPath.length());
-        }
-        return null;
-    }
-
-    /**
-     * Dosya uzantısını alır.
-     */
-    private String getFileExtension(String filename) {
-        if (filename == null || filename.isEmpty()) {
-            return ".jpg";
-        }
-        int dotIndex = filename.lastIndexOf(".");
-        return dotIndex > 0 ? filename.substring(dotIndex) : ".jpg";
-    }
-
-    /**
-     * Öğrenci belgesini MinIO'ya yükler ve TAM URL döner.
-     */
     public String uploadStudentDocument(MultipartFile file, UUID userId) {
-        try {
-            String fileExtension = getFileExtension(file.getOriginalFilename());
-            String objectName = "student-documents/" + userId.toString() + fileExtension;
-
-            minioClient.putObject(
-                    PutObjectArgs.builder()
-                            .bucket(bucketName)
-                            .object(objectName)
-                            .stream(file.getInputStream(), file.getSize(), -1)
-                            .contentType(file.getContentType())
-                            .build()
-            );
-
-            // Tam URL döner: http://localhost:9000/bucket/student-documents/uuid.pdf
-            return minioUrl + "/" + bucketName + "/" + objectName;
-
-        } catch (Exception e) {
-            throw new RuntimeException("Error uploading student document to MinIO: " + e.getMessage(), e);
-        }
+        return uploadDocument(file, "student-documents/", userId);
     }
 
-    /**
-     * MinIO'dan öğrenci belgesini siler.
-     * @param documentUrl Silinecek belgenin tam URL'si
-     */
     public void deleteStudentDocument(String documentUrl) {
-        if (documentUrl == null || documentUrl.isEmpty()) {
-            return;
-        }
-        try {
-            String objectName = extractObjectName(documentUrl);
-            if (objectName != null) {
-                minioClient.removeObject(
-                        RemoveObjectArgs.builder()
-                                .bucket(bucketName)
-                                .object(objectName)
-                                .build()
-                );
-                System.out.println("Auth Service: Öğrenci belgesi silindi -> " + objectName);
-            }
-        } catch (Exception e) {
-            System.err.println("Error deleting student document from MinIO: " + e.getMessage());
-        }
+        storage.delete(documentUrl);
+    }
+
+    private String uploadDocument(MultipartFile file, String folder, UUID userId) {
+        ValidatedUpload upload = storage.validate(file, UploadKind.DOCUMENT);
+        return storage.put(file, upload, folder + userId + upload.extensionOr(".jpg"));
     }
 }
-

@@ -2,10 +2,14 @@ package com.educonnect.clubservice.config;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.amqp.core.Binding;
+import org.springframework.amqp.core.BindingBuilder;
 import org.springframework.amqp.core.DirectExchange;
+import org.springframework.amqp.core.Queue;
+import org.springframework.amqp.core.QueueBuilder;
 import org.springframework.amqp.rabbit.connection.ConnectionFactory;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
-import org.springframework.amqp.support.converter.Jackson2JsonMessageConverter;
+import org.springframework.amqp.support.converter.JacksonJsonMessageConverter;
 import org.springframework.amqp.support.converter.MessageConverter;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -15,29 +19,42 @@ public class ClubRabbitMQConfig {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(ClubRabbitMQConfig.class);
 
-    /**
-     * Mesajların gönderileceği ana exchange (auth-services ile aynı isim olmalı)
-     */
-    public static final String EXCHANGE_NAME = "user-exchange";
+    public static final String USER_EXCHANGE_NAME = "user-exchange";
 
-    /**
-     * Bu servisin 'club-exchange' adında bir DirectExchange kullanacağını Spring'e bildirir.
-     * @return DirectExchange bean'i
-     */
+    public static final String CLUB_EXCHANGE_NAME = "club-exchange";
+
+    public static final String USER_DELETED_QUEUE = "club-service.user.deleted";
+    public static final String USER_DELETED_ROUTING_KEY = "user.delete";
+
+    @Bean
+    public DirectExchange userExchange() {
+        return new DirectExchange(USER_EXCHANGE_NAME);
+    }
+
+    @Bean
+    public Queue userDeletedQueue() {
+        return QueueBuilder.durable(USER_DELETED_QUEUE).build();
+    }
+
+    @Bean
+    public Binding userDeletedBinding(Queue userDeletedQueue, DirectExchange userExchange) {
+        return BindingBuilder.bind(userDeletedQueue).to(userExchange).with(USER_DELETED_ROUTING_KEY);
+    }
+
     @Bean
     public DirectExchange clubExchange() {
-        return new DirectExchange(EXCHANGE_NAME);
+        return new DirectExchange(CLUB_EXCHANGE_NAME);
     }
 
     /**
      * RabbitMQ mesajlarını (örn: UUID içeren mesajlar) Java nesnelerinden
      * JSON formatına ve tam tersine dönüştürmek için bir MessageConverter bean'i oluşturur.
      * Bu, RabbitTemplate'in .convertAndSend() metodunun JSON kullanmasını sağlar.
-     * @return Jackson2JsonMessageConverter bean'i
+     * @return JacksonJsonMessageConverter bean'i
      */
     @Bean
     public MessageConverter jsonMessageConverter() {
-        return new Jackson2JsonMessageConverter();
+        return new JacksonJsonMessageConverter();
     }
 
     // Teşhis amaçlı publish confirm ve return callback'leri ekleyelim

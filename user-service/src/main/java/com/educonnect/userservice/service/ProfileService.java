@@ -1,5 +1,6 @@
 package com.educonnect.userservice.service;
 
+import com.educonnect.common.web.NotFoundException;
 import com.educonnect.userservice.dto.request.UpdateUserProfileRequest;
 import com.educonnect.userservice.dto.response.ArchivedAcademicianDTO;
 import com.educonnect.userservice.dto.response.ArchivedStudentDTO;
@@ -14,6 +15,8 @@ import com.educonnect.userservice.Repository.ArchivedStudentRepository;
 import com.educonnect.userservice.Repository.StudentRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.cache.Cache;
+import org.springframework.cache.CacheManager;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
@@ -21,7 +24,12 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -40,6 +48,7 @@ public class ProfileService {
     private final ArchivedAcademicianRepository archivedAcademicianRepository;
     private final MinioService minioService;
     private final GamificationEventPublisher gamificationEventPublisher;
+    private final CacheManager cacheManager;
 
     // Elle constructor ekleyelim
     public ProfileService(StudentRepository studentRepository,
@@ -47,13 +56,15 @@ public class ProfileService {
                          ArchivedStudentRepository archivedStudentRepository,
                          ArchivedAcademicianRepository archivedAcademicianRepository,
                          MinioService minioService,
-                         GamificationEventPublisher gamificationEventPublisher) {
+                         GamificationEventPublisher gamificationEventPublisher,
+                         CacheManager cacheManager) {
         this.studentRepository = studentRepository;
         this.academicianRepository = academicianRepository;
         this.archivedStudentRepository = archivedStudentRepository;
         this.archivedAcademicianRepository = archivedAcademicianRepository;
         this.minioService = minioService;
         this.gamificationEventPublisher = gamificationEventPublisher;
+        this.cacheManager = cacheManager;
     }
 
 
@@ -72,7 +83,14 @@ public class ProfileService {
             return mapToResponse(academician);
         }
 
-        throw new RuntimeException("Profile not found for user ID: " + userId);
+        throw new NotFoundException("PROFILE_NOT_FOUND", "Profile not found for user ID: " + userId);
+    }
+
+    public List<UserProfileResponse> getUserProfiles(Collection<UUID> userIds) {
+        Map<UUID, UserProfileResponse> profiles = new LinkedHashMap<>();
+        studentRepository.findAllById(userIds).forEach(student -> profiles.put(student.getId(), mapToResponse(student)));
+        academicianRepository.findAllById(userIds).forEach(academician -> profiles.putIfAbsent(academician.getId(), mapToResponse(academician)));
+        return new ArrayList<>(profiles.values());
     }
 
     @Transactional(readOnly = false)
@@ -81,6 +99,7 @@ public class ProfileService {
         Optional<Student> studentOpt = studentRepository.findById(userId);
         if (studentOpt.isPresent()) {
             Student student = studentOpt.get();
+            evictStudentNumber(student.getStudentNumber());
             boolean wasComplete = isStudentProfileComplete(student);
             applyCommonProfileUpdates(student, request);
             Student saved = studentRepository.save(student);
@@ -104,7 +123,7 @@ public class ProfileService {
             return mapToResponse(saved);
         }
 
-        throw new RuntimeException("Profile not found for user ID: " + userId);
+        throw new NotFoundException("PROFILE_NOT_FOUND", "Profile not found for user ID: " + userId);
     }
 
     // --- YENİ METOT: Profil Resmi Yükleme ---
@@ -121,7 +140,7 @@ public class ProfileService {
         Optional<Academician> academicianOpt = academicianRepository.findById(userId);
 
         if (studentOpt.isEmpty() && academicianOpt.isEmpty()) {
-            throw new RuntimeException(
+            throw new NotFoundException("PROFILE_NOT_FOUND",
                 "Profile not found for user ID: " + userId +
                 ". Please make sure your account has been properly registered and profile created. " +
                 "This may happen if you're using an old token or if profile creation failed."
@@ -135,6 +154,7 @@ public class ProfileService {
         // 3. Veritabanındaki kaydı güncelle
         if (studentOpt.isPresent()) {
             Student student = studentOpt.get();
+            evictStudentNumber(student.getStudentNumber());
             boolean wasComplete = isStudentProfileComplete(student);
             LOGGER.info("Updating student profile. Old profileImageUrl: {}, New: {}",
                 student.getProfileImageUrl(), objectName);
@@ -169,6 +189,7 @@ public class ProfileService {
     public void archiveStudent(UUID userId, String reason) {
         Student student = studentRepository.findById(userId)
             .orElseThrow(() -> new RuntimeException("Student not found with ID: " + userId));
+        evictStudentNumber(student.getStudentNumber());
 
         // Arşiv kaydı oluştur
         ArchivedStudent archivedStudent = new ArchivedStudent(
@@ -189,6 +210,7 @@ public class ProfileService {
 
         // Aktif tablodan sil
         studentRepository.delete(student);
+        minioService.deleteFilesAfterCommit(List.of(Objects.toString(student.getStudentDocumentUrl(), "")));
         LOGGER.info("Student removed from active table. ID: {}", student.getId());
     }
 
@@ -223,6 +245,7 @@ public class ProfileService {
 
         // Aktif tablodan sil
         academicianRepository.delete(academician);
+        minioService.deleteFilesAfterCommit(List.of(Objects.toString(academician.getIdCardImageUrl(), "")));
         LOGGER.info("Academician removed from active table. ID: {}", academician.getId());
     }
 
@@ -379,5 +402,19 @@ public class ProfileService {
 
     private boolean hasText(String value) {
         return value != null && !value.isBlank();
+    }
+
+    private void evictStudentNumber(String studentNumber) {
+        if (!hasText(studentNumber)) {
+            return;
+        }
+        try {
+            Cache cache = cacheManager.getCache(USER_PROFILE_BY_STUDENT_NUMBER_CACHE);
+            if (cache != null) {
+                cache.evict(studentNumber);
+            }
+        } catch (RuntimeException e) {
+            LOGGER.warn("{} cache temizlenemedi: {}", USER_PROFILE_BY_STUDENT_NUMBER_CACHE, e.getMessage());
+        }
     }
 }

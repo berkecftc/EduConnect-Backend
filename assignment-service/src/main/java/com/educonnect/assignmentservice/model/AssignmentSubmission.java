@@ -1,17 +1,33 @@
 package com.educonnect.assignmentservice.model;
 
 import jakarta.persistence.*;
+import com.educonnect.common.storage.ObjectUrlConverter;
 import java.time.LocalDateTime;
 import java.util.UUID;
+import org.hibernate.annotations.CreationTimestamp;
+import java.time.Instant;
+import org.hibernate.annotations.UpdateTimestamp;
 
 @Entity
-@Table(name = "assignment_submissions", schema = "assignment_db",
+@Table(name = "assignment_submissions",
         uniqueConstraints = @UniqueConstraint(columnNames = {"assignment_id", "student_id"}))
 public class AssignmentSubmission {
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
+
+    @CreationTimestamp
+    @Column(name = "created_at", nullable = false, updatable = false)
+    private Instant createdAt;
+
+    @UpdateTimestamp
+    @Column(name = "updated_at", nullable = false)
+    private Instant updatedAt;
+
+    @Version
+    @Column(nullable = false)
+    private Long version;
 
     @Column(name = "assignment_id", nullable = false)
     private UUID assignmentId;
@@ -20,6 +36,7 @@ public class AssignmentSubmission {
     private UUID studentId;
 
     @Column(name = "submission_file_url")
+    @Convert(converter = ObjectUrlConverter.class)
     private String submissionFileUrl; // MinIO'da saklanan teslim dosyasının URL'si
 
     @Column(name = "submitted_at", nullable = false)
@@ -70,5 +87,8 @@ public class AssignmentSubmission {
 
     public boolean isLate() { return isLate; }
     public void setLate(boolean late) { isLate = late; }
+
+    public Instant getCreatedAt() { return createdAt; }
+    public Instant getUpdatedAt() { return updatedAt; }
 }
 

@@ -1,0 +1,67 @@
+groups:
+  - name: educonnect
+    rules:
+      - alert: ServiceDown
+        expr: up{job="educonnect"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "{{ $labels.service }} yanıt vermiyor"
+          description: "Prometheus 1 dakikadır {{ $labels.service }} servisinden metrik alamıyor. Konteyner durumunu ve loglarını kontrol edin."
+
+      - alert: DeadLetterMessages
+        expr: rabbitmq_detailed_queue_messages{queue=~".+\\.dlq"} > 0
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "{{ $labels.queue }} kuyruğunda {{ $value }} işlenemeyen mesaj var"
+          description: "Mesajlar yeniden denemelerden sonra dead letter kuyruğuna düştü. RabbitMQ panelinde x-exception başlıklarına bakın, sorun giderilince mesajları asıl kuyruğa geri gönderin."
+
+      - alert: OutboxBacklog
+        expr: educonnect_outbox_oldest_pending_age_seconds > 300
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "{{ $labels.application }} outbox'ında 5 dakikadan eski gönderilmemiş mesaj var"
+          description: "Outbox relay mesajları RabbitMQ'ya iletemiyor (en eski bekleyen {{ $value | humanizeDuration }}). RabbitMQ bağlantısını ve servis loglarını kontrol edin."
+
+      - alert: CircuitBreakerOpen
+        expr: resilience4j_circuitbreaker_state{state="open"} == 1
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "{{ $labels.application }} → {{ $labels.name }} çağrıları kesildi (devre açık)"
+          description: "{{ $labels.name }} servisine yapılan çağrıların çoğu başarısız olduğu için devre açık. Hedef servisin sağlığını kontrol edin."
+
+      - alert: HighErrorRate
+        expr: |
+          (
+            sum by (application) (rate(http_server_requests_seconds_count{outcome="SERVER_ERROR"}[5m]))
+            /
+            sum by (application) (rate(http_server_requests_seconds_count[5m]))
+          ) > 0.05
+          and
+          sum by (application) (rate(http_server_requests_seconds_count[5m])) > 0.1
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "{{ $labels.application }} isteklerinin {{ $value | humanizePercentage }} kadarı 5xx ile bitiyor"
+          description: "Son 10 dakikada sunucu hatası oranı %5'in üstünde. Grafana'daki log panelinden hata mesajlarına ve trace'lere bakın."
+
+      - alert: HighHeapUsage
+        expr: |
+          sum by (application) (jvm_memory_used_bytes{area="heap"})
+          /
+          sum by (application) (jvm_memory_max_bytes{area="heap"} > 0)
+          > 0.9
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "{{ $labels.application }} heap kullanımı %90'ın üstünde"
+          description: "Servis bellek sınırına yaklaşıyor; bellek sızıntısı ya da yetersiz sınır olabilir (APP_MEM_LIMIT)."

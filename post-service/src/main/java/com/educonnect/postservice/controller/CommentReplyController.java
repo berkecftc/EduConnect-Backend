@@ -56,10 +56,12 @@ public class CommentReplyController {
     @GetMapping
     public ResponseEntity<List<CommentResponse>> getReplies(
             @PathVariable UUID commentId,
+            @RequestHeader("X-Authenticated-User-Id") String authenticatedUserId,
             @RequestHeader("X-Authenticated-User-Roles") String roles
     ) {
         postService.validatePostAccess(roles);
-        List<CommentResponse> replies = commentService.getRepliesByCommentId(commentId);
+        List<CommentResponse> replies = commentService.getRepliesByCommentId(commentId,
+                UUID.fromString(authenticatedUserId));
         return ResponseEntity.ok(replies);
     }
 }

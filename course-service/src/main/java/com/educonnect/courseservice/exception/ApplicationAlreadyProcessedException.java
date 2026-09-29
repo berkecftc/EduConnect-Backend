@@ -1,8 +1,9 @@
 package com.educonnect.courseservice.exception;
 
-public class ApplicationAlreadyProcessedException extends RuntimeException {
+import com.educonnect.common.web.ConflictException;
+
+public class ApplicationAlreadyProcessedException extends ConflictException {
     public ApplicationAlreadyProcessedException(String message) {
-        super(message);
+        super("APPLICATION_ALREADY_PROCESSED", message);
     }
 }
-

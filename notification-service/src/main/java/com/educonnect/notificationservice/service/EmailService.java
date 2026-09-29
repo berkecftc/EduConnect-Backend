@@ -1,7 +1,10 @@
 package com.educonnect.notificationservice.service;
 
+import com.educonnect.common.web.LogValues;
+import com.educonnect.common.security.LogMasking;
 import jakarta.mail.MessagingException;
 import jakarta.mail.internet.MimeMessage;
+import org.springframework.core.io.ByteArrayResource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -34,10 +37,10 @@ public class EmailService {
             message.setText(text);
 
             mailSender.send(message);
-            log.info("✅ Email sent successfully to: {} | Subject: {}", to, subject);
+            log.info("Email sent successfully to: {} | Subject: {}", LogValues.safe(LogMasking.email(to)), LogValues.safe(subject));
 
         } catch (Exception e) {
-            log.error("❌ Error sending email to {}: {}", to, e.getMessage());
+            log.error("Error sending email to {}: {}", LogValues.safe(LogMasking.email(to)), LogValues.safe(e.getMessage()));
         }
     }
 
@@ -52,10 +55,30 @@ public class EmailService {
             helper.setText(htmlBody, true);
 
             mailSender.send(message);
-            log.info("✅ HTML Email sent successfully to: {} | Subject: {}", to, subject);
+            log.info("HTML Email sent successfully to: {} | Subject: {}", LogValues.safe(LogMasking.email(to)), LogValues.safe(subject));
 
         } catch (MessagingException e) {
-            log.error("❌ Error sending HTML email to {}: {}", to, e.getMessage());
+            log.error("Error sending HTML email to {}: {}", LogValues.safe(LogMasking.email(to)), LogValues.safe(e.getMessage()));
+        }
+    }
+
+    public void sendHtmlEmailWithInlineImage(String to, String subject, String htmlBody,
+                                             String contentId, byte[] image, String imageContentType) {
+        try {
+            MimeMessage message = mailSender.createMimeMessage();
+            MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
+
+            helper.setFrom(fromAddress);
+            helper.setTo(to);
+            helper.setSubject(subject);
+            helper.setText(htmlBody, true);
+            helper.addInline(contentId, new ByteArrayResource(image), imageContentType);
+
+            mailSender.send(message);
+            log.info("HTML Email sent successfully to: {} | Subject: {}", LogValues.safe(LogMasking.email(to)), LogValues.safe(subject));
+
+        } catch (MessagingException e) {
+            log.error("Error sending HTML email to {}: {}", LogValues.safe(LogMasking.email(to)), LogValues.safe(e.getMessage()));
         }
     }
 }

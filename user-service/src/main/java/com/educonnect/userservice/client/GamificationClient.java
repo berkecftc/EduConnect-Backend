@@ -1,5 +1,6 @@
 package com.educonnect.userservice.client;
 
+import com.educonnect.common.security.ServiceTokenFeignConfiguration;
 import com.educonnect.userservice.client.dto.GamificationSummaryClientResponse;
 import com.educonnect.userservice.client.fallback.GamificationClientFallbackFactory;
 import org.springframework.cloud.openfeign.FeignClient;
@@ -11,7 +12,8 @@ import java.util.UUID;
 @FeignClient(
         name = "gamification-service",
         path = "/api/gamification",
-        fallbackFactory = GamificationClientFallbackFactory.class
+        fallbackFactory = GamificationClientFallbackFactory.class,
+        configuration = ServiceTokenFeignConfiguration.class
 )
 public interface GamificationClient {
 

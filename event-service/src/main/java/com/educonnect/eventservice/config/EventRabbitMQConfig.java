@@ -4,7 +4,7 @@ import org.springframework.amqp.core.Binding;
 import org.springframework.amqp.core.BindingBuilder;
 import org.springframework.amqp.core.DirectExchange;
 import org.springframework.amqp.core.Queue;
-import org.springframework.amqp.support.converter.Jackson2JsonMessageConverter;
+import org.springframework.amqp.support.converter.JacksonJsonMessageConverter;
 import org.springframework.amqp.support.converter.MessageConverter;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -30,9 +30,28 @@ public class EventRabbitMQConfig {
     // ... mevcut sabitler ...
     public static final String ROUTING_KEY_EVENT_REGISTERED = "event.registered";
 
+    public static final String USER_EXCHANGE_NAME = "user-exchange";
+    public static final String USER_DELETED_QUEUE = "event-service.user.deleted";
+    public static final String USER_DELETED_ROUTING_KEY = "user.delete";
+
     @Bean
     public DirectExchange clubExchange() {
         return new DirectExchange(CLUB_EXCHANGE_NAME);
+    }
+
+    @Bean
+    public DirectExchange userExchange() {
+        return new DirectExchange(USER_EXCHANGE_NAME);
+    }
+
+    @Bean
+    public Queue userDeletedQueue() {
+        return new Queue(USER_DELETED_QUEUE);
+    }
+
+    @Bean
+    public Binding userDeletedBinding(Queue userDeletedQueue, DirectExchange userExchange) {
+        return BindingBuilder.bind(userDeletedQueue).to(userExchange).with(USER_DELETED_ROUTING_KEY);
     }
 
     @Bean
@@ -47,7 +66,7 @@ public class EventRabbitMQConfig {
 
     @Bean
     public MessageConverter jsonMessageConverter() {
-        return new Jackson2JsonMessageConverter();
+        return new JacksonJsonMessageConverter();
     }
 
     // 1. YENİ KUYRUK: Güncelleme mesajları için

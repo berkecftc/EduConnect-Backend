@@ -1,0 +1,19 @@
+spring:
+  datasource:
+    hikari:
+      schema: event_db
+  application:
+    name: event-service
+  config:
+    import: "classpath:educonnect-integration.yml"
+  jpa:
+    properties:
+      hibernate:
+        default_schema: event_db
+  flyway:
+    schemas: event_db
+    default-schema: event_db
+
+minio:
+  bucket:
+    name: events-bucket

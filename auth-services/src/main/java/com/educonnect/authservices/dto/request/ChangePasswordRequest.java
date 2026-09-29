@@ -1,9 +1,14 @@
 package com.educonnect.authservices.dto.request; // Sizin paket adınız
 
+import jakarta.validation.constraints.NotEmpty;
+
 public class ChangePasswordRequest {
 
+    @NotEmpty(message = "Mevcut şifre boş olamaz")
     private String currentPassword;
+    @NotEmpty(message = "Yeni şifre boş olamaz")
     private String newPassword;
+    @NotEmpty(message = "Şifre tekrarı boş olamaz")
     private String confirmationPassword;
 
     // --- Getter ve Setter metotları ---

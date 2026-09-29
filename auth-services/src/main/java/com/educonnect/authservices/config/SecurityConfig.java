@@ -3,9 +3,13 @@ package com.educonnect.authservices.config;
 import com.educonnect.authservices.Repository.UserRepository;
 import com.educonnect.authservices.security.JwtAuthenticationFilter;
 import com.educonnect.authservices.service.JWTService;
+import com.educonnect.common.web.ProblemSecurityHandlers;
+import jakarta.servlet.DispatcherType;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.AuthenticationProvider;
 import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
@@ -30,15 +34,19 @@ import java.util.List;
 @Configuration
 @EnableWebSecurity
 @EnableMethodSecurity
+@EnableConfigurationProperties({ServiceClientsProperties.class, AuthSecurityProperties.class})
 public class SecurityConfig {
 
     private final UserRepository userRepository;
     private final JWTService jwtService;
+    private final ProblemSecurityHandlers problemSecurityHandlers;
 
     @Autowired
-    public SecurityConfig(UserRepository userRepository, JWTService jwtService) {
+    public SecurityConfig(UserRepository userRepository, JWTService jwtService,
+                          ProblemSecurityHandlers problemSecurityHandlers) {
         this.userRepository = userRepository;
         this.jwtService = jwtService;
+        this.problemSecurityHandlers = problemSecurityHandlers;
     }
 
     // 1. HTTP Güvenlik Filtre Zinciri
@@ -47,16 +55,21 @@ public class SecurityConfig {
         http
                 .csrf(csrf -> csrf.disable())
                 .authorizeHttpRequests(auth -> auth
+                        .dispatcherTypeMatchers(DispatcherType.ERROR).permitAll()
+                        .requestMatchers("/actuator/health", "/actuator/health/**", "/actuator/info", "/actuator/prometheus").permitAll()
+                        .requestMatchers("/.well-known/jwks.json").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/auth/internal/token").permitAll()
+                        .requestMatchers("/api/auth/internal/**").hasRole("SERVICE")
                         .requestMatchers("/api/auth/register",
                                          "/api/auth/login",
                                          "/api/auth/refresh",
                                          "/api/auth/logout",
                                          "/api/auth/forgot-password",
                                          "/api/auth/reset-password",
-                                         "/api/auth/users/emails",
-                                         "/{clubId}/members/ids",
                                          "/api/auth/request/academician-account",
-                                         "/api/auth/request/student-account").permitAll()
+                                         "/api/auth/request/student-account",
+                                         "/api/auth/verify-email",
+                                         "/api/auth/resend-verification").permitAll()
                         .requestMatchers("/api/auth/admin/**").hasRole("ADMIN")
                         .anyRequest().authenticated()
                 )
@@ -69,7 +82,8 @@ public class SecurityConfig {
 
                 // Form login ve HTTP Basic'i devre dışı bırak
                 .formLogin(form -> form.disable())
-                .httpBasic(basic -> basic.disable());
+                .httpBasic(basic -> basic.disable())
+                .exceptionHandling(problemSecurityHandlers);
 
         // JWT doğrulama filtresini UsernamePasswordAuthenticationFilter'dan önce ekle
         http.addFilterBefore(new JwtAuthenticationFilter(jwtService, userDetailsService()),
@@ -81,8 +95,7 @@ public class SecurityConfig {
 
     @Bean
     public AuthenticationProvider authenticationProvider() {
-        DaoAuthenticationProvider authProvider = new DaoAuthenticationProvider();
-        authProvider.setUserDetailsService(userDetailsService()); // 3. Adım
+        DaoAuthenticationProvider authProvider = new DaoAuthenticationProvider(userDetailsService());
         authProvider.setPasswordEncoder(passwordEncoder()); // 4. Adım
         return authProvider;
     }
@@ -95,7 +108,7 @@ public class SecurityConfig {
 
     @Bean
     public PasswordEncoder passwordEncoder() {
-        return new BCryptPasswordEncoder();
+        return new BCryptPasswordEncoder(12);
     }
 
     @Bean

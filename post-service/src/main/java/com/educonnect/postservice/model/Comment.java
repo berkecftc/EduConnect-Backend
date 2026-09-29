@@ -15,7 +15,7 @@ import java.util.UUID;
  * Yanıta yanıt verilmez — sadece tek seviye derinlik desteklenir.
  */
 @Entity
-@Table(name = "comments", schema = "post_db", indexes = {
+@Table(name = "comments", indexes = {
         @Index(name = "idx_comment_post_id", columnList = "post_id"),
         @Index(name = "idx_comment_author_id", columnList = "author_id"),
         @Index(name = "idx_comment_parent_id", columnList = "parent_comment_id"),
@@ -31,7 +31,7 @@ public class Comment {
     @Column(name = "post_id", nullable = false)
     private UUID postId;
 
-    @Column(name = "author_id", nullable = false)
+    @Column(name = "author_id")
     private UUID authorId;
 
     @Column(name = "parent_comment_id")

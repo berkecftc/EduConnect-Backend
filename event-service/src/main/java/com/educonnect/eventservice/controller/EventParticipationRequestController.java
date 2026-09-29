@@ -1,10 +1,12 @@
 package com.educonnect.eventservice.controller;
 
 import com.educonnect.eventservice.dto.request.CreateParticipationRequestDTO;
+import com.educonnect.eventservice.dto.request.RejectParticipationRequestDTO;
 import com.educonnect.eventservice.dto.response.EventParticipationRequestDTO;
 import com.educonnect.eventservice.model.EventParticipationRequest;
 import com.educonnect.eventservice.model.EventRegistration;
 import com.educonnect.eventservice.service.EventParticipationRequestService;
+import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -36,24 +38,20 @@ public class EventParticipationRequestController {
     @PostMapping("/{eventId}/participation-request")
     public ResponseEntity<?> createParticipationRequest(
             @PathVariable UUID eventId,
-            @RequestBody(required = false) CreateParticipationRequestDTO requestDTO,
+            @Valid @RequestBody(required = false) CreateParticipationRequestDTO requestDTO,
             @RequestHeader("X-Authenticated-User-Id") String userIdHeader
     ) {
-        try {
-            UUID studentId = UUID.fromString(userIdHeader);
-            String message = requestDTO != null ? requestDTO.getMessage() : null;
+        UUID studentId = UUID.fromString(userIdHeader);
+        String message = requestDTO != null ? requestDTO.getMessage() : null;
 
-            EventParticipationRequest request = participationRequestService
-                    .createParticipationRequest(eventId, studentId, message);
+        EventParticipationRequest request = participationRequestService
+                .createParticipationRequest(eventId, studentId, message);
 
-            return ResponseEntity.status(HttpStatus.CREATED).body(Map.of(
-                    "message", "Katılım isteğiniz alındı. Kulüp yetkilisi onayladıktan sonra biletiniz e-posta adresinize gönderilecektir.",
-                    "requestId", request.getId(),
-                    "status", request.getStatus()
-            ));
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("error", e.getMessage()));
-        }
+        return ResponseEntity.status(HttpStatus.CREATED).body(Map.of(
+                "message", "Katılım isteğiniz alındı. Kulüp yetkilisi onayladıktan sonra biletiniz e-posta adresinize gönderilecektir.",
+                "requestId", request.getId(),
+                "status", request.getStatus()
+        ));
     }
 
     /**
@@ -117,19 +115,15 @@ public class EventParticipationRequestController {
             @PathVariable UUID requestId,
             @RequestHeader("X-Authenticated-User-Id") String userIdHeader
     ) {
-        try {
-            UUID approverId = UUID.fromString(userIdHeader);
-            EventRegistration registration = participationRequestService
-                    .approveParticipationRequest(requestId, approverId);
+        UUID approverId = UUID.fromString(userIdHeader);
+        EventRegistration registration = participationRequestService
+                .approveParticipationRequest(requestId, approverId);
 
-            return ResponseEntity.ok(Map.of(
-                    "message", "Katılım isteği onaylandı. Öğrenciye QR kodlu bilet e-posta ile gönderildi.",
-                    "registrationId", registration.getId(),
-                    "qrCode", registration.getQrCode()
-            ));
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("error", e.getMessage()));
-        }
+        return ResponseEntity.ok(Map.of(
+                "message", "Katılım isteği onaylandı. Öğrenciye QR kodlu bilet e-posta ile gönderildi.",
+                "registrationId", registration.getId(),
+                "qrCode", registration.getQrCode()
+        ));
     }
 
     /**
@@ -139,24 +133,20 @@ public class EventParticipationRequestController {
     @PostMapping("/participation-requests/{requestId}/reject")
     public ResponseEntity<?> rejectParticipationRequest(
             @PathVariable UUID requestId,
-            @RequestBody(required = false) Map<String, String> body,
+            @Valid @RequestBody(required = false) RejectParticipationRequestDTO body,
             @RequestHeader("X-Authenticated-User-Id") String userIdHeader
     ) {
-        try {
-            UUID rejecterId = UUID.fromString(userIdHeader);
-            String rejectionReason = body != null ? body.get("reason") : null;
+        UUID rejecterId = UUID.fromString(userIdHeader);
+        String rejectionReason = body != null ? body.reason() : null;
 
-            EventParticipationRequest request = participationRequestService
-                    .rejectParticipationRequest(requestId, rejecterId, rejectionReason);
+        EventParticipationRequest request = participationRequestService
+                .rejectParticipationRequest(requestId, rejecterId, rejectionReason);
 
-            return ResponseEntity.ok(Map.of(
-                    "message", "Katılım isteği reddedildi.",
-                    "requestId", request.getId(),
-                    "status", request.getStatus()
-            ));
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("error", e.getMessage()));
-        }
+        return ResponseEntity.ok(Map.of(
+                "message", "Katılım isteği reddedildi.",
+                "requestId", request.getId(),
+                "status", request.getStatus()
+        ));
     }
 }
 

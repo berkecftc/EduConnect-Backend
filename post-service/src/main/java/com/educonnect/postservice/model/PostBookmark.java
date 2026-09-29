@@ -12,7 +12,7 @@ import java.util.UUID;
  * Bir kullanıcı aynı post'u en fazla bir kez kaydedebilir (unique constraint: post_id + user_id).
  */
 @Entity
-@Table(name = "post_bookmarks", schema = "post_db",
+@Table(name = "post_bookmarks",
         uniqueConstraints = @UniqueConstraint(name = "uq_post_bookmark_user", columnNames = {"post_id", "user_id"}),
         indexes = {
                 @Index(name = "idx_bookmark_post_id", columnList = "post_id"),

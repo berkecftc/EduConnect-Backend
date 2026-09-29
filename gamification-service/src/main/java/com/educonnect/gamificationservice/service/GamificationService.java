@@ -31,6 +31,7 @@ import java.time.OffsetDateTime;
 import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
@@ -161,7 +162,7 @@ public class GamificationService {
                         badge.getBadgeType().name(),
                         badge.getBadgeType().getDisplayName(),
                         badge.getBadgeType().getDescription(),
-                        "/api/gamification/badges/" + badge.getBadgeType().name().toLowerCase() + "/image",
+                        "/api/gamification/badges/" + badge.getBadgeType().name().toLowerCase(Locale.ROOT) + "/image",
                         badge.getEarnedAt()
                 ))
                 .toList();
