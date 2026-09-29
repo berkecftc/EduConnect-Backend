@@ -1,9 +1,11 @@
 package com.educonnect.clubservice.service;
 
-import com.educonnect.clubservice.Repository.ClubMembershipRepository;
-import com.educonnect.clubservice.Repository.ClubRepository;
-import com.educonnect.clubservice.Repository.RoleChangeRequestRepository;
+import com.educonnect.clubservice.repository.ClubMembershipRepository;
+import com.educonnect.clubservice.repository.ClubRepository;
+import com.educonnect.clubservice.repository.RoleChangeRequestRepository;
 import com.educonnect.clubservice.client.UserClient;
+import com.educonnect.clubservice.config.ClubRabbitMQConfig;
+import com.educonnect.clubservice.dto.message.RoleChangeNotificationMessage;
 import com.educonnect.clubservice.dto.request.CreateRoleChangeRequestDTO;
 import com.educonnect.clubservice.model.Club;
 import com.educonnect.clubservice.model.ClubMembership;
@@ -46,6 +48,7 @@ class RoleChangeRequestServiceTest {
     private OutboxPublisher outboxPublisher;
     private ClubManagementStatusPublisher managementStatusPublisher;
     private RoleChangeRequestService service;
+    private RoleChangeDecisionService decisionService;
 
     @BeforeEach
     void setUp() {
@@ -55,8 +58,16 @@ class RoleChangeRequestServiceTest {
         authorizationService = mock(ClubAuthorizationService.class);
         outboxPublisher = mock(OutboxPublisher.class);
         managementStatusPublisher = mock(ClubManagementStatusPublisher.class);
+        UserClient userClient = mock(UserClient.class);
+        RoleChangeUserNames userNames = new RoleChangeUserNames(userClient);
+        RoleChangeRequestMapper mapper = new RoleChangeRequestMapper(userNames);
+        RoleChangeNotifier notifier = new RoleChangeNotifier(outboxPublisher, userNames);
+        ClubPositionRules positionRules = new ClubPositionRules(membershipRepository, requestRepository, authorizationService);
         service = new RoleChangeRequestService(requestRepository, membershipRepository, clubRepository,
-                mock(UserClient.class), outboxPublisher, authorizationService, mock(ClubCacheEvictor.class), managementStatusPublisher);
+                userClient, authorizationService, positionRules, notifier, mapper);
+        decisionService = new RoleChangeDecisionService(requestRepository, membershipRepository, clubRepository,
+                authorizationService, mock(ClubCacheEvictor.class), managementStatusPublisher,
+                positionRules, notifier, userNames, mapper);
 
         Club club = new Club();
         club.setId(clubId);
@@ -151,7 +162,7 @@ class RoleChangeRequestServiceTest {
         UUID requestId = UUID.randomUUID();
         when(requestRepository.findById(requestId)).thenReturn(Optional.of(request));
 
-        service.approveRoleChangeRequest(requestId, advisorId);
+        decisionService.approveRoleChangeRequest(requestId, advisorId);
 
         assertThat(target.getClubRole()).isEqualTo(ClubPosition.MEMBER);
         assertThat(target.getTermEndDate()).isNotNull();
@@ -168,7 +179,7 @@ class RoleChangeRequestServiceTest {
         when(authorizationService.require(clubId, presidentId, ClubPermission.ADVISE))
                 .thenThrow(new ResponseStatusException(HttpStatus.FORBIDDEN));
 
-        assertThatThrownBy(() -> service.approveRoleChangeRequest(requestId, presidentId))
+        assertThatThrownBy(() -> decisionService.approveRoleChangeRequest(requestId, presidentId))
                 .isInstanceOf(ResponseStatusException.class)
                 .hasMessageContaining("403");
         assertThat(request.getStatus()).isEqualTo(RoleChangeRequestStatus.PENDING);
@@ -181,7 +192,7 @@ class RoleChangeRequestServiceTest {
         UUID requestId = UUID.randomUUID();
         when(requestRepository.findById(requestId)).thenReturn(Optional.of(request));
 
-        assertThatThrownBy(() -> service.approveRoleChangeRequest(requestId, advisorId))
+        assertThatThrownBy(() -> decisionService.approveRoleChangeRequest(requestId, advisorId))
                 .isInstanceOf(ResponseStatusException.class)
                 .hasMessageContaining("409");
     }
@@ -192,10 +203,27 @@ class RoleChangeRequestServiceTest {
         when(membershipRepository.findByClubIdAndClubRoleAndIsActive(clubId, ClubPosition.PRESIDENT, true))
                 .thenReturn(List.of(president));
 
-        service.removePresidentByAdvisor(clubId, advisorId, "Görev ihmali");
+        decisionService.removePresidentByAdvisor(clubId, advisorId, "Görev ihmali");
 
         assertThat(president.getClubRole()).isEqualTo(ClubPosition.MEMBER);
         assertThat(president.getTermEndDate()).isNotNull();
         verify(managementStatusPublisher).publishCurrentStatus(presidentId);
+    }
+
+    @Test
+    void roleChangeNotificationsKeepWireValues() {
+        givenMembership(studentId, ClubPosition.MEMBER);
+
+        service.createRoleChangeRequest(clubId, requestFor(studentId, ClubPosition.TREASURER), presidentId);
+
+        ArgumentCaptor<Object> payload = ArgumentCaptor.forClass(Object.class);
+        verify(outboxPublisher).publish(eq(ClubRabbitMQConfig.CLUB_EXCHANGE_NAME),
+                eq("club.role.change.notification"), payload.capture());
+        RoleChangeNotificationMessage message = (RoleChangeNotificationMessage) payload.getValue();
+        assertThat(message.getTargetUserId()).isEqualTo(advisorId);
+        assertThat(message.getStatus()).isEqualTo("PENDING");
+        assertThat(message.getNotificationType()).isEqualTo("ROLE_CHANGE_REQUEST");
+        assertThat(message.getPreviousRole()).isEqualTo("MEMBER");
+        assertThat(message.getNewRole()).isEqualTo("TREASURER");
     }
 }

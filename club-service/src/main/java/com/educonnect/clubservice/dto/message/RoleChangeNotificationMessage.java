@@ -11,6 +11,19 @@ public class RoleChangeNotificationMessage implements Serializable {
 
     private static final long serialVersionUID = 1L;
 
+    public enum Status {
+        PENDING,
+        APPROVED,
+        REJECTED
+    }
+
+    public enum Type {
+        ROLE_CHANGE_REQUEST,
+        ROLE_CHANGE_APPROVED,
+        ROLE_CHANGE_REJECTED,
+        ROLE_REVOKED
+    }
+
     private UUID targetUserId;      // Bildirimi alacak kullanıcı
     private UUID clubId;
     private String clubName;
@@ -71,4 +84,3 @@ public class RoleChangeNotificationMessage implements Serializable {
     public String getNotificationType() { return notificationType; }
     public void setNotificationType(String notificationType) { this.notificationType = notificationType; }
 }
-

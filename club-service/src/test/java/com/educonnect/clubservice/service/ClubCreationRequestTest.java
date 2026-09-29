@@ -1,16 +1,13 @@
 package com.educonnect.clubservice.service;
 
-import com.educonnect.clubservice.Repository.ArchivedClubRepository;
-import com.educonnect.clubservice.Repository.ClubCreationRequestRepository;
-import com.educonnect.clubservice.Repository.ClubMembershipRepository;
-import com.educonnect.clubservice.Repository.ClubRepository;
+import com.educonnect.clubservice.repository.ClubCreationRequestRepository;
+import com.educonnect.clubservice.repository.ClubMembershipRepository;
+import com.educonnect.clubservice.repository.ClubRepository;
 import com.educonnect.clubservice.client.UserClient;
-import com.educonnect.clubservice.client.UserLookup;
 import com.educonnect.clubservice.dto.request.SubmitClubRequest;
 import com.educonnect.clubservice.model.ClubCreationRequest;
 import com.educonnect.clubservice.model.ClubCreationRequestStatus;
 import com.educonnect.clubservice.security.ClubAuthorizationService;
-import com.educonnect.common.messaging.outbox.OutboxPublisher;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpStatus;
@@ -34,16 +31,15 @@ class ClubCreationRequestTest {
 
     private ClubCreationRequestRepository requestRepository;
     private UserClient userClient;
-    private ClubService service;
+    private ClubFoundingService service;
 
     @BeforeEach
     void setUp() {
         requestRepository = mock(ClubCreationRequestRepository.class);
         userClient = mock(UserClient.class);
-        service = new ClubService(mock(ClubRepository.class), mock(ClubMembershipRepository.class),
-                mock(OutboxPublisher.class), mock(MinioService.class), requestRepository, userClient,
-                mock(ArchivedClubRepository.class), mock(ClubAuthorizationService.class), mock(ClubCacheEvictor.class),
-                mock(ClubManagementStatusPublisher.class), mock(ClubNotificationPublisher.class), mock(UserLookup.class));
+        service = new ClubFoundingService(mock(ClubRepository.class), mock(ClubMembershipRepository.class),
+                requestRepository, userClient, mock(ClubAuthorizationService.class), mock(ClubCacheEvictor.class),
+                mock(ClubManagementStatusPublisher.class), mock(ClubNotificationPublisher.class));
     }
 
     @Test

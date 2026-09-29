@@ -1,8 +1,6 @@
 package com.educonnect.notificationservice.config;
 
 import org.springframework.amqp.core.*;
-import org.springframework.amqp.support.converter.JacksonJsonMessageConverter;
-import org.springframework.amqp.support.converter.MessageConverter;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -144,10 +142,6 @@ public class NotificationRabbitMQConfig {
     }
 
     // JSON Dönüştürücü
-    @Bean
-    public MessageConverter jsonMessageConverter() {
-        return new JacksonJsonMessageConverter();
-    }
 
     // --- USER EXCHANGE TANIMLARI ---
     @Bean

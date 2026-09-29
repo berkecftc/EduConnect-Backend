@@ -1,5 +1,6 @@
 package com.educonnect.userservice.service;
 
+import com.educonnect.common.web.NotFoundException;
 import com.educonnect.userservice.dto.response.UserProfileResponse;
 import com.educonnect.userservice.dto.response.UserProfileResponseDTO;
 import org.springframework.http.HttpStatus;
@@ -57,7 +58,7 @@ public class ProfileViewService {
     public UserProfileResponse getStudentByStudentNumberForService(String studentNumber) {
         try {
             return profileService.getStudentByStudentNumber(studentNumber);
-        } catch (RuntimeException e) {
+        } catch (NotFoundException e) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Student not found");
         }
     }
@@ -74,7 +75,7 @@ public class ProfileViewService {
     private UserProfileResponse findProfile(UUID userId) {
         try {
             return profileService.getUserProfile(userId);
-        } catch (RuntimeException e) {
+        } catch (NotFoundException e) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Profile not found");
         }
     }

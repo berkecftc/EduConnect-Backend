@@ -3,7 +3,7 @@ package com.educonnect.clubservice.controller;
 import com.educonnect.clubservice.dto.response.ClubAccessResponse;
 import com.educonnect.clubservice.dto.response.ClubCatalogEntry;
 import com.educonnect.clubservice.security.ClubAuthorizationService;
-import com.educonnect.clubservice.service.ClubService;
+import com.educonnect.clubservice.service.ClubQueryService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -18,42 +18,42 @@ import java.util.UUID;
 @RequestMapping("/api/clubs/internal")
 public class InternalClubController {
 
-    private final ClubService clubService;
+    private final ClubQueryService clubQueryService;
     private final ClubAuthorizationService clubAuthorizationService;
 
-    public InternalClubController(ClubService clubService, ClubAuthorizationService clubAuthorizationService) {
-        this.clubService = clubService;
+    public InternalClubController(ClubQueryService clubQueryService, ClubAuthorizationService clubAuthorizationService) {
+        this.clubQueryService = clubQueryService;
         this.clubAuthorizationService = clubAuthorizationService;
     }
 
     @GetMapping("/catalog")
     public ResponseEntity<List<ClubCatalogEntry>> getClubCatalog() {
-        return ResponseEntity.ok(clubService.getClubCatalog());
+        return ResponseEntity.ok(clubQueryService.getClubCatalog());
     }
 
     @GetMapping("/{clubId}/members/ids")
     public ResponseEntity<List<UUID>> getClubMemberIds(@PathVariable UUID clubId) {
-        return ResponseEntity.ok(clubService.getActiveMemberIds(clubId));
+        return ResponseEntity.ok(clubQueryService.getActiveMemberIds(clubId));
     }
 
     @GetMapping("/{clubId}/is-member/{studentId}")
     public ResponseEntity<Boolean> isStudentMemberOfClub(@PathVariable UUID clubId, @PathVariable UUID studentId) {
-        return ResponseEntity.ok(clubService.isStudentMemberOfClub(clubId, studentId));
+        return ResponseEntity.ok(clubQueryService.isStudentMemberOfClub(clubId, studentId));
     }
 
     @GetMapping("/{clubId}/advisor-id")
     public ResponseEntity<UUID> getClubAdvisorId(@PathVariable UUID clubId) {
-        return ResponseEntity.ok(clubService.getClubAdvisorId(clubId));
+        return ResponseEntity.ok(clubQueryService.getClubAdvisorId(clubId));
     }
 
     @GetMapping("/by-name")
     public ResponseEntity<UUID> getClubIdByName(@RequestParam String name) {
-        return ResponseEntity.ok(clubService.getClubIdByName(name));
+        return ResponseEntity.ok(clubQueryService.getClubIdByName(name));
     }
 
     @GetMapping("/by-advisor/{advisorId}/ids")
     public ResponseEntity<List<UUID>> getClubIdsByAdvisor(@PathVariable UUID advisorId) {
-        return ResponseEntity.ok(clubService.getClubIdsByAdvisorId(advisorId));
+        return ResponseEntity.ok(clubQueryService.getClubIdsByAdvisorId(advisorId));
     }
 
     @GetMapping("/{clubId}/access/{userId}")

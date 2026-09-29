@@ -1,4 +1,4 @@
-package com.educonnect.authservices.Repository;
+package com.educonnect.authservices.repository;
 
 import com.educonnect.authservices.models.PasswordResetToken;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -14,4 +14,3 @@ public interface PasswordResetTokenRepository extends JpaRepository<PasswordRese
 
     void deleteByUserId(UUID userId);
 }
-

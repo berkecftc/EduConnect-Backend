@@ -43,7 +43,7 @@ mvn -pl gamification-service spring-boot:run
 
 ```bash
 cd /Users/berkeciftci/Desktop/EduConnect-Backend
-mvn -pl gamification-service -DskipTests=false test
+mvn -pl gamification-service test
 ```
 
 ## Faz-2 Backlog

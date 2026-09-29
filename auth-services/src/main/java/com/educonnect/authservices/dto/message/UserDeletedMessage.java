@@ -4,6 +4,12 @@ import java.util.UUID;
 
 public class UserDeletedMessage {
 
+    public enum UserType {
+        STUDENT,
+        ACADEMICIAN,
+        UNKNOWN
+    }
+
     private UUID userId;
     private String userType; // "STUDENT" veya "ACADEMICIAN"
     private String reason;
@@ -41,4 +47,3 @@ public class UserDeletedMessage {
         this.reason = reason;
     }
 }
-

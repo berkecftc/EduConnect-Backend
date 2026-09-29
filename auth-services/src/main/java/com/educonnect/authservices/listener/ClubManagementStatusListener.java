@@ -1,7 +1,7 @@
 package com.educonnect.authservices.listener;
 
-import com.educonnect.authservices.Repository.ClubManagementSyncRepository;
-import com.educonnect.authservices.Repository.UserRepository;
+import com.educonnect.authservices.repository.ClubManagementSyncRepository;
+import com.educonnect.authservices.repository.UserRepository;
 import com.educonnect.authservices.config.RabbitMQConfig;
 import com.educonnect.authservices.dto.message.ClubManagementStatusChangedEvent;
 import com.educonnect.authservices.models.ClubManagementSync;

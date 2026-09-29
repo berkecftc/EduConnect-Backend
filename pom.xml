@@ -48,7 +48,9 @@
         <maven.compiler.target>21</maven.compiler.target>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
-        <skipTests>true</skipTests>
+        <spotless.version>3.10.3</spotless.version>
+        <spotbugs-maven-plugin.version>4.10.4.1</spotbugs-maven-plugin.version>
+        <archunit.version>1.5.1</archunit.version>
 
         <spring-cloud.version>2025.1.3</spring-cloud.version>
         <minio.version>9.0.3</minio.version>
@@ -114,6 +116,11 @@
                 <groupId>com.educonnect</groupId>
                 <artifactId>common-test</artifactId>
                 <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.tngtech.archunit</groupId>
+                <artifactId>archunit-junit5</artifactId>
+                <version>${archunit.version}</version>
             </dependency>
             <dependency>
                 <groupId>org.bouncycastle</groupId>
@@ -202,6 +209,34 @@
                     <groupId>org.springframework.boot</groupId>
                     <artifactId>spring-boot-maven-plugin</artifactId>
                 </plugin>
+                <plugin>
+                    <groupId>com.diffplug.spotless</groupId>
+                    <artifactId>spotless-maven-plugin</artifactId>
+                    <version>${spotless.version}</version>
+                    <configuration>
+                        <ratchetFrom>origin/main</ratchetFrom>
+                        <lineEndings>PRESERVE</lineEndings>
+                        <java>
+                            <removeUnusedImports/>
+                            <trimTrailingWhitespace/>
+                            <endWithNewline/>
+                            <indent>
+                                <spaces>true</spaces>
+                                <spacesPerTab>4</spacesPerTab>
+                            </indent>
+                        </java>
+                    </configuration>
+                </plugin>
+                <plugin>
+                    <groupId>com.github.spotbugs</groupId>
+                    <artifactId>spotbugs-maven-plugin</artifactId>
+                    <version>${spotbugs-maven-plugin.version}</version>
+                    <configuration>
+                        <effort>Max</effort>
+                        <threshold>Medium</threshold>
+                        <excludeFilterFile>${maven.multiModuleProjectDirectory}/spotbugs-exclude.xml</excludeFilterFile>
+                    </configuration>
+                </plugin>
             </plugins>
         </pluginManagement>
 
@@ -221,9 +256,36 @@
     <profiles>
         <profile>
             <id>ci</id>
-            <properties>
-                <skipTests>false</skipTests>
-            </properties>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>com.diffplug.spotless</groupId>
+                        <artifactId>spotless-maven-plugin</artifactId>
+                        <executions>
+                            <execution>
+                                <id>spotless-check</id>
+                                <phase>verify</phase>
+                                <goals>
+                                    <goal>check</goal>
+                                </goals>
+                            </execution>
+                        </executions>
+                    </plugin>
+                    <plugin>
+                        <groupId>com.github.spotbugs</groupId>
+                        <artifactId>spotbugs-maven-plugin</artifactId>
+                        <executions>
+                            <execution>
+                                <id>spotbugs-check</id>
+                                <phase>verify</phase>
+                                <goals>
+                                    <goal>check</goal>
+                                </goals>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
         </profile>
     </profiles>
 

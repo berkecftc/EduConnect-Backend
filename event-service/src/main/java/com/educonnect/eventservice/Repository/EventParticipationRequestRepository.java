@@ -1,4 +1,4 @@
-package com.educonnect.eventservice.Repository;
+package com.educonnect.eventservice.repository;
 
 import com.educonnect.eventservice.model.EventParticipationRequest;
 import com.educonnect.eventservice.model.ParticipationRequestStatus;
@@ -33,4 +33,3 @@ public interface EventParticipationRequestRepository extends JpaRepository<Event
     // Birden fazla etkinlik için bekleyen başvuruları getir
     List<EventParticipationRequest> findByEventIdInAndStatus(List<UUID> eventIds, ParticipationRequestStatus status);
 }
-

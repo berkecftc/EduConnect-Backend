@@ -1,4 +1,4 @@
-package com.educonnect.clubservice.Repository;
+package com.educonnect.clubservice.repository;
 
 import com.educonnect.clubservice.model.Club;
 import org.springframework.data.jpa.repository.JpaRepository;

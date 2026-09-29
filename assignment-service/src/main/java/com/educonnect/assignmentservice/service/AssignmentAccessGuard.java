@@ -39,9 +39,12 @@ public class AssignmentAccessGuard {
     }
 
     public static UUID parseUserId(String userIdHeader) {
+        if (userIdHeader == null) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Kimlik doğrulanamadı.");
+        }
         try {
             return UUID.fromString(userIdHeader);
-        } catch (IllegalArgumentException | NullPointerException e) {
+        } catch (IllegalArgumentException e) {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Kimlik doğrulanamadı.");
         }
     }

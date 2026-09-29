@@ -1,49 +1,47 @@
 package com.educonnect.authservices.controller;
 
-import com.educonnect.authservices.Repository.UserRepository;
-import com.educonnect.authservices.models.AcademicianRegistrationRequest;
-import com.educonnect.authservices.models.Role;
-import com.educonnect.authservices.models.User;
+import com.educonnect.authservices.repository.UserRepository;
 import com.educonnect.authservices.dto.request.SuspendAccountRequest;
 import com.educonnect.authservices.service.AccountStatusService;
 import com.educonnect.authservices.service.AcademicianAssignmentGuard;
 import com.educonnect.authservices.service.AdminAuditService;
 import com.educonnect.authservices.dto.response.AdminAuditPage;
-import com.educonnect.authservices.service.AuthServiceImpl;
+import com.educonnect.authservices.service.RegistrationApprovalService;
+import com.educonnect.authservices.service.UserAdministrationService;
 import com.educonnect.common.web.ApiException;
 import jakarta.validation.Valid;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.List;
-import java.util.Map;
 import java.util.UUID;
-import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/auth/admin")
 public class AdminController {
 
-    @Autowired
-    private AuthServiceImpl authService; // Veya ayrı bir AdminService
+    private final RegistrationApprovalService registrationApprovalService;
+    private final UserAdministrationService userAdministrationService;
+    private final UserRepository userRepository;
+    private final AccountStatusService accountStatusService;
+    private final AdminAuditService adminAuditService;
+    private final AcademicianAssignmentGuard academicianAssignmentGuard;
 
-    @Autowired
-    private UserRepository userRepository;
-
-    @Autowired
-    private AccountStatusService accountStatusService;
-
-    @Autowired
-    private AdminAuditService adminAuditService;
-
-    @Autowired
-    private AcademicianAssignmentGuard academicianAssignmentGuard;
-
-
+    public AdminController(RegistrationApprovalService registrationApprovalService,
+                           UserAdministrationService userAdministrationService,
+                           UserRepository userRepository,
+                           AccountStatusService accountStatusService,
+                           AdminAuditService adminAuditService,
+                           AcademicianAssignmentGuard academicianAssignmentGuard) {
+        this.registrationApprovalService = registrationApprovalService;
+        this.userAdministrationService = userAdministrationService;
+        this.userRepository = userRepository;
+        this.accountStatusService = accountStatusService;
+        this.adminAuditService = adminAuditService;
+        this.academicianAssignmentGuard = academicianAssignmentGuard;
+    }
 
     @PreAuthorize("hasRole('ADMIN')")
     @PostMapping({"/promote/{userId}", "/revoke/{userId}"})
@@ -65,14 +63,14 @@ public class AdminController {
     @GetMapping("/requests/academicians")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<?> getAcademicianRequests() {
-        return ResponseEntity.ok(authService.getAllAcademicianRequests());
+        return ResponseEntity.ok(registrationApprovalService.getAllAcademicianRequests());
     }
 
     // 2. Onayla
     @PostMapping("/approve-academician/{userId}")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<String> approveAcademician(@PathVariable UUID userId) {
-        authService.approveAcademician(userId);
+        registrationApprovalService.approveAcademician(userId);
         adminAuditService.record("APPROVE_ACADEMICIAN", "USER", userId, null);
         return ResponseEntity.ok("Akademisyen onaylandı.");
     }
@@ -83,7 +81,7 @@ public class AdminController {
     public ResponseEntity<String> rejectAcademician(
             @PathVariable UUID userId,
             @RequestParam(value = "reason", required = false) String reason) {
-        authService.rejectAcademician(userId, reason);
+        registrationApprovalService.rejectAcademician(userId, reason);
         adminAuditService.record("REJECT_ACADEMICIAN", "USER", userId, reason);
         return ResponseEntity.ok("Akademisyen başvurusu reddedildi.");
     }
@@ -94,14 +92,14 @@ public class AdminController {
     @GetMapping("/requests/students")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<?> getStudentRequests() {
-        return ResponseEntity.ok(authService.getAllStudentRequests());
+        return ResponseEntity.ok(registrationApprovalService.getAllStudentRequests());
     }
 
     // 2. Öğrenci başvurusunu onayla (requestId ile)
     @PostMapping("/approve-student/{requestId}")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<String> approveStudent(@PathVariable Long requestId) {
-        authService.approveStudent(requestId);
+        registrationApprovalService.approveStudent(requestId);
         adminAuditService.record("APPROVE_STUDENT", "STUDENT_REQUEST", requestId, null);
         return ResponseEntity.ok("Öğrenci onaylandı.");
     }
@@ -112,7 +110,7 @@ public class AdminController {
     public ResponseEntity<String> rejectStudent(
             @PathVariable Long requestId,
             @RequestParam(value = "reason", required = false) String reason) {
-        authService.rejectStudent(requestId, reason);
+        registrationApprovalService.rejectStudent(requestId, reason);
         adminAuditService.record("REJECT_STUDENT", "STUDENT_REQUEST", requestId, reason);
         return ResponseEntity.ok("Öğrenci başvurusu reddedildi.");
     }
@@ -122,14 +120,14 @@ public class AdminController {
     @GetMapping("/users")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<?> getAllUsers() {
-        return ResponseEntity.ok(authService.getAllUsers());
+        return ResponseEntity.ok(userAdministrationService.getAllUsers());
     }
 
     @DeleteMapping("/users/{userId}")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<String> deleteUser(@PathVariable UUID userId) {
         academicianAssignmentGuard.requireNoActiveAssignments(userId);
-        authService.deleteUser(userId);
+        userAdministrationService.deleteUser(userId);
         adminAuditService.record("DELETE_USER", "USER", userId, null);
         return ResponseEntity.ok("Kullanıcı başarıyla silindi.");
     }

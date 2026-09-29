@@ -1,7 +1,7 @@
 package com.educonnect.userservice.service;
 
-import com.educonnect.userservice.Repository.ArchivedAcademicianRepository;
-import com.educonnect.userservice.Repository.ArchivedStudentRepository;
+import com.educonnect.userservice.repository.ArchivedAcademicianRepository;
+import com.educonnect.userservice.repository.ArchivedStudentRepository;
 import com.educonnect.userservice.models.ArchivedStudent;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;

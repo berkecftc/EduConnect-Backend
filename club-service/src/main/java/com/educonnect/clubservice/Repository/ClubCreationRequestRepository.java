@@ -1,4 +1,4 @@
-package com.educonnect.clubservice.Repository;
+package com.educonnect.clubservice.repository;
 
 import com.educonnect.clubservice.model.ClubCreationRequest;
 import com.educonnect.clubservice.model.ClubCreationRequestStatus;

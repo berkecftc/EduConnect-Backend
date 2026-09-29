@@ -1,7 +1,7 @@
 package com.educonnect.authservices.controller;
 
 import com.educonnect.common.web.LogValues;
-import com.educonnect.authservices.service.AuthServiceImpl;
+import com.educonnect.authservices.service.UserAdministrationService;
 import com.educonnect.authservices.service.JWTService;
 import com.educonnect.authservices.service.ServiceClientAuthenticator;
 import jakarta.validation.constraints.NotNull;
@@ -33,14 +33,14 @@ public class InternalAuthController {
 
     private final JWTService jwtService;
     private final ServiceClientAuthenticator serviceClientAuthenticator;
-    private final AuthServiceImpl authService;
+    private final UserAdministrationService userAdministrationService;
 
     public InternalAuthController(JWTService jwtService,
                                   ServiceClientAuthenticator serviceClientAuthenticator,
-                                  AuthServiceImpl authService) {
+                                  UserAdministrationService userAdministrationService) {
         this.jwtService = jwtService;
         this.serviceClientAuthenticator = serviceClientAuthenticator;
-        this.authService = authService;
+        this.userAdministrationService = userAdministrationService;
     }
 
     @PostMapping(value = "/token", consumes = MediaType.APPLICATION_FORM_URLENCODED_VALUE)
@@ -70,7 +70,7 @@ public class InternalAuthController {
 
     @PostMapping("/users/emails")
     public ResponseEntity<List<String>> getEmailsByIds(@RequestBody @NotNull(message = "Kullanıcı listesi boş olamaz") List<@NotNull(message = "Kullanıcı kimliği boş olamaz") UUID> userIds) {
-        return ResponseEntity.ok(authService.getEmailsByUserIds(userIds));
+        return ResponseEntity.ok(userAdministrationService.getEmailsByUserIds(userIds));
     }
 
     private static String[] decodeBasicCredentials(String authorization) {

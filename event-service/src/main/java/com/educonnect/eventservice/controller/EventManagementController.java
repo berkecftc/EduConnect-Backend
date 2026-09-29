@@ -5,6 +5,7 @@ import com.educonnect.eventservice.dto.request.VerifyQrRequest;
 import com.educonnect.eventservice.dto.response.EventRegistrantDTO;
 import com.educonnect.eventservice.dto.response.EventResponse;
 import com.educonnect.eventservice.model.Event;
+import com.educonnect.eventservice.service.EventQueryService;
 import com.educonnect.eventservice.service.EventService;
 import com.educonnect.common.web.ApiException;
 import com.educonnect.common.web.BadRequestException;
@@ -24,9 +25,11 @@ import java.util.List;
 public class EventManagementController {
 
     private final EventService eventService;
+    private final EventQueryService eventQueryService;
 
-    public EventManagementController(EventService eventService) {
+    public EventManagementController(EventService eventService, EventQueryService eventQueryService) {
         this.eventService = eventService;
+        this.eventQueryService = eventQueryService;
     }
 
     /**
@@ -113,7 +116,7 @@ public class EventManagementController {
     public ResponseEntity<List<EventResponse>> getMyCreatedEvents(
             @RequestHeader("X-Authenticated-User-Id") String userIdHeader
     ) {
-        List<Event> events = eventService.getEventsOfManagedClubs(UUID.fromString(userIdHeader));
+        List<Event> events = eventQueryService.getEventsOfManagedClubs(UUID.fromString(userIdHeader));
         return ResponseEntity.ok(EventResponse.from(events));
     }
 
@@ -130,7 +133,7 @@ public class EventManagementController {
             @RequestHeader("X-Authenticated-User-Id") String userIdHeader
     ) {
         UUID requesterId = UUID.fromString(userIdHeader);
-        List<EventRegistrantDTO> registrants = eventService.getEventRegistrantsWithUserInfo(eventId, requesterId);
+        List<EventRegistrantDTO> registrants = eventQueryService.getEventRegistrantsWithUserInfo(eventId, requesterId);
         return ResponseEntity.ok(registrants);
     }
 
@@ -144,7 +147,7 @@ public class EventManagementController {
             @PathVariable UUID clubId,
             @RequestHeader("X-Authenticated-User-Id") String userIdHeader
     ) {
-        List<Event> events = eventService.getEventsByClubIdForManagement(clubId, UUID.fromString(userIdHeader));
+        List<Event> events = eventQueryService.getEventsByClubIdForManagement(clubId, UUID.fromString(userIdHeader));
         return ResponseEntity.ok(EventResponse.from(events));
     }
 

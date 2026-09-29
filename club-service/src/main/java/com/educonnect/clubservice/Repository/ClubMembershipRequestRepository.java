@@ -1,4 +1,4 @@
-package com.educonnect.clubservice.Repository;
+package com.educonnect.clubservice.repository;
 
 import com.educonnect.clubservice.model.ClubMembershipRequest;
 import com.educonnect.clubservice.model.MembershipRequestStatus;
@@ -36,4 +36,3 @@ public interface ClubMembershipRequestRepository extends JpaRepository<ClubMembe
     // Bir kulübe belirli bir öğrencinin bekleyen isteği var mı?
     boolean existsByClubIdAndStudentIdAndStatus(UUID clubId, UUID studentId, MembershipRequestStatus status);
 }
-

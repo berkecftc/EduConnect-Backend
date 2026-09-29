@@ -1,7 +1,7 @@
 package com.educonnect.userservice.controller;
 
 import com.educonnect.userservice.dto.response.UserSummaryDTO;
-import com.educonnect.userservice.Repository.AcademicianRepository;
+import com.educonnect.userservice.repository.AcademicianRepository;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 

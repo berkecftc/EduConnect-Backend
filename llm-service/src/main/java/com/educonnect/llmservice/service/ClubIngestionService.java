@@ -85,8 +85,8 @@ public class ClubIngestionService {
 
         File storeFile = new File(vectorStorePath);
         File parentDir = storeFile.getParentFile();
-        if (parentDir != null && !parentDir.exists()) {
-            parentDir.mkdirs();
+        if (parentDir != null && !parentDir.isDirectory() && !parentDir.mkdirs()) {
+            log.warn("Vektör deposu klasörü oluşturulamadı: {}", parentDir);
         }
         if (storeFile.exists() && !forceIngestion) {
             log.info("Kulüp vektör veritabanı zaten dolu, ETL atlanıyor.");

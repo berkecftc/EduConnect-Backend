@@ -1,4 +1,4 @@
-package com.educonnect.clubservice.Repository;
+package com.educonnect.clubservice.repository;
 
 import com.educonnect.clubservice.model.ClubPosition;
 import com.educonnect.clubservice.model.RoleChangeRequest;
@@ -56,4 +56,3 @@ public interface RoleChangeRequestRepository extends JpaRepository<RoleChangeReq
 
     long countByClubIdAndRequestedRoleAndStatus(UUID clubId, ClubPosition requestedRole, RoleChangeRequestStatus status);
 }
-

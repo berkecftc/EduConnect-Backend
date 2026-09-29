@@ -1,8 +1,8 @@
 package com.educonnect.clubservice.service;
 
-import com.educonnect.clubservice.Repository.ClubMembershipRepository;
-import com.educonnect.clubservice.Repository.ClubMembershipRequestRepository;
-import com.educonnect.clubservice.Repository.ClubRepository;
+import com.educonnect.clubservice.repository.ClubMembershipRepository;
+import com.educonnect.clubservice.repository.ClubMembershipRequestRepository;
+import com.educonnect.clubservice.repository.ClubRepository;
 import com.educonnect.clubservice.client.UserClient;
 import com.educonnect.clubservice.client.UserLookup;
 import com.educonnect.clubservice.config.ClubRabbitMQConfig;
@@ -183,7 +183,7 @@ public class ClubMembershipRequestService {
         Club club = clubRepository.findById(clubId).orElse(null);
         sendNotification(request.getStudentId(), clubId,
                 club != null ? club.getName() : "Kulüp",
-                "APPROVED",
+                MembershipRequestMessage.Status.APPROVED,
                 "Üyelik isteğiniz onaylandı! Artık " + (club != null ? club.getName() : "kulüp") + " üyesisiniz.");
 
         UserSummary student = fetchUserSummary(request.getStudentId());
@@ -232,7 +232,7 @@ public class ClubMembershipRequestService {
         }
         sendNotification(request.getStudentId(), clubId,
                 club != null ? club.getName() : "Kulüp",
-                "REJECTED", message);
+                MembershipRequestMessage.Status.REJECTED, message);
 
         return mapToDTO(request, club, null);
     }
@@ -263,10 +263,10 @@ public class ClubMembershipRequestService {
     /**
      * RabbitMQ ile bildirim gönderir.
      */
-    private void sendNotification(UUID studentId, UUID clubId, String clubName, String status, String message) {
+    private void sendNotification(UUID studentId, UUID clubId, String clubName, MembershipRequestMessage.Status status, String message) {
         try {
             MembershipRequestMessage notificationMessage = new MembershipRequestMessage(
-                    studentId, clubId, clubName, status, message);
+                    studentId, clubId, clubName, status.name(), message);
 
             outboxPublisher.publish(
                     ClubRabbitMQConfig.CLUB_EXCHANGE_NAME,
@@ -306,4 +306,3 @@ public class ClubMembershipRequestService {
         return dto;
     }
 }
-

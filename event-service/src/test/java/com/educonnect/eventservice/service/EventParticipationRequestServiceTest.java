@@ -1,11 +1,10 @@
 package com.educonnect.eventservice.service;
 
 import com.educonnect.common.messaging.outbox.OutboxPublisher;
-import com.educonnect.eventservice.Repository.EventParticipationRequestRepository;
-import com.educonnect.eventservice.Repository.EventRegistrationRepository;
-import com.educonnect.eventservice.Repository.EventRepository;
+import com.educonnect.eventservice.repository.EventParticipationRequestRepository;
+import com.educonnect.eventservice.repository.EventRegistrationRepository;
+import com.educonnect.eventservice.repository.EventRepository;
 import com.educonnect.eventservice.client.ClubClient;
-import com.educonnect.eventservice.client.UserClient;
 import com.educonnect.eventservice.model.Event;
 import com.educonnect.eventservice.model.EventParticipationRequest;
 import com.educonnect.eventservice.model.EventStatus;
@@ -48,8 +47,7 @@ class EventParticipationRequestServiceTest {
         clubClient = mock(ClubClient.class);
         authorizationService = mock(EventAuthorizationService.class);
         service = new EventParticipationRequestService(requestRepository, eventRepository, registrationRepository,
-                authorizationService, mock(OutboxPublisher.class), mock(UserClient.class), clubClient,
-                mock(EventCaches.class));
+                authorizationService, mock(OutboxPublisher.class), clubClient, mock(EventCaches.class));
 
         event = new Event();
         event.setId(eventId);

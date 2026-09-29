@@ -5,6 +5,7 @@ import com.educonnect.eventservice.dto.request.RejectParticipationRequestDTO;
 import com.educonnect.eventservice.dto.response.EventParticipationRequestDTO;
 import com.educonnect.eventservice.model.EventParticipationRequest;
 import com.educonnect.eventservice.model.EventRegistration;
+import com.educonnect.eventservice.service.EventParticipationRequestQueryService;
 import com.educonnect.eventservice.service.EventParticipationRequestService;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
@@ -24,9 +25,12 @@ import java.util.UUID;
 public class EventParticipationRequestController {
 
     private final EventParticipationRequestService participationRequestService;
+    private final EventParticipationRequestQueryService participationRequestQueryService;
 
-    public EventParticipationRequestController(EventParticipationRequestService participationRequestService) {
+    public EventParticipationRequestController(EventParticipationRequestService participationRequestService,
+                                               EventParticipationRequestQueryService participationRequestQueryService) {
         this.participationRequestService = participationRequestService;
+        this.participationRequestQueryService = participationRequestQueryService;
     }
 
     // ==================== ÖĞRENCİ ENDPOINT'LERİ ====================
@@ -63,7 +67,7 @@ public class EventParticipationRequestController {
             @RequestHeader("X-Authenticated-User-Id") String userIdHeader
     ) {
         UUID studentId = UUID.fromString(userIdHeader);
-        return ResponseEntity.ok(participationRequestService.getStudentParticipationRequests(studentId));
+        return ResponseEntity.ok(participationRequestQueryService.getStudentParticipationRequests(studentId));
     }
 
     // ==================== KULÜP YETKİLİSİ ENDPOINT'LERİ ====================
@@ -78,7 +82,7 @@ public class EventParticipationRequestController {
             @RequestHeader("X-Authenticated-User-Id") String userIdHeader
     ) {
         UUID requesterId = UUID.fromString(userIdHeader);
-        return ResponseEntity.ok(participationRequestService.getPendingRequestsForEvent(eventId, requesterId));
+        return ResponseEntity.ok(participationRequestQueryService.getPendingRequestsForEvent(eventId, requesterId));
     }
 
     /**
@@ -91,7 +95,7 @@ public class EventParticipationRequestController {
             @RequestHeader("X-Authenticated-User-Id") String userIdHeader
     ) {
         UUID requesterId = UUID.fromString(userIdHeader);
-        return ResponseEntity.ok(participationRequestService.getAllRequestsForEvent(eventId, requesterId));
+        return ResponseEntity.ok(participationRequestQueryService.getAllRequestsForEvent(eventId, requesterId));
     }
 
     /**
@@ -103,7 +107,7 @@ public class EventParticipationRequestController {
             @RequestHeader("X-Authenticated-User-Id") String userIdHeader
     ) {
         UUID officialId = UUID.fromString(userIdHeader);
-        return ResponseEntity.ok(participationRequestService.getPendingRequestsForOfficialEvents(officialId));
+        return ResponseEntity.ok(participationRequestQueryService.getPendingRequestsForOfficialEvents(officialId));
     }
 
     /**
@@ -149,4 +153,3 @@ public class EventParticipationRequestController {
         ));
     }
 }
-

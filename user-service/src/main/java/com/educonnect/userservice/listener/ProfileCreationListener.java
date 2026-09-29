@@ -5,8 +5,8 @@ import com.educonnect.userservice.dto.message.AcademicianProfileMessage;
 import com.educonnect.userservice.dto.message.UserRegisteredMessage;
 import com.educonnect.userservice.models.Academician;
 import com.educonnect.userservice.models.Student;
-import com.educonnect.userservice.Repository.AcademicianRepository;
-import com.educonnect.userservice.Repository.StudentRepository;
+import com.educonnect.userservice.repository.AcademicianRepository;
+import com.educonnect.userservice.repository.StudentRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.amqp.AmqpRejectAndDontRequeueException;
@@ -27,8 +27,7 @@ public class ProfileCreationListener {
     private static final Logger LOGGER = LoggerFactory.getLogger(ProfileCreationListener.class);
 
     @RabbitListener(queues = RabbitMQConfig.QUEUE_NAME,
-            autoStartup = "${user.listener.auto-start:true}",
-            containerFactory = "rabbitListenerContainerFactory")
+            autoStartup = "${user.listener.auto-start:true}")
     public void handleProfileCreation(UserRegisteredMessage message) {
 
         LOGGER.info("Received new user registration message for user ID: {} | roles: {} | dept: {} | studentNo: {}",

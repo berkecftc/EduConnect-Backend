@@ -1,7 +1,7 @@
 package com.educonnect.userservice.listener;
 
-import com.educonnect.userservice.Repository.AcademicianRepository;
-import com.educonnect.userservice.Repository.StudentRepository;
+import com.educonnect.userservice.repository.AcademicianRepository;
+import com.educonnect.userservice.repository.StudentRepository;
 import com.educonnect.userservice.config.RabbitMQConfig;
 import org.springframework.amqp.AmqpRejectAndDontRequeueException;
 import com.educonnect.userservice.dto.message.UserDeletedMessage;
@@ -47,4 +47,3 @@ public class UserDeletionListener {
         }
     }
 }
-

@@ -2,7 +2,7 @@ package com.educonnect.eventservice.controller;
 
 import com.educonnect.eventservice.dto.response.EventResponse;
 import com.educonnect.eventservice.model.Event;
-import com.educonnect.eventservice.service.EventService;
+import com.educonnect.eventservice.service.EventAdvisorService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
@@ -18,10 +18,10 @@ import java.util.UUID;
 @RequestMapping("/api/events/advisor")
 public class EventAdvisorController {
 
-    private final EventService eventService;
+    private final EventAdvisorService eventAdvisorService;
 
-    public EventAdvisorController(EventService eventService) {
-        this.eventService = eventService;
+    public EventAdvisorController(EventAdvisorService eventAdvisorService) {
+        this.eventAdvisorService = eventAdvisorService;
     }
 
     /**
@@ -34,7 +34,7 @@ public class EventAdvisorController {
             @RequestHeader("X-Authenticated-User-Id") String userIdHeader
     ) {
         UUID advisorId = UUID.fromString(userIdHeader);
-        return ResponseEntity.ok(EventResponse.from(eventService.getAllEventsForAdvisor(advisorId)));
+        return ResponseEntity.ok(EventResponse.from(eventAdvisorService.getAllEventsForAdvisor(advisorId)));
     }
 
     /**
@@ -47,7 +47,7 @@ public class EventAdvisorController {
             @RequestHeader("X-Authenticated-User-Id") String userIdHeader
     ) {
         UUID advisorId = UUID.fromString(userIdHeader);
-        return ResponseEntity.ok(EventResponse.from(eventService.getPendingEventsForAdvisor(advisorId)));
+        return ResponseEntity.ok(EventResponse.from(eventAdvisorService.getPendingEventsForAdvisor(advisorId)));
     }
 
     /**
@@ -61,7 +61,7 @@ public class EventAdvisorController {
             @RequestHeader("X-Authenticated-User-Id") String userIdHeader
     ) {
         UUID approverId = UUID.fromString(userIdHeader);
-        Event approvedEvent = eventService.approveEvent(eventId, approverId);
+        Event approvedEvent = eventAdvisorService.approveEvent(eventId, approverId);
         return ResponseEntity.ok(EventResponse.from(approvedEvent));
     }
 
@@ -76,9 +76,7 @@ public class EventAdvisorController {
             @RequestHeader("X-Authenticated-User-Id") String userIdHeader
     ) {
         UUID rejectorId = UUID.fromString(userIdHeader);
-        Event rejectedEvent = eventService.rejectEvent(eventId, rejectorId);
+        Event rejectedEvent = eventAdvisorService.rejectEvent(eventId, rejectorId);
         return ResponseEntity.ok(EventResponse.from(rejectedEvent));
     }
 }
-
-

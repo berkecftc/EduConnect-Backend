@@ -62,3 +62,23 @@ jobs:
           name: sbom
           path: target/bom.json
           retention-days: 30
+
+  image:
+    name: Container image vulnerabilities
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: docker/setup-buildx-action@v4
+
+      - name: Build a service image
+        env:
+          TAG: scan
+        run: docker buildx bake -f docker-bake.hcl --load auth-services
+
+      - name: Trivy (OS packages and bundled libraries)
+        run: >
+          docker run --rm -v /var/run/docker.sock:/var/run/docker.sock -v "$PWD:/src" aquasec/trivy:0.74.0
+          image --scanners vuln --severity HIGH,CRITICAL --ignore-unfixed --exit-code 1
+          --ignorefile /src/.trivyignore educonnect/auth-services:scan
