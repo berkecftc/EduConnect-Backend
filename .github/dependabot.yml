@@ -19,18 +19,15 @@ updates:
         update-types:
           - patch
     ignore:
+      - dependency-name: "*"
+        update-types:
+          - "version-update:semver-major"
       - dependency-name: "org.springframework.boot:spring-boot-starter-parent"
         update-types:
-          - "version-update:semver-major"
-      - dependency-name: "org.springframework.cloud:spring-cloud-dependencies"
-        versions:
-          - ">=2025.1.0"
-      - dependency-name: "org.springframework.ai:spring-ai-bom"
-        update-types:
-          - "version-update:semver-major"
+          - "version-update:semver-minor"
       - dependency-name: "org.springdoc:*"
         update-types:
-          - "version-update:semver-major"
+          - "version-update:semver-minor"
 
   - package-ecosystem: github-actions
     directory: "/"
@@ -47,9 +44,18 @@ updates:
     schedule:
       interval: weekly
       day: monday
+    ignore:
+      - dependency-name: "*"
+        update-types:
+          - "version-update:semver-major"
+      - dependency-name: "maven"
 
   - package-ecosystem: docker-compose
     directory: "/"
     schedule:
       interval: weekly
       day: monday
+    ignore:
+      - dependency-name: "*"
+        update-types:
+          - "version-update:semver-major"
