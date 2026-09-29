@@ -1,4 +1,0 @@
-[[IgnoredVulns]]
-id = "GHSA-h7rh-xfpj-hpcm"
-ignoreUntil = 2027-03-31T00:00:00Z
-reason = "minio-java 8.6.0 needs okhttp 5 and Kotlin 2 stdlib, which Spring Boot does not manage. The client only parses XML returned by our own MinIO on the internal network, not untrusted input. Upgrade in Faz 4F-3."

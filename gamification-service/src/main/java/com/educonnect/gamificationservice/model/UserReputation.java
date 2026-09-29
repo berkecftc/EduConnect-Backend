@@ -42,7 +42,6 @@ public class UserReputation {
         reputation.setTotalPoints(0);
         reputation.setCurrentStreak(0);
         reputation.setHighestStreak(0);
-        reputation.setVersion(0L);
         return reputation;
     }
 

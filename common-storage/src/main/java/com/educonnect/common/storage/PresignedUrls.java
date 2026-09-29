@@ -2,7 +2,7 @@ package com.educonnect.common.storage;
 
 import io.minio.GetPresignedObjectUrlArgs;
 import io.minio.MinioClient;
-import io.minio.http.Method;
+import io.minio.Http;
 
 import java.time.Duration;
 
@@ -24,7 +24,7 @@ public final class PresignedUrls {
         try {
             return signingClient.getPresignedObjectUrl(
                     GetPresignedObjectUrlArgs.builder()
-                            .method(Method.GET)
+                            .method(Http.Method.GET)
                             .bucket(bucket)
                             .object(objectName)
                             .expiry((int) expiry.toSeconds())

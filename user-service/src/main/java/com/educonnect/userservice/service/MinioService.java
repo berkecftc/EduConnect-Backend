@@ -118,7 +118,7 @@ public class MinioService {
                     PutObjectArgs.builder()
                             .bucket(bucketName)
                             .object(objectName)
-                            .stream(file.getInputStream(), file.getSize(), -1)
+                            .stream(file.getInputStream(), file.getSize(), null)
                             .contentType(upload.contentType())
                             .build()
             );

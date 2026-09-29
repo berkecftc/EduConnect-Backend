@@ -117,7 +117,6 @@ class GamificationAuthorizationTest {
     private void saveReputation(UUID userId, int points) {
         UserReputation reputation = UserReputation.initialize(userId);
         reputation.setTotalPoints(points);
-        reputation.setVersion(null);
         userReputationRepository.save(reputation);
     }
 
