@@ -413,7 +413,7 @@ services:
       - educonnect-network
 
   alertmanager:
-    image: prom/alertmanager:v0.28.1
+    image: prom/alertmanager:v0.34.1
     restart: unless-stopped
     profiles: ["observability"]
     entrypoint: ["/bin/sh", "/etc/alertmanager/entrypoint.sh"]
