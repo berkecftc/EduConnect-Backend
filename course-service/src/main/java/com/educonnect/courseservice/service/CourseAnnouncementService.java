@@ -62,6 +62,7 @@ public class CourseAnnouncementService {
         if (!course.getInstructorId().equals(instructorId)) {
             throw new UnauthorizedCourseAccessException("Bu dersin hocası değilsiniz, duyuru paylaşamazsınız.");
         }
+        CourseLifecycleService.requireAnnouncements(course);
 
         // Duyuru oluştur
         CourseAnnouncement announcement = new CourseAnnouncement();
@@ -113,6 +114,7 @@ public class CourseAnnouncementService {
         if (!course.getInstructorId().equals(instructorId)) {
             throw new UnauthorizedCourseAccessException("Bu duyuruyu silme yetkiniz yok.");
         }
+        CourseLifecycleService.requireAnnouncements(course);
 
         announcementRepository.deleteById(announcementId);
         log.info("Duyuru silindi: {}", announcementId);
@@ -169,4 +171,3 @@ public class CourseAnnouncementService {
         return dto;
     }
 }
-

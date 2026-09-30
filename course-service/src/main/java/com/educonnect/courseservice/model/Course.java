@@ -54,6 +54,16 @@ public class Course {
     @Column(nullable = false, length = 10)
     private String section = "1";
 
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 12)
+    private CourseStatus status = CourseStatus.ACTIVE;
+
+    @Column(name = "completed_at")
+    private Instant completedAt;
+
+    @Column(name = "archived_at")
+    private Instant archivedAt;
+
     @Column(name = "image_url")
     @Convert(converter = ObjectUrlConverter.class)
     private String imageUrl; // MinIO URL'i
@@ -81,6 +91,21 @@ public class Course {
     public void setTermId(UUID termId) { this.termId = termId; }
     public UUID getCatalogCourseId() { return catalogCourseId; }
     public void setCatalogCourseId(UUID catalogCourseId) { this.catalogCourseId = catalogCourseId; }
+    public CourseStatus getStatus() { return status; }
+    public void setStatus(CourseStatus status) { this.status = status; }
+    public Instant getCompletedAt() { return completedAt; }
+    public Instant getArchivedAt() { return archivedAt; }
+
+    public void complete(Instant at) {
+        this.status = CourseStatus.COMPLETED;
+        this.completedAt = at;
+    }
+
+    public void archive(Instant at) {
+        this.status = CourseStatus.ARCHIVED;
+        this.archivedAt = at;
+    }
+
     public String getSection() { return section; }
     public void setSection(String section) { this.section = section; }
     public String getImageUrl() { return imageUrl; }

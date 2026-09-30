@@ -2,6 +2,7 @@ package com.educonnect.courseservice;
 
 import com.educonnect.common.test.TestTokens;
 import com.educonnect.courseservice.model.Course;
+import com.educonnect.courseservice.model.CourseStatus;
 import com.educonnect.courseservice.repository.CatalogCourseRepository;
 import com.educonnect.courseservice.repository.CourseRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -66,12 +67,19 @@ class CourseAuthorizationTest {
         assertThat(courseRepository.existsById(courseId)).isTrue();
 
         mockMvc.perform(as(delete("/api/courses/{id}", courseId), TestTokens.academician(owner)))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.errorCode").value("COURSE_NOT_DELETABLE"));
+        makeDraft();
+        mockMvc.perform(as(delete("/api/courses/{id}", courseId), TestTokens.academician(owner)))
                 .andExpect(status().isNoContent());
         assertThat(courseRepository.existsById(courseId)).isFalse();
     }
 
     @Test
-    void adminDeletesAnyCourse() throws Exception {
+    void adminDeletesOnlyDraftCourses() throws Exception {
+        mockMvc.perform(as(delete("/api/courses/{id}", courseId), TestTokens.admin(admin)))
+                .andExpect(status().isConflict());
+        makeDraft();
         mockMvc.perform(as(delete("/api/courses/{id}", courseId), TestTokens.admin(admin)))
                 .andExpect(status().isNoContent());
     }
@@ -124,6 +132,12 @@ class CourseAuthorizationTest {
 
     private static <B extends AbstractMockHttpServletRequestBuilder<B>> B as(B request, String token) {
         return request.header(HttpHeaders.AUTHORIZATION, TestTokens.bearer(token));
+    }
+
+    private void makeDraft() {
+        Course course = courseRepository.findById(courseId).orElseThrow();
+        course.setStatus(CourseStatus.DRAFT);
+        courseRepository.save(course);
     }
 
     private static MockMultipartFile coursePart(UUID instructorId) {

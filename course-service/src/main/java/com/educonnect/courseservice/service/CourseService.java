@@ -4,15 +4,14 @@ import com.educonnect.common.web.NotFoundException;
 import com.educonnect.courseservice.client.UserClient;
 import com.educonnect.courseservice.client.UserLookup;
 import com.educonnect.courseservice.dto.*;
-import com.educonnect.courseservice.event.CourseEvent;
 import com.educonnect.courseservice.exception.*;
 import com.educonnect.common.web.ConflictException;
 import com.educonnect.courseservice.model.CatalogCourse;
 import com.educonnect.courseservice.model.Course;
 import com.educonnect.courseservice.model.CourseApplicationStatus;
+import com.educonnect.courseservice.model.CourseStatus;
 import com.educonnect.courseservice.model.StudentCourseEnrollment;
 import com.educonnect.courseservice.model.Term;
-import com.educonnect.courseservice.publisher.CourseProducer;
 import com.educonnect.courseservice.repository.CourseApplicationRepository;
 import com.educonnect.courseservice.repository.CourseRepository;
 import com.educonnect.courseservice.repository.EnrollmentRepository;
@@ -48,29 +47,33 @@ public class CourseService {
     private final CourseApplicationRepository applicationRepository;
     private final UserClient userClient;
     private final MinioService minioService;
-    private final CourseProducer courseProducer;
     private final CourseCaches courseCaches;
     private final TermService termService;
     private final CatalogCourseService catalogCourseService;
     private final OfferingDetails offeringDetails;
+    private final CourseLifecycleService lifecycleService;
+    private final CourseRemoval courseRemoval;
 
     public CourseService(CourseRepository repo, EnrollmentRepository enrollRepo,
                          CourseApplicationRepository appRepo,
-                         UserClient user, MinioService minio, CourseProducer producer,
+                         UserClient user, MinioService minio,
                          CourseCaches courseCaches,
                          TermService termService,
                          CatalogCourseService catalogCourseService,
-                         OfferingDetails offeringDetails) {
+                         OfferingDetails offeringDetails,
+                         CourseLifecycleService lifecycleService,
+                         CourseRemoval courseRemoval) {
         this.courseRepository = repo;
         this.enrollmentRepository = enrollRepo;
         this.applicationRepository = appRepo;
         this.userClient = user;
         this.minioService = minio;
-        this.courseProducer = producer;
         this.courseCaches = courseCaches;
         this.termService = termService;
         this.catalogCourseService = catalogCourseService;
         this.offeringDetails = offeringDetails;
+        this.lifecycleService = lifecycleService;
+        this.courseRemoval = courseRemoval;
     }
 
     // 1. DERS OLUŞTUR (Resim + Veri + RabbitMQ)
@@ -102,6 +105,7 @@ public class CourseService {
         course.setTermId(term.getId());
         course.setCatalogCourseId(catalog.getId());
         course.setSection(section);
+        course.setStatus(CourseLifecycleService.initialStatus(term, Boolean.TRUE.equals(request.getDraft()), termService.today()));
         course.setInstructorId(request.getInstructorId());
         course.setCapacity(request.getCapacity());
         course.setImageUrl(imageUrl);
@@ -116,12 +120,16 @@ public class CourseService {
 
     // 2. TÜMÜNÜ GETİR
     public List<CourseResponse> getAllCourses(UUID termId) {
-        return mapToResponses(termId != null ? courseRepository.findByTermId(termId) : courseRepository.findAll());
+        return mapToResponses(termId != null
+                ? courseRepository.findByTermIdAndStatusNot(termId, CourseStatus.DRAFT)
+                : courseRepository.findByStatusNot(CourseStatus.DRAFT));
     }
 
     public PageResponse<CourseResponse> getCoursesPage(int page, Integer size, UUID termId) {
         Pageable pageable = PageResponse.request(page, size, Sort.by("title").and(Sort.by("id")));
-        Page<Course> courses = termId != null ? courseRepository.findByTermId(termId, pageable) : courseRepository.findAll(pageable);
+        Page<Course> courses = termId != null
+                ? courseRepository.findByTermIdAndStatusNot(termId, CourseStatus.DRAFT, pageable)
+                : courseRepository.findByStatusNot(CourseStatus.DRAFT, pageable);
         return PageResponse.of(courses, mapToResponses(courses.getContent()));
     }
 
@@ -141,14 +149,24 @@ public class CourseService {
     public void deleteCourse(UUID id) {
         Course course = courseRepository.findById(id)
                 .orElseThrow(() -> new CourseNotFoundException("Ders bulunamadı: " + id));
-        courseCaches.evictStudentCourses(getEnrolledStudentIds(id));
-        courseRepository.deleteById(id);
+        lifecycleService.requireDeletable(course);
+        courseRemoval.remove(course);
+    }
 
-        CourseEvent event = new CourseEvent(course.getId(), course.getTitle(), course.getCode(), "DELETED");
-        courseProducer.sendCourseDeletedEvent(event);
+    public CourseAccessResponse accessOf(UUID courseId, UUID userId) {
+        Course course = courseRepository.findById(courseId)
+                .orElseThrow(() -> new CourseNotFoundException("Ders bulunamadı: " + courseId));
+        return new CourseAccessResponse(courseId, course.getStatus(), course.getInstructorId().equals(userId),
+                enrollmentRepository.existsByCourseIdAndStudentIdAndIsActive(courseId, userId, true));
+    }
 
-        // instructorCourses cache'ini temizle
-        courseCaches.evictInstructorCourses(course.getInstructorId());
+    public CourseResponse getVisibleCourse(UUID id, UUID viewerId, boolean viewerIsAdmin) {
+        Course course = courseRepository.findById(id)
+                .orElseThrow(() -> new CourseNotFoundException("Ders bulunamadı: " + id));
+        if (course.getStatus() == CourseStatus.DRAFT && !viewerIsAdmin && !course.getInstructorId().equals(viewerId)) {
+            throw new CourseNotFoundException("Ders bulunamadı: " + id);
+        }
+        return mapToResponse(course);
     }
 
     // 7. ÖĞRENCİNİN KAYITLI OLDUĞU KURSLARI GETİR (Cache'li)
@@ -189,6 +207,7 @@ public class CourseService {
     public void withdrawStudent(UUID courseId, UUID studentId) {
         StudentCourseEnrollment enrollment = enrollmentRepository.findByCourseIdAndStudentId(courseId, studentId)
                 .orElseThrow(() -> new EnrollmentNotFoundException("Kayıt bulunamadı"));
+        courseRepository.findById(courseId).ifPresent(CourseLifecycleService::requireRunning);
 
         enrollment.setActive(false);
         enrollmentRepository.save(enrollment);
@@ -263,7 +282,10 @@ public class CourseService {
     }
 
     public List<UUID> getInstructorCourseIds(UUID instructorId) {
-        return courseRepository.findByInstructorId(instructorId).stream().map(Course::getId).toList();
+        return courseRepository.findByInstructorId(instructorId).stream()
+                .filter(course -> course.getStatus() != CourseStatus.ARCHIVED)
+                .map(Course::getId)
+                .toList();
     }
 
     public List<UUID> getActiveCourseIds(UUID studentId) {

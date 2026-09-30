@@ -46,7 +46,7 @@ public class AssignmentController {
             @RequestHeader(USER_ID_HEADER) String userIdHeader,
             @RequestHeader(value = ROLES_HEADER, required = false) String roles
     ) {
-        accessGuard.requireInstructor(request.getCourseId(), parseUserId(userIdHeader), roles);
+        accessGuard.requireAssignmentEditor(request.getCourseId(), parseUserId(userIdHeader), roles);
         return ResponseEntity.ok(assignmentService.createAssignment(request, file));
     }
 
@@ -67,7 +67,7 @@ public class AssignmentController {
             @RequestHeader(value = ROLES_HEADER, required = false) String roles
     ) {
         Assignment assignment = accessGuard.getAssignment(id);
-        accessGuard.requireInstructor(assignment.getCourseId(), parseUserId(userIdHeader), roles);
+        accessGuard.requireAssignmentEditor(assignment.getCourseId(), parseUserId(userIdHeader), roles);
         assignmentService.deleteAssignment(id);
         return ResponseEntity.noContent().build();
     }
@@ -96,7 +96,7 @@ public class AssignmentController {
     ) {
         AssignmentSubmission submission = accessGuard.getSubmission(submissionId);
         Assignment assignment = accessGuard.getAssignment(submission.getAssignmentId());
-        accessGuard.requireInstructor(assignment.getCourseId(), parseUserId(userIdHeader), roles);
+        accessGuard.requireGrader(assignment.getCourseId(), parseUserId(userIdHeader), roles);
         assignmentService.gradeSubmission(submissionId, request.getGrade(), request.getFeedback());
         return ResponseEntity.ok("Not başarıyla verildi");
     }

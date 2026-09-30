@@ -50,8 +50,11 @@ public class CourseController {
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<CourseResponse> getById(@PathVariable UUID id) {
-        return ResponseEntity.ok(courseService.getCourseById(id));
+    public ResponseEntity<CourseResponse> getById(@PathVariable UUID id,
+                                                  @RequestHeader(value = "X-Authenticated-User-Id", required = false) String userIdHeader,
+                                                  @RequestHeader(value = "X-Authenticated-User-Roles", required = false) String roles) {
+        UUID viewerId = userIdHeader != null ? UUID.fromString(userIdHeader) : null;
+        return ResponseEntity.ok(courseService.getVisibleCourse(id, viewerId, hasRole(roles, "ROLE_ADMIN")));
     }
 
     @GetMapping("/instructor/{id}")

@@ -30,9 +30,10 @@ public interface CourseApplicationRepository extends JpaRepository<CourseApplica
     // Bir derse ait belirli statüdeki başvuru sayısı
     long countByCourseIdAndStatus(UUID courseId, CourseApplicationStatus status);
 
+    boolean existsByCourseId(UUID courseId);
+
     @Query("SELECT a.courseId AS courseId, COUNT(a) AS total FROM CourseApplication a "
             + "WHERE a.courseId IN :courseIds AND a.status = :status GROUP BY a.courseId")
     List<EnrollmentRepository.CourseCount> countByCourseIdsAndStatus(@Param("courseIds") Collection<UUID> courseIds,
                                                                      @Param("status") CourseApplicationStatus status);
 }
-

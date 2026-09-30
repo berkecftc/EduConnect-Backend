@@ -44,6 +44,7 @@ public class OfferingDetails {
             view.setSection(course.getSection());
             view.setCatalogCourseId(course.getCatalogCourseId());
             view.setEcts(catalog != null ? catalog.getEcts() : null);
+            view.setStatus(course.getStatus());
         }
     }
 }

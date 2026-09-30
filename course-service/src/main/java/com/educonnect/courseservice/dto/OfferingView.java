@@ -1,5 +1,7 @@
 package com.educonnect.courseservice.dto;
 
+import com.educonnect.courseservice.model.CourseStatus;
+
 import java.util.UUID;
 
 public interface OfferingView {
@@ -13,4 +15,6 @@ public interface OfferingView {
     void setCatalogCourseId(UUID catalogCourseId);
 
     void setEcts(Integer ects);
+
+    void setStatus(CourseStatus status);
 }

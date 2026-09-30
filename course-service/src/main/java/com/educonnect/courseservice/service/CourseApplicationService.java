@@ -57,6 +57,7 @@ public class CourseApplicationService {
         // 1. Ders var mı kontrol et
         Course course = courseRepository.findById(courseId)
                 .orElseThrow(() -> new CourseNotFoundException("Ders bulunamadı: " + courseId));
+        CourseLifecycleService.requireRunning(course);
 
         // 2. Öğrenci zaten bu derse kayıtlı mı?
         if (enrollmentRepository.existsByCourseIdAndStudentIdAndIsActive(courseId, studentId, true)) {
@@ -132,6 +133,7 @@ public class CourseApplicationService {
         if (!course.getInstructorId().equals(instructorId)) {
             throw new UnauthorizedCourseAccessException("Bu dersin hocası değilsiniz, başvuru onaylayamazsınız.");
         }
+        CourseLifecycleService.requireRunning(course);
 
         // Başvuru zaten işlenmiş mi?
         if (application.getStatus() != CourseApplicationStatus.PENDING) {
@@ -255,4 +257,3 @@ public class CourseApplicationService {
         return dto;
     }
 }
-

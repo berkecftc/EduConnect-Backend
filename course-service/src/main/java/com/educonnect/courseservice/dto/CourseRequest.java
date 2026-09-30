@@ -41,6 +41,8 @@ public class CourseRequest {
     @Max(value = 60, message = "AKTS en fazla 60 olabilir")
     private Integer ects;
 
+    private Boolean draft;
+
     // Getter & Setter
     public String getTitle() { return title; }
     public void setTitle(String title) { this.title = title; }
@@ -62,4 +64,6 @@ public class CourseRequest {
     public void setSection(String section) { this.section = section; }
     public Integer getEcts() { return ects; }
     public void setEcts(Integer ects) { this.ects = ects; }
+    public Boolean getDraft() { return draft; }
+    public void setDraft(Boolean draft) { this.draft = draft; }
 }

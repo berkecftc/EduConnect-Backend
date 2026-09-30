@@ -1,5 +1,7 @@
 package com.educonnect.courseservice.dto;
 
+import com.educonnect.courseservice.model.CourseStatus;
+
 import java.time.LocalDateTime;
 import java.util.UUID;
 
@@ -15,6 +17,7 @@ public class EnrolledCourseDTO implements OfferingView {
     private String section;
     private UUID catalogCourseId;
     private Integer ects;
+    private CourseStatus status;
     private String imageUrl;
     private UUID instructorId;
     private String instructorName;
@@ -50,6 +53,8 @@ public class EnrolledCourseDTO implements OfferingView {
     public void setCatalogCourseId(UUID catalogCourseId) { this.catalogCourseId = catalogCourseId; }
     public Integer getEcts() { return ects; }
     public void setEcts(Integer ects) { this.ects = ects; }
+    public CourseStatus getStatus() { return status; }
+    public void setStatus(CourseStatus status) { this.status = status; }
 
     public String getImageUrl() { return imageUrl; }
     public void setImageUrl(String imageUrl) { this.imageUrl = imageUrl; }
