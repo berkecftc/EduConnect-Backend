@@ -9,6 +9,7 @@ import com.educonnect.clubservice.model.ClubNames;
 import com.educonnect.clubservice.model.ClubMembership;
 import com.educonnect.clubservice.model.ClubPosition;
 import com.educonnect.clubservice.model.ClubStatus;
+import com.educonnect.clubservice.model.DecisionAction;
 import com.educonnect.clubservice.repository.ClubCreationRequestRepository;
 import com.educonnect.clubservice.repository.ClubMembershipRepository;
 import com.educonnect.clubservice.repository.ClubRepository;
@@ -40,6 +41,7 @@ public class ClubFoundingService {
     private final ClubCacheEvictor cacheEvictor;
     private final ClubManagementStatusPublisher managementStatusPublisher;
     private final ClubNotificationPublisher notificationPublisher;
+    private final ClubDecisionLog decisionLog;
 
     public ClubFoundingService(ClubRepository clubRepository,
                                ClubMembershipRepository membershipRepository,
@@ -48,7 +50,8 @@ public class ClubFoundingService {
                                ClubAuthorizationService clubAuthorizationService,
                                ClubCacheEvictor cacheEvictor,
                                ClubManagementStatusPublisher managementStatusPublisher,
-                               ClubNotificationPublisher notificationPublisher) {
+                               ClubNotificationPublisher notificationPublisher,
+                               ClubDecisionLog decisionLog) {
         this.clubRepository = clubRepository;
         this.membershipRepository = membershipRepository;
         this.requestRepository = requestRepository;
@@ -57,6 +60,7 @@ public class ClubFoundingService {
         this.cacheEvictor = cacheEvictor;
         this.managementStatusPublisher = managementStatusPublisher;
         this.notificationPublisher = notificationPublisher;
+        this.decisionLog = decisionLog;
     }
 
     public Club createClub(CreateClubRequest request) {
@@ -201,6 +205,7 @@ public class ClubFoundingService {
         request.setProcessedAt(LocalDateTime.now());
         request.setProcessedBy(approverId);
         requestRepository.save(request);
+        decisionLog.record(newClub.getId(), DecisionAction.CLUB_FOUNDED, approverId, request.getRequestingStudentId(), null);
 
         notificationPublisher.notifyUser(request.getRequestingStudentId(), newClub, "Kulüp kuruluş başvurusu",
                 "\"" + newClub.getName() + "\" kulübünün kuruluşu onaylandı. Kulüp başkanı olarak atandınız.");

@@ -3,8 +3,8 @@ package com.educonnect.clubservice.service;
 import com.educonnect.clubservice.config.ClubRabbitMQConfig;
 import com.educonnect.clubservice.dto.message.RoleChangeNotificationMessage;
 import com.educonnect.clubservice.model.Club;
+import com.educonnect.clubservice.model.ClubApprovalRequest;
 import com.educonnect.clubservice.model.ClubPosition;
-import com.educonnect.clubservice.model.RoleChangeRequest;
 import com.educonnect.common.messaging.outbox.OutboxPublisher;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -27,14 +27,14 @@ class RoleChangeNotifier {
         this.userNames = userNames;
     }
 
-    static ClubPosition previousRoleOf(RoleChangeRequest request) {
-        return request.getCurrentRole() != null ? request.getCurrentRole() : ClubPosition.MEMBER;
+    static ClubPosition previousRoleOf(ClubApprovalRequest request) {
+        return request.getCurrentPosition() != null ? request.getCurrentPosition() : ClubPosition.MEMBER;
     }
 
-    void notifyAdvisor(Club club, RoleChangeRequest request, String message) {
-        String studentName = userNames.nameOf(request.getStudentId());
-        send(club.getAcademicAdvisorId(), club, request.getStudentId(), studentName,
-                previousRoleOf(request), request.getRequestedRole(),
+    void notifyAdvisor(Club club, ClubApprovalRequest request, String message) {
+        String studentName = userNames.nameOf(request.getSubjectUserId());
+        send(club.getAcademicAdvisorId(), club, request.getSubjectUserId(), studentName,
+                previousRoleOf(request), request.getRequestedPosition(),
                 RoleChangeNotificationMessage.Status.PENDING, message,
                 RoleChangeNotificationMessage.Type.ROLE_CHANGE_REQUEST);
     }

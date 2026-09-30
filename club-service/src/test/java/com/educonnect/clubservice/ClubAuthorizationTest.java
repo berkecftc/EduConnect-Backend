@@ -4,8 +4,11 @@ import com.educonnect.clubservice.repository.ClubCreationRequestRepository;
 import com.educonnect.clubservice.repository.ClubMembershipRepository;
 import com.educonnect.clubservice.repository.ClubMembershipRequestRepository;
 import com.educonnect.clubservice.repository.ClubRepository;
-import com.educonnect.clubservice.repository.RoleChangeRequestRepository;
+import com.educonnect.clubservice.repository.ClubApprovalRequestRepository;
+import com.educonnect.clubservice.model.ApprovalStatus;
+import com.educonnect.clubservice.model.ApprovalType;
 import com.educonnect.clubservice.model.Club;
+import com.educonnect.clubservice.model.ClubApprovalRequest;
 import com.educonnect.clubservice.model.ClubCreationRequest;
 import com.educonnect.clubservice.model.ClubCreationRequestStatus;
 import com.educonnect.clubservice.model.ClubMembership;
@@ -14,8 +17,6 @@ import com.educonnect.clubservice.model.ClubNames;
 import com.educonnect.clubservice.model.ClubPosition;
 import com.educonnect.clubservice.model.ClubStatus;
 import com.educonnect.clubservice.model.MembershipRequestStatus;
-import com.educonnect.clubservice.model.RoleChangeRequest;
-import com.educonnect.clubservice.model.RoleChangeRequestStatus;
 import com.educonnect.common.test.TestTokens;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -27,6 +28,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
 import org.springframework.test.web.servlet.request.AbstractMockHttpServletRequestBuilder;
 
+import java.time.Instant;
 import java.util.Base64;
 import java.util.UUID;
 
@@ -74,7 +76,7 @@ class ClubAuthorizationTest {
     private ClubMembershipRequestRepository membershipRequestRepository;
 
     @Autowired
-    private RoleChangeRequestRepository roleChangeRequestRepository;
+    private ClubApprovalRequestRepository approvalRequestRepository;
 
     @Autowired
     private ClubCreationRequestRepository creationRequestRepository;
@@ -217,13 +219,13 @@ class ClubAuthorizationTest {
             mockMvc.perform(json(post("/api/clubs/{clubId}/role-change-requests", clubId), token, body))
                     .andExpect(status().isForbidden());
         }
-        assertThat(roleChangeRequestRepository.existsByClubIdAndStudentIdAndStatus(
-                clubId, member, RoleChangeRequestStatus.PENDING)).isFalse();
+        assertThat(approvalRequestRepository.existsByClubIdAndTypeAndSubjectUserIdAndStatusIn(
+                clubId, ApprovalType.ROLE_CHANGE, member, ApprovalStatus.PENDING)).isFalse();
 
         mockMvc.perform(json(post("/api/clubs/{clubId}/role-change-requests", clubId), TestTokens.student(president), body))
                 .andExpect(status().isCreated());
-        assertThat(roleChangeRequestRepository.existsByClubIdAndStudentIdAndStatus(
-                clubId, member, RoleChangeRequestStatus.PENDING)).isTrue();
+        assertThat(approvalRequestRepository.existsByClubIdAndTypeAndSubjectUserIdAndStatusIn(
+                clubId, ApprovalType.ROLE_CHANGE, member, ApprovalStatus.PENDING)).isTrue();
         assertThat(membershipRepository.findByClubIdAndStudentId(clubId, member).orElseThrow().getClubRole())
                 .isEqualTo(ClubPosition.MEMBER);
     }
@@ -233,8 +235,8 @@ class ClubAuthorizationTest {
         mockMvc.perform(json(post("/api/clubs/{clubId}/role-change-requests", clubId), TestTokens.student(president),
                         roleChange(otherOfficer, "BOARD_MEMBER")))
                 .andExpect(status().isBadRequest());
-        assertThat(roleChangeRequestRepository.existsByClubIdAndStudentIdAndStatus(
-                clubId, otherOfficer, RoleChangeRequestStatus.PENDING)).isFalse();
+        assertThat(approvalRequestRepository.existsByClubIdAndTypeAndSubjectUserIdAndStatusIn(
+                clubId, ApprovalType.ROLE_CHANGE, otherOfficer, ApprovalStatus.PENDING)).isFalse();
     }
 
     @Test
@@ -245,13 +247,13 @@ class ClubAuthorizationTest {
             mockMvc.perform(as(delete(path, clubId, officer), token))
                     .andExpect(status().isForbidden());
         }
-        assertThat(roleChangeRequestRepository.existsByClubIdAndStudentIdAndStatus(
-                clubId, officer, RoleChangeRequestStatus.PENDING)).isFalse();
+        assertThat(approvalRequestRepository.existsByClubIdAndTypeAndSubjectUserIdAndStatusIn(
+                clubId, ApprovalType.ROLE_CHANGE, officer, ApprovalStatus.PENDING)).isFalse();
 
         mockMvc.perform(as(delete(path, clubId, officer), TestTokens.student(president)))
                 .andExpect(status().isAccepted());
-        assertThat(roleChangeRequestRepository.existsByClubIdAndStudentIdAndStatus(
-                clubId, officer, RoleChangeRequestStatus.PENDING)).isTrue();
+        assertThat(approvalRequestRepository.existsByClubIdAndTypeAndSubjectUserIdAndStatusIn(
+                clubId, ApprovalType.ROLE_CHANGE, officer, ApprovalStatus.PENDING)).isTrue();
         assertThat(membershipRepository.findByClubIdAndStudentId(clubId, officer).orElseThrow().getClubRole())
                 .isEqualTo(ClubPosition.BOARD_MEMBER);
     }
@@ -273,15 +275,15 @@ class ClubAuthorizationTest {
                 .andExpect(jsonPath("$.errorCode").value("FORBIDDEN"));
         mockMvc.perform(as(put(reject, requestId), TestTokens.academician(otherAdvisor)))
                 .andExpect(status().isForbidden());
-        assertThat(roleChangeRequestRepository.findById(requestId).orElseThrow().getStatus())
-                .isEqualTo(RoleChangeRequestStatus.PENDING);
+        assertThat(approvalRequestRepository.findById(requestId).orElseThrow().getStatus())
+                .isEqualTo(ApprovalStatus.PENDING_ADVISOR);
         assertThat(membershipRepository.findByClubIdAndStudentId(clubId, member).orElseThrow().getClubRole())
                 .isEqualTo(ClubPosition.MEMBER);
 
         mockMvc.perform(as(put(approve, requestId), TestTokens.academician(advisor)))
                 .andExpect(status().isOk());
-        assertThat(roleChangeRequestRepository.findById(requestId).orElseThrow().getStatus())
-                .isEqualTo(RoleChangeRequestStatus.APPROVED);
+        assertThat(approvalRequestRepository.findById(requestId).orElseThrow().getStatus())
+                .isEqualTo(ApprovalStatus.APPROVED);
         assertThat(membershipRepository.findByClubIdAndStudentId(clubId, member).orElseThrow().getClubRole())
                 .isEqualTo(ClubPosition.BOARD_MEMBER);
     }
@@ -490,7 +492,7 @@ class ClubAuthorizationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.permissions", containsInAnyOrder("VIEW_MEMBERS", "VIEW_MANAGEMENT_DATA",
                         "MANAGE_MEMBERSHIP_REQUESTS", "PROPOSE_POSITION_CHANGE", "UPDATE_CLUB_PROFILE", "CREATE_EVENT",
-                        "MANAGE_EVENT_OPERATIONS", "PROPOSE_ADVISOR_CHANGE")));
+                        "MANAGE_EVENT_OPERATIONS", "PROPOSE_ADVISOR_CHANGE", "APPROVE_AS_PRESIDENT", "REQUEST_CLUB_CLOSURE")));
         mockMvc.perform(as(get(path, clubId, officer), service))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.permissions", containsInAnyOrder("VIEW_MEMBERS", "VIEW_MANAGEMENT_DATA",
@@ -532,7 +534,8 @@ class ClubAuthorizationTest {
 
     private UUID pendingRoleChange(UUID studentId, ClubPosition requested) {
         ClubPosition current = membershipRepository.findByClubIdAndStudentId(clubId, studentId).orElseThrow().getClubRole();
-        return roleChangeRequestRepository.save(new RoleChangeRequest(clubId, studentId, current, requested, president))
+        return approvalRequestRepository.save(new ClubApprovalRequest(clubId, ApprovalType.ROLE_CHANGE, president, studentId,
+                current, requested, null, Instant.now()))
                 .getId();
     }
 

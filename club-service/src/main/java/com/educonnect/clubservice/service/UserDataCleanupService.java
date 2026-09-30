@@ -24,19 +24,19 @@ public class UserDataCleanupService {
             "DELETE FROM club_memberships WHERE student_id = :userId",
             "DELETE FROM club_membership_requests WHERE student_id = :userId",
             "UPDATE club_membership_requests SET processed_by = NULL WHERE processed_by = :userId",
-            "DELETE FROM role_change_requests WHERE student_id = :userId",
-            "UPDATE role_change_requests SET requester_id = NULL WHERE requester_id = :userId",
-            "UPDATE role_change_requests SET processed_by = NULL WHERE processed_by = :userId",
+            "DELETE FROM club_approval_requests WHERE subject_user_id = :userId AND type IN ('ROLE_CHANGE', 'RESIGNATION', 'ADVISOR_CHANGE')",
+            "UPDATE club_approval_requests SET prepared_by = NULL WHERE prepared_by = :userId",
+            "UPDATE club_approval_requests SET president_decided_by = NULL WHERE president_decided_by = :userId",
+            "UPDATE club_approval_requests SET decided_by = NULL WHERE decided_by = :userId",
+            "UPDATE club_decision_log SET actor_id = NULL WHERE actor_id = :userId",
+            "UPDATE club_decision_log SET subject_user_id = NULL WHERE subject_user_id = :userId",
             "DELETE FROM club_creation_requests WHERE requesting_student_id = :userId",
             "UPDATE club_creation_requests SET suggested_advisor_id = NULL WHERE suggested_advisor_id = :userId",
             "UPDATE club_creation_requests SET processed_by = NULL WHERE processed_by = :userId",
             "UPDATE archived_clubs SET academic_advisor_id = NULL WHERE academic_advisor_id = :userId",
             "UPDATE archived_clubs SET deleted_by_admin_id = NULL WHERE deleted_by_admin_id = :userId",
             "UPDATE clubs SET academic_advisor_id = NULL, status = CASE WHEN status = 'CLOSED' THEN status ELSE 'AWAITING_ADVISOR' END WHERE academic_advisor_id = :userId",
-            "UPDATE clubs SET closed_by = NULL WHERE closed_by = :userId",
-            "DELETE FROM advisor_change_requests WHERE proposed_advisor_id = :userId",
-            "UPDATE advisor_change_requests SET previous_advisor_id = NULL WHERE previous_advisor_id = :userId",
-            "UPDATE advisor_change_requests SET requested_by = NULL WHERE requested_by = :userId");
+            "UPDATE clubs SET closed_by = NULL WHERE closed_by = :userId");
 
     @PersistenceContext
     private EntityManager entityManager;

@@ -4,14 +4,15 @@ import com.educonnect.clubservice.client.UserClient;
 import com.educonnect.clubservice.dto.request.CreateRoleChangeRequestDTO;
 import com.educonnect.clubservice.dto.response.RoleChangeRequestDTO;
 import com.educonnect.clubservice.dto.response.UserSummary;
+import com.educonnect.clubservice.model.ApprovalStatus;
+import com.educonnect.clubservice.model.ApprovalType;
 import com.educonnect.clubservice.model.Club;
+import com.educonnect.clubservice.model.ClubApprovalRequest;
 import com.educonnect.clubservice.model.ClubMembership;
 import com.educonnect.clubservice.model.ClubPosition;
-import com.educonnect.clubservice.model.RoleChangeRequest;
-import com.educonnect.clubservice.model.RoleChangeRequestStatus;
 import com.educonnect.clubservice.repository.ClubMembershipRepository;
 import com.educonnect.clubservice.repository.ClubRepository;
-import com.educonnect.clubservice.repository.RoleChangeRequestRepository;
+import com.educonnect.clubservice.repository.ClubApprovalRequestRepository;
 import com.educonnect.clubservice.security.ClubAuthorizationService;
 import com.educonnect.clubservice.security.ClubPermission;
 import feign.FeignException;
@@ -22,6 +23,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 
@@ -31,31 +33,31 @@ public class RoleChangeRequestService {
 
     private static final Logger log = LoggerFactory.getLogger(RoleChangeRequestService.class);
 
-    private final RoleChangeRequestRepository roleChangeRequestRepository;
+    private final ClubApprovalRequestRepository approvalRequestRepository;
     private final ClubMembershipRepository membershipRepository;
     private final ClubRepository clubRepository;
     private final UserClient userClient;
     private final ClubAuthorizationService clubAuthorizationService;
     private final ClubPositionRules positionRules;
-    private final RoleChangeNotifier notifier;
     private final RoleChangeRequestMapper mapper;
+    private final ClubApprovalEngine approvalEngine;
 
-    public RoleChangeRequestService(RoleChangeRequestRepository roleChangeRequestRepository,
+    public RoleChangeRequestService(ClubApprovalRequestRepository approvalRequestRepository,
                                     ClubMembershipRepository membershipRepository,
                                     ClubRepository clubRepository,
                                     UserClient userClient,
                                     ClubAuthorizationService clubAuthorizationService,
                                     ClubPositionRules positionRules,
-                                    RoleChangeNotifier notifier,
-                                    RoleChangeRequestMapper mapper) {
-        this.roleChangeRequestRepository = roleChangeRequestRepository;
+                                    RoleChangeRequestMapper mapper,
+                                    ClubApprovalEngine approvalEngine) {
+        this.approvalRequestRepository = approvalRequestRepository;
         this.membershipRepository = membershipRepository;
         this.clubRepository = clubRepository;
         this.userClient = userClient;
         this.clubAuthorizationService = clubAuthorizationService;
         this.positionRules = positionRules;
-        this.notifier = notifier;
         this.mapper = mapper;
+        this.approvalEngine = approvalEngine;
     }
 
     public RoleChangeRequestDTO createRoleChangeRequest(UUID clubId, CreateRoleChangeRequestDTO dto, UUID requesterId) {
@@ -87,7 +89,8 @@ public class RoleChangeRequestService {
         clubAuthorizationService.require(clubId, requesterId, ClubPermission.VIEW_MANAGEMENT_DATA);
 
         Club club = clubRepository.findById(clubId).orElse(null);
-        List<RoleChangeRequest> requests = roleChangeRequestRepository.findByClubId(clubId);
+        List<ClubApprovalRequest> requests = approvalRequestRepository
+                .findByClubIdAndTypeOrderByCreatedAtDesc(clubId, ApprovalType.ROLE_CHANGE);
         return mapper.toDtos(requests, request -> club);
     }
 
@@ -107,8 +110,8 @@ public class RoleChangeRequestService {
                     "Başkanın görevi yalnızca danışman kararıyla değiştirilebilir.");
         }
 
-        if (roleChangeRequestRepository.existsByClubIdAndStudentIdAndStatus(
-                clubId, studentId, RoleChangeRequestStatus.PENDING)) {
+        if (approvalRequestRepository.existsByClubIdAndTypeAndSubjectUserIdAndStatusIn(
+                clubId, ApprovalType.ROLE_CHANGE, studentId, ApprovalStatus.PENDING)) {
             throw new ResponseStatusException(HttpStatus.CONFLICT,
                     "Bu öğrenci için zaten bekleyen bir görev değişikliği talebi var.");
         }
@@ -118,16 +121,12 @@ public class RoleChangeRequestService {
             positionRules.ensureNoManagementPositionElsewhere(studentId, clubId);
         }
 
-        RoleChangeRequest request = new RoleChangeRequest(clubId, studentId, currentRole, requestedRole, requesterId);
-        RoleChangeRequest savedRequest = roleChangeRequestRepository.save(request);
+        ClubApprovalRequest savedRequest = approvalEngine.submit(club, new ClubApprovalRequest(clubId,
+                ApprovalType.ROLE_CHANGE, requesterId, studentId, currentRole, requestedRole, null, Instant.now()));
 
         log.info("Role change request created: clubId={}, studentId={}, from={}, to={}, requesterId={}",
                 clubId, studentId, currentRole, requestedRole, requesterId);
 
-        notifier.notifyAdvisor(club, savedRequest,
-                requestedRole == ClubPosition.MEMBER
-                        ? "Yeni bir görevden alma talebi onayınızı bekliyor."
-                        : "Yeni görev değişikliği talebi onayınızı bekliyor.");
 
         return mapper.toDto(savedRequest, club);
     }

@@ -2,21 +2,19 @@ package com.educonnect.clubservice;
 
 import com.educonnect.clubservice.client.UserClient;
 import com.educonnect.clubservice.dto.response.AcademicianSummary;
-import com.educonnect.clubservice.model.AdvisorChangeRequest;
-import com.educonnect.clubservice.model.AdvisorChangeRequestStatus;
+import com.educonnect.clubservice.model.ApprovalStatus;
+import com.educonnect.clubservice.model.ApprovalType;
 import com.educonnect.clubservice.model.Club;
+import com.educonnect.clubservice.model.ClubApprovalRequest;
 import com.educonnect.clubservice.model.ClubMembership;
 import com.educonnect.clubservice.model.ClubMembershipRequest;
 import com.educonnect.clubservice.model.ClubPosition;
 import com.educonnect.clubservice.model.ClubStatus;
 import com.educonnect.clubservice.model.MembershipRequestStatus;
-import com.educonnect.clubservice.model.RoleChangeRequest;
-import com.educonnect.clubservice.model.RoleChangeRequestStatus;
-import com.educonnect.clubservice.repository.AdvisorChangeRequestRepository;
+import com.educonnect.clubservice.repository.ClubApprovalRequestRepository;
 import com.educonnect.clubservice.repository.ClubMembershipRepository;
 import com.educonnect.clubservice.repository.ClubMembershipRequestRepository;
 import com.educonnect.clubservice.repository.ClubRepository;
-import com.educonnect.clubservice.repository.RoleChangeRequestRepository;
 import com.educonnect.clubservice.security.ClubAuthorizationService;
 import com.educonnect.clubservice.service.UserDataCleanupService;
 import com.educonnect.common.test.TestTokens;
@@ -67,10 +65,7 @@ class ClubContinuityTest {
     private ClubMembershipRequestRepository membershipRequestRepository;
 
     @Autowired
-    private RoleChangeRequestRepository roleChangeRequestRepository;
-
-    @Autowired
-    private AdvisorChangeRequestRepository advisorChangeRequestRepository;
+    private ClubApprovalRequestRepository approvalRequestRepository;
 
     @Autowired
     private ClubAuthorizationService clubAuthorizationService;
@@ -132,22 +127,22 @@ class ClubContinuityTest {
                 .andExpect(status().isBadRequest());
         mockMvc.perform(json(post(propose, clubId), TestTokens.student(president), advisorBody(newAdvisor)))
                 .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.status").value("PENDING"))
-                .andExpect(jsonPath("$.previousAdvisorId").value(advisor.toString()));
+                .andExpect(jsonPath("$.status").value("PENDING_ADVISOR"))
+                .andExpect(jsonPath("$.proposedAdvisorId").value(newAdvisor.toString()));
         mockMvc.perform(json(post(propose, clubId), TestTokens.student(president), advisorBody(otherAcademician)))
                 .andExpect(status().isConflict());
 
-        String requestId = advisorChangeRequestRepository.findByClubIdOrderByCreatedAtDesc(clubId).getFirst().getId().toString();
+        String requestId = approvalRequestRepository.findByClubIdAndTypeOrderByCreatedAtDesc(clubId, ApprovalType.ADVISOR_CHANGE).getFirst().getId().toString();
         mockMvc.perform(as(get("/api/academician/advisor-change-requests"), TestTokens.academician(newAdvisor)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.length()").value(1));
         mockMvc.perform(as(put("/api/academician/advisor-change-requests/{id}/accept", requestId),
                         TestTokens.academician(otherAcademician)))
-                .andExpect(status().isNotFound());
+                .andExpect(status().isForbidden());
         mockMvc.perform(as(put("/api/academician/advisor-change-requests/{id}/accept", requestId),
                         TestTokens.academician(newAdvisor)))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.status").value("ACCEPTED"));
+                .andExpect(jsonPath("$.status").value("APPROVED"));
 
         Club club = clubRepository.findById(clubId).orElseThrow();
         assertThat(club.getAcademicAdvisorId()).isEqualTo(newAdvisor);
@@ -169,7 +164,7 @@ class ClubContinuityTest {
         mockMvc.perform(json(post("/api/clubs/{clubId}/advisor-change-requests", clubId), TestTokens.student(president),
                         advisorBody(newAdvisor)))
                 .andExpect(status().isCreated());
-        String requestId = advisorChangeRequestRepository.findByClubIdOrderByCreatedAtDesc(clubId).getFirst().getId().toString();
+        String requestId = approvalRequestRepository.findByClubIdAndTypeOrderByCreatedAtDesc(clubId, ApprovalType.ADVISOR_CHANGE).getFirst().getId().toString();
         mockMvc.perform(as(put("/api/academician/advisor-change-requests/{id}/accept", requestId),
                         TestTokens.academician(newAdvisor)))
                 .andExpect(status().isOk());
@@ -181,8 +176,8 @@ class ClubContinuityTest {
     @Test
     void theAdvisorClosesTheClubAndItBecomesReadOnly() throws Exception {
         membershipRequestRepository.save(new ClubMembershipRequest(clubId, student));
-        UUID roleChange = roleChangeRequestRepository.save(new RoleChangeRequest(clubId, member, ClubPosition.MEMBER,
-                ClubPosition.BOARD_MEMBER, president)).getId();
+        UUID roleChange = approvalRequestRepository.save(new ClubApprovalRequest(clubId, ApprovalType.ROLE_CHANGE, president,
+                member, ClubPosition.MEMBER, ClubPosition.BOARD_MEMBER, null, Instant.now())).getId();
         String close = "/api/academician/clubs/{clubId}/close";
 
         mockMvc.perform(json(post(close, clubId), TestTokens.academician(otherAcademician), reasonBody("Kapat")))
@@ -211,8 +206,8 @@ class ClubContinuityTest {
                 .andExpect(status().isForbidden());
 
         assertThat(membershipRequestRepository.findByClubIdAndStatus(clubId, MembershipRequestStatus.PENDING)).isEmpty();
-        assertThat(roleChangeRequestRepository.findById(roleChange).orElseThrow().getStatus())
-                .isEqualTo(RoleChangeRequestStatus.REJECTED);
+        assertThat(approvalRequestRepository.findById(roleChange).orElseThrow().getStatus())
+                .isEqualTo(ApprovalStatus.REJECTED);
         assertThat(membershipRepository.findByClubId(clubId)).hasSize(4);
         assertThat(clubAuthorizationService.activeManagementPositionOf(president)).isEmpty();
         assertThat(clubAuthorizationService.accessesOf(president)).isEmpty();
@@ -238,13 +233,14 @@ class ClubContinuityTest {
         userDataCleanupService.deleteUserData(president);
         assertThat(position(vicePresident)).isEqualTo(ClubPosition.PRESIDENT);
 
-        advisorChangeRequestRepository.save(new AdvisorChangeRequest(
-                clubId, advisor, null, vicePresident, null));
+        approvalRequestRepository.save(new ClubApprovalRequest(clubId, ApprovalType.ADVISOR_CHANGE, vicePresident,
+                advisor, null, null, null, Instant.now()));
         userDataCleanupService.deleteUserData(advisor);
         Club club = clubRepository.findById(clubId).orElseThrow();
         assertThat(club.getStatus()).isEqualTo(ClubStatus.AWAITING_ADVISOR);
         assertThat(club.getAcademicAdvisorId()).isNull();
-        assertThat(advisorChangeRequestRepository.existsByClubIdAndStatus(clubId, AdvisorChangeRequestStatus.PENDING)).isFalse();
+        assertThat(approvalRequestRepository.existsByClubIdAndTypeAndStatusIn(clubId, ApprovalType.ADVISOR_CHANGE,
+                ApprovalStatus.PENDING)).isFalse();
     }
 
     private ClubPosition position(UUID studentId) {

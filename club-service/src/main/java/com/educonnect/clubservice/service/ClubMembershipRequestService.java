@@ -47,6 +47,7 @@ public class ClubMembershipRequestService {
     private final ClubNotificationPublisher notificationPublisher;
     private final ClubCacheEvictor cacheEvictor;
     private final UserLookup userLookup;
+    private final ClubDecisionLog decisionLog;
 
     public ClubMembershipRequestService(ClubMembershipRequestRepository requestRepository,
                                          ClubMembershipRepository membershipRepository,
@@ -56,8 +57,10 @@ public class ClubMembershipRequestService {
                                          ClubAuthorizationService clubAuthorizationService,
                                          ClubNotificationPublisher notificationPublisher,
                                          ClubCacheEvictor cacheEvictor,
-                                         UserLookup userLookup) {
+                                         UserLookup userLookup,
+                                         ClubDecisionLog decisionLog) {
         this.userLookup = userLookup;
+        this.decisionLog = decisionLog;
         this.requestRepository = requestRepository;
         this.membershipRepository = membershipRepository;
         this.clubRepository = clubRepository;
@@ -173,6 +176,7 @@ public class ClubMembershipRequestService {
         request.setProcessedDate(LocalDateTime.now());
         request.setProcessedBy(officialId);
         requestRepository.save(request);
+        decisionLog.record(clubId, DecisionAction.MEMBERSHIP_APPROVED, officialId, request.getStudentId(), null);
 
         // Kulüp üyeliği oluştur
         ClubMembership membership = new ClubMembership(clubId, request.getStudentId(), ClubPosition.MEMBER);
@@ -224,6 +228,8 @@ public class ClubMembershipRequestService {
             request.setRejectionReason(dto.getRejectionReason());
         }
         requestRepository.save(request);
+        decisionLog.record(clubId, DecisionAction.MEMBERSHIP_REJECTED, officialId, request.getStudentId(),
+                request.getRejectionReason());
 
         log.info("Membership request rejected: requestId={}, studentId={}, clubId={}",
                 requestId, request.getStudentId(), clubId);
