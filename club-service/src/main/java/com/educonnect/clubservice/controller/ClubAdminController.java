@@ -9,6 +9,7 @@ import com.educonnect.clubservice.dto.response.MemberDTO;
 import com.educonnect.clubservice.dto.response.ClubCreationRequestResponse;
 import com.educonnect.clubservice.dto.response.ClubResponse;
 import com.educonnect.clubservice.model.Club;
+import com.educonnect.clubservice.service.ClubFounderService;
 import com.educonnect.clubservice.service.ClubFoundingService;
 import com.educonnect.clubservice.service.ClubLifecycleService;
 import com.educonnect.clubservice.service.ClubPositionHistoryService;
@@ -42,16 +43,19 @@ public class ClubAdminController {
     private final ClubLifecycleService clubLifecycleService;
     private final ClubQueryService clubQueryService;
     private final ClubPositionHistoryService positionHistoryService;
+    private final ClubFounderService founderService;
 
     @Autowired
     public ClubAdminController(ClubFoundingService clubFoundingService,
                                ClubLifecycleService clubLifecycleService,
                                ClubQueryService clubQueryService,
-                               ClubPositionHistoryService positionHistoryService) {
+                               ClubPositionHistoryService positionHistoryService,
+                               ClubFounderService founderService) {
         this.clubFoundingService = clubFoundingService;
         this.clubLifecycleService = clubLifecycleService;
         this.clubQueryService = clubQueryService;
         this.positionHistoryService = positionHistoryService;
+        this.founderService = founderService;
     }
 
     // Yeni Kulüp Oluşturma
@@ -100,7 +104,7 @@ public class ClubAdminController {
     @GetMapping("/requests")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<List<ClubCreationRequestResponse>> getPendingRequests() {
-        return ResponseEntity.ok(ClubCreationRequestResponse.from(clubFoundingService.getPendingClubRequests()));
+        return ResponseEntity.ok(founderService.responsesOf(clubFoundingService.getPendingClubRequests()));
     }
 
     @PostMapping("/requests/{requestId}/approve")

@@ -7,6 +7,7 @@ import tools.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 import tools.jackson.databind.json.JsonMapper;
 
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
@@ -39,10 +40,10 @@ class ClubResponsesTest {
         request.setClubName("Fotoğrafçılık Kulübü");
         request.setRequestingStudentId(UUID.randomUUID());
 
-        Map<String, Object> json = objectMapper.readValue(objectMapper.writeValueAsString(ClubCreationRequestResponse.from(request)), JSON_MAP);
+        Map<String, Object> json = objectMapper.readValue(objectMapper.writeValueAsString(ClubCreationRequestResponse.from(request, List.of())), JSON_MAP);
 
         assertThat(json.keySet()).containsExactlyInAnyOrder("id", "clubName", "about", "requestingStudentId",
-                "suggestedAdvisorId", "status", "requestDate", "rejectionReason", "processedAt", "processedBy");
+                "suggestedAdvisorId", "status", "requestDate", "rejectionReason", "processedAt", "processedBy", "clubId", "founders");
         assertThat(json.get("requestDate")).isNotNull();
         assertThat(json.get("status")).isEqualTo("PENDING");
     }

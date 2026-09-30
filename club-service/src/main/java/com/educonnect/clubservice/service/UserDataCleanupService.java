@@ -22,6 +22,7 @@ public class UserDataCleanupService {
 
     private static final List<String> STATEMENTS = List.of(
             "DELETE FROM club_position_terms WHERE student_id = :userId",
+            "DELETE FROM club_founders WHERE student_id = :userId",
             "DELETE FROM club_meeting_attendees WHERE student_id = :userId",
             "DELETE FROM club_memberships WHERE student_id = :userId",
             "DELETE FROM club_membership_requests WHERE student_id = :userId",
