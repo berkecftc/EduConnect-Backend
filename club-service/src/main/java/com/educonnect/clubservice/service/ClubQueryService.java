@@ -201,36 +201,6 @@ public class ClubQueryService {
     }
 
     @Transactional(readOnly = true)
-    public List<MemberDTO> getPastPresidents(UUID clubId) {
-        if (!clubRepository.existsById(clubId)) {
-            throw new NotFoundException("CLUB_NOT_FOUND", "Kulüp bulunamadı");
-        }
-
-        List<ClubMembership> pastPresidents = membershipRepository.findByClubId(clubId)
-                .stream()
-                .filter(m -> !m.isActive() && m.getTermEndDate() != null)
-                .sorted((a, b) -> b.getTermStartDate().compareTo(a.getTermStartDate()))
-                .toList();
-
-        Map<UUID, UserSummary> users = userLookup.usersById(pastPresidents.stream().map(ClubMembership::getStudentId).toList());
-
-        return pastPresidents.stream()
-                .map(m -> {
-                    UserSummary user = users.get(m.getStudentId());
-                    return new MemberDTO(
-                            m.getStudentId(),
-                            user != null ? user.getFirstName() : "Bilinmiyor",
-                            user != null ? user.getLastName() : "User",
-                            "Geçmiş Başkan",
-                            m.isActive(),
-                            m.getTermStartDate(),
-                            m.getTermEndDate()
-                    );
-                })
-                .collect(Collectors.toList());
-    }
-
-    @Transactional(readOnly = true)
     public List<ArchivedClubDTO> getAllArchivedClubs() {
         return archivedClubRepository.findAllByOrderByDeletedAtDesc().stream()
                 .map(club -> new ArchivedClubDTO(

@@ -11,6 +11,7 @@ import com.educonnect.clubservice.dto.response.ClubResponse;
 import com.educonnect.clubservice.model.Club;
 import com.educonnect.clubservice.service.ClubFoundingService;
 import com.educonnect.clubservice.service.ClubLifecycleService;
+import com.educonnect.clubservice.service.ClubPositionHistoryService;
 import com.educonnect.clubservice.service.ClubQueryService;
 import com.educonnect.common.security.AuditLog;
 import com.educonnect.common.web.ApiException;
@@ -40,14 +41,17 @@ public class ClubAdminController {
     private final ClubFoundingService clubFoundingService;
     private final ClubLifecycleService clubLifecycleService;
     private final ClubQueryService clubQueryService;
+    private final ClubPositionHistoryService positionHistoryService;
 
     @Autowired
     public ClubAdminController(ClubFoundingService clubFoundingService,
                                ClubLifecycleService clubLifecycleService,
-                               ClubQueryService clubQueryService) {
+                               ClubQueryService clubQueryService,
+                               ClubPositionHistoryService positionHistoryService) {
         this.clubFoundingService = clubFoundingService;
         this.clubLifecycleService = clubLifecycleService;
         this.clubQueryService = clubQueryService;
+        this.positionHistoryService = positionHistoryService;
     }
 
     // Yeni Kulüp Oluşturma
@@ -155,7 +159,7 @@ public class ClubAdminController {
     @GetMapping("/{clubId}/past-presidents")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<List<MemberDTO>> getPastPresidents(@PathVariable UUID clubId) {
-        return ResponseEntity.ok(clubQueryService.getPastPresidents(clubId));
+        return ResponseEntity.ok(positionHistoryService.pastPresidents(clubId));
     }
 
     // MinIO Logo Yükleme Endpointi

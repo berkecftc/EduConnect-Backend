@@ -7,11 +7,12 @@ import java.util.UUID;
 import org.hibernate.annotations.CreationTimestamp;
 import java.time.Instant;
 import org.hibernate.annotations.UpdateTimestamp;
+import org.springframework.data.domain.AbstractAggregateRoot;
 
 @Entity
 @Table(name = "club_memberships",
         uniqueConstraints = @UniqueConstraint(columnNames = {"club_id", "student_id"}))
-public class ClubMembership {
+public class ClubMembership extends AbstractAggregateRoot<ClubMembership> {
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
@@ -67,6 +68,9 @@ public class ClubMembership {
         this.studentId = studentId;
         this.clubRole = clubRole;
         this.isActive = true; // Varsayılan olarak aktif
+        if (clubRole != null && clubRole.isManagement()) {
+            registerEvent(new PositionChanged(clubId, studentId, null, clubRole, LocalDateTime.now(), null));
+        }
     }
 
     // --- Getter/Setter ---
@@ -77,7 +81,6 @@ public class ClubMembership {
     public UUID getStudentId() { return studentId; }
     public void setStudentId(UUID studentId) { this.studentId = studentId; }
     public ClubPosition getClubRole() { return clubRole; }
-    public void setClubRole(ClubPosition clubRole) { this.clubRole = clubRole; }
     public boolean isActive() { return isActive; }
     public void setActive(boolean active) { isActive = active; }
     public LocalDateTime getTermStartDate() { return termStartDate; }
@@ -91,12 +94,29 @@ public class ClubMembership {
 
     public void end(MembershipEndReason reason, LocalDateTime at) {
         if (clubRole != null && clubRole.isManagement()) {
+            registerEvent(new PositionChanged(clubId, studentId, clubRole, ClubPosition.MEMBER, at,
+                    reason == MembershipEndReason.EXPELLED ? PositionEndReason.EXPELLED : PositionEndReason.LEFT_CLUB));
             clubRole = ClubPosition.MEMBER;
             termEndDate = at;
         }
         this.isActive = false;
         this.endReason = reason;
         this.endedAt = at;
+    }
+
+    public void assignPosition(ClubPosition position, LocalDateTime at, PositionEndReason reason) {
+        ClubPosition previous = this.clubRole;
+        if (previous == position) {
+            return;
+        }
+        this.clubRole = position;
+        if (position.isManagement()) {
+            this.termStartDate = at;
+            this.termEndDate = null;
+        } else {
+            this.termEndDate = at;
+        }
+        registerEvent(new PositionChanged(clubId, studentId, previous, position, at, reason));
     }
 
     public void reactivate(LocalDate validUntil, LocalDateTime at) {

@@ -5,6 +5,7 @@ import com.educonnect.clubservice.model.Club;
 import com.educonnect.clubservice.model.ClubApprovalRequest;
 import com.educonnect.clubservice.model.ClubMembership;
 import com.educonnect.clubservice.model.ClubPosition;
+import com.educonnect.clubservice.model.PositionEndReason;
 import com.educonnect.clubservice.repository.ClubMembershipRepository;
 import com.educonnect.clubservice.security.ClubAccess;
 import com.educonnect.common.web.ConflictException;
@@ -65,8 +66,7 @@ class ResignationApprovalHandler implements ApprovalHandler {
                 .orElseThrow(() -> new ConflictException("POSITION_CHANGED",
                         "Görevlinin görevi talep oluşturulduktan sonra değişmiş. Talep geçersiz."));
         boolean wasPresident = membership.getClubRole() == ClubPosition.PRESIDENT;
-        membership.setClubRole(ClubPosition.MEMBER);
-        membership.setTermEndDate(LocalDateTime.now());
+        membership.assignPosition(ClubPosition.MEMBER, LocalDateTime.now(), PositionEndReason.RESIGNED);
         membership.setValidUntil(membershipTerms.currentValidUntil());
         membershipRepository.save(membership);
         cacheEvictor.evictUser(request.getSubjectUserId());

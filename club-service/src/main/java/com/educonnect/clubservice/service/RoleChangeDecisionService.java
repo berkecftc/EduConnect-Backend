@@ -10,6 +10,7 @@ import com.educonnect.clubservice.model.Club;
 import com.educonnect.clubservice.model.ClubApprovalRequest;
 import com.educonnect.clubservice.model.ClubMembership;
 import com.educonnect.clubservice.model.ClubPosition;
+import com.educonnect.clubservice.model.PositionEndReason;
 import com.educonnect.clubservice.model.DecisionAction;
 import com.educonnect.clubservice.repository.ClubApprovalRequestRepository;
 import com.educonnect.clubservice.repository.ClubMembershipRepository;
@@ -113,8 +114,7 @@ public class RoleChangeDecisionService {
                 .findFirst()
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Kulübün aktif başkanı yok."));
 
-        president.setClubRole(ClubPosition.MEMBER);
-        president.setTermEndDate(LocalDateTime.now());
+        president.assignPosition(ClubPosition.MEMBER, LocalDateTime.now(), PositionEndReason.REMOVED);
         president.setValidUntil(membershipTerms.currentValidUntil());
         membershipRepository.save(president);
         cacheEvictor.evictUser(president.getStudentId());
