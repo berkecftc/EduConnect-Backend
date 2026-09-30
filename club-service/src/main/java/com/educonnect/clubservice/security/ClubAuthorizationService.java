@@ -125,6 +125,7 @@ public class ClubAuthorizationService {
         if (position == ClubPosition.GENERAL_SECRETARY || actingPresident) {
             permissions.add(ClubPermission.PREPARE_MINUTES);
             permissions.add(ClubPermission.PREPARE_ACTIVITY_REPORT);
+            permissions.add(ClubPermission.PREPARE_ELECTION);
         }
         if (position == ClubPosition.AUDITOR) {
             permissions.add(ClubPermission.PREPARE_AUDIT_REPORT);

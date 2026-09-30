@@ -14,12 +14,14 @@ import com.educonnect.clubservice.model.ClubMeeting;
 import com.educonnect.clubservice.model.ClubMeetingDecision;
 import com.educonnect.clubservice.repository.ClubAnnouncementRepository;
 import com.educonnect.clubservice.repository.ClubBudgetRepository;
+import com.educonnect.clubservice.repository.ClubElectionRepository;
 import com.educonnect.clubservice.repository.ClubFinanceEntryRepository;
 import com.educonnect.clubservice.repository.ClubMeetingDecisionRepository;
 import com.educonnect.clubservice.repository.ClubMeetingRepository;
 import com.educonnect.clubservice.repository.ClubProfileChangeRepository;
 import com.educonnect.clubservice.repository.ClubReportRepository;
 import com.educonnect.clubservice.repository.ClubSponsorshipRepository;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -45,6 +47,8 @@ public class ApprovalDetailsLoader {
     private final ClubMeetingRepository meetingRepository;
     private final ClubMeetingDecisionRepository decisionRepository;
     private final ClubReportRepository reportRepository;
+    private final ClubElectionRepository electionRepository;
+    private final ClubElectionService electionService;
 
     public ApprovalDetailsLoader(ClubProfileChangeRepository profileChangeRepository,
                                  ClubAnnouncementRepository announcementRepository,
@@ -53,7 +57,9 @@ public class ApprovalDetailsLoader {
                                  ClubSponsorshipRepository sponsorshipRepository,
                                  ClubMeetingRepository meetingRepository,
                                  ClubMeetingDecisionRepository decisionRepository,
-                                 ClubReportRepository reportRepository) {
+                                 ClubReportRepository reportRepository,
+                                 ClubElectionRepository electionRepository,
+                                 @Lazy ClubElectionService electionService) {
         this.profileChangeRepository = profileChangeRepository;
         this.announcementRepository = announcementRepository;
         this.budgetRepository = budgetRepository;
@@ -62,6 +68,8 @@ public class ApprovalDetailsLoader {
         this.meetingRepository = meetingRepository;
         this.decisionRepository = decisionRepository;
         this.reportRepository = reportRepository;
+        this.electionRepository = electionRepository;
+        this.electionService = electionService;
     }
 
     public Map<UUID, ApprovalDetails> detailsOf(List<ClubApprovalRequest> requests) {
@@ -92,6 +100,9 @@ public class ApprovalDetailsLoader {
                 decisions.getOrDefault(meeting.getId(), List.of()), byId.get(meeting.getRequestId()).getStatus()))));
         reportRepository.findByRequestIdIn(idsOf(requests, Set.of(ApprovalType.CLUB_ACTIVITY_REPORT, ApprovalType.CLUB_AUDIT_REPORT)))
                 .forEach(report -> details.put(report.getRequestId(), ApprovalDetails.ofReport(ReportResponse.of(report))));
+        electionRepository.findByRequestIdIn(idsOf(requests, Set.of(ApprovalType.CLUB_ELECTION)))
+                .forEach(election -> details.put(election.getRequestId(),
+                        ApprovalDetails.ofElection(electionService.responseOf(election, null))));
         return details;
     }
 

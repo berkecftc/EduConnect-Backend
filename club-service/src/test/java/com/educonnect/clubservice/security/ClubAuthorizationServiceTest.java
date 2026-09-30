@@ -68,7 +68,7 @@ class ClubAuthorizationServiceTest {
                 ClubPermission.APPROVE_AS_PRESIDENT, ClubPermission.REQUEST_CLUB_CLOSURE,
                 ClubPermission.PREPARE_EVENT, ClubPermission.VIEW_DECISIONS, ClubPermission.PREPARE_ANNOUNCEMENT, ClubPermission.VIEW_FINANCE,
                 ClubPermission.PREPARE_FINANCE, ClubPermission.PREPARE_SPONSORSHIP, ClubPermission.PREPARE_MINUTES,
-                ClubPermission.PREPARE_ACTIVITY_REPORT);
+                ClubPermission.PREPARE_ACTIVITY_REPORT, ClubPermission.PREPARE_ELECTION);
     }
 
     @Test
