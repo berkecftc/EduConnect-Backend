@@ -128,6 +128,10 @@ class ClubFinanceTest {
 
     @Test
     void invalidEntriesAreRejected() throws Exception {
+        mockMvc.perform(as(get("/api/clubs/{clubId}/finance/summary", clubId).param("academicYear", String.valueOf(Integer.MIN_VALUE)),
+                        TestTokens.student(treasurer)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errorCode").value("INVALID_ACADEMIC_YEAR"));
         mockMvc.perform(entry("EXPENSE", "0", LocalDate.now(), TestTokens.student(treasurer))).andExpect(status().isBadRequest());
         mockMvc.perform(entry("INCOME", "100", LocalDate.now().plusDays(3), TestTokens.student(treasurer)))
                 .andExpect(status().isBadRequest());

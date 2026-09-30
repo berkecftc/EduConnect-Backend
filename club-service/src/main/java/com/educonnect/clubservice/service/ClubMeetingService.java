@@ -100,7 +100,7 @@ public class ClubMeetingService {
     public List<MeetingResponse> meetingsOf(UUID clubId, UUID userId, Integer year) {
         findClub(clubId);
         clubAuthorizationService.require(clubId, userId, ClubPermission.VIEW_DECISIONS);
-        int academicYear = year != null ? year : membershipTerms.currentAcademicYear();
+        int academicYear = membershipTerms.resolveAcademicYear(year);
         List<ClubMeeting> meetings = meetingRepository.findByClubIdAndAcademicYearOrderByMeetingAtDesc(clubId, academicYear);
         Map<UUID, List<ClubMeetingDecision>> decisions = decisionRepository
                 .findByMeetingIdInOrderByItemOrder(meetings.stream().map(ClubMeeting::getId).toList())
@@ -119,7 +119,7 @@ public class ClubMeetingService {
     public List<DecisionBookEntryResponse> decisionBookOf(UUID clubId, UUID userId, Integer year) {
         findClub(clubId);
         clubAuthorizationService.require(clubId, userId, ClubPermission.VIEW_DECISIONS);
-        int academicYear = year != null ? year : membershipTerms.currentAcademicYear();
+        int academicYear = membershipTerms.resolveAcademicYear(year);
         List<ClubMeetingDecision> decisions = decisionRepository
                 .findByClubIdAndAcademicYearAndDecisionNumberIsNotNullOrderByDecisionNumber(clubId, academicYear);
         Map<UUID, ClubMeeting> meetings = meetingRepository.findAllById(decisions.stream().map(ClubMeetingDecision::getMeetingId)

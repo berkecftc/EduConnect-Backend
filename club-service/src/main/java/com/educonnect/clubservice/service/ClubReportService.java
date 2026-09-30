@@ -1,6 +1,7 @@
 package com.educonnect.clubservice.service;
 
 import com.educonnect.clubservice.client.EventClient;
+import com.educonnect.clubservice.dto.response.AcademicYears;
 import com.educonnect.clubservice.dto.response.ClubEventStatistics;
 import com.educonnect.clubservice.dto.response.ReportResponse;
 import com.educonnect.clubservice.dto.response.ReportSnapshotResponse;
@@ -113,6 +114,7 @@ public class ClubReportService {
     }
 
     public ClubApprovalRequest submit(UUID clubId, UUID userId, ReportType type, int academicYear, String note) {
+        AcademicYears.requireSupported(academicYear);
         Club club = openClub(clubId);
         clubAuthorizationService.require(clubId, userId, preparePermission(type));
         ClubReport report = reportRepository.findByClubIdAndTypeAndAcademicYear(clubId, type, academicYear)
@@ -136,7 +138,7 @@ public class ClubReportService {
     @Transactional(readOnly = true)
     public List<ReportResponse> reportsOf(UUID clubId, UUID userId, Integer year) {
         ClubAccess access = readableAccess(clubId, userId);
-        int academicYear = year != null ? year : membershipTerms.currentAcademicYear();
+        int academicYear = membershipTerms.resolveAcademicYear(year);
         return reportRepository.findByClubIdAndAcademicYearOrderByType(clubId, academicYear).stream()
                 .filter(report -> canView(report, access))
                 .map(ReportResponse::of)
@@ -145,6 +147,7 @@ public class ClubReportService {
 
     @Transactional(readOnly = true)
     public ReportResponse reportOf(UUID clubId, UUID userId, ReportType type, int academicYear) {
+        AcademicYears.requireSupported(academicYear);
         ClubAccess access = readableAccess(clubId, userId);
         return reportRepository.findByClubIdAndTypeAndAcademicYear(clubId, type, academicYear)
                 .filter(report -> canView(report, access))

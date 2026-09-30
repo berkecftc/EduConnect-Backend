@@ -144,7 +144,7 @@ public class ClubFinanceService {
     public FinanceSummaryResponse summaryOf(UUID clubId, UUID userId, Integer year) {
         findClub(clubId);
         clubAuthorizationService.require(clubId, userId, ClubPermission.VIEW_FINANCE);
-        int academicYear = year != null ? year : membershipTerms.currentAcademicYear();
+        int academicYear = membershipTerms.resolveAcademicYear(year);
         BudgetResponse budget = budgetRepository
                 .findFirstByClubIdAndAcademicYearAndApprovedAtIsNotNullOrderByApprovedAtDesc(clubId, academicYear)
                 .map(found -> BudgetResponse.of(found, ApprovalStatus.APPROVED))
@@ -161,7 +161,7 @@ public class ClubFinanceService {
     public List<FinanceEntryResponse> entriesOf(UUID clubId, UUID userId, Integer year) {
         findClub(clubId);
         clubAuthorizationService.require(clubId, userId, ClubPermission.VIEW_FINANCE);
-        int academicYear = year != null ? year : membershipTerms.currentAcademicYear();
+        int academicYear = membershipTerms.resolveAcademicYear(year);
         List<ClubFinanceEntry> entries = entryRepository.findByClubIdAndAcademicYearOrderByOccurredOnDescCreatedAtDesc(clubId, academicYear);
         Map<UUID, ApprovalStatus> statuses = statusesOf(entries.stream().map(ClubFinanceEntry::getRequestId).toList());
         return entries.stream().map(entry -> FinanceEntryResponse.of(entry, statuses.get(entry.getRequestId()))).toList();

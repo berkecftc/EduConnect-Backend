@@ -1,5 +1,7 @@
 package com.educonnect.clubservice.service;
 
+import com.educonnect.clubservice.dto.response.AcademicYears;
+import com.educonnect.common.web.BadRequestException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
@@ -48,7 +50,15 @@ public class MembershipTerms {
     }
 
     public LocalDate academicYearStart(int academicYear) {
+        if (academicYear < AcademicYears.MIN_YEAR || academicYear > AcademicYears.MAX_YEAR) {
+            throw new BadRequestException("INVALID_ACADEMIC_YEAR",
+                    "Akademik yıl " + AcademicYears.MIN_YEAR + " ile " + AcademicYears.MAX_YEAR + " arasında olmalı.");
+        }
         return yearEnd.atYear(academicYear - 1).plusDays(1);
+    }
+
+    public int resolveAcademicYear(Integer academicYear) {
+        return academicYear != null ? AcademicYears.requireSupported(academicYear) : currentAcademicYear();
     }
 
     public LocalDate academicYearEnd(int academicYear) {

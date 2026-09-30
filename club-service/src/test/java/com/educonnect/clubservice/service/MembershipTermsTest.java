@@ -1,5 +1,6 @@
 package com.educonnect.clubservice.service;
 
+import com.educonnect.common.web.BadRequestException;
 import org.junit.jupiter.api.Test;
 
 import java.time.Clock;
@@ -8,6 +9,7 @@ import java.time.MonthDay;
 import java.time.ZoneOffset;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class MembershipTermsTest {
 
@@ -31,6 +33,15 @@ class MembershipTermsTest {
     @Test
     void theYearEndIsConfigurable() {
         assertThat(termsOn(LocalDate.of(2026, 7, 1), "08-31").currentValidUntil()).isEqualTo(LocalDate.of(2026, 8, 31));
+    }
+
+    @Test
+    void academicYearsOutsideTheSupportedRangeAreRejected() {
+        MembershipTerms terms = termsOn(LocalDate.of(2026, 9, 10), "09-30");
+        assertThat(terms.resolveAcademicYear(null)).isEqualTo(2026);
+        assertThat(terms.resolveAcademicYear(2027)).isEqualTo(2027);
+        assertThatThrownBy(() -> terms.resolveAcademicYear(Integer.MIN_VALUE)).isInstanceOf(BadRequestException.class);
+        assertThatThrownBy(() -> terms.academicYearStart(1999)).isInstanceOf(BadRequestException.class);
     }
 
     @Test
