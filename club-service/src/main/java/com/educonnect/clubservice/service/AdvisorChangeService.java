@@ -83,7 +83,7 @@ public class AdvisorChangeService {
     @Transactional(readOnly = true)
     public List<AdvisorChangeRequestResponse> getClubRequests(UUID clubId, UUID userId) {
         Club club = findClub(clubId);
-        clubAuthorizationService.require(clubId, userId, ClubPermission.VIEW_MANAGEMENT_DATA);
+        clubAuthorizationService.require(clubId, userId, ClubPermission.VIEW_DECISIONS);
         return requestRepository.findByClubIdAndTypeOrderByCreatedAtDesc(clubId, ApprovalType.ADVISOR_CHANGE).stream()
                 .map(request -> AdvisorChangeRequestResponse.of(request, club.getName()))
                 .toList();

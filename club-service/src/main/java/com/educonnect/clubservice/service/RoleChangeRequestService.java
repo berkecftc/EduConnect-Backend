@@ -86,7 +86,7 @@ public class RoleChangeRequestService {
 
     @Transactional(readOnly = true)
     public List<RoleChangeRequestDTO> getClubRoleChangeRequests(UUID clubId, UUID requesterId) {
-        clubAuthorizationService.require(clubId, requesterId, ClubPermission.VIEW_MANAGEMENT_DATA);
+        clubAuthorizationService.require(clubId, requesterId, ClubPermission.VIEW_DECISIONS);
 
         Club club = clubRepository.findById(clubId).orElse(null);
         List<ClubApprovalRequest> requests = approvalRequestRepository

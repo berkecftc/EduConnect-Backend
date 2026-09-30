@@ -3,7 +3,9 @@ package com.educonnect.clubservice.security;
 public enum ClubPermission {
     VIEW_MEMBERS,
     VIEW_MANAGEMENT_DATA,
+    VIEW_DECISIONS,
     MANAGE_MEMBERSHIP_REQUESTS,
+    REVIEW_MEMBERSHIP_REQUESTS,
     PROPOSE_POSITION_CHANGE,
     UPDATE_CLUB_PROFILE,
     PROPOSE_ADVISOR_CHANGE,

@@ -131,7 +131,7 @@ public class ClubApprovalEngine {
     @Transactional(readOnly = true)
     public List<ClubApprovalRequest> requestsOf(UUID clubId, UUID userId) {
         findClub(clubId);
-        clubAuthorizationService.require(clubId, userId, ClubPermission.VIEW_MANAGEMENT_DATA);
+        clubAuthorizationService.require(clubId, userId, ClubPermission.VIEW_DECISIONS);
         return requestRepository.findByClubIdOrderByCreatedAtDesc(clubId);
     }
 

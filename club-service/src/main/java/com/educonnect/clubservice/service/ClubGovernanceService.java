@@ -81,7 +81,7 @@ public class ClubGovernanceService {
     @Transactional(readOnly = true)
     public List<ClubDecisionLogEntry> decisionLogOf(UUID clubId, UUID userId) {
         findClub(clubId);
-        clubAuthorizationService.require(clubId, userId, ClubPermission.VIEW_MANAGEMENT_DATA);
+        clubAuthorizationService.require(clubId, userId, ClubPermission.VIEW_DECISIONS);
         return decisionLog.entriesOf(clubId);
     }
 

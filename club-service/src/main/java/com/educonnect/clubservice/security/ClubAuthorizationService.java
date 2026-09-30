@@ -100,6 +100,9 @@ public class ClubAuthorizationService {
             if ((position != null && position.isManagement()) || advisor) {
                 permissions.add(ClubPermission.VIEW_MANAGEMENT_DATA);
             }
+            if ((position != null && (position.isBoard() || position == ClubPosition.AUDITOR)) || advisor) {
+                permissions.add(ClubPermission.VIEW_DECISIONS);
+            }
             return Set.copyOf(permissions);
         }
         if (position != null) {
@@ -107,11 +110,19 @@ public class ClubAuthorizationService {
         }
         if (position != null && position.isManagement()) {
             permissions.add(ClubPermission.VIEW_MANAGEMENT_DATA);
+        }
+        if ((position != null && position.isBoard()) || position == ClubPosition.EVENT_COORDINATOR) {
             permissions.add(ClubPermission.MANAGE_EVENT_OPERATIONS);
         }
+        if ((position != null && position.isBoard()) || position == ClubPosition.AUDITOR) {
+            permissions.add(ClubPermission.VIEW_DECISIONS);
+        }
         if (position == ClubPosition.VICE_PRESIDENT || position == ClubPosition.GENERAL_SECRETARY
-                || position == ClubPosition.BOARD_MEMBER || actingPresident) {
+                || position == ClubPosition.BOARD_MEMBER || position == ClubPosition.EVENT_COORDINATOR || actingPresident) {
             permissions.add(ClubPermission.PREPARE_EVENT);
+        }
+        if (position == ClubPosition.MEMBERSHIP_OFFICER) {
+            permissions.add(ClubPermission.REVIEW_MEMBERSHIP_REQUESTS);
         }
         if (position == ClubPosition.GENERAL_SECRETARY) {
             permissions.add(ClubPermission.MANAGE_MEMBERSHIP_REQUESTS);
@@ -128,6 +139,7 @@ public class ClubAuthorizationService {
         if (advisor) {
             permissions.add(ClubPermission.VIEW_MEMBERS);
             permissions.add(ClubPermission.VIEW_MANAGEMENT_DATA);
+            permissions.add(ClubPermission.VIEW_DECISIONS);
             permissions.add(ClubPermission.ADVISE);
         }
         return Set.copyOf(permissions);

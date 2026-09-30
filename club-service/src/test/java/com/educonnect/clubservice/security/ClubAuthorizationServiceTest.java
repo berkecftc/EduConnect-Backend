@@ -65,7 +65,7 @@ class ClubAuthorizationServiceTest {
                 ClubPermission.UPDATE_CLUB_PROFILE, ClubPermission.CREATE_EVENT,
                 ClubPermission.MANAGE_EVENT_OPERATIONS, ClubPermission.PROPOSE_ADVISOR_CHANGE,
                 ClubPermission.APPROVE_AS_PRESIDENT, ClubPermission.REQUEST_CLUB_CLOSURE,
-                ClubPermission.PREPARE_EVENT);
+                ClubPermission.PREPARE_EVENT, ClubPermission.VIEW_DECISIONS);
     }
 
     @Test
@@ -100,7 +100,8 @@ class ClubAuthorizationServiceTest {
         ClubAccess access = service.accessOf(clubId, userId);
 
         assertThat(access.permissions()).containsExactlyInAnyOrder(
-                ClubPermission.VIEW_MEMBERS, ClubPermission.VIEW_MANAGEMENT_DATA, ClubPermission.MANAGE_EVENT_OPERATIONS);
+                ClubPermission.VIEW_MEMBERS, ClubPermission.VIEW_MANAGEMENT_DATA, ClubPermission.MANAGE_EVENT_OPERATIONS,
+                ClubPermission.VIEW_DECISIONS);
     }
 
     @Test
@@ -136,9 +137,9 @@ class ClubAuthorizationServiceTest {
         givenPosition(ClubPosition.PRESIDENT, true);
 
         assertThat(service.accessOf(clubId, userId).permissions())
-                .containsExactlyInAnyOrder(ClubPermission.VIEW_MEMBERS, ClubPermission.VIEW_MANAGEMENT_DATA);
+                .containsExactlyInAnyOrder(ClubPermission.VIEW_MEMBERS, ClubPermission.VIEW_MANAGEMENT_DATA, ClubPermission.VIEW_DECISIONS);
         assertThat(service.accessOf(clubId, advisorId).permissions())
-                .containsExactlyInAnyOrder(ClubPermission.VIEW_MEMBERS, ClubPermission.VIEW_MANAGEMENT_DATA);
+                .containsExactlyInAnyOrder(ClubPermission.VIEW_MEMBERS, ClubPermission.VIEW_MANAGEMENT_DATA, ClubPermission.VIEW_DECISIONS);
     }
 
     @Test
@@ -147,7 +148,7 @@ class ClubAuthorizationServiceTest {
 
         assertThat(access.advisor()).isTrue();
         assertThat(access.permissions()).containsExactlyInAnyOrder(
-                ClubPermission.VIEW_MEMBERS, ClubPermission.VIEW_MANAGEMENT_DATA, ClubPermission.ADVISE);
+                ClubPermission.VIEW_MEMBERS, ClubPermission.VIEW_MANAGEMENT_DATA, ClubPermission.ADVISE, ClubPermission.VIEW_DECISIONS);
     }
 
     @Test
