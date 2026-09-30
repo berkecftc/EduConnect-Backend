@@ -29,7 +29,7 @@ class ClubResponsesTest {
         Map<String, Object> json = objectMapper.readValue(objectMapper.writeValueAsString(ClubResponse.from(club)), JSON_MAP);
 
         assertThat(json.keySet()).containsExactlyInAnyOrder("id", "name", "about", "logoUrl", "academicAdvisorId",
-                "createdAt", "updatedAt", "status");
+                "createdAt", "updatedAt", "status", "profile");
     }
 
     @Test

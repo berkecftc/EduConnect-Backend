@@ -23,6 +23,18 @@ public class ClubCacheEvictor {
         evict("studentClubMemberships", userId);
     }
 
+    public void evictAllMemberships() {
+        clear("managedClubs");
+        clear("studentClubMemberships");
+    }
+
+    private void clear(String cacheName) {
+        Cache cache = cacheManager.getCache(cacheName);
+        if (cache != null) {
+            cache.clear();
+        }
+    }
+
     private void evict(String cacheName, UUID key) {
         Cache cache = cacheManager.getCache(cacheName);
         if (cache != null) {

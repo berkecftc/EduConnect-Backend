@@ -118,6 +118,7 @@ public class ClubApprovalEngine {
         request.conclude(ApprovalStatus.WITHDRAWN, userId, null, clock.instant());
         requestRepository.save(request);
         decisionLog.record(request, DecisionAction.WITHDRAWN, userId, null);
+        handler(request.getType()).onWithdrawn(club, request);
         return request;
     }
 

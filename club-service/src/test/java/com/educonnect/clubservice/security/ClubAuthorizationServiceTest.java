@@ -62,7 +62,8 @@ class ClubAuthorizationServiceTest {
         assertThat(access.permissions()).containsExactlyInAnyOrder(
                 ClubPermission.VIEW_MEMBERS, ClubPermission.VIEW_MANAGEMENT_DATA,
                 ClubPermission.MANAGE_MEMBERSHIP_REQUESTS, ClubPermission.PROPOSE_POSITION_CHANGE,
-                ClubPermission.UPDATE_CLUB_PROFILE, ClubPermission.CREATE_EVENT,
+                ClubPermission.UPDATE_CLUB_PROFILE, ClubPermission.PREPARE_PROFILE_CHANGE, ClubPermission.PREPARE_LOGO_CHANGE,
+                ClubPermission.CREATE_EVENT,
                 ClubPermission.MANAGE_EVENT_OPERATIONS, ClubPermission.PROPOSE_ADVISOR_CHANGE,
                 ClubPermission.APPROVE_AS_PRESIDENT, ClubPermission.REQUEST_CLUB_CLOSURE,
                 ClubPermission.PREPARE_EVENT, ClubPermission.VIEW_DECISIONS);

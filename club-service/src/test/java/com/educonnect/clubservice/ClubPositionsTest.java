@@ -117,7 +117,8 @@ class ClubPositionsTest {
                 ClubPermission.VIEW_MEMBERS, ClubPermission.VIEW_MANAGEMENT_DATA, ClubPermission.MANAGE_EVENT_OPERATIONS,
                 ClubPermission.PREPARE_EVENT);
         assertThat(clubAuthorizationService.accessOf(clubId, communicationsOfficer).permissions()).containsExactlyInAnyOrder(
-                ClubPermission.VIEW_MEMBERS, ClubPermission.VIEW_MANAGEMENT_DATA);
+                ClubPermission.VIEW_MEMBERS, ClubPermission.VIEW_MANAGEMENT_DATA,
+                ClubPermission.PREPARE_PROFILE_CHANGE, ClubPermission.PREPARE_LOGO_CHANGE);
         assertThat(clubAuthorizationService.accessOf(clubId, membershipOfficer).permissions()).containsExactlyInAnyOrder(
                 ClubPermission.VIEW_MEMBERS, ClubPermission.VIEW_MANAGEMENT_DATA, ClubPermission.REVIEW_MEMBERSHIP_REQUESTS);
     }

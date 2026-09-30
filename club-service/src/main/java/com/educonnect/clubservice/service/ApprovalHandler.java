@@ -24,4 +24,7 @@ interface ApprovalHandler {
     void apply(Club club, ClubApprovalRequest request, UUID approverId);
 
     void onRejected(Club club, ClubApprovalRequest request);
+
+    default void onWithdrawn(Club club, ClubApprovalRequest request) {
+    }
 }

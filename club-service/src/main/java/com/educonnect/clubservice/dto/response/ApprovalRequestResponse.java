@@ -24,13 +24,18 @@ public record ApprovalRequestResponse(UUID id,
                                       UUID presidentDecidedBy,
                                       Instant presidentDecidedAt,
                                       UUID decidedBy,
-                                      Instant decidedAt) {
+                                      Instant decidedAt,
+                                      ProfileChangeResponse profileChange) {
 
     public static ApprovalRequestResponse of(ClubApprovalRequest request, String clubName) {
+        return of(request, clubName, null);
+    }
+
+    public static ApprovalRequestResponse of(ClubApprovalRequest request, String clubName, ProfileChangeResponse profileChange) {
         return new ApprovalRequestResponse(request.getId(), request.getClubId(), clubName, request.getType(),
                 request.getStatus(), request.getPreparedBy(), request.getSubjectUserId(), request.getCurrentPosition(),
                 request.getRequestedPosition(), request.getNote(), request.getRejectionReason(), request.getResponseNote(), request.getCreatedAt(),
                 request.getPresidentDecidedBy(), request.getPresidentDecidedAt(), request.getDecidedBy(),
-                request.getDecidedAt());
+                request.getDecidedAt(), profileChange);
     }
 }

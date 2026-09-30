@@ -1,6 +1,7 @@
 package com.educonnect.clubservice.service;
 
 import com.educonnect.clubservice.dto.response.ApprovalRequestResponse;
+import com.educonnect.clubservice.dto.response.ProfileChangeResponse;
 import com.educonnect.clubservice.model.ApprovalStatus;
 import com.educonnect.clubservice.model.ApprovalType;
 import com.educonnect.clubservice.model.Club;
@@ -8,9 +9,11 @@ import com.educonnect.clubservice.model.ClubApprovalRequest;
 import com.educonnect.clubservice.model.ClubDecisionLogEntry;
 import com.educonnect.clubservice.model.ClubMembership;
 import com.educonnect.clubservice.model.ClubPosition;
+import com.educonnect.clubservice.model.ClubProfileChange;
 import com.educonnect.clubservice.model.DecisionAction;
 import com.educonnect.clubservice.repository.ClubApprovalRequestRepository;
 import com.educonnect.clubservice.repository.ClubMembershipRepository;
+import com.educonnect.clubservice.repository.ClubProfileChangeRepository;
 import com.educonnect.clubservice.repository.ClubRepository;
 import com.educonnect.clubservice.security.ClubAuthorizationService;
 import com.educonnect.clubservice.security.ClubPermission;
@@ -24,6 +27,8 @@ import org.springframework.web.server.ResponseStatusException;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Set;
+import java.util.function.Function;
 import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -32,25 +37,30 @@ import java.util.stream.Collectors;
 @Transactional
 public class ClubGovernanceService {
 
+    private static final Set<ApprovalType> PROFILE_TYPES = Set.of(ApprovalType.CLUB_PROFILE_UPDATE, ApprovalType.CLUB_LOGO_CHANGE);
+
     private final ClubRepository clubRepository;
     private final ClubMembershipRepository membershipRepository;
     private final ClubApprovalRequestRepository requestRepository;
     private final ClubAuthorizationService clubAuthorizationService;
     private final ClubApprovalEngine approvalEngine;
     private final ClubDecisionLog decisionLog;
+    private final ClubProfileChangeRepository profileChangeRepository;
 
     public ClubGovernanceService(ClubRepository clubRepository,
                                  ClubMembershipRepository membershipRepository,
                                  ClubApprovalRequestRepository requestRepository,
                                  ClubAuthorizationService clubAuthorizationService,
                                  ClubApprovalEngine approvalEngine,
-                                 ClubDecisionLog decisionLog) {
+                                 ClubDecisionLog decisionLog,
+                                 ClubProfileChangeRepository profileChangeRepository) {
         this.clubRepository = clubRepository;
         this.membershipRepository = membershipRepository;
         this.requestRepository = requestRepository;
         this.clubAuthorizationService = clubAuthorizationService;
         this.approvalEngine = approvalEngine;
         this.decisionLog = decisionLog;
+        this.profileChangeRepository = profileChangeRepository;
     }
 
     public ClubApprovalRequest resign(UUID clubId, UUID userId, String note) {
@@ -148,15 +158,26 @@ public class ClubGovernanceService {
     }
 
     public ApprovalRequestResponse toResponse(ClubApprovalRequest request) {
-        return ApprovalRequestResponse.of(request, clubRepository.findById(request.getClubId()).map(Club::getName).orElse(null));
+        ProfileChangeResponse profileChange = PROFILE_TYPES.contains(request.getType())
+                ? ProfileChangeResponse.of(profileChangeRepository.findById(request.getId()).orElse(null))
+                : null;
+        return ApprovalRequestResponse.of(request, clubRepository.findById(request.getClubId()).map(Club::getName).orElse(null),
+                profileChange);
     }
 
     private List<ApprovalRequestResponse> toResponses(List<ClubApprovalRequest> requests) {
         Map<UUID, String> names = clubRepository.findAllById(requests.stream().map(ClubApprovalRequest::getClubId).distinct().toList())
                 .stream()
                 .collect(Collectors.toMap(Club::getId, Club::getName));
+        Map<UUID, ClubProfileChange> changes = profileChangeRepository.findAllById(requests.stream()
+                .filter(request -> PROFILE_TYPES.contains(request.getType()))
+                .map(ClubApprovalRequest::getId)
+                .toList())
+                .stream()
+                .collect(Collectors.toMap(ClubProfileChange::getRequestId, Function.identity()));
         return requests.stream()
-                .map(request -> ApprovalRequestResponse.of(request, names.get(request.getClubId())))
+                .map(request -> ApprovalRequestResponse.of(request, names.get(request.getClubId()),
+                        ProfileChangeResponse.of(changes.get(request.getId()))))
                 .toList();
     }
 

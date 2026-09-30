@@ -1,5 +1,6 @@
 package com.educonnect.clubservice.service;
 
+import com.educonnect.clubservice.config.ApprovalChainSettings;
 import com.educonnect.clubservice.config.ClubRabbitMQConfig;
 import com.educonnect.clubservice.dto.message.ClubUpdateMessage;
 import com.educonnect.clubservice.dto.request.UpdateClubRequest;
@@ -48,6 +49,7 @@ public class ClubLifecycleService {
     private final ClubCacheEvictor cacheEvictor;
     private final ClubManagementStatusPublisher managementStatusPublisher;
     private final ClubDecisionLog decisionLog;
+    private final ApprovalChainSettings approvalChainSettings;
 
     public ClubLifecycleService(ClubRepository clubRepository,
                                 ClubMembershipRepository membershipRepository,
@@ -57,7 +59,8 @@ public class ClubLifecycleService {
                                 ClubAuthorizationService clubAuthorizationService,
                                 ClubCacheEvictor cacheEvictor,
                                 ClubManagementStatusPublisher managementStatusPublisher,
-                                ClubDecisionLog decisionLog) {
+                                ClubDecisionLog decisionLog,
+                                ApprovalChainSettings approvalChainSettings) {
         this.clubRepository = clubRepository;
         this.membershipRepository = membershipRepository;
         this.archivedClubRepository = archivedClubRepository;
@@ -67,6 +70,7 @@ public class ClubLifecycleService {
         this.cacheEvictor = cacheEvictor;
         this.managementStatusPublisher = managementStatusPublisher;
         this.decisionLog = decisionLog;
+        this.approvalChainSettings = approvalChainSettings;
     }
 
     public Club updateClub(UUID clubId, UpdateClubRequest request) {
@@ -98,6 +102,9 @@ public class ClubLifecycleService {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Club not found"));
 
         clubAuthorizationService.require(clubId, requestingStudentId, ClubPermission.UPDATE_CLUB_PROFILE);
+        if (approvalChainSettings.enabled()) {
+            throw new ConflictException("APPROVAL_REQUIRED", "Logo değişikliği için onay talebi açılmalı.");
+        }
 
         String objectName = minioService.uploadFile(file, "logos", clubId.toString());
 

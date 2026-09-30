@@ -19,6 +19,7 @@ public class ClubDetailsDTO {
     private ClubStatus status;
     private Instant closedAt;
     private String closureReason;
+    private ClubProfileResponse profile;
 
     // JSON dönüşümü için boş constructor
     public ClubDetailsDTO() {}
@@ -48,4 +49,6 @@ public class ClubDetailsDTO {
     public void setClosedAt(Instant closedAt) { this.closedAt = closedAt; }
     public String getClosureReason() { return closureReason; }
     public void setClosureReason(String closureReason) { this.closureReason = closureReason; }
+    public ClubProfileResponse getProfile() { return profile; }
+    public void setProfile(ClubProfileResponse profile) { this.profile = profile; }
 }

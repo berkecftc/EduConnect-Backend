@@ -121,6 +121,13 @@ public class ClubAuthorizationService {
                 || position == ClubPosition.BOARD_MEMBER || position == ClubPosition.EVENT_COORDINATOR || actingPresident) {
             permissions.add(ClubPermission.PREPARE_EVENT);
         }
+        if (position == ClubPosition.COMMUNICATIONS_OFFICER || actingPresident) {
+            permissions.add(ClubPermission.PREPARE_PROFILE_CHANGE);
+            permissions.add(ClubPermission.PREPARE_LOGO_CHANGE);
+        }
+        if (position == ClubPosition.GENERAL_SECRETARY) {
+            permissions.add(ClubPermission.PREPARE_PROFILE_CHANGE);
+        }
         if (position == ClubPosition.MEMBERSHIP_OFFICER) {
             permissions.add(ClubPermission.REVIEW_MEMBERSHIP_REQUESTS);
         }

@@ -56,6 +56,9 @@ public class Club {
     @Column(name = "closed_by")
     private UUID closedBy;
 
+    @Embedded
+    private ClubProfile profile;
+
     // Not: Kulüp Başkanı ve YK, 'ClubMembership' tablosunda dinamik olarak yönetilecek.
 
     // --- Getter/Setter ---
@@ -76,6 +79,8 @@ public class Club {
     public ClubStatus getStatus() { return status; }
     public void setStatus(ClubStatus status) { this.status = status; }
     public boolean isClosed() { return status == ClubStatus.CLOSED; }
+    public ClubProfile getProfile() { return profile != null ? profile : ClubProfile.empty(); }
+    public void setProfile(ClubProfile profile) { this.profile = profile; }
     public Instant getClosedAt() { return closedAt; }
     public String getClosureReason() { return closureReason; }
     public UUID getClosedBy() { return closedBy; }
