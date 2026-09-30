@@ -29,7 +29,8 @@ public record ApprovalRequestResponse(UUID id,
                                       AnnouncementResponse announcement,
                                       BudgetResponse budget,
                                       FinanceEntryResponse financeEntry,
-                                      SponsorshipResponse sponsorship) {
+                                      SponsorshipResponse sponsorship,
+                                      MeetingResponse meeting) {
 
     public static ApprovalRequestResponse of(ClubApprovalRequest request, String clubName, ApprovalDetails details) {
         ApprovalDetails extra = details != null ? details : ApprovalDetails.NONE;
@@ -38,6 +39,6 @@ public record ApprovalRequestResponse(UUID id,
                 request.getRequestedPosition(), request.getNote(), request.getRejectionReason(), request.getResponseNote(), request.getCreatedAt(),
                 request.getPresidentDecidedBy(), request.getPresidentDecidedAt(), request.getDecidedBy(),
                 request.getDecidedAt(), extra.profileChange(), extra.announcement(), extra.budget(), extra.financeEntry(),
-                extra.sponsorship());
+                extra.sponsorship(), extra.meeting());
     }
 }

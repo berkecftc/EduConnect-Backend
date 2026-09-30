@@ -122,6 +122,9 @@ public class ClubAuthorizationService {
         if (position == ClubPosition.TREASURER || actingPresident) {
             permissions.add(ClubPermission.PREPARE_FINANCE);
         }
+        if (position == ClubPosition.GENERAL_SECRETARY || actingPresident) {
+            permissions.add(ClubPermission.PREPARE_MINUTES);
+        }
         if (position == ClubPosition.SPONSORSHIP_OFFICER || actingPresident) {
             permissions.add(ClubPermission.PREPARE_SPONSORSHIP);
         }
