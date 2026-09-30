@@ -29,7 +29,6 @@ import static org.springframework.test.web.client.response.MockRestResponseCreat
 class AcademicianAssignmentGuardTest {
 
     private static final String COURSES = "http://course-service/api/courses/internal/instructors/%s/course-ids";
-    private static final String CLUBS = "http://club-service/api/clubs/internal/by-advisor/%s/ids";
 
     private final UUID userId = UUID.randomUUID();
 
@@ -56,12 +55,10 @@ class AcademicianAssignmentGuardTest {
     }
 
     @Test
-    void academicianWithoutCoursesOrClubsCanBeDeleted() {
+    void academicianWithoutCoursesCanBeDeletedEvenIfAdvisingClubs() {
         givenUserWithRole(Role.ROLE_ACADEMICIAN);
         server.expect(requestTo(String.format(COURSES, userId)))
                 .andExpect(header("Authorization", "Bearer service-token"))
-                .andRespond(withSuccess("[]", MediaType.APPLICATION_JSON));
-        server.expect(requestTo(String.format(CLUBS, userId)))
                 .andRespond(withSuccess("[]", MediaType.APPLICATION_JSON));
 
         assertThatCode(() -> guard.requireNoActiveAssignments(userId)).doesNotThrowAnyException();
@@ -73,8 +70,6 @@ class AcademicianAssignmentGuardTest {
         givenUserWithRole(Role.ROLE_ACADEMICIAN);
         server.expect(requestTo(String.format(COURSES, userId)))
                 .andRespond(withSuccess("[\"" + UUID.randomUUID() + "\"]", MediaType.APPLICATION_JSON));
-        server.expect(requestTo(String.format(CLUBS, userId)))
-                .andRespond(withSuccess("[]", MediaType.APPLICATION_JSON));
 
         assertThatThrownBy(() -> guard.requireNoActiveAssignments(userId))
                 .isInstanceOf(ResponseStatusException.class)

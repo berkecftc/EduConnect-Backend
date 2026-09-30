@@ -13,6 +13,7 @@ import com.educonnect.clubservice.repository.ClubRepository;
 import com.educonnect.clubservice.security.ClubAuthorizationService;
 import com.educonnect.clubservice.security.ClubPermission;
 import com.educonnect.common.messaging.outbox.OutboxPublisher;
+import com.educonnect.common.web.ConflictException;
 import com.educonnect.common.web.LogValues;
 import com.educonnect.common.web.NotFoundException;
 import org.slf4j.Logger;
@@ -167,8 +168,10 @@ public class ClubLifecycleService {
     }
 
     public void leaveClub(UUID clubId, UUID studentId) {
-        if (!clubRepository.existsById(clubId)) {
-            throw new NotFoundException("CLUB_NOT_FOUND", "Club not found with id: " + clubId);
+        Club club = clubRepository.findById(clubId)
+                .orElseThrow(() -> new NotFoundException("CLUB_NOT_FOUND", "Club not found with id: " + clubId));
+        if (club.isClosed()) {
+            throw new ConflictException("CLUB_CLOSED", "Kapatılmış kulübün üyelikleri değiştirilemez.");
         }
         ClubMembership membership = membershipRepository.findByClubIdAndStudentId(clubId, studentId)
                 .orElseThrow(() -> new NotFoundException("MEMBERSHIP_NOT_FOUND", "Membership not found for this user and club"));

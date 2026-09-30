@@ -1,6 +1,7 @@
 package com.educonnect.clubservice.dto.response;
 
 import com.educonnect.clubservice.model.ClubPosition;
+import com.educonnect.clubservice.model.ClubStatus;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
@@ -11,6 +12,7 @@ public class MyClubMembershipDTO {
     private ClubPosition clubRole;
     private boolean isActive;
     private LocalDateTime termStartDate;
+    private ClubStatus clubStatus;
 
     public MyClubMembershipDTO() {}
 
@@ -32,5 +34,6 @@ public class MyClubMembershipDTO {
 
     public LocalDateTime getTermStartDate() { return termStartDate; }
     public void setTermStartDate(LocalDateTime termStartDate) { this.termStartDate = termStartDate; }
+    public ClubStatus getClubStatus() { return clubStatus; }
+    public void setClubStatus(ClubStatus clubStatus) { this.clubStatus = clubStatus; }
 }
-

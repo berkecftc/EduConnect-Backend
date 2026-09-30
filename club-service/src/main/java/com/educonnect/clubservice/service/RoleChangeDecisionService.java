@@ -44,6 +44,7 @@ public class RoleChangeDecisionService {
     private final RoleChangeNotifier notifier;
     private final RoleChangeUserNames userNames;
     private final RoleChangeRequestMapper mapper;
+    private final ClubLeadershipService leadershipService;
 
     public RoleChangeDecisionService(RoleChangeRequestRepository roleChangeRequestRepository,
                                      ClubMembershipRepository membershipRepository,
@@ -54,7 +55,8 @@ public class RoleChangeDecisionService {
                                      ClubPositionRules positionRules,
                                      RoleChangeNotifier notifier,
                                      RoleChangeUserNames userNames,
-                                     RoleChangeRequestMapper mapper) {
+                                     RoleChangeRequestMapper mapper,
+                                     ClubLeadershipService leadershipService) {
         this.roleChangeRequestRepository = roleChangeRequestRepository;
         this.membershipRepository = membershipRepository;
         this.clubRepository = clubRepository;
@@ -65,6 +67,7 @@ public class RoleChangeDecisionService {
         this.notifier = notifier;
         this.userNames = userNames;
         this.mapper = mapper;
+        this.leadershipService = leadershipService;
     }
 
     @Transactional(readOnly = true)
@@ -189,6 +192,7 @@ public class RoleChangeDecisionService {
         }
         notifier.send(president.getStudentId(), club, president.getStudentId(), studentName,
                 ClubPosition.PRESIDENT, ClubPosition.MEMBER, Status.APPROVED, message, Type.ROLE_REVOKED);
+        leadershipService.handlePresidencyVacancy(clubId);
     }
 
     @Transactional(readOnly = true)
