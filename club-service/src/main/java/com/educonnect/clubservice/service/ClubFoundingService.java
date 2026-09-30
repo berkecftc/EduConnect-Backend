@@ -25,11 +25,15 @@ import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 
 @Service
 @Transactional
 public class ClubFoundingService {
+
+    private static final List<ClubCreationRequestStatus> OPEN_STATUSES =
+            List.of(ClubCreationRequestStatus.PENDING, ClubCreationRequestStatus.PENDING_FOUNDERS);
 
     private static final Logger log = LoggerFactory.getLogger(ClubFoundingService.class);
 
@@ -42,6 +46,7 @@ public class ClubFoundingService {
     private final ClubManagementStatusPublisher managementStatusPublisher;
     private final ClubNotificationPublisher notificationPublisher;
     private final ClubDecisionLog decisionLog;
+    private final ClubFounderService founderService;
 
     public ClubFoundingService(ClubRepository clubRepository,
                                ClubMembershipRepository membershipRepository,
@@ -51,7 +56,8 @@ public class ClubFoundingService {
                                ClubCacheEvictor cacheEvictor,
                                ClubManagementStatusPublisher managementStatusPublisher,
                                ClubNotificationPublisher notificationPublisher,
-                               ClubDecisionLog decisionLog) {
+                               ClubDecisionLog decisionLog,
+                               ClubFounderService founderService) {
         this.clubRepository = clubRepository;
         this.membershipRepository = membershipRepository;
         this.requestRepository = requestRepository;
@@ -61,6 +67,7 @@ public class ClubFoundingService {
         this.managementStatusPublisher = managementStatusPublisher;
         this.notificationPublisher = notificationPublisher;
         this.decisionLog = decisionLog;
+        this.founderService = founderService;
     }
 
     public Club createClub(CreateClubRequest request) {
@@ -105,18 +112,20 @@ public class ClubFoundingService {
         }
         advisorDirectory.requireAcademician(request.getAcademicAdvisorId());
         ensureEligibleForManagement(studentId);
-        if (requestRepository.existsByRequestingStudentIdAndStatus(studentId, ClubCreationRequestStatus.PENDING)) {
+        if (requestRepository.existsByRequestingStudentIdAndStatusIn(studentId, OPEN_STATUSES)) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Bekleyen bir kulüp kuruluş başvurunuz zaten var.");
         }
         String normalizedName = ClubNames.normalize(request.getName());
         if (clubRepository.existsByNormalizedNameAndStatusNot(normalizedName, ClubStatus.CLOSED)) {
             throw new ConflictException("CLUB_NAME_TAKEN", "Bu isimde bir kulüp zaten var.");
         }
-        boolean pendingWithSameName = requestRepository.findByStatus(ClubCreationRequestStatus.PENDING).stream()
+        boolean pendingWithSameName = requestRepository.findByStatusIn(OPEN_STATUSES).stream()
                 .anyMatch(pending -> normalizedName.equals(ClubNames.normalize(pending.getClubName())));
         if (pendingWithSameName) {
             throw new ConflictException("CLUB_NAME_TAKEN", "Bu isimde bekleyen bir kulüp kuruluş başvurusu var.");
         }
+
+        Set<UUID> invitedFounders = founderService.validateFounders(studentId, request.getAcademicAdvisorId(), request.getFounderIds());
 
         ClubCreationRequest newRequest = new ClubCreationRequest();
         newRequest.setClubName(request.getName());
@@ -125,9 +134,7 @@ public class ClubFoundingService {
         newRequest.setRequestingStudentId(studentId);
 
         ClubCreationRequest saved = requestRepository.save(newRequest);
-        notificationPublisher.notifyUserAboutClubName(request.getAcademicAdvisorId(), request.getName(),
-                "Kulüp kuruluş başvurusu",
-                "\"" + request.getName() + "\" kulübü için danışmanlık onayınız bekleniyor.");
+        founderService.registerFounders(saved, invitedFounders);
         return saved;
     }
 
@@ -204,8 +211,10 @@ public class ClubFoundingService {
         request.setStatus(ClubCreationRequestStatus.APPROVED);
         request.setProcessedAt(LocalDateTime.now());
         request.setProcessedBy(approverId);
+        request.setClubId(newClub.getId());
         requestRepository.save(request);
         decisionLog.record(newClub.getId(), DecisionAction.CLUB_FOUNDED, approverId, request.getRequestingStudentId(), null);
+        founderService.enrollFounders(request, newClub);
 
         notificationPublisher.notifyUser(request.getRequestingStudentId(), newClub, "Kulüp kuruluş başvurusu",
                 "\"" + newClub.getName() + "\" kulübünün kuruluşu onaylandı. Kulüp başkanı olarak atandınız.");

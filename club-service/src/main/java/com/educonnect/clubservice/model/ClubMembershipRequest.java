@@ -41,6 +41,19 @@ public class ClubMembershipRequest {
     @Column(name = "rejection_reason", columnDefinition = "TEXT")
     private String rejectionReason; // Red nedeni (opsiyonel)
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "recommendation", length = 20)
+    private MembershipRecommendation recommendation;
+
+    @Column(name = "recommendation_note", columnDefinition = "TEXT")
+    private String recommendationNote;
+
+    @Column(name = "recommended_by")
+    private UUID recommendedBy;
+
+    @Column(name = "recommended_at")
+    private LocalDateTime recommendedAt;
+
     // JPA için no-args constructor
     public ClubMembershipRequest() {}
 
@@ -53,6 +66,18 @@ public class ClubMembershipRequest {
     }
 
     // --- Getter/Setter ---
+    public void recommend(MembershipRecommendation recommendation, String note, UUID officerId, LocalDateTime at) {
+        this.recommendation = recommendation;
+        this.recommendationNote = note;
+        this.recommendedBy = officerId;
+        this.recommendedAt = at;
+    }
+
+    public MembershipRecommendation getRecommendation() { return recommendation; }
+    public String getRecommendationNote() { return recommendationNote; }
+    public UUID getRecommendedBy() { return recommendedBy; }
+    public LocalDateTime getRecommendedAt() { return recommendedAt; }
+
     public UUID getId() { return id; }
     public void setId(UUID id) { this.id = id; }
 
@@ -80,4 +105,3 @@ public class ClubMembershipRequest {
     public String getRejectionReason() { return rejectionReason; }
     public void setRejectionReason(String rejectionReason) { this.rejectionReason = rejectionReason; }
 }
-

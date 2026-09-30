@@ -56,6 +56,9 @@ public class ClubApprovalRequest {
     @Column(name = "rejection_reason", columnDefinition = "TEXT")
     private String rejectionReason;
 
+    @Column(name = "response_note", columnDefinition = "TEXT")
+    private String responseNote;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
 
@@ -109,6 +112,10 @@ public class ClubApprovalRequest {
         this.decidedAt = at;
     }
 
+    public void respond(String note) {
+        this.responseNote = note;
+    }
+
     public UUID getId() { return id; }
     public UUID getClubId() { return clubId; }
     public ApprovalType getType() { return type; }
@@ -119,6 +126,7 @@ public class ClubApprovalRequest {
     public ClubPosition getRequestedPosition() { return requestedPosition; }
     public String getNote() { return note; }
     public String getRejectionReason() { return rejectionReason; }
+    public String getResponseNote() { return responseNote; }
     public Instant getCreatedAt() { return createdAt; }
     public UUID getPresidentDecidedBy() { return presidentDecidedBy; }
     public Instant getPresidentDecidedAt() { return presidentDecidedAt; }

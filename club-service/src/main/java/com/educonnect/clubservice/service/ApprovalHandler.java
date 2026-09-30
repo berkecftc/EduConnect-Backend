@@ -15,6 +15,10 @@ interface ApprovalHandler {
         return false;
     }
 
+    default boolean needsAdvisorApproval(ClubApprovalRequest request) {
+        return true;
+    }
+
     default UUID advisorStageDecider(Club club, ClubApprovalRequest request) {
         return club.getAcademicAdvisorId();
     }
@@ -24,4 +28,7 @@ interface ApprovalHandler {
     void apply(Club club, ClubApprovalRequest request, UUID approverId);
 
     void onRejected(Club club, ClubApprovalRequest request);
+
+    default void onWithdrawn(Club club, ClubApprovalRequest request) {
+    }
 }

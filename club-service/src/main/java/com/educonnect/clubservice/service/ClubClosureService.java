@@ -8,6 +8,7 @@ import com.educonnect.clubservice.model.ClubApprovalRequest;
 import com.educonnect.clubservice.model.ClubMembership;
 import com.educonnect.clubservice.model.ClubMembershipRequest;
 import com.educonnect.clubservice.model.DecisionAction;
+import com.educonnect.clubservice.model.PositionEndReason;
 import com.educonnect.clubservice.model.MembershipRequestStatus;
 import com.educonnect.clubservice.repository.ClubApprovalRequestRepository;
 import com.educonnect.clubservice.repository.ClubMembershipRepository;
@@ -46,6 +47,7 @@ public class ClubClosureService {
     private final ClubManagementStatusPublisher managementStatusPublisher;
     private final ClubNotificationPublisher notificationPublisher;
     private final OutboxPublisher outboxPublisher;
+    private final PositionHistoryRecorder positionHistory;
     private final Clock clock;
 
     public ClubClosureService(ClubRepository clubRepository,
@@ -57,7 +59,8 @@ public class ClubClosureService {
                               ClubCacheEvictor cacheEvictor,
                               ClubManagementStatusPublisher managementStatusPublisher,
                               ClubNotificationPublisher notificationPublisher,
-                              OutboxPublisher outboxPublisher) {
+                              OutboxPublisher outboxPublisher,
+                              PositionHistoryRecorder positionHistory) {
         this.clubRepository = clubRepository;
         this.membershipRepository = membershipRepository;
         this.membershipRequestRepository = membershipRequestRepository;
@@ -68,6 +71,7 @@ public class ClubClosureService {
         this.managementStatusPublisher = managementStatusPublisher;
         this.notificationPublisher = notificationPublisher;
         this.outboxPublisher = outboxPublisher;
+        this.positionHistory = positionHistory;
         this.clock = Clock.systemUTC();
     }
 
@@ -87,6 +91,7 @@ public class ClubClosureService {
         club.close(closedBy, reason, clock.instant());
         clubRepository.save(club);
         closePendingRequests(clubId, closedBy, closingRequestId);
+        positionHistory.closeAll(clubId, LocalDateTime.now(), PositionEndReason.CLUB_CLOSED);
         decisionLog.record(clubId, DecisionAction.CLUB_CLOSED, closedBy, null, reason);
 
         List<ClubMembership> activeMembers = membershipRepository.findByClubId(clubId).stream()

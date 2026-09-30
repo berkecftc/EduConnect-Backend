@@ -1,5 +1,6 @@
 package com.educonnect.clubservice.dto.response;
 
+import com.educonnect.clubservice.model.MembershipRecommendation;
 import com.educonnect.clubservice.model.MembershipRequestStatus;
 
 import java.time.LocalDateTime;
@@ -22,11 +23,20 @@ public class MembershipRequestDTO {
     private LocalDateTime processedDate;
     private String message;
     private String rejectionReason;
+    private MembershipRecommendation recommendation;
+    private String recommendationNote;
+    private UUID recommendedBy;
 
     public MembershipRequestDTO() {}
 
     // Getter/Setter
     public UUID getId() { return id; }
+    public MembershipRecommendation getRecommendation() { return recommendation; }
+    public void setRecommendation(MembershipRecommendation recommendation) { this.recommendation = recommendation; }
+    public String getRecommendationNote() { return recommendationNote; }
+    public void setRecommendationNote(String recommendationNote) { this.recommendationNote = recommendationNote; }
+    public UUID getRecommendedBy() { return recommendedBy; }
+    public void setRecommendedBy(UUID recommendedBy) { this.recommendedBy = recommendedBy; }
     public void setId(UUID id) { this.id = id; }
 
     public UUID getClubId() { return clubId; }
@@ -62,4 +72,3 @@ public class MembershipRequestDTO {
     public String getRejectionReason() { return rejectionReason; }
     public void setRejectionReason(String rejectionReason) { this.rejectionReason = rejectionReason; }
 }
-

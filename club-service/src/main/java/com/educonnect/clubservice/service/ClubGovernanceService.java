@@ -1,5 +1,6 @@
 package com.educonnect.clubservice.service;
 
+import com.educonnect.clubservice.dto.response.ApprovalDetails;
 import com.educonnect.clubservice.dto.response.ApprovalRequestResponse;
 import com.educonnect.clubservice.model.ApprovalStatus;
 import com.educonnect.clubservice.model.ApprovalType;
@@ -8,6 +9,7 @@ import com.educonnect.clubservice.model.ClubApprovalRequest;
 import com.educonnect.clubservice.model.ClubDecisionLogEntry;
 import com.educonnect.clubservice.model.ClubMembership;
 import com.educonnect.clubservice.model.ClubPosition;
+import com.educonnect.clubservice.model.DecisionAction;
 import com.educonnect.clubservice.repository.ClubApprovalRequestRepository;
 import com.educonnect.clubservice.repository.ClubMembershipRepository;
 import com.educonnect.clubservice.repository.ClubRepository;
@@ -16,8 +18,10 @@ import com.educonnect.clubservice.security.ClubPermission;
 import com.educonnect.common.web.BadRequestException;
 import com.educonnect.common.web.ConflictException;
 import com.educonnect.common.web.NotFoundException;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.time.Instant;
 import java.util.List;
@@ -28,26 +32,28 @@ import java.util.stream.Collectors;
 @Service
 @Transactional
 public class ClubGovernanceService {
-
     private final ClubRepository clubRepository;
     private final ClubMembershipRepository membershipRepository;
     private final ClubApprovalRequestRepository requestRepository;
     private final ClubAuthorizationService clubAuthorizationService;
     private final ClubApprovalEngine approvalEngine;
     private final ClubDecisionLog decisionLog;
+    private final ApprovalDetailsLoader detailsLoader;
 
     public ClubGovernanceService(ClubRepository clubRepository,
                                  ClubMembershipRepository membershipRepository,
                                  ClubApprovalRequestRepository requestRepository,
                                  ClubAuthorizationService clubAuthorizationService,
                                  ClubApprovalEngine approvalEngine,
-                                 ClubDecisionLog decisionLog) {
+                                 ClubDecisionLog decisionLog,
+                                 ApprovalDetailsLoader detailsLoader) {
         this.clubRepository = clubRepository;
         this.membershipRepository = membershipRepository;
         this.requestRepository = requestRepository;
         this.clubAuthorizationService = clubAuthorizationService;
         this.approvalEngine = approvalEngine;
         this.decisionLog = decisionLog;
+        this.detailsLoader = detailsLoader;
     }
 
     public ClubApprovalRequest resign(UUID clubId, UUID userId, String note) {
@@ -78,10 +84,44 @@ public class ClubGovernanceService {
                 null, null, reason, Instant.now()));
     }
 
+    public ClubApprovalRequest requestExpulsion(UUID clubId, UUID userId, UUID studentId, String reason) {
+        Club club = findClub(clubId);
+        clubAuthorizationService.require(clubId, userId, ClubPermission.PROPOSE_POSITION_CHANGE);
+        if (studentId.equals(userId)) {
+            throw new BadRequestException("SELF_EXPULSION", "Kendinizi kulüpten çıkaramazsınız.");
+        }
+        ClubMembership membership = membershipRepository.findByClubIdAndStudentId(clubId, studentId)
+                .filter(ClubMembership::isActive)
+                .orElseThrow(() -> new NotFoundException("MEMBERSHIP_NOT_FOUND", "Öğrenci kulübün aktif üyesi değil."));
+        if (membership.getClubRole() == ClubPosition.PRESIDENT) {
+            throw new ConflictException("PRESIDENT_EXPULSION", "Kulüp başkanı bu yolla çıkarılamaz.");
+        }
+        if (requestRepository.existsByClubIdAndTypeAndSubjectUserIdAndStatusIn(clubId, ApprovalType.MEMBER_EXPULSION,
+                studentId, ApprovalStatus.PENDING)) {
+            throw new ConflictException("EXPULSION_PENDING", "Bu üye için bekleyen bir çıkarma talebi var.");
+        }
+        return approvalEngine.submit(club, new ClubApprovalRequest(clubId, ApprovalType.MEMBER_EXPULSION, userId, studentId,
+                membership.getClubRole(), null, reason, Instant.now()));
+    }
+
+    public ClubApprovalRequest submitDefence(UUID clubId, UUID requestId, UUID userId, String note) {
+        ClubApprovalRequest request = approvalEngine.find(clubId, requestId);
+        if (request.getType() != ApprovalType.MEMBER_EXPULSION || !userId.equals(request.getSubjectUserId())) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Savunmayı yalnızca hakkında çıkarma talebi olan üye ekleyebilir.");
+        }
+        if (!request.isPending()) {
+            throw new ConflictException("REQUEST_DECIDED", "Bu talep zaten işlenmiş.");
+        }
+        request.respond(note);
+        requestRepository.save(request);
+        decisionLog.record(request, DecisionAction.DEFENCE_SUBMITTED, userId, note);
+        return request;
+    }
+
     @Transactional(readOnly = true)
     public List<ClubDecisionLogEntry> decisionLogOf(UUID clubId, UUID userId) {
         findClub(clubId);
-        clubAuthorizationService.require(clubId, userId, ClubPermission.VIEW_MANAGEMENT_DATA);
+        clubAuthorizationService.require(clubId, userId, ClubPermission.VIEW_DECISIONS);
         return decisionLog.entriesOf(clubId);
     }
 
@@ -111,15 +151,17 @@ public class ClubGovernanceService {
     }
 
     public ApprovalRequestResponse toResponse(ClubApprovalRequest request) {
-        return ApprovalRequestResponse.of(request, clubRepository.findById(request.getClubId()).map(Club::getName).orElse(null));
+        return ApprovalRequestResponse.of(request, clubRepository.findById(request.getClubId()).map(Club::getName).orElse(null),
+                detailsLoader.detailsOf(List.of(request)).get(request.getId()));
     }
 
     private List<ApprovalRequestResponse> toResponses(List<ClubApprovalRequest> requests) {
         Map<UUID, String> names = clubRepository.findAllById(requests.stream().map(ClubApprovalRequest::getClubId).distinct().toList())
                 .stream()
                 .collect(Collectors.toMap(Club::getId, Club::getName));
+        Map<UUID, ApprovalDetails> details = detailsLoader.detailsOf(requests);
         return requests.stream()
-                .map(request -> ApprovalRequestResponse.of(request, names.get(request.getClubId())))
+                .map(request -> ApprovalRequestResponse.of(request, names.get(request.getClubId()), details.get(request.getId())))
                 .toList();
     }
 

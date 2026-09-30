@@ -3,6 +3,7 @@ package com.educonnect.eventservice.repository;
 import com.educonnect.eventservice.model.EventRegistration;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -21,4 +22,8 @@ public interface EventRegistrationRepository extends JpaRepository<EventRegistra
 
     // Bir etkinliğe kayıtlı tüm kullanıcıları getir
     List<EventRegistration> findByEventId(UUID eventId);
+
+    long countByEventIdIn(Collection<UUID> eventIds);
+
+    long countByEventIdInAndAttendedTrue(Collection<UUID> eventIds);
 }

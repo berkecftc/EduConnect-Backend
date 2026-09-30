@@ -62,10 +62,13 @@ class ClubAuthorizationServiceTest {
         assertThat(access.permissions()).containsExactlyInAnyOrder(
                 ClubPermission.VIEW_MEMBERS, ClubPermission.VIEW_MANAGEMENT_DATA,
                 ClubPermission.MANAGE_MEMBERSHIP_REQUESTS, ClubPermission.PROPOSE_POSITION_CHANGE,
-                ClubPermission.UPDATE_CLUB_PROFILE, ClubPermission.CREATE_EVENT,
+                ClubPermission.UPDATE_CLUB_PROFILE, ClubPermission.PREPARE_PROFILE_CHANGE, ClubPermission.PREPARE_LOGO_CHANGE,
+                ClubPermission.CREATE_EVENT,
                 ClubPermission.MANAGE_EVENT_OPERATIONS, ClubPermission.PROPOSE_ADVISOR_CHANGE,
                 ClubPermission.APPROVE_AS_PRESIDENT, ClubPermission.REQUEST_CLUB_CLOSURE,
-                ClubPermission.PREPARE_EVENT);
+                ClubPermission.PREPARE_EVENT, ClubPermission.VIEW_DECISIONS, ClubPermission.PREPARE_ANNOUNCEMENT, ClubPermission.VIEW_FINANCE,
+                ClubPermission.PREPARE_FINANCE, ClubPermission.PREPARE_SPONSORSHIP, ClubPermission.PREPARE_MINUTES,
+                ClubPermission.PREPARE_ACTIVITY_REPORT, ClubPermission.PREPARE_ELECTION);
     }
 
     @Test
@@ -94,13 +97,15 @@ class ClubAuthorizationServiceTest {
     }
 
     @Test
-    void boardMemberAndTreasurerRunEventOperationsOnly() {
+    void treasurerRunsEventOperationsAndFinance() {
         givenPosition(ClubPosition.TREASURER, true);
 
         ClubAccess access = service.accessOf(clubId, userId);
 
         assertThat(access.permissions()).containsExactlyInAnyOrder(
-                ClubPermission.VIEW_MEMBERS, ClubPermission.VIEW_MANAGEMENT_DATA, ClubPermission.MANAGE_EVENT_OPERATIONS);
+                ClubPermission.VIEW_MEMBERS, ClubPermission.VIEW_MANAGEMENT_DATA, ClubPermission.MANAGE_EVENT_OPERATIONS,
+                ClubPermission.VIEW_DECISIONS, ClubPermission.PREPARE_ANNOUNCEMENT, ClubPermission.VIEW_FINANCE,
+                ClubPermission.PREPARE_FINANCE);
     }
 
     @Test
@@ -136,9 +141,11 @@ class ClubAuthorizationServiceTest {
         givenPosition(ClubPosition.PRESIDENT, true);
 
         assertThat(service.accessOf(clubId, userId).permissions())
-                .containsExactlyInAnyOrder(ClubPermission.VIEW_MEMBERS, ClubPermission.VIEW_MANAGEMENT_DATA);
+                .containsExactlyInAnyOrder(ClubPermission.VIEW_MEMBERS, ClubPermission.VIEW_MANAGEMENT_DATA, ClubPermission.VIEW_DECISIONS,
+                        ClubPermission.VIEW_FINANCE);
         assertThat(service.accessOf(clubId, advisorId).permissions())
-                .containsExactlyInAnyOrder(ClubPermission.VIEW_MEMBERS, ClubPermission.VIEW_MANAGEMENT_DATA);
+                .containsExactlyInAnyOrder(ClubPermission.VIEW_MEMBERS, ClubPermission.VIEW_MANAGEMENT_DATA, ClubPermission.VIEW_DECISIONS,
+                        ClubPermission.VIEW_FINANCE);
     }
 
     @Test
@@ -147,7 +154,8 @@ class ClubAuthorizationServiceTest {
 
         assertThat(access.advisor()).isTrue();
         assertThat(access.permissions()).containsExactlyInAnyOrder(
-                ClubPermission.VIEW_MEMBERS, ClubPermission.VIEW_MANAGEMENT_DATA, ClubPermission.ADVISE);
+                ClubPermission.VIEW_MEMBERS, ClubPermission.VIEW_MANAGEMENT_DATA, ClubPermission.ADVISE, ClubPermission.VIEW_DECISIONS,
+                ClubPermission.VIEW_FINANCE);
     }
 
     @Test

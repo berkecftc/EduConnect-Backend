@@ -3,6 +3,7 @@ package com.educonnect.clubservice.controller;
 import com.educonnect.clubservice.dto.request.RejectionReasonRequest;
 import com.educonnect.clubservice.dto.response.ClubCreationRequestResponse;
 import com.educonnect.clubservice.dto.response.ClubResponse;
+import com.educonnect.clubservice.service.ClubFounderService;
 import com.educonnect.clubservice.service.ClubFoundingService;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
@@ -23,16 +24,18 @@ import java.util.UUID;
 public class AdvisorClubCreationController {
 
     private final ClubFoundingService clubFoundingService;
+    private final ClubFounderService founderService;
 
-    public AdvisorClubCreationController(ClubFoundingService clubFoundingService) {
+    public AdvisorClubCreationController(ClubFoundingService clubFoundingService, ClubFounderService founderService) {
         this.clubFoundingService = clubFoundingService;
+        this.founderService = founderService;
     }
 
     @GetMapping
     @PreAuthorize("hasRole('ACADEMICIAN')")
     public ResponseEntity<List<ClubCreationRequestResponse>> getPendingRequests(
             @RequestHeader("X-Authenticated-User-Id") String userIdHeader) {
-        return ResponseEntity.ok(ClubCreationRequestResponse.from(clubFoundingService.getPendingCreationRequestsForAdvisor(UUID.fromString(userIdHeader))));
+        return ResponseEntity.ok(founderService.responsesOf(clubFoundingService.getPendingCreationRequestsForAdvisor(UUID.fromString(userIdHeader))));
     }
 
     @PutMapping("/{requestId}/approve")
@@ -49,7 +52,7 @@ public class AdvisorClubCreationController {
             @PathVariable UUID requestId,
             @Valid @RequestBody(required = false) RejectionReasonRequest body,
             @RequestHeader("X-Authenticated-User-Id") String userIdHeader) {
-        return ResponseEntity.ok(ClubCreationRequestResponse.from(clubFoundingService.rejectClubCreationRequestByAdvisor(
+        return ResponseEntity.ok(founderService.responseOf(clubFoundingService.rejectClubCreationRequestByAdvisor(
                 requestId, UUID.fromString(userIdHeader), body != null ? body.rejectionReason() : null)));
     }
 }

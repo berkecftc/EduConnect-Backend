@@ -8,10 +8,12 @@ import com.educonnect.clubservice.client.UserLookup;
 import com.educonnect.clubservice.config.ClubRabbitMQConfig;
 import com.educonnect.clubservice.dto.message.MembershipRequestMessage;
 import com.educonnect.clubservice.dto.request.CreateMembershipRequestDTO;
+import com.educonnect.clubservice.dto.request.MembershipRecommendationRequest;
 import com.educonnect.clubservice.dto.request.RejectMembershipRequestDTO;
 import com.educonnect.clubservice.dto.response.MembershipRequestDTO;
 import com.educonnect.clubservice.dto.response.UserSummary;
 import com.educonnect.clubservice.model.*;
+import com.educonnect.clubservice.security.ClubAccess;
 import com.educonnect.clubservice.security.ClubAuthorizationService;
 import com.educonnect.clubservice.security.ClubPermission;
 import org.slf4j.Logger;
@@ -48,6 +50,7 @@ public class ClubMembershipRequestService {
     private final ClubCacheEvictor cacheEvictor;
     private final UserLookup userLookup;
     private final ClubDecisionLog decisionLog;
+    private final MembershipTerms membershipTerms;
 
     public ClubMembershipRequestService(ClubMembershipRequestRepository requestRepository,
                                          ClubMembershipRepository membershipRepository,
@@ -58,9 +61,11 @@ public class ClubMembershipRequestService {
                                          ClubNotificationPublisher notificationPublisher,
                                          ClubCacheEvictor cacheEvictor,
                                          UserLookup userLookup,
-                                         ClubDecisionLog decisionLog) {
+                                         ClubDecisionLog decisionLog,
+                                         MembershipTerms membershipTerms) {
         this.userLookup = userLookup;
         this.decisionLog = decisionLog;
+        this.membershipTerms = membershipTerms;
         this.requestRepository = requestRepository;
         this.membershipRepository = membershipRepository;
         this.clubRepository = clubRepository;
@@ -83,7 +88,7 @@ public class ClubMembershipRequestService {
         }
 
         // 2. Zaten üye mi kontrol et
-        if (membershipRepository.findByClubIdAndStudentId(clubId, studentId).isPresent()) {
+        if (membershipRepository.existsByClubIdAndStudentIdAndIsActive(clubId, studentId, true)) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Bu kulübe zaten üyesiniz");
         }
 
@@ -136,7 +141,10 @@ public class ClubMembershipRequestService {
      */
     @Transactional(readOnly = true)
     public List<MembershipRequestDTO> getPendingRequests(UUID clubId, UUID officialId) {
-        clubAuthorizationService.require(clubId, officialId, ClubPermission.MANAGE_MEMBERSHIP_REQUESTS);
+        ClubAccess access = clubAuthorizationService.accessOf(clubId, officialId);
+        if (!access.has(ClubPermission.MANAGE_MEMBERSHIP_REQUESTS) && !access.has(ClubPermission.REVIEW_MEMBERSHIP_REQUESTS)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Bu işlem için kulüpte yetkiniz yok.");
+        }
 
         List<ClubMembershipRequest> requests = requestRepository.findByClubIdAndStatus(clubId, MembershipRequestStatus.PENDING);
         Club club = clubRepository.findById(clubId).orElse(null);
@@ -151,6 +159,22 @@ public class ClubMembershipRequestService {
     /**
      * Kulüp başkanı üyelik isteğini onaylar.
      */
+    public MembershipRequestDTO recommend(UUID clubId, UUID requestId, UUID officerId, MembershipRecommendationRequest dto) {
+        clubAuthorizationService.require(clubId, officerId, ClubPermission.REVIEW_MEMBERSHIP_REQUESTS);
+        ClubMembershipRequest request = requestRepository.findById(requestId)
+                .filter(found -> found.getClubId().equals(clubId))
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Üyelik isteği bulunamadı"));
+        if (request.getStatus() != MembershipRequestStatus.PENDING) {
+            throw new ConflictException("REQUEST_DECIDED", "Bu istek zaten işlenmiş.");
+        }
+        request.recommend(dto.recommendation(), dto.note(), officerId, LocalDateTime.now());
+        requestRepository.save(request);
+        decisionLog.record(clubId, DecisionAction.MEMBERSHIP_REVIEWED, officerId, request.getStudentId(),
+                dto.recommendation().name() + (dto.note() != null ? ": " + dto.note() : ""));
+        Club club = clubRepository.findById(clubId).orElse(null);
+        return mapToDTO(request, club, fetchUserSummary(request.getStudentId()));
+    }
+
     public MembershipRequestDTO approveRequest(UUID clubId, UUID requestId, UUID officialId) {
         clubAuthorizationService.require(clubId, officialId, ClubPermission.MANAGE_MEMBERSHIP_REQUESTS);
 
@@ -167,7 +191,7 @@ public class ClubMembershipRequestService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Bu istek zaten işlenmiş");
         }
 
-        if (membershipRepository.existsByClubIdAndStudentId(clubId, request.getStudentId())) {
+        if (membershipRepository.existsByClubIdAndStudentIdAndIsActive(clubId, request.getStudentId(), true)) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Öğrenci zaten bu kulübün üyesi");
         }
 
@@ -179,8 +203,9 @@ public class ClubMembershipRequestService {
         decisionLog.record(clubId, DecisionAction.MEMBERSHIP_APPROVED, officialId, request.getStudentId(), null);
 
         // Kulüp üyeliği oluştur
-        ClubMembership membership = new ClubMembership(clubId, request.getStudentId(), ClubPosition.MEMBER);
-        membership.setTermStartDate(LocalDateTime.now());
+        ClubMembership membership = membershipRepository.findByClubIdAndStudentId(clubId, request.getStudentId())
+                .orElseGet(() -> new ClubMembership(clubId, request.getStudentId(), ClubPosition.MEMBER));
+        membership.reactivate(membershipTerms.currentValidUntil(), LocalDateTime.now());
         membershipRepository.save(membership);
         cacheEvictor.evictUser(request.getStudentId());
 
@@ -302,6 +327,9 @@ public class ClubMembershipRequestService {
         dto.setProcessedDate(request.getProcessedDate());
         dto.setMessage(request.getMessage());
         dto.setRejectionReason(request.getRejectionReason());
+        dto.setRecommendation(request.getRecommendation());
+        dto.setRecommendationNote(request.getRecommendationNote());
+        dto.setRecommendedBy(request.getRecommendedBy());
 
         if (club != null) {
             dto.setClubName(club.getName());

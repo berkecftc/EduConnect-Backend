@@ -6,6 +6,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 
@@ -38,4 +39,6 @@ public interface EventRepository extends JpaRepository<Event, UUID> {
 
     // Birden fazla kulübe ait tüm etkinlikleri getir
     List<Event> findByClubIdIn(List<UUID> clubIds);
+
+    List<Event> findByClubIdAndEventTimeGreaterThanEqualAndEventTimeLessThan(UUID clubId, LocalDateTime from, LocalDateTime to);
 }

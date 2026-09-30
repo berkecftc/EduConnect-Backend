@@ -1,5 +1,6 @@
 package com.educonnect.clubservice.dto.response;
 
+import com.educonnect.clubservice.model.ClubCategory;
 import java.util.UUID;
 
 public class ClubSummaryDTO {
@@ -10,6 +11,7 @@ public class ClubSummaryDTO {
     private Long memberCount; // Toplam üye sayısı
     private String advisorName; // Danışman hoca ismi
     private UUID advisorId; // Danışman hoca ID
+    private ClubCategory category;
 
     // JSON dönüşümü için boş constructor
     public ClubSummaryDTO() {}
@@ -44,4 +46,6 @@ public class ClubSummaryDTO {
     public void setAdvisorName(String advisorName) { this.advisorName = advisorName; }
     public UUID getAdvisorId() { return advisorId; }
     public void setAdvisorId(UUID advisorId) { this.advisorId = advisorId; }
+    public ClubCategory getCategory() { return category; }
+    public void setCategory(ClubCategory category) { this.category = category; }
 }

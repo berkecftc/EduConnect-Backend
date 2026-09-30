@@ -1,6 +1,7 @@
 package com.educonnect.clubservice.controller;
 
 import com.educonnect.clubservice.dto.request.CreateMembershipRequestDTO;
+import com.educonnect.clubservice.dto.request.MembershipRecommendationRequest;
 import com.educonnect.clubservice.dto.request.RejectMembershipRequestDTO;
 import com.educonnect.clubservice.dto.response.MembershipRequestDTO;
 import com.educonnect.clubservice.service.ClubMembershipRequestService;
@@ -107,6 +108,16 @@ public class ClubMembershipRequestController {
      * Kulüp başkanı üyelik isteğini onaylar.
      * PUT /api/clubs/{clubId}/membership-requests/{requestId}/approve
      */
+    @PutMapping("/{clubId}/membership-requests/{requestId}/recommendation")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<MembershipRequestDTO> recommend(
+            @PathVariable UUID clubId,
+            @PathVariable UUID requestId,
+            @Valid @RequestBody MembershipRecommendationRequest request,
+            @RequestHeader("X-Authenticated-User-Id") String userIdHeader) {
+        return ResponseEntity.ok(membershipRequestService.recommend(clubId, requestId, UUID.fromString(userIdHeader), request));
+    }
+
     @PutMapping("/{clubId}/membership-requests/{requestId}/approve")
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<MembershipRequestDTO> approveRequest(
@@ -136,4 +147,3 @@ public class ClubMembershipRequestController {
         return ResponseEntity.ok(response);
     }
 }
-

@@ -12,6 +12,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.time.Duration;
+import java.util.List;
 import java.util.UUID;
 
 @Service
@@ -40,6 +41,12 @@ public class MinioService {
         String objectName = SafeFileNames.pathSegment(folder, "misc") + "/"
                 + SafeFileNames.pathSegment(nameBase, UUID.randomUUID().toString()) + upload.extensionOr(".jpg");
         return storage.put(file, upload, objectName);
+    }
+
+    public void deleteAfterCommit(String objectName) {
+        if (objectName != null) {
+            storage.deleteAfterCommit(List.of(objectName));
+        }
     }
 
     public String getFileUrl(String objectName) {

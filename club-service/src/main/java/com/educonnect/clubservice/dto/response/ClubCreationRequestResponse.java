@@ -16,16 +16,14 @@ public record ClubCreationRequestResponse(UUID id,
                                           LocalDateTime requestDate,
                                           String rejectionReason,
                                           LocalDateTime processedAt,
-                                          UUID processedBy) {
+                                          UUID processedBy,
+                                          UUID clubId,
+                                          List<FounderResponse> founders) {
 
-    public static ClubCreationRequestResponse from(ClubCreationRequest request) {
+    public static ClubCreationRequestResponse from(ClubCreationRequest request, List<FounderResponse> founders) {
         return new ClubCreationRequestResponse(request.getId(), request.getClubName(), request.getAbout(),
                 request.getRequestingStudentId(), request.getSuggestedAdvisorId(), request.getStatus(),
                 request.getRequestDate(), request.getRejectionReason(), request.getProcessedAt(),
-                request.getProcessedBy());
-    }
-
-    public static List<ClubCreationRequestResponse> from(List<ClubCreationRequest> requests) {
-        return requests.stream().map(ClubCreationRequestResponse::from).toList();
+                request.getProcessedBy(), request.getClubId(), founders);
     }
 }

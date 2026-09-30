@@ -19,17 +19,28 @@ public record ApprovalRequestResponse(UUID id,
                                       ClubPosition requestedPosition,
                                       String note,
                                       String rejectionReason,
+                                      String responseNote,
                                       Instant createdAt,
                                       UUID presidentDecidedBy,
                                       Instant presidentDecidedAt,
                                       UUID decidedBy,
-                                      Instant decidedAt) {
+                                      Instant decidedAt,
+                                      ProfileChangeResponse profileChange,
+                                      AnnouncementResponse announcement,
+                                      BudgetResponse budget,
+                                      FinanceEntryResponse financeEntry,
+                                      SponsorshipResponse sponsorship,
+                                      MeetingResponse meeting,
+                                      ReportResponse report,
+                                      ElectionResponse election) {
 
-    public static ApprovalRequestResponse of(ClubApprovalRequest request, String clubName) {
+    public static ApprovalRequestResponse of(ClubApprovalRequest request, String clubName, ApprovalDetails details) {
+        ApprovalDetails extra = details != null ? details : ApprovalDetails.NONE;
         return new ApprovalRequestResponse(request.getId(), request.getClubId(), clubName, request.getType(),
                 request.getStatus(), request.getPreparedBy(), request.getSubjectUserId(), request.getCurrentPosition(),
-                request.getRequestedPosition(), request.getNote(), request.getRejectionReason(), request.getCreatedAt(),
+                request.getRequestedPosition(), request.getNote(), request.getRejectionReason(), request.getResponseNote(), request.getCreatedAt(),
                 request.getPresidentDecidedBy(), request.getPresidentDecidedAt(), request.getDecidedBy(),
-                request.getDecidedAt());
+                request.getDecidedAt(), extra.profileChange(), extra.announcement(), extra.budget(), extra.financeEntry(),
+                extra.sponsorship(), extra.meeting(), extra.report(), extra.election());
     }
 }

@@ -42,6 +42,9 @@ public class ClubCreationRequest {
     @Column(name = "processed_by")
     private UUID processedBy;
 
+    @Column(name = "club_id")
+    private UUID clubId;
+
     // --- Getter ve Setter ---
     public UUID getId() { return id; }
     public void setId(UUID id) { this.id = id; }
@@ -62,4 +65,6 @@ public class ClubCreationRequest {
     public LocalDateTime getRequestDate() { return requestDate; }
     public UUID getProcessedBy() { return processedBy; }
     public void setProcessedBy(UUID processedBy) { this.processedBy = processedBy; }
+    public UUID getClubId() { return clubId; }
+    public void setClubId(UUID clubId) { this.clubId = clubId; }
 }

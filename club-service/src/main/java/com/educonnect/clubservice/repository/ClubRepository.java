@@ -1,6 +1,7 @@
 package com.educonnect.clubservice.repository;
 
 import com.educonnect.clubservice.model.Club;
+import com.educonnect.clubservice.model.ClubCategory;
 import com.educonnect.clubservice.model.ClubStatus;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -24,6 +25,10 @@ public interface ClubRepository extends JpaRepository<Club, UUID> {
     List<Club> findByStatusNot(ClubStatus status, Sort sort);
 
     Page<Club> findByStatusNot(ClubStatus status, Pageable pageable);
+
+    List<Club> findByStatusNotAndProfileCategory(ClubStatus status, ClubCategory category);
+
+    Page<Club> findByStatusNotAndProfileCategory(ClubStatus status, ClubCategory category, Pageable pageable);
 
     List<Club> findByAcademicAdvisorId(UUID academicAdvisorId);
 }

@@ -7,6 +7,7 @@ import com.educonnect.clubservice.model.Club;
 import com.educonnect.clubservice.model.ClubApprovalRequest;
 import com.educonnect.clubservice.model.ClubMembership;
 import com.educonnect.clubservice.model.ClubPosition;
+import com.educonnect.clubservice.model.PositionEndReason;
 import com.educonnect.clubservice.repository.ClubMembershipRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -29,6 +30,7 @@ class RoleChangeApprovalHandler implements ApprovalHandler {
     private final ClubLeadershipService leadershipService;
     private final RoleChangeNotifier notifier;
     private final RoleChangeUserNames userNames;
+    private final MembershipTerms membershipTerms;
 
     RoleChangeApprovalHandler(ClubMembershipRepository membershipRepository,
                               ClubPositionRules positionRules,
@@ -36,7 +38,8 @@ class RoleChangeApprovalHandler implements ApprovalHandler {
                               ClubManagementStatusPublisher managementStatusPublisher,
                               ClubLeadershipService leadershipService,
                               RoleChangeNotifier notifier,
-                              RoleChangeUserNames userNames) {
+                              RoleChangeUserNames userNames,
+                              MembershipTerms membershipTerms) {
         this.membershipRepository = membershipRepository;
         this.positionRules = positionRules;
         this.cacheEvictor = cacheEvictor;
@@ -44,6 +47,7 @@ class RoleChangeApprovalHandler implements ApprovalHandler {
         this.leadershipService = leadershipService;
         this.notifier = notifier;
         this.userNames = userNames;
+        this.membershipTerms = membershipTerms;
     }
 
     @Override
@@ -66,13 +70,11 @@ class RoleChangeApprovalHandler implements ApprovalHandler {
         ClubMembership membership = validateStillValid(request);
         ClubPosition previousRole = membership.getClubRole();
         ClubPosition newRole = request.getRequestedPosition();
-        membership.setClubRole(newRole);
+        membership.assignPosition(newRole, LocalDateTime.now(),
+                newRole == ClubPosition.MEMBER ? PositionEndReason.REMOVED : PositionEndReason.CHANGED);
         membership.setActive(true);
         if (newRole == ClubPosition.MEMBER) {
-            membership.setTermEndDate(LocalDateTime.now());
-        } else {
-            membership.setTermStartDate(LocalDateTime.now());
-            membership.setTermEndDate(null);
+            membership.setValidUntil(membershipTerms.currentValidUntil());
         }
         membershipRepository.save(membership);
         cacheEvictor.evictUser(request.getSubjectUserId());

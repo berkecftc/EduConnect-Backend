@@ -7,6 +7,7 @@ import com.educonnect.clubservice.dto.response.ArchivedClubDTO;
 import com.educonnect.clubservice.dto.response.ClubAdminSummaryDto;
 import com.educonnect.clubservice.dto.response.ClubCatalogEntry;
 import com.educonnect.clubservice.dto.response.ClubDetailsDTO;
+import com.educonnect.clubservice.dto.response.ClubProfileResponse;
 import com.educonnect.clubservice.dto.response.ClubSummaryDTO;
 import com.educonnect.clubservice.dto.response.MemberDTO;
 import com.educonnect.clubservice.dto.response.MyClubMembershipDTO;
@@ -16,6 +17,7 @@ import com.educonnect.clubservice.model.Club;
 import com.educonnect.clubservice.model.ClubMembership;
 import com.educonnect.clubservice.model.ClubNames;
 import com.educonnect.clubservice.model.ClubPosition;
+import com.educonnect.clubservice.model.ClubCategory;
 import com.educonnect.clubservice.model.ClubStatus;
 import com.educonnect.clubservice.repository.ArchivedClubRepository;
 import com.educonnect.clubservice.repository.ClubMembershipRepository;
@@ -27,6 +29,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -69,13 +72,18 @@ public class ClubQueryService {
     }
 
     @Transactional(readOnly = true)
-    public List<ClubSummaryDTO> getAllClubs() {
-        return toClubSummaries(clubRepository.findByStatusNot(ClubStatus.CLOSED));
+    public List<ClubSummaryDTO> getAllClubs(ClubCategory category) {
+        return toClubSummaries(category == null
+                ? clubRepository.findByStatusNot(ClubStatus.CLOSED)
+                : clubRepository.findByStatusNotAndProfileCategory(ClubStatus.CLOSED, category));
     }
 
     @Transactional(readOnly = true)
-    public PageResponse<ClubSummaryDTO> getClubsPage(int page, Integer size) {
-        Page<Club> clubs = clubRepository.findByStatusNot(ClubStatus.CLOSED, PageResponse.request(page, size, Sort.by("name").and(Sort.by("id"))));
+    public PageResponse<ClubSummaryDTO> getClubsPage(int page, Integer size, ClubCategory category) {
+        Pageable pageable = PageResponse.request(page, size, Sort.by("name").and(Sort.by("id")));
+        Page<Club> clubs = category == null
+                ? clubRepository.findByStatusNot(ClubStatus.CLOSED, pageable)
+                : clubRepository.findByStatusNotAndProfileCategory(ClubStatus.CLOSED, category, pageable);
         return PageResponse.of(clubs, toClubSummaries(clubs.getContent()));
     }
 
@@ -95,7 +103,7 @@ public class ClubQueryService {
                 ))
                 .collect(Collectors.toList());
 
-        long memberCount = membershipRepository.countByClubId(clubId);
+        long memberCount = membershipRepository.countByClubIdAndIsActive(clubId, true);
 
         String advisorName = null;
         String advisorTitle = null;
@@ -124,6 +132,7 @@ public class ClubQueryService {
         detailsDTO.setStatus(club.getStatus());
         detailsDTO.setClosedAt(club.getClosedAt());
         detailsDTO.setClosureReason(club.getClosureReason());
+        detailsDTO.setProfile(ClubProfileResponse.of(club.getProfile()));
         return detailsDTO;
     }
 
@@ -192,36 +201,6 @@ public class ClubQueryService {
     }
 
     @Transactional(readOnly = true)
-    public List<MemberDTO> getPastPresidents(UUID clubId) {
-        if (!clubRepository.existsById(clubId)) {
-            throw new NotFoundException("CLUB_NOT_FOUND", "Kulüp bulunamadı");
-        }
-
-        List<ClubMembership> pastPresidents = membershipRepository.findByClubId(clubId)
-                .stream()
-                .filter(m -> !m.isActive() && m.getTermEndDate() != null)
-                .sorted((a, b) -> b.getTermStartDate().compareTo(a.getTermStartDate()))
-                .toList();
-
-        Map<UUID, UserSummary> users = userLookup.usersById(pastPresidents.stream().map(ClubMembership::getStudentId).toList());
-
-        return pastPresidents.stream()
-                .map(m -> {
-                    UserSummary user = users.get(m.getStudentId());
-                    return new MemberDTO(
-                            m.getStudentId(),
-                            user != null ? user.getFirstName() : "Bilinmiyor",
-                            user != null ? user.getLastName() : "User",
-                            "Geçmiş Başkan",
-                            m.isActive(),
-                            m.getTermStartDate(),
-                            m.getTermEndDate()
-                    );
-                })
-                .collect(Collectors.toList());
-    }
-
-    @Transactional(readOnly = true)
     public List<ArchivedClubDTO> getAllArchivedClubs() {
         return archivedClubRepository.findAllByOrderByDeletedAtDesc().stream()
                 .map(club -> new ArchivedClubDTO(
@@ -240,6 +219,13 @@ public class ClubQueryService {
 
     @Cacheable(value = "studentClubMemberships", key = "#studentId")
     public List<MyClubMembershipDTO> getStudentClubMemberships(UUID studentId) {
+        return toMembershipDtos(membershipRepository.findByStudentId(studentId).stream()
+                .filter(ClubMembership::isActive)
+                .toList());
+    }
+
+    @Transactional(readOnly = true)
+    public List<MyClubMembershipDTO> getMembershipHistory(UUID studentId) {
         return toMembershipDtos(membershipRepository.findByStudentId(studentId));
     }
 
@@ -299,14 +285,17 @@ public class ClubQueryService {
         return clubs.stream()
                 .map(club -> {
                     AcademicianSummary advisor = advisors.get(club.getAcademicAdvisorId());
-                    return new ClubSummaryDTO(
+                    ClubSummaryDTO summary = new ClubSummaryDTO(
                             club.getId(),
                             club.getName(),
                             club.getLogoUrl(),
                             memberCounts.getOrDefault(club.getId(), 0L),
                             advisor != null ? advisor.getFullName() : null,
                             club.getAcademicAdvisorId()
+
                     );
+                    summary.setCategory(club.getProfile().getCategory());
+                    return summary;
                 })
                 .collect(Collectors.toList());
     }
@@ -327,6 +316,9 @@ public class ClubQueryService {
                     dto.setActive(membership.isActive());
                     dto.setTermStartDate(membership.getTermStartDate());
                     dto.setClubStatus(club.getStatus());
+                    dto.setValidUntil(membership.getValidUntil());
+                    dto.setEndedAt(membership.getEndedAt());
+                    dto.setEndReason(membership.getEndReason());
                     return dto;
                 })
                 .filter(Objects::nonNull)

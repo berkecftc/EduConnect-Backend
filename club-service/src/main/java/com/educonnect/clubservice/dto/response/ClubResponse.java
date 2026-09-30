@@ -13,10 +13,12 @@ public record ClubResponse(UUID id,
                            UUID academicAdvisorId,
                            Instant createdAt,
                            Instant updatedAt,
-                           ClubStatus status) {
+                           ClubStatus status,
+                           ClubProfileResponse profile) {
 
     public static ClubResponse from(Club club) {
         return new ClubResponse(club.getId(), club.getName(), club.getAbout(), club.getLogoUrl(),
-                club.getAcademicAdvisorId(), club.getCreatedAt(), club.getUpdatedAt(), club.getStatus());
+                club.getAcademicAdvisorId(), club.getCreatedAt(), club.getUpdatedAt(), club.getStatus(),
+                ClubProfileResponse.of(club.getProfile()));
     }
 }

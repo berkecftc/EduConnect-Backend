@@ -3,6 +3,7 @@ package com.educonnect.clubservice.service;
 import com.educonnect.clubservice.model.Club;
 import com.educonnect.clubservice.model.ClubMembership;
 import com.educonnect.clubservice.model.ClubPosition;
+import com.educonnect.clubservice.model.PositionEndReason;
 import com.educonnect.clubservice.model.DecisionAction;
 import com.educonnect.clubservice.repository.ClubMembershipRepository;
 import com.educonnect.clubservice.repository.ClubRepository;
@@ -115,9 +116,7 @@ public class ClubLeadershipService {
     }
 
     private void promote(ClubMembership membership) {
-        membership.setClubRole(ClubPosition.PRESIDENT);
-        membership.setTermStartDate(LocalDateTime.now());
-        membership.setTermEndDate(null);
+        membership.assignPosition(ClubPosition.PRESIDENT, LocalDateTime.now(), PositionEndReason.CHANGED);
         membershipRepository.save(membership);
         cacheEvictor.evictUser(membership.getStudentId());
     }

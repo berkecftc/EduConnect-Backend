@@ -9,6 +9,7 @@ import com.educonnect.clubservice.dto.response.MemberDTO;
 import com.educonnect.clubservice.dto.response.MyClubMembershipDTO;
 import com.educonnect.clubservice.dto.response.PageResponse;
 import com.educonnect.clubservice.model.Club;
+import com.educonnect.clubservice.model.ClubCategory;
 import com.educonnect.clubservice.model.ClubNames;
 import com.educonnect.clubservice.model.ClubStatus;
 import com.educonnect.clubservice.service.ClubFoundingService;
@@ -50,14 +51,15 @@ public class ClubController {
 
     // Tüm Kulüpleri Listele (Özet Bilgi)
     @GetMapping
-    public ResponseEntity<List<ClubSummaryDTO>> getAllClubs() {
-        return ResponseEntity.ok(clubQueryService.getAllClubs());
+    public ResponseEntity<List<ClubSummaryDTO>> getAllClubs(@RequestParam(required = false) ClubCategory category) {
+        return ResponseEntity.ok(clubQueryService.getAllClubs(category));
     }
 
     @GetMapping(params = "page")
     public ResponseEntity<PageResponse<ClubSummaryDTO>> getClubsPage(@RequestParam int page,
-                                                                    @RequestParam(required = false) Integer size) {
-        return ResponseEntity.ok(clubQueryService.getClubsPage(page, size));
+                                                                    @RequestParam(required = false) Integer size,
+                                                                    @RequestParam(required = false) ClubCategory category) {
+        return ResponseEntity.ok(clubQueryService.getClubsPage(page, size, category));
     }
 
     // Tek Bir Kulübün Detaylarını Getir (Üyelerle Birlikte)
