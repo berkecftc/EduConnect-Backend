@@ -66,6 +66,9 @@ public class ClubApprovalEngine {
         decisionLog.record(saved, DecisionAction.SUBMITTED, saved.getPreparedBy(), saved.getNote());
         log.info("Club approval request submitted: clubId={}, requestId={}, type={}, status={}",
                 club.getId(), saved.getId(), saved.getType(), saved.getStatus());
+        if (saved.getStatus() == ApprovalStatus.PENDING_ADVISOR && !handler.needsAdvisorApproval()) {
+            return conclude(club, saved, handler, saved.getPreparedBy());
+        }
         handler.onAwaitingDecision(club, saved, currentDecider(club, saved, handler));
         return saved;
     }
@@ -77,17 +80,24 @@ public class ClubApprovalEngine {
         if (request.getStatus() == ApprovalStatus.PENDING_PRESIDENT) {
             requirePresident(club, userId);
             request.approveAsPresident(userId, clock.instant());
+            if (!handler.needsAdvisorApproval()) {
+                return conclude(club, request, handler, userId);
+            }
             requestRepository.save(request);
             decisionLog.record(request, DecisionAction.PRESIDENT_APPROVED, userId, null);
             handler.onAwaitingDecision(club, request, currentDecider(club, request, handler));
             return request;
         }
         requireAdvisorStage(club, request, handler, userId);
-        handler.apply(club, request, userId);
-        request.conclude(ApprovalStatus.APPROVED, userId, null, clock.instant());
+        return conclude(club, request, handler, userId);
+    }
+
+    private ClubApprovalRequest conclude(Club club, ClubApprovalRequest request, ApprovalHandler handler, UUID approverId) {
+        handler.apply(club, request, approverId);
+        request.conclude(ApprovalStatus.APPROVED, approverId, null, clock.instant());
         requestRepository.save(request);
-        decisionLog.record(request, DecisionAction.APPROVED, userId, null);
-        log.info("Club approval request approved: clubId={}, requestId={}, type={}", club.getId(), requestId, request.getType());
+        decisionLog.record(request, DecisionAction.APPROVED, approverId, null);
+        log.info("Club approval request approved: clubId={}, requestId={}, type={}", club.getId(), request.getId(), request.getType());
         return request;
     }
 

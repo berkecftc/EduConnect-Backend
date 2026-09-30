@@ -1,9 +1,11 @@
 package com.educonnect.clubservice.service;
 
+import com.educonnect.clubservice.dto.response.AnnouncementResponse;
 import com.educonnect.clubservice.dto.response.ApprovalRequestResponse;
 import com.educonnect.clubservice.dto.response.ProfileChangeResponse;
 import com.educonnect.clubservice.model.ApprovalStatus;
 import com.educonnect.clubservice.model.ApprovalType;
+import com.educonnect.clubservice.model.ClubAnnouncement;
 import com.educonnect.clubservice.model.Club;
 import com.educonnect.clubservice.model.ClubApprovalRequest;
 import com.educonnect.clubservice.model.ClubDecisionLogEntry;
@@ -11,6 +13,7 @@ import com.educonnect.clubservice.model.ClubMembership;
 import com.educonnect.clubservice.model.ClubPosition;
 import com.educonnect.clubservice.model.ClubProfileChange;
 import com.educonnect.clubservice.model.DecisionAction;
+import com.educonnect.clubservice.repository.ClubAnnouncementRepository;
 import com.educonnect.clubservice.repository.ClubApprovalRequestRepository;
 import com.educonnect.clubservice.repository.ClubMembershipRepository;
 import com.educonnect.clubservice.repository.ClubProfileChangeRepository;
@@ -46,6 +49,7 @@ public class ClubGovernanceService {
     private final ClubApprovalEngine approvalEngine;
     private final ClubDecisionLog decisionLog;
     private final ClubProfileChangeRepository profileChangeRepository;
+    private final ClubAnnouncementRepository announcementRepository;
 
     public ClubGovernanceService(ClubRepository clubRepository,
                                  ClubMembershipRepository membershipRepository,
@@ -53,7 +57,8 @@ public class ClubGovernanceService {
                                  ClubAuthorizationService clubAuthorizationService,
                                  ClubApprovalEngine approvalEngine,
                                  ClubDecisionLog decisionLog,
-                                 ClubProfileChangeRepository profileChangeRepository) {
+                                 ClubProfileChangeRepository profileChangeRepository,
+                                 ClubAnnouncementRepository announcementRepository) {
         this.clubRepository = clubRepository;
         this.membershipRepository = membershipRepository;
         this.requestRepository = requestRepository;
@@ -61,6 +66,7 @@ public class ClubGovernanceService {
         this.approvalEngine = approvalEngine;
         this.decisionLog = decisionLog;
         this.profileChangeRepository = profileChangeRepository;
+        this.announcementRepository = announcementRepository;
     }
 
     public ClubApprovalRequest resign(UUID clubId, UUID userId, String note) {
@@ -161,8 +167,11 @@ public class ClubGovernanceService {
         ProfileChangeResponse profileChange = PROFILE_TYPES.contains(request.getType())
                 ? ProfileChangeResponse.of(profileChangeRepository.findById(request.getId()).orElse(null))
                 : null;
+        AnnouncementResponse announcement = request.getType() == ApprovalType.CLUB_ANNOUNCEMENT
+                ? AnnouncementResponse.of(announcementRepository.findByRequestId(request.getId()).orElse(null))
+                : null;
         return ApprovalRequestResponse.of(request, clubRepository.findById(request.getClubId()).map(Club::getName).orElse(null),
-                profileChange);
+                profileChange, announcement);
     }
 
     private List<ApprovalRequestResponse> toResponses(List<ClubApprovalRequest> requests) {
@@ -175,9 +184,16 @@ public class ClubGovernanceService {
                 .toList())
                 .stream()
                 .collect(Collectors.toMap(ClubProfileChange::getRequestId, Function.identity()));
+        Map<UUID, ClubAnnouncement> announcements = announcementRepository.findByRequestIdIn(requests.stream()
+                .filter(request -> request.getType() == ApprovalType.CLUB_ANNOUNCEMENT)
+                .map(ClubApprovalRequest::getId)
+                .toList())
+                .stream()
+                .collect(Collectors.toMap(ClubAnnouncement::getRequestId, Function.identity()));
         return requests.stream()
                 .map(request -> ApprovalRequestResponse.of(request, names.get(request.getClubId()),
-                        ProfileChangeResponse.of(changes.get(request.getId()))))
+                        ProfileChangeResponse.of(changes.get(request.getId())),
+                        AnnouncementResponse.of(announcements.get(request.getId()))))
                 .toList();
     }
 

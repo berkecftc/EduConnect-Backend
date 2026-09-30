@@ -128,6 +128,9 @@ public class ClubAuthorizationService {
         if (position == ClubPosition.GENERAL_SECRETARY) {
             permissions.add(ClubPermission.PREPARE_PROFILE_CHANGE);
         }
+        if ((position != null && position.isBoard()) || position == ClubPosition.COMMUNICATIONS_OFFICER || actingPresident) {
+            permissions.add(ClubPermission.PREPARE_ANNOUNCEMENT);
+        }
         if (position == ClubPosition.MEMBERSHIP_OFFICER) {
             permissions.add(ClubPermission.REVIEW_MEMBERSHIP_REQUESTS);
         }
