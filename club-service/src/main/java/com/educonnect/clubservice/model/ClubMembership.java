@@ -1,6 +1,7 @@
 package com.educonnect.clubservice.model;
 
 import jakarta.persistence.*;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.UUID;
 import org.hibernate.annotations.CreationTimestamp;
@@ -47,6 +48,16 @@ public class ClubMembership {
     @Column(name = "term_end_date")
     private LocalDateTime termEndDate; // Görev bitiş tarihi (pasif başkanlar için)
 
+    @Column(name = "valid_until")
+    private LocalDate validUntil;
+
+    @Column(name = "ended_at")
+    private LocalDateTime endedAt;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "end_reason", length = 20)
+    private MembershipEndReason endReason;
+
     // JPA için no-args constructor
     public ClubMembership() {}
 
@@ -73,6 +84,30 @@ public class ClubMembership {
     public void setTermStartDate(LocalDateTime termStartDate) { this.termStartDate = termStartDate; }
     public LocalDateTime getTermEndDate() { return termEndDate; }
     public void setTermEndDate(LocalDateTime termEndDate) { this.termEndDate = termEndDate; }
+    public LocalDate getValidUntil() { return validUntil; }
+    public void setValidUntil(LocalDate validUntil) { this.validUntil = validUntil; }
+    public LocalDateTime getEndedAt() { return endedAt; }
+    public MembershipEndReason getEndReason() { return endReason; }
+
+    public void end(MembershipEndReason reason, LocalDateTime at) {
+        if (clubRole != null && clubRole.isManagement()) {
+            clubRole = ClubPosition.MEMBER;
+            termEndDate = at;
+        }
+        this.isActive = false;
+        this.endReason = reason;
+        this.endedAt = at;
+    }
+
+    public void reactivate(LocalDate validUntil, LocalDateTime at) {
+        this.clubRole = ClubPosition.MEMBER;
+        this.isActive = true;
+        this.endReason = null;
+        this.endedAt = null;
+        this.termStartDate = at;
+        this.termEndDate = null;
+        this.validUntil = validUntil;
+    }
 
     public Instant getCreatedAt() { return createdAt; }
     public Instant getUpdatedAt() { return updatedAt; }

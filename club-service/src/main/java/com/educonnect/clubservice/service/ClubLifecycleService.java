@@ -7,6 +7,8 @@ import com.educonnect.clubservice.model.ArchivedClub;
 import com.educonnect.clubservice.model.Club;
 import com.educonnect.clubservice.model.ClubMembership;
 import com.educonnect.clubservice.model.ClubPosition;
+import com.educonnect.clubservice.model.DecisionAction;
+import com.educonnect.clubservice.model.MembershipEndReason;
 import com.educonnect.clubservice.repository.ArchivedClubRepository;
 import com.educonnect.clubservice.repository.ClubMembershipRepository;
 import com.educonnect.clubservice.repository.ClubRepository;
@@ -45,6 +47,7 @@ public class ClubLifecycleService {
     private final ClubAuthorizationService clubAuthorizationService;
     private final ClubCacheEvictor cacheEvictor;
     private final ClubManagementStatusPublisher managementStatusPublisher;
+    private final ClubDecisionLog decisionLog;
 
     public ClubLifecycleService(ClubRepository clubRepository,
                                 ClubMembershipRepository membershipRepository,
@@ -53,7 +56,8 @@ public class ClubLifecycleService {
                                 MinioService minioService,
                                 ClubAuthorizationService clubAuthorizationService,
                                 ClubCacheEvictor cacheEvictor,
-                                ClubManagementStatusPublisher managementStatusPublisher) {
+                                ClubManagementStatusPublisher managementStatusPublisher,
+                                ClubDecisionLog decisionLog) {
         this.clubRepository = clubRepository;
         this.membershipRepository = membershipRepository;
         this.archivedClubRepository = archivedClubRepository;
@@ -62,6 +66,7 @@ public class ClubLifecycleService {
         this.clubAuthorizationService = clubAuthorizationService;
         this.cacheEvictor = cacheEvictor;
         this.managementStatusPublisher = managementStatusPublisher;
+        this.decisionLog = decisionLog;
     }
 
     public Club updateClub(UUID clubId, UpdateClubRequest request) {
@@ -174,17 +179,20 @@ public class ClubLifecycleService {
             throw new ConflictException("CLUB_CLOSED", "Kapatılmış kulübün üyelikleri değiştirilemez.");
         }
         ClubMembership membership = membershipRepository.findByClubIdAndStudentId(clubId, studentId)
+                .filter(ClubMembership::isActive)
                 .orElseThrow(() -> new NotFoundException("MEMBERSHIP_NOT_FOUND", "Membership not found for this user and club"));
 
-        if (membership.isActive() && membership.getClubRole() == ClubPosition.PRESIDENT) {
+        if (membership.getClubRole() == ClubPosition.PRESIDENT) {
             throw new ResponseStatusException(HttpStatus.CONFLICT,
                     "Başkan, görevi danışman kararıyla sona ermeden kulüpten ayrılamaz.");
         }
 
-        membershipRepository.delete(membership);
-        membershipRepository.flush();
+        boolean wasManagement = membership.getClubRole().isManagement();
+        membership.end(MembershipEndReason.LEFT, LocalDateTime.now());
+        membershipRepository.save(membership);
+        decisionLog.record(clubId, DecisionAction.MEMBER_LEFT, studentId, studentId, null);
         cacheEvictor.evictUser(studentId);
-        if (membership.isActive() && membership.getClubRole().isManagement()) {
+        if (wasManagement) {
             managementStatusPublisher.publishCurrentStatus(studentId);
         }
     }

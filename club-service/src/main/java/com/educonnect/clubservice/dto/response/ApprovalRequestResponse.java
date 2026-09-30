@@ -19,6 +19,7 @@ public record ApprovalRequestResponse(UUID id,
                                       ClubPosition requestedPosition,
                                       String note,
                                       String rejectionReason,
+                                      String responseNote,
                                       Instant createdAt,
                                       UUID presidentDecidedBy,
                                       Instant presidentDecidedAt,
@@ -28,7 +29,7 @@ public record ApprovalRequestResponse(UUID id,
     public static ApprovalRequestResponse of(ClubApprovalRequest request, String clubName) {
         return new ApprovalRequestResponse(request.getId(), request.getClubId(), clubName, request.getType(),
                 request.getStatus(), request.getPreparedBy(), request.getSubjectUserId(), request.getCurrentPosition(),
-                request.getRequestedPosition(), request.getNote(), request.getRejectionReason(), request.getCreatedAt(),
+                request.getRequestedPosition(), request.getNote(), request.getRejectionReason(), request.getResponseNote(), request.getCreatedAt(),
                 request.getPresidentDecidedBy(), request.getPresidentDecidedAt(), request.getDecidedBy(),
                 request.getDecidedAt());
     }

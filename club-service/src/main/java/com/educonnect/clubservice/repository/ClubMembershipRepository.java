@@ -7,6 +7,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.time.LocalDate;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
@@ -44,7 +45,7 @@ public interface ClubMembershipRepository extends JpaRepository<ClubMembership, 
     // Bir kulübün toplam üye sayısını getir
     long countByClubId(UUID clubId);
 
-    @Query("select m.clubId as clubId, count(m) as total from ClubMembership m where m.clubId in :clubIds group by m.clubId")
+    @Query("select m.clubId as clubId, count(m) as total from ClubMembership m where m.clubId in :clubIds and m.isActive = true group by m.clubId")
     List<ClubMemberCount> countByClubIds(@Param("clubIds") Collection<UUID> clubIds);
 
     interface ClubMemberCount {
@@ -54,6 +55,8 @@ public interface ClubMembershipRepository extends JpaRepository<ClubMembership, 
 
     // Bir kulübün aktif üye sayısını getir
     long countByClubIdAndIsActive(UUID clubId, boolean isActive);
+
+    List<ClubMembership> findByIsActiveAndClubRoleAndValidUntilBefore(boolean isActive, ClubPosition role, LocalDate date);
 
     // Bir öğrencinin herhangi bir kulüpte belirli bir rolde aktif olup olmadığını kontrol et
     // (Tek başkanlık kuralı için kullanılır)

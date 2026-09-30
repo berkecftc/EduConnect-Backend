@@ -4,5 +4,6 @@ public enum ApprovalType {
     ROLE_CHANGE,
     RESIGNATION,
     ADVISOR_CHANGE,
-    CLUB_CLOSURE
+    CLUB_CLOSURE,
+    MEMBER_EXPULSION
 }

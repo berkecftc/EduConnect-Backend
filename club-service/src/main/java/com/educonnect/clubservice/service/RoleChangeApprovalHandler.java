@@ -29,6 +29,7 @@ class RoleChangeApprovalHandler implements ApprovalHandler {
     private final ClubLeadershipService leadershipService;
     private final RoleChangeNotifier notifier;
     private final RoleChangeUserNames userNames;
+    private final MembershipTerms membershipTerms;
 
     RoleChangeApprovalHandler(ClubMembershipRepository membershipRepository,
                               ClubPositionRules positionRules,
@@ -36,7 +37,8 @@ class RoleChangeApprovalHandler implements ApprovalHandler {
                               ClubManagementStatusPublisher managementStatusPublisher,
                               ClubLeadershipService leadershipService,
                               RoleChangeNotifier notifier,
-                              RoleChangeUserNames userNames) {
+                              RoleChangeUserNames userNames,
+                              MembershipTerms membershipTerms) {
         this.membershipRepository = membershipRepository;
         this.positionRules = positionRules;
         this.cacheEvictor = cacheEvictor;
@@ -44,6 +46,7 @@ class RoleChangeApprovalHandler implements ApprovalHandler {
         this.leadershipService = leadershipService;
         this.notifier = notifier;
         this.userNames = userNames;
+        this.membershipTerms = membershipTerms;
     }
 
     @Override
@@ -70,6 +73,7 @@ class RoleChangeApprovalHandler implements ApprovalHandler {
         membership.setActive(true);
         if (newRole == ClubPosition.MEMBER) {
             membership.setTermEndDate(LocalDateTime.now());
+            membership.setValidUntil(membershipTerms.currentValidUntil());
         } else {
             membership.setTermStartDate(LocalDateTime.now());
             membership.setTermEndDate(null);

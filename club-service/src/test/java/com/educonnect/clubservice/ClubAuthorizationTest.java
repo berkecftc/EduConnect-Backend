@@ -417,7 +417,8 @@ class ClubAuthorizationTest {
 
         mockMvc.perform(as(delete(path, clubId), TestTokens.student(member)))
                 .andExpect(status().isOk());
-        assertThat(membershipRepository.existsByClubIdAndStudentId(clubId, member)).isFalse();
+        assertThat(membershipRepository.existsByClubIdAndStudentIdAndIsActive(clubId, member, true)).isFalse();
+        assertThat(membershipRepository.existsByClubIdAndStudentId(clubId, member)).isTrue();
     }
 
     @Test

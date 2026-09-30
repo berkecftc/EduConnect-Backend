@@ -1,5 +1,7 @@
 package com.educonnect.clubservice.controller;
 
+import com.educonnect.clubservice.dto.request.DefenceRequest;
+import com.educonnect.clubservice.dto.request.ExpulsionRequest;
 import com.educonnect.clubservice.dto.request.NoteRequest;
 import com.educonnect.clubservice.dto.request.ReasonRequest;
 import com.educonnect.clubservice.dto.response.ApprovalRequestResponse;
@@ -80,6 +82,23 @@ public class ClubApprovalController {
                                                                   @RequestHeader(USER_ID_HEADER) String userIdHeader) {
         return ResponseEntity.status(HttpStatus.CREATED).body(governanceService.toResponse(governanceService.requestClosure(
                 clubId, UUID.fromString(userIdHeader), request.reason())));
+    }
+
+    @PostMapping("/{clubId}/expulsion-requests")
+    public ResponseEntity<ApprovalRequestResponse> requestExpulsion(@PathVariable UUID clubId,
+                                                                    @Valid @RequestBody ExpulsionRequest request,
+                                                                    @RequestHeader(USER_ID_HEADER) String userIdHeader) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(governanceService.toResponse(governanceService.requestExpulsion(
+                clubId, UUID.fromString(userIdHeader), request.studentId(), request.reason())));
+    }
+
+    @PostMapping("/{clubId}/approvals/{requestId}/defence")
+    public ResponseEntity<ApprovalRequestResponse> defend(@PathVariable UUID clubId,
+                                                          @PathVariable UUID requestId,
+                                                          @Valid @RequestBody DefenceRequest request,
+                                                          @RequestHeader(USER_ID_HEADER) String userIdHeader) {
+        return ResponseEntity.ok(governanceService.toResponse(governanceService.submitDefence(
+                clubId, requestId, UUID.fromString(userIdHeader), request.note())));
     }
 
     @GetMapping("/{clubId}/decision-log")

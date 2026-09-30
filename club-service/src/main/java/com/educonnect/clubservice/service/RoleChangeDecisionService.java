@@ -48,6 +48,7 @@ public class RoleChangeDecisionService {
     private final ClubLeadershipService leadershipService;
     private final ClubApprovalEngine approvalEngine;
     private final ClubDecisionLog decisionLog;
+    private final MembershipTerms membershipTerms;
 
     public RoleChangeDecisionService(ClubApprovalRequestRepository approvalRequestRepository,
                                      ClubMembershipRepository membershipRepository,
@@ -60,7 +61,8 @@ public class RoleChangeDecisionService {
                                      RoleChangeRequestMapper mapper,
                                      ClubLeadershipService leadershipService,
                                      ClubApprovalEngine approvalEngine,
-                                     ClubDecisionLog decisionLog) {
+                                     ClubDecisionLog decisionLog,
+                                     MembershipTerms membershipTerms) {
         this.approvalRequestRepository = approvalRequestRepository;
         this.membershipRepository = membershipRepository;
         this.clubRepository = clubRepository;
@@ -73,6 +75,7 @@ public class RoleChangeDecisionService {
         this.leadershipService = leadershipService;
         this.approvalEngine = approvalEngine;
         this.decisionLog = decisionLog;
+        this.membershipTerms = membershipTerms;
     }
 
     @Transactional(readOnly = true)
@@ -112,6 +115,7 @@ public class RoleChangeDecisionService {
 
         president.setClubRole(ClubPosition.MEMBER);
         president.setTermEndDate(LocalDateTime.now());
+        president.setValidUntil(membershipTerms.currentValidUntil());
         membershipRepository.save(president);
         cacheEvictor.evictUser(president.getStudentId());
         managementStatusPublisher.publishCurrentStatus(president.getStudentId());

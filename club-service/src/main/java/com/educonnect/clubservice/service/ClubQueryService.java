@@ -95,7 +95,7 @@ public class ClubQueryService {
                 ))
                 .collect(Collectors.toList());
 
-        long memberCount = membershipRepository.countByClubId(clubId);
+        long memberCount = membershipRepository.countByClubIdAndIsActive(clubId, true);
 
         String advisorName = null;
         String advisorTitle = null;
@@ -240,6 +240,13 @@ public class ClubQueryService {
 
     @Cacheable(value = "studentClubMemberships", key = "#studentId")
     public List<MyClubMembershipDTO> getStudentClubMemberships(UUID studentId) {
+        return toMembershipDtos(membershipRepository.findByStudentId(studentId).stream()
+                .filter(ClubMembership::isActive)
+                .toList());
+    }
+
+    @Transactional(readOnly = true)
+    public List<MyClubMembershipDTO> getMembershipHistory(UUID studentId) {
         return toMembershipDtos(membershipRepository.findByStudentId(studentId));
     }
 
@@ -327,6 +334,9 @@ public class ClubQueryService {
                     dto.setActive(membership.isActive());
                     dto.setTermStartDate(membership.getTermStartDate());
                     dto.setClubStatus(club.getStatus());
+                    dto.setValidUntil(membership.getValidUntil());
+                    dto.setEndedAt(membership.getEndedAt());
+                    dto.setEndReason(membership.getEndReason());
                     return dto;
                 })
                 .filter(Objects::nonNull)

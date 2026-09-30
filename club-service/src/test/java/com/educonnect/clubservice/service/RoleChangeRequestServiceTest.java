@@ -70,14 +70,15 @@ class RoleChangeRequestServiceTest {
         RoleChangeNotifier notifier = new RoleChangeNotifier(outboxPublisher, userNames);
         ClubPositionRules positionRules = new ClubPositionRules(membershipRepository, approvalRepository, authorizationService);
         RoleChangeApprovalHandler handler = new RoleChangeApprovalHandler(membershipRepository, positionRules,
-                mock(ClubCacheEvictor.class), managementStatusPublisher, leadershipService, notifier, userNames);
+                mock(ClubCacheEvictor.class), managementStatusPublisher, leadershipService, notifier, userNames,
+                new MembershipTerms("09-30", 30));
         ClubApprovalEngine engine = new ClubApprovalEngine(approvalRepository, clubRepository, authorizationService,
                 leadershipService, decisionLog, List.of(handler));
         service = new RoleChangeRequestService(approvalRepository, membershipRepository, clubRepository,
                 userClient, authorizationService, positionRules, mapper, engine);
         decisionService = new RoleChangeDecisionService(approvalRepository, membershipRepository, clubRepository,
                 authorizationService, mock(ClubCacheEvictor.class), managementStatusPublisher, notifier, userNames,
-                mapper, leadershipService, engine, decisionLog);
+                mapper, leadershipService, engine, decisionLog, new MembershipTerms("09-30", 30));
 
         Club club = new Club();
         club.setId(clubId);
