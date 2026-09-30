@@ -42,7 +42,7 @@ class AnnouncementApprovalHandler implements ApprovalHandler {
     }
 
     @Override
-    public boolean needsAdvisorApproval() {
+    public boolean needsAdvisorApproval(ClubApprovalRequest request) {
         return false;
     }
 

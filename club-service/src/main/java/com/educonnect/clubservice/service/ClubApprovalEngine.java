@@ -66,7 +66,7 @@ public class ClubApprovalEngine {
         decisionLog.record(saved, DecisionAction.SUBMITTED, saved.getPreparedBy(), saved.getNote());
         log.info("Club approval request submitted: clubId={}, requestId={}, type={}, status={}",
                 club.getId(), saved.getId(), saved.getType(), saved.getStatus());
-        if (saved.getStatus() == ApprovalStatus.PENDING_ADVISOR && !handler.needsAdvisorApproval()) {
+        if (saved.getStatus() == ApprovalStatus.PENDING_ADVISOR && !handler.needsAdvisorApproval(saved)) {
             return conclude(club, saved, handler, saved.getPreparedBy());
         }
         handler.onAwaitingDecision(club, saved, currentDecider(club, saved, handler));
@@ -80,7 +80,7 @@ public class ClubApprovalEngine {
         if (request.getStatus() == ApprovalStatus.PENDING_PRESIDENT) {
             requirePresident(club, userId);
             request.approveAsPresident(userId, clock.instant());
-            if (!handler.needsAdvisorApproval()) {
+            if (!handler.needsAdvisorApproval(request)) {
                 return conclude(club, request, handler, userId);
             }
             requestRepository.save(request);

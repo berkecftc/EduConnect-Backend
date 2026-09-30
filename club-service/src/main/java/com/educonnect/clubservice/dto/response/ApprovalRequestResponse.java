@@ -26,18 +26,18 @@ public record ApprovalRequestResponse(UUID id,
                                       UUID decidedBy,
                                       Instant decidedAt,
                                       ProfileChangeResponse profileChange,
-                                      AnnouncementResponse announcement) {
+                                      AnnouncementResponse announcement,
+                                      BudgetResponse budget,
+                                      FinanceEntryResponse financeEntry,
+                                      SponsorshipResponse sponsorship) {
 
-    public static ApprovalRequestResponse of(ClubApprovalRequest request, String clubName) {
-        return of(request, clubName, null, null);
-    }
-
-    public static ApprovalRequestResponse of(ClubApprovalRequest request, String clubName, ProfileChangeResponse profileChange,
-                                             AnnouncementResponse announcement) {
+    public static ApprovalRequestResponse of(ClubApprovalRequest request, String clubName, ApprovalDetails details) {
+        ApprovalDetails extra = details != null ? details : ApprovalDetails.NONE;
         return new ApprovalRequestResponse(request.getId(), request.getClubId(), clubName, request.getType(),
                 request.getStatus(), request.getPreparedBy(), request.getSubjectUserId(), request.getCurrentPosition(),
                 request.getRequestedPosition(), request.getNote(), request.getRejectionReason(), request.getResponseNote(), request.getCreatedAt(),
                 request.getPresidentDecidedBy(), request.getPresidentDecidedAt(), request.getDecidedBy(),
-                request.getDecidedAt(), profileChange, announcement);
+                request.getDecidedAt(), extra.profileChange(), extra.announcement(), extra.budget(), extra.financeEntry(),
+                extra.sponsorship());
     }
 }

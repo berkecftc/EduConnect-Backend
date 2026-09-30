@@ -15,7 +15,7 @@ interface ApprovalHandler {
         return false;
     }
 
-    default boolean needsAdvisorApproval() {
+    default boolean needsAdvisorApproval(ClubApprovalRequest request) {
         return true;
     }
 

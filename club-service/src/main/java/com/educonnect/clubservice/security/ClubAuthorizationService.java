@@ -102,6 +102,7 @@ public class ClubAuthorizationService {
             }
             if ((position != null && (position.isBoard() || position == ClubPosition.AUDITOR)) || advisor) {
                 permissions.add(ClubPermission.VIEW_DECISIONS);
+                permissions.add(ClubPermission.VIEW_FINANCE);
             }
             return Set.copyOf(permissions);
         }
@@ -116,6 +117,13 @@ public class ClubAuthorizationService {
         }
         if ((position != null && position.isBoard()) || position == ClubPosition.AUDITOR) {
             permissions.add(ClubPermission.VIEW_DECISIONS);
+            permissions.add(ClubPermission.VIEW_FINANCE);
+        }
+        if (position == ClubPosition.TREASURER || actingPresident) {
+            permissions.add(ClubPermission.PREPARE_FINANCE);
+        }
+        if (position == ClubPosition.SPONSORSHIP_OFFICER || actingPresident) {
+            permissions.add(ClubPermission.PREPARE_SPONSORSHIP);
         }
         if (position == ClubPosition.VICE_PRESIDENT || position == ClubPosition.GENERAL_SECRETARY
                 || position == ClubPosition.BOARD_MEMBER || position == ClubPosition.EVENT_COORDINATOR || actingPresident) {
@@ -150,6 +158,7 @@ public class ClubAuthorizationService {
             permissions.add(ClubPermission.VIEW_MEMBERS);
             permissions.add(ClubPermission.VIEW_MANAGEMENT_DATA);
             permissions.add(ClubPermission.VIEW_DECISIONS);
+            permissions.add(ClubPermission.VIEW_FINANCE);
             permissions.add(ClubPermission.ADVISE);
         }
         return Set.copyOf(permissions);

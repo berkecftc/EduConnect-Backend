@@ -112,7 +112,7 @@ class ClubPositionsTest {
     @Test
     void eachPositionGetsOnlyItsOwnPermissions() {
         assertThat(clubAuthorizationService.accessOf(clubId, auditor).permissions()).containsExactlyInAnyOrder(
-                ClubPermission.VIEW_MEMBERS, ClubPermission.VIEW_MANAGEMENT_DATA, ClubPermission.VIEW_DECISIONS);
+                ClubPermission.VIEW_MEMBERS, ClubPermission.VIEW_MANAGEMENT_DATA, ClubPermission.VIEW_DECISIONS, ClubPermission.VIEW_FINANCE);
         assertThat(clubAuthorizationService.accessOf(clubId, eventCoordinator).permissions()).containsExactlyInAnyOrder(
                 ClubPermission.VIEW_MEMBERS, ClubPermission.VIEW_MANAGEMENT_DATA, ClubPermission.MANAGE_EVENT_OPERATIONS,
                 ClubPermission.PREPARE_EVENT);

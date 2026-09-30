@@ -43,6 +43,14 @@ public class MembershipTerms {
         return validUntilFor(today());
     }
 
+    public int academicYearOf(LocalDate day) {
+        return day.isAfter(yearEnd.atYear(day.getYear())) ? day.getYear() + 1 : day.getYear();
+    }
+
+    public int currentAcademicYear() {
+        return academicYearOf(today());
+    }
+
     public boolean inRenewalWindow(LocalDate validUntil) {
         return validUntil != null && today().isAfter(validUntil.minusDays(renewalWindowDays));
     }
