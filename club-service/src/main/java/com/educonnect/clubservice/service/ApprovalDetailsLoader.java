@@ -6,6 +6,7 @@ import com.educonnect.clubservice.dto.response.BudgetResponse;
 import com.educonnect.clubservice.dto.response.FinanceEntryResponse;
 import com.educonnect.clubservice.dto.response.MeetingResponse;
 import com.educonnect.clubservice.dto.response.ProfileChangeResponse;
+import com.educonnect.clubservice.dto.response.ReportResponse;
 import com.educonnect.clubservice.dto.response.SponsorshipResponse;
 import com.educonnect.clubservice.model.ApprovalType;
 import com.educonnect.clubservice.model.ClubApprovalRequest;
@@ -17,6 +18,7 @@ import com.educonnect.clubservice.repository.ClubFinanceEntryRepository;
 import com.educonnect.clubservice.repository.ClubMeetingDecisionRepository;
 import com.educonnect.clubservice.repository.ClubMeetingRepository;
 import com.educonnect.clubservice.repository.ClubProfileChangeRepository;
+import com.educonnect.clubservice.repository.ClubReportRepository;
 import com.educonnect.clubservice.repository.ClubSponsorshipRepository;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
@@ -42,6 +44,7 @@ public class ApprovalDetailsLoader {
     private final ClubSponsorshipRepository sponsorshipRepository;
     private final ClubMeetingRepository meetingRepository;
     private final ClubMeetingDecisionRepository decisionRepository;
+    private final ClubReportRepository reportRepository;
 
     public ApprovalDetailsLoader(ClubProfileChangeRepository profileChangeRepository,
                                  ClubAnnouncementRepository announcementRepository,
@@ -49,7 +52,8 @@ public class ApprovalDetailsLoader {
                                  ClubFinanceEntryRepository entryRepository,
                                  ClubSponsorshipRepository sponsorshipRepository,
                                  ClubMeetingRepository meetingRepository,
-                                 ClubMeetingDecisionRepository decisionRepository) {
+                                 ClubMeetingDecisionRepository decisionRepository,
+                                 ClubReportRepository reportRepository) {
         this.profileChangeRepository = profileChangeRepository;
         this.announcementRepository = announcementRepository;
         this.budgetRepository = budgetRepository;
@@ -57,6 +61,7 @@ public class ApprovalDetailsLoader {
         this.sponsorshipRepository = sponsorshipRepository;
         this.meetingRepository = meetingRepository;
         this.decisionRepository = decisionRepository;
+        this.reportRepository = reportRepository;
     }
 
     public Map<UUID, ApprovalDetails> detailsOf(List<ClubApprovalRequest> requests) {
@@ -85,6 +90,8 @@ public class ApprovalDetailsLoader {
                 .collect(Collectors.groupingBy(ClubMeetingDecision::getMeetingId));
         meetings.forEach(meeting -> details.put(meeting.getRequestId(), ApprovalDetails.ofMeeting(MeetingResponse.of(meeting,
                 decisions.getOrDefault(meeting.getId(), List.of()), byId.get(meeting.getRequestId()).getStatus()))));
+        reportRepository.findByRequestIdIn(idsOf(requests, Set.of(ApprovalType.CLUB_ACTIVITY_REPORT, ApprovalType.CLUB_AUDIT_REPORT)))
+                .forEach(report -> details.put(report.getRequestId(), ApprovalDetails.ofReport(ReportResponse.of(report))));
         return details;
     }
 

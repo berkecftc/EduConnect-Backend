@@ -15,4 +15,6 @@ public interface ClubMeetingRepository extends JpaRepository<ClubMeeting, UUID> 
     List<ClubMeeting> findByRequestIdIn(Collection<UUID> requestIds);
 
     List<ClubMeeting> findByClubIdAndAcademicYearOrderByMeetingAtDesc(UUID clubId, int academicYear);
+
+    long countByClubIdAndAcademicYearAndApprovedAtIsNotNull(UUID clubId, int academicYear);
 }

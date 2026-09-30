@@ -47,6 +47,14 @@ public class MembershipTerms {
         return day.isAfter(yearEnd.atYear(day.getYear())) ? day.getYear() + 1 : day.getYear();
     }
 
+    public LocalDate academicYearStart(int academicYear) {
+        return yearEnd.atYear(academicYear - 1).plusDays(1);
+    }
+
+    public LocalDate academicYearEnd(int academicYear) {
+        return yearEnd.atYear(academicYear);
+    }
+
     public int currentAcademicYear() {
         return academicYearOf(today());
     }

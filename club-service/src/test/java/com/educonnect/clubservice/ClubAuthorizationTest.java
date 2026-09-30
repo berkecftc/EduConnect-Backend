@@ -494,7 +494,7 @@ class ClubAuthorizationTest {
                 .andExpect(jsonPath("$.permissions", containsInAnyOrder("VIEW_MEMBERS", "VIEW_MANAGEMENT_DATA",
                         "MANAGE_MEMBERSHIP_REQUESTS", "PROPOSE_POSITION_CHANGE", "UPDATE_CLUB_PROFILE", "CREATE_EVENT",
                         "MANAGE_EVENT_OPERATIONS", "PROPOSE_ADVISOR_CHANGE", "APPROVE_AS_PRESIDENT", "REQUEST_CLUB_CLOSURE", "PREPARE_EVENT", "VIEW_DECISIONS",
-                        "PREPARE_PROFILE_CHANGE", "PREPARE_LOGO_CHANGE", "PREPARE_ANNOUNCEMENT", "PREPARE_FINANCE", "PREPARE_SPONSORSHIP", "VIEW_FINANCE", "PREPARE_MINUTES")));
+                        "PREPARE_PROFILE_CHANGE", "PREPARE_LOGO_CHANGE", "PREPARE_ANNOUNCEMENT", "PREPARE_FINANCE", "PREPARE_SPONSORSHIP", "VIEW_FINANCE", "PREPARE_MINUTES", "PREPARE_ACTIVITY_REPORT")));
         mockMvc.perform(as(get(path, clubId, officer), service))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.permissions", containsInAnyOrder("VIEW_MEMBERS", "VIEW_MANAGEMENT_DATA",

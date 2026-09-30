@@ -5,6 +5,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 
+import java.time.Instant;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
@@ -17,4 +18,6 @@ public interface ClubAnnouncementRepository extends JpaRepository<ClubAnnounceme
     List<ClubAnnouncement> findByRequestIdIn(Collection<UUID> requestIds);
 
     Page<ClubAnnouncement> findByClubIdAndPublishedAtIsNotNullAndRemovedAtIsNull(UUID clubId, Pageable pageable);
+
+    long countByClubIdAndPublishedAtGreaterThanEqualAndPublishedAtLessThan(UUID clubId, Instant from, Instant to);
 }

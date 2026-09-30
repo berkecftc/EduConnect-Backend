@@ -17,6 +17,8 @@ public interface ClubMeetingDecisionRepository extends JpaRepository<ClubMeeting
 
     List<ClubMeetingDecision> findByClubIdAndAcademicYearAndDecisionNumberIsNotNullOrderByDecisionNumber(UUID clubId, int academicYear);
 
+    long countByClubIdAndAcademicYearAndDecisionNumberIsNotNull(UUID clubId, int academicYear);
+
     @Query("select coalesce(max(d.decisionNumber), 0) from ClubMeetingDecision d "
             + "where d.clubId = :clubId and d.academicYear = :academicYear")
     int lastNumber(@Param("clubId") UUID clubId, @Param("academicYear") int academicYear);
