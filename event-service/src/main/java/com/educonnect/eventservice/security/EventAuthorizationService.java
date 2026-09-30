@@ -17,6 +17,8 @@ import java.util.UUID;
 public class EventAuthorizationService {
 
     public static final String CREATE_EVENT = "CREATE_EVENT";
+    public static final String PREPARE_EVENT = "PREPARE_EVENT";
+    public static final String APPROVE_AS_PRESIDENT = "APPROVE_AS_PRESIDENT";
     public static final String MANAGE_EVENT_OPERATIONS = "MANAGE_EVENT_OPERATIONS";
     public static final String ADVISE = "ADVISE";
 
@@ -53,6 +55,14 @@ public class EventAuthorizationService {
         if (userId == null || !accessOf(clubId, userId).has(permission)) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Bu işlem için kulüpte yetkiniz yok.");
         }
+    }
+
+    public ClubAccess requireAccess(UUID clubId, UUID userId, String permission) {
+        ClubAccess access = userId != null ? accessOf(clubId, userId) : null;
+        if (access == null || !access.has(permission)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Bu işlem için kulüpte yetkiniz yok.");
+        }
+        return access;
     }
 
     public boolean canManageEvent(Event event, UUID userId) {

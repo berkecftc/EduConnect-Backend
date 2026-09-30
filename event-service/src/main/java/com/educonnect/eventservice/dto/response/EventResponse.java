@@ -18,12 +18,13 @@ public record EventResponse(UUID id,
                             String clubName,
                             EventStatus status,
                             Instant createdAt,
-                            Instant updatedAt) {
+                            Instant updatedAt,
+                            String rejectionReason) {
 
     public static EventResponse from(Event event) {
         return new EventResponse(event.getId(), event.getTitle(), event.getDescription(), event.getEventTime(),
                 event.getLocation(), event.getImageUrl(), event.getClubId(), event.getClubName(), event.getStatus(),
-                event.getCreatedAt(), event.getUpdatedAt());
+                event.getCreatedAt(), event.getUpdatedAt(), event.getRejectionReason());
     }
 
     public static List<EventResponse> from(List<Event> events) {

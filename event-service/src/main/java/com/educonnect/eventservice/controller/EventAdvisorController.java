@@ -1,8 +1,10 @@
 package com.educonnect.eventservice.controller;
 
+import com.educonnect.eventservice.dto.request.RejectEventRequest;
 import com.educonnect.eventservice.dto.response.EventResponse;
 import com.educonnect.eventservice.model.Event;
 import com.educonnect.eventservice.service.EventAdvisorService;
+import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
@@ -73,10 +75,11 @@ public class EventAdvisorController {
     @PreAuthorize("hasRole('ACADEMICIAN')")
     public ResponseEntity<EventResponse> rejectEvent(
             @PathVariable UUID eventId,
+            @Valid @RequestBody(required = false) RejectEventRequest request,
             @RequestHeader("X-Authenticated-User-Id") String userIdHeader
     ) {
         UUID rejectorId = UUID.fromString(userIdHeader);
-        Event rejectedEvent = eventAdvisorService.rejectEvent(eventId, rejectorId);
+        Event rejectedEvent = eventAdvisorService.rejectEvent(eventId, rejectorId, request != null ? request.reason() : null);
         return ResponseEntity.ok(EventResponse.from(rejectedEvent));
     }
 }

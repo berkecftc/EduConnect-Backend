@@ -3,7 +3,9 @@ package com.educonnect.eventservice.service;
 import com.educonnect.common.web.ApiException;
 import com.educonnect.common.web.BadRequestException;
 import com.educonnect.eventservice.client.ClubClient;
+import com.educonnect.eventservice.config.ApprovalChainSettings;
 import com.educonnect.eventservice.dto.request.CreateEventRequest;
+import com.educonnect.eventservice.dto.response.ClubAccess;
 import com.educonnect.eventservice.model.Event;
 import com.educonnect.eventservice.model.EventRegistration;
 import com.educonnect.eventservice.model.EventStatus;
@@ -35,19 +37,22 @@ public class EventService {
     private final ClubClient clubClient;
     private final EventAuthorizationService eventAuthorizationService;
     private final EventCaches eventCaches;
+    private final ApprovalChainSettings approvalChain;
 
     public EventService(EventRepository eventRepository,
                         MinioService minioService,
                         EventRegistrationRepository eventRegistrationRepository,
                         ClubClient clubClient,
                         EventAuthorizationService eventAuthorizationService,
-                        EventCaches eventCaches) {
+                        EventCaches eventCaches,
+                        ApprovalChainSettings approvalChain) {
         this.eventRepository = eventRepository;
         this.minioService = minioService;
         this.eventRegistrationRepository = eventRegistrationRepository;
         this.clubClient = clubClient;
         this.eventAuthorizationService = eventAuthorizationService;
         this.eventCaches = eventCaches;
+        this.approvalChain = approvalChain;
     }
 
     public Event createEvent(CreateEventRequest request, MultipartFile posterFile, UUID creatorId) {
@@ -70,7 +75,17 @@ public class EventService {
             throw new IllegalArgumentException("Invalid club name: " + request.getClubName() + ". Club not found.");
         }
 
-        eventAuthorizationService.require(resolvedClubId, creatorId, EventAuthorizationService.CREATE_EVENT);
+        EventStatus initialStatus;
+        if (approvalChain.enabled()) {
+            ClubAccess access = eventAuthorizationService.requireAccess(resolvedClubId, creatorId,
+                    EventAuthorizationService.PREPARE_EVENT);
+            initialStatus = access.has(EventAuthorizationService.APPROVE_AS_PRESIDENT)
+                    ? EventStatus.PENDING
+                    : EventStatus.PENDING_PRESIDENT;
+        } else {
+            eventAuthorizationService.require(resolvedClubId, creatorId, EventAuthorizationService.CREATE_EVENT);
+            initialStatus = EventStatus.PENDING;
+        }
 
         Event event = new Event();
         event.setTitle(request.getTitle());
@@ -80,7 +95,7 @@ public class EventService {
         event.setClubName(request.getClubName());
         event.setCreatedByStudentId(creatorId);
         event.setClubId(resolvedClubId);
-        event.setStatus(EventStatus.PENDING);
+        event.setStatus(initialStatus);
 
         Event savedEvent = eventRepository.save(event);
 
@@ -98,7 +113,8 @@ public class EventService {
     public void deleteEventsByClubId(UUID clubId) {
         LocalDateTime now = LocalDateTime.now();
         List<Event> cancelled = eventRepository.findByClubId(clubId).stream()
-                .filter(event -> event.getStatus() == EventStatus.PENDING
+                .filter(event -> event.getStatus() == EventStatus.PENDING_PRESIDENT
+                        || event.getStatus() == EventStatus.PENDING
                         || (event.getStatus() == EventStatus.ACTIVE
                             && (event.getEventTime() == null || event.getEventTime().isAfter(now))))
                 .toList();

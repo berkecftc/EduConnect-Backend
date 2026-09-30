@@ -64,7 +64,8 @@ class ClubAuthorizationServiceTest {
                 ClubPermission.MANAGE_MEMBERSHIP_REQUESTS, ClubPermission.PROPOSE_POSITION_CHANGE,
                 ClubPermission.UPDATE_CLUB_PROFILE, ClubPermission.CREATE_EVENT,
                 ClubPermission.MANAGE_EVENT_OPERATIONS, ClubPermission.PROPOSE_ADVISOR_CHANGE,
-                ClubPermission.APPROVE_AS_PRESIDENT, ClubPermission.REQUEST_CLUB_CLOSURE);
+                ClubPermission.APPROVE_AS_PRESIDENT, ClubPermission.REQUEST_CLUB_CLOSURE,
+                ClubPermission.PREPARE_EVENT);
     }
 
     @Test
@@ -100,6 +101,19 @@ class ClubAuthorizationServiceTest {
 
         assertThat(access.permissions()).containsExactlyInAnyOrder(
                 ClubPermission.VIEW_MEMBERS, ClubPermission.VIEW_MANAGEMENT_DATA, ClubPermission.MANAGE_EVENT_OPERATIONS);
+    }
+
+    @Test
+    void eventPreparationFollowsTheClubCatalog() {
+        for (ClubPosition position : List.of(ClubPosition.VICE_PRESIDENT, ClubPosition.GENERAL_SECRETARY,
+                ClubPosition.BOARD_MEMBER)) {
+            givenPosition(position, true);
+            assertThat(service.accessOf(clubId, userId).has(ClubPermission.PREPARE_EVENT)).as(position.name()).isTrue();
+        }
+        givenPosition(ClubPosition.TREASURER, true);
+        assertThat(service.accessOf(clubId, userId).has(ClubPermission.PREPARE_EVENT)).isFalse();
+        givenPosition(ClubPosition.MEMBER, true);
+        assertThat(service.accessOf(clubId, userId).has(ClubPermission.PREPARE_EVENT)).isFalse();
     }
 
     @Test

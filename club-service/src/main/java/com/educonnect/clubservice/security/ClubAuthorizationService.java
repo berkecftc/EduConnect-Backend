@@ -109,6 +109,10 @@ public class ClubAuthorizationService {
             permissions.add(ClubPermission.VIEW_MANAGEMENT_DATA);
             permissions.add(ClubPermission.MANAGE_EVENT_OPERATIONS);
         }
+        if (position == ClubPosition.VICE_PRESIDENT || position == ClubPosition.GENERAL_SECRETARY
+                || position == ClubPosition.BOARD_MEMBER || actingPresident) {
+            permissions.add(ClubPermission.PREPARE_EVENT);
+        }
         if (position == ClubPosition.GENERAL_SECRETARY) {
             permissions.add(ClubPermission.MANAGE_MEMBERSHIP_REQUESTS);
         }

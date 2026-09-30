@@ -3,6 +3,7 @@ package com.educonnect.eventservice.service;
 import com.educonnect.eventservice.repository.EventRegistrationRepository;
 import com.educonnect.eventservice.repository.EventRepository;
 import com.educonnect.eventservice.client.ClubClient;
+import com.educonnect.eventservice.config.ApprovalChainSettings;
 import com.educonnect.eventservice.model.Event;
 import com.educonnect.eventservice.model.EventRegistration;
 import com.educonnect.eventservice.model.EventStatus;
@@ -39,7 +40,7 @@ class EventServiceAuthorizationTest {
         registrationRepository = mock(EventRegistrationRepository.class);
         authorizationService = mock(EventAuthorizationService.class);
         service = new EventService(eventRepository, mock(MinioService.class), registrationRepository,
-                mock(ClubClient.class), authorizationService, mock(EventCaches.class));
+                mock(ClubClient.class), authorizationService, mock(EventCaches.class), new ApprovalChainSettings(false));
 
         event = new Event();
         event.setId(eventId);

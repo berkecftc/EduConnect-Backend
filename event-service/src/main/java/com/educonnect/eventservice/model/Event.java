@@ -55,6 +55,9 @@ public class Event {
     @Column
     private UUID createdByStudentId;
 
+    @Column(name = "rejection_reason", columnDefinition = "TEXT")
+    private String rejectionReason;
+
     // --- Getter & Setter (Lombok yoksa manuel ekleyin) ---
     public Event() {}
 
@@ -77,6 +80,14 @@ public class Event {
     public void setClubName(String clubName) { this.clubName = clubName; }
     public EventStatus getStatus() { return status; }
     public void setStatus(EventStatus status) { this.status = status; }
+    public String getRejectionReason() {
+        return rejectionReason;
+    }
+
+    public void setRejectionReason(String rejectionReason) {
+        this.rejectionReason = rejectionReason;
+    }
+
     public UUID getCreatedByStudentId() {
         return createdByStudentId;
     }
