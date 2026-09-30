@@ -96,7 +96,7 @@ public class EventAdvisorService {
         return savedEvent;
     }
 
-    public Event rejectEvent(UUID eventId, UUID rejectorId) {
+    public Event rejectEvent(UUID eventId, UUID rejectorId, String reason) {
         Event event = EventFinder.require(eventRepository, eventId);
 
         if (event.getStatus() != EventStatus.PENDING) {
@@ -106,6 +106,7 @@ public class EventAdvisorService {
         validateAdvisorAuthorization(event.getClubId(), rejectorId);
 
         event.setStatus(EventStatus.REJECTED);
+        event.setRejectionReason(reason);
         log.info("Etkinlik reddedildi: {} (Reddeden: {})", event.getTitle(), rejectorId);
 
         Event savedEvent = eventRepository.save(event);
