@@ -9,6 +9,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -62,7 +63,7 @@ class ClubAuthorizationServiceTest {
                 ClubPermission.VIEW_MEMBERS, ClubPermission.VIEW_MANAGEMENT_DATA,
                 ClubPermission.MANAGE_MEMBERSHIP_REQUESTS, ClubPermission.PROPOSE_POSITION_CHANGE,
                 ClubPermission.UPDATE_CLUB_PROFILE, ClubPermission.CREATE_EVENT,
-                ClubPermission.MANAGE_EVENT_OPERATIONS);
+                ClubPermission.MANAGE_EVENT_OPERATIONS, ClubPermission.PROPOSE_ADVISOR_CHANGE);
     }
 
     @Test
@@ -112,6 +113,17 @@ class ClubAuthorizationServiceTest {
         givenPosition(ClubPosition.PRESIDENT, false);
 
         assertThat(service.accessOf(clubId, userId).permissions()).isEmpty();
+    }
+
+    @Test
+    void aClosedClubIsReadOnlyForEveryone() {
+        clubRepository.findById(clubId).orElseThrow().close(advisorId, "Kapandı", Instant.now());
+        givenPosition(ClubPosition.PRESIDENT, true);
+
+        assertThat(service.accessOf(clubId, userId).permissions())
+                .containsExactlyInAnyOrder(ClubPermission.VIEW_MEMBERS, ClubPermission.VIEW_MANAGEMENT_DATA);
+        assertThat(service.accessOf(clubId, advisorId).permissions())
+                .containsExactlyInAnyOrder(ClubPermission.VIEW_MEMBERS, ClubPermission.VIEW_MANAGEMENT_DATA);
     }
 
     @Test

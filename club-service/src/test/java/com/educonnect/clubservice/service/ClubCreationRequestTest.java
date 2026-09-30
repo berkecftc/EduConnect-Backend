@@ -38,7 +38,7 @@ class ClubCreationRequestTest {
         requestRepository = mock(ClubCreationRequestRepository.class);
         userClient = mock(UserClient.class);
         service = new ClubFoundingService(mock(ClubRepository.class), mock(ClubMembershipRepository.class),
-                requestRepository, userClient, mock(ClubAuthorizationService.class), mock(ClubCacheEvictor.class),
+                requestRepository, new AdvisorDirectory(userClient), mock(ClubAuthorizationService.class), mock(ClubCacheEvictor.class),
                 mock(ClubManagementStatusPublisher.class), mock(ClubNotificationPublisher.class));
     }
 

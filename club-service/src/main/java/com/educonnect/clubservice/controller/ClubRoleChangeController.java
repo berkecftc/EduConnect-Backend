@@ -171,6 +171,6 @@ public class ClubRoleChangeController {
 
         roleChangeDecisionService.removePresidentByAdvisor(clubId, advisorId,
                 reason != null ? reason.rejectionReason() : null);
-        return ResponseEntity.ok("Kulüp başkanı görevden alındı. Yeni başkan atanana kadar başkan yardımcısı vekâlet eder.");
+        return ResponseEntity.ok("Kulüp başkanı görevden alındı. Başkan yardımcısı varsa kulüp başkanı olur; yoksa yeni başkanı kulübün aktif üyeleri arasından siz atayabilirsiniz.");
     }
 }

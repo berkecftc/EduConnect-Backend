@@ -10,7 +10,9 @@ import com.educonnect.clubservice.model.ClubCreationRequest;
 import com.educonnect.clubservice.model.ClubCreationRequestStatus;
 import com.educonnect.clubservice.model.ClubMembership;
 import com.educonnect.clubservice.model.ClubMembershipRequest;
+import com.educonnect.clubservice.model.ClubNames;
 import com.educonnect.clubservice.model.ClubPosition;
+import com.educonnect.clubservice.model.ClubStatus;
 import com.educonnect.clubservice.model.MembershipRequestStatus;
 import com.educonnect.clubservice.model.RoleChangeRequest;
 import com.educonnect.clubservice.model.RoleChangeRequestStatus;
@@ -444,7 +446,7 @@ class ClubAuthorizationTest {
         mockMvc.perform(as(delete("/api/admin/clubs/{clubId}", clubId), TestTokens.admin(admin)))
                 .andExpect(status().isNotFound());
         assertThat(clubRepository.existsById(clubId)).isTrue();
-        assertThat(clubRepository.findByName("Admin Kulübü")).isEmpty();
+        assertThat(clubRepository.findByNormalizedNameAndStatusNot(ClubNames.normalize("Admin Kulübü"), ClubStatus.CLOSED)).isEmpty();
     }
 
     @Test
@@ -488,7 +490,7 @@ class ClubAuthorizationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.permissions", containsInAnyOrder("VIEW_MEMBERS", "VIEW_MANAGEMENT_DATA",
                         "MANAGE_MEMBERSHIP_REQUESTS", "PROPOSE_POSITION_CHANGE", "UPDATE_CLUB_PROFILE", "CREATE_EVENT",
-                        "MANAGE_EVENT_OPERATIONS")));
+                        "MANAGE_EVENT_OPERATIONS", "PROPOSE_ADVISOR_CHANGE")));
         mockMvc.perform(as(get(path, clubId, officer), service))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.permissions", containsInAnyOrder("VIEW_MEMBERS", "VIEW_MANAGEMENT_DATA",

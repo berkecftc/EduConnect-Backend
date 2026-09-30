@@ -5,6 +5,7 @@ import com.educonnect.clubservice.repository.ClubRepository;
 import com.educonnect.clubservice.model.Club;
 import com.educonnect.clubservice.model.ClubMembership;
 import com.educonnect.clubservice.model.ClubPosition;
+import com.educonnect.clubservice.model.ClubStatus;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -49,7 +50,7 @@ public class ClubAuthorizationService {
         boolean actingPresident = position == ClubPosition.PRESIDENT
                 || (position == ClubPosition.VICE_PRESIDENT && isPresidencyVacant(club.getId()));
         return new ClubAccess(club.getId(), userId, position, actingPresident, advisor,
-                permissionsFor(position, actingPresident, advisor));
+                permissionsFor(position, actingPresident, advisor, club.getStatus()));
     }
 
     public ClubAccess require(UUID clubId, UUID userId, ClubPermission permission) {
@@ -65,10 +66,14 @@ public class ClubAuthorizationService {
         for (ClubMembership membership : membershipRepository.findByStudentId(userId)) {
             if (membership.isActive() && membership.getClubRole() != null && membership.getClubRole().isManagement()) {
                 clubRepository.findById(membership.getClubId())
+                        .filter(club -> !club.isClosed())
                         .ifPresent(club -> result.put(club.getId(), accessOf(club, userId)));
             }
         }
         for (Club club : clubRepository.findByAcademicAdvisorId(userId)) {
+            if (club.isClosed()) {
+                continue;
+            }
             result.putIfAbsent(club.getId(), accessOf(club, userId));
         }
         return new ArrayList<>(result.values());
@@ -78,6 +83,7 @@ public class ClubAuthorizationService {
         return membershipRepository.findByStudentId(userId).stream()
                 .filter(ClubMembership::isActive)
                 .filter(membership -> membership.getClubRole() != null && membership.getClubRole().isManagement())
+                .filter(membership -> clubRepository.findById(membership.getClubId()).map(club -> !club.isClosed()).orElse(false))
                 .findFirst();
     }
 
@@ -85,8 +91,17 @@ public class ClubAuthorizationService {
         return membershipRepository.findByClubIdAndClubRoleAndIsActive(clubId, ClubPosition.PRESIDENT, true).isEmpty();
     }
 
-    static Set<ClubPermission> permissionsFor(ClubPosition position, boolean actingPresident, boolean advisor) {
+    static Set<ClubPermission> permissionsFor(ClubPosition position, boolean actingPresident, boolean advisor, ClubStatus status) {
         Set<ClubPermission> permissions = EnumSet.noneOf(ClubPermission.class);
+        if (status == ClubStatus.CLOSED) {
+            if (position != null || advisor) {
+                permissions.add(ClubPermission.VIEW_MEMBERS);
+            }
+            if ((position != null && position.isManagement()) || advisor) {
+                permissions.add(ClubPermission.VIEW_MANAGEMENT_DATA);
+            }
+            return Set.copyOf(permissions);
+        }
         if (position != null) {
             permissions.add(ClubPermission.VIEW_MEMBERS);
         }
@@ -102,6 +117,7 @@ public class ClubAuthorizationService {
             permissions.add(ClubPermission.PROPOSE_POSITION_CHANGE);
             permissions.add(ClubPermission.UPDATE_CLUB_PROFILE);
             permissions.add(ClubPermission.CREATE_EVENT);
+            permissions.add(ClubPermission.PROPOSE_ADVISOR_CHANGE);
         }
         if (advisor) {
             permissions.add(ClubPermission.VIEW_MEMBERS);

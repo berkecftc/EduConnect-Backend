@@ -17,6 +17,7 @@ import com.educonnect.clubservice.security.ClubPermission;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import com.educonnect.common.messaging.outbox.OutboxPublisher;
+import com.educonnect.common.web.ConflictException;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -74,6 +75,9 @@ public class ClubMembershipRequestService {
         // 1. Kulüp var mı kontrol et
         Club club = clubRepository.findById(clubId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Kulüp bulunamadı"));
+        if (club.isClosed()) {
+            throw new ConflictException("CLUB_CLOSED", "Kapatılmış kulübe üyelik başvurusu yapılamaz.");
+        }
 
         // 2. Zaten üye mi kontrol et
         if (membershipRepository.findByClubIdAndStudentId(clubId, studentId).isPresent()) {

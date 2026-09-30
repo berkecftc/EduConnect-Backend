@@ -9,6 +9,8 @@ import com.educonnect.clubservice.dto.response.MemberDTO;
 import com.educonnect.clubservice.dto.response.MyClubMembershipDTO;
 import com.educonnect.clubservice.dto.response.PageResponse;
 import com.educonnect.clubservice.model.Club;
+import com.educonnect.clubservice.model.ClubNames;
+import com.educonnect.clubservice.model.ClubStatus;
 import com.educonnect.clubservice.service.ClubFoundingService;
 import com.educonnect.clubservice.service.ClubLifecycleService;
 import com.educonnect.clubservice.service.ClubQueryService;
@@ -166,7 +168,7 @@ public class ClubController {
      */
     @GetMapping("/search")
     public ResponseEntity<ClubSummaryDTO> getClubByName(@RequestParam String name) {
-        Club club = clubRepository.findByName(name)
+        Club club = clubRepository.findByNormalizedNameAndStatusNot(ClubNames.normalize(name), ClubStatus.CLOSED)
                 .orElseThrow(() -> new NotFoundException("CLUB_NOT_FOUND", "Club not found with name: " + name));
 
         return ResponseEntity.ok(new ClubSummaryDTO(club.getId(), club.getName(), club.getLogoUrl()));

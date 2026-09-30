@@ -67,7 +67,7 @@ class RoleChangeRequestServiceTest {
                 userClient, authorizationService, positionRules, notifier, mapper);
         decisionService = new RoleChangeDecisionService(requestRepository, membershipRepository, clubRepository,
                 authorizationService, mock(ClubCacheEvictor.class), managementStatusPublisher,
-                positionRules, notifier, userNames, mapper);
+                positionRules, notifier, userNames, mapper, mock(ClubLeadershipService.class));
 
         Club club = new Club();
         club.setId(clubId);

@@ -1,14 +1,14 @@
 package com.educonnect.clubservice.service;
 
-import com.educonnect.clubservice.client.UserClient;
 import com.educonnect.clubservice.dto.request.CreateClubRequest;
 import com.educonnect.clubservice.dto.request.SubmitClubRequest;
-import com.educonnect.clubservice.dto.response.AcademicianSummary;
 import com.educonnect.clubservice.model.Club;
 import com.educonnect.clubservice.model.ClubCreationRequest;
 import com.educonnect.clubservice.model.ClubCreationRequestStatus;
+import com.educonnect.clubservice.model.ClubNames;
 import com.educonnect.clubservice.model.ClubMembership;
 import com.educonnect.clubservice.model.ClubPosition;
+import com.educonnect.clubservice.model.ClubStatus;
 import com.educonnect.clubservice.repository.ClubCreationRequestRepository;
 import com.educonnect.clubservice.repository.ClubMembershipRepository;
 import com.educonnect.clubservice.repository.ClubRepository;
@@ -35,7 +35,7 @@ public class ClubFoundingService {
     private final ClubRepository clubRepository;
     private final ClubMembershipRepository membershipRepository;
     private final ClubCreationRequestRepository requestRepository;
-    private final UserClient userClient;
+    private final AdvisorDirectory advisorDirectory;
     private final ClubAuthorizationService clubAuthorizationService;
     private final ClubCacheEvictor cacheEvictor;
     private final ClubManagementStatusPublisher managementStatusPublisher;
@@ -44,7 +44,7 @@ public class ClubFoundingService {
     public ClubFoundingService(ClubRepository clubRepository,
                                ClubMembershipRepository membershipRepository,
                                ClubCreationRequestRepository requestRepository,
-                               UserClient userClient,
+                               AdvisorDirectory advisorDirectory,
                                ClubAuthorizationService clubAuthorizationService,
                                ClubCacheEvictor cacheEvictor,
                                ClubManagementStatusPublisher managementStatusPublisher,
@@ -52,7 +52,7 @@ public class ClubFoundingService {
         this.clubRepository = clubRepository;
         this.membershipRepository = membershipRepository;
         this.requestRepository = requestRepository;
-        this.userClient = userClient;
+        this.advisorDirectory = advisorDirectory;
         this.clubAuthorizationService = clubAuthorizationService;
         this.cacheEvictor = cacheEvictor;
         this.managementStatusPublisher = managementStatusPublisher;
@@ -60,13 +60,13 @@ public class ClubFoundingService {
     }
 
     public Club createClub(CreateClubRequest request) {
-        if (clubRepository.findByName(request.getName()).isPresent()) {
-            throw new ConflictException("CLUB_NAME_TAKEN", "Club with this name already exists.");
+        if (clubRepository.existsByNormalizedNameAndStatusNot(ClubNames.normalize(request.getName()), ClubStatus.CLOSED)) {
+            throw new ConflictException("CLUB_NAME_TAKEN", "Bu isimde bir kulüp zaten var.");
         }
         if (request.getClubPresidentId() == null) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Kulüp başkanı zorunludur.");
         }
-        ensureValidAdvisor(request.getAcademicAdvisorId());
+        advisorDirectory.requireAcademician(request.getAcademicAdvisorId());
         ensureEligibleForManagement(request.getClubPresidentId());
 
         Club newClub = new Club();
@@ -99,13 +99,19 @@ public class ClubFoundingService {
         if (studentId.equals(request.getAcademicAdvisorId())) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Başvuru sahibi kulübün danışmanı olamaz.");
         }
-        ensureValidAdvisor(request.getAcademicAdvisorId());
+        advisorDirectory.requireAcademician(request.getAcademicAdvisorId());
         ensureEligibleForManagement(studentId);
         if (requestRepository.existsByRequestingStudentIdAndStatus(studentId, ClubCreationRequestStatus.PENDING)) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Bekleyen bir kulüp kuruluş başvurunuz zaten var.");
         }
-        if (clubRepository.findByName(request.getName()).isPresent()) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "Bu isimde bir kulüp zaten var.");
+        String normalizedName = ClubNames.normalize(request.getName());
+        if (clubRepository.existsByNormalizedNameAndStatusNot(normalizedName, ClubStatus.CLOSED)) {
+            throw new ConflictException("CLUB_NAME_TAKEN", "Bu isimde bir kulüp zaten var.");
+        }
+        boolean pendingWithSameName = requestRepository.findByStatus(ClubCreationRequestStatus.PENDING).stream()
+                .anyMatch(pending -> normalizedName.equals(ClubNames.normalize(pending.getClubName())));
+        if (pendingWithSameName) {
+            throw new ConflictException("CLUB_NAME_TAKEN", "Bu isimde bekleyen bir kulüp kuruluş başvurusu var.");
         }
 
         ClubCreationRequest newRequest = new ClubCreationRequest();
@@ -201,21 +207,6 @@ public class ClubFoundingService {
         return newClub;
     }
 
-    private void ensureValidAdvisor(UUID advisorId) {
-        if (advisorId == null) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Kulübün bir danışman akademisyeni olmalıdır.");
-        }
-        AcademicianSummary advisor;
-        try {
-            advisor = userClient.getAcademicianById(advisorId);
-        } catch (Exception e) {
-            log.warn("Advisor lookup failed for {}: {}", advisorId, e.getMessage());
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Danışman akademisyen bulunamadı.");
-        }
-        if (advisor == null || !"Academician".equalsIgnoreCase(advisor.getRole())) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Danışman olarak yalnızca bir akademisyen seçilebilir.");
-        }
-    }
 
     private void ensureEligibleForManagement(UUID studentId) {
         if (clubAuthorizationService.activeManagementPositionOf(studentId).isPresent()) {

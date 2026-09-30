@@ -14,7 +14,9 @@ import com.educonnect.clubservice.dto.response.PageResponse;
 import com.educonnect.clubservice.dto.response.UserSummary;
 import com.educonnect.clubservice.model.Club;
 import com.educonnect.clubservice.model.ClubMembership;
+import com.educonnect.clubservice.model.ClubNames;
 import com.educonnect.clubservice.model.ClubPosition;
+import com.educonnect.clubservice.model.ClubStatus;
 import com.educonnect.clubservice.repository.ArchivedClubRepository;
 import com.educonnect.clubservice.repository.ClubMembershipRepository;
 import com.educonnect.clubservice.repository.ClubRepository;
@@ -68,12 +70,12 @@ public class ClubQueryService {
 
     @Transactional(readOnly = true)
     public List<ClubSummaryDTO> getAllClubs() {
-        return toClubSummaries(clubRepository.findAll());
+        return toClubSummaries(clubRepository.findByStatusNot(ClubStatus.CLOSED));
     }
 
     @Transactional(readOnly = true)
     public PageResponse<ClubSummaryDTO> getClubsPage(int page, Integer size) {
-        Page<Club> clubs = clubRepository.findAll(PageResponse.request(page, size, Sort.by("name").and(Sort.by("id"))));
+        Page<Club> clubs = clubRepository.findByStatusNot(ClubStatus.CLOSED, PageResponse.request(page, size, Sort.by("name").and(Sort.by("id"))));
         return PageResponse.of(clubs, toClubSummaries(clubs.getContent()));
     }
 
@@ -119,6 +121,9 @@ public class ClubQueryService {
         detailsDTO.setAdvisorTitle(advisorTitle);
         detailsDTO.setMemberCount(memberCount);
         detailsDTO.setMembers(memberDTOs);
+        detailsDTO.setStatus(club.getStatus());
+        detailsDTO.setClosedAt(club.getClosedAt());
+        detailsDTO.setClosureReason(club.getClosureReason());
         return detailsDTO;
     }
 
@@ -244,7 +249,9 @@ public class ClubQueryService {
                 .filter(membership -> membership.getClubRole().isManagement())
                 .filter(ClubMembership::isActive)
                 .toList();
-        return toMembershipDtos(memberships);
+        return toMembershipDtos(memberships).stream()
+                .filter(dto -> dto.getClubStatus() != ClubStatus.CLOSED)
+                .toList();
     }
 
     public boolean isStudentMemberOfClub(UUID clubId, UUID studentId) {
@@ -260,7 +267,7 @@ public class ClubQueryService {
 
     @Transactional(readOnly = true)
     public UUID getClubIdByName(String name) {
-        return clubRepository.findByName(name)
+        return clubRepository.findByNormalizedNameAndStatusNot(ClubNames.normalize(name), ClubStatus.CLOSED)
                 .map(Club::getId)
                 .orElseThrow(() -> new NotFoundException("CLUB_NOT_FOUND", "Club not found"));
     }
@@ -274,7 +281,7 @@ public class ClubQueryService {
 
     @Transactional(readOnly = true)
     public List<ClubCatalogEntry> getClubCatalog() {
-        return clubRepository.findAll(Sort.by("name")).stream()
+        return clubRepository.findByStatusNot(ClubStatus.CLOSED, Sort.by("name")).stream()
                 .map(club -> new ClubCatalogEntry(club.getId(), club.getName(), club.getAbout()))
                 .toList();
     }
@@ -319,6 +326,7 @@ public class ClubQueryService {
                     dto.setClubRole(membership.getClubRole());
                     dto.setActive(membership.isActive());
                     dto.setTermStartDate(membership.getTermStartDate());
+                    dto.setClubStatus(club.getStatus());
                     return dto;
                 })
                 .filter(Objects::nonNull)

@@ -21,7 +21,6 @@ public class AcademicianAssignmentGuard {
     private static final Logger log = LoggerFactory.getLogger(AcademicianAssignmentGuard.class);
 
     static final String SERVICE_CLIENT_ID = "auth-services";
-    private static final String ADVISED_CLUBS_URI = "http://club-service/api/clubs/internal/by-advisor/{id}/ids";
     private static final String TAUGHT_COURSES_URI = "http://course-service/api/courses/internal/instructors/{id}/course-ids";
     private static final ParameterizedTypeReference<List<UUID>> ID_LIST = new ParameterizedTypeReference<>() {
     };
@@ -46,11 +45,9 @@ public class AcademicianAssignmentGuard {
             return;
         }
         int courses = fetchIds(TAUGHT_COURSES_URI, userId).size();
-        int clubs = fetchIds(ADVISED_CLUBS_URI, userId).size();
-        if (courses > 0 || clubs > 0) {
+        if (courses > 0) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, String.format(
-                    "Akademisyen silinemez: %d dersin hocası ve %d kulübün danışmanı. Önce dersleri ve kulüpleri devredin.",
-                    courses, clubs));
+                    "Akademisyen silinemez: %d dersin hocası. Önce dersleri devredin.", courses));
         }
     }
 
@@ -65,7 +62,7 @@ public class AcademicianAssignmentGuard {
         } catch (RestClientException | IllegalArgumentException | IllegalStateException e) {
             log.warn("Akademisyen görevleri doğrulanamadı: uri={}, reason={}", uri, e.getMessage());
             throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE,
-                    "Akademisyenin ders ve kulüp görevleri doğrulanamadı. Biraz sonra tekrar deneyin.");
+                    "Akademisyenin ders görevleri doğrulanamadı. Biraz sonra tekrar deneyin.");
         }
     }
 }
