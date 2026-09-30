@@ -15,8 +15,6 @@ import java.util.UUID;
 @Transactional
 public class CatalogCourseService {
 
-    private static final Locale TURKISH = Locale.forLanguageTag("tr");
-
     private final CatalogCourseRepository catalogRepository;
 
     public CatalogCourseService(CatalogCourseRepository catalogRepository) {
@@ -42,6 +40,6 @@ public class CatalogCourseService {
     }
 
     public static String normalize(String code) {
-        return code.strip().replaceAll("\\s+", " ").toUpperCase(TURKISH);
+        return code.strip().replaceAll("\\s+", " ").toUpperCase(Locale.ROOT);
     }
 }

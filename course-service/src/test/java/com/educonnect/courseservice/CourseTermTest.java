@@ -11,6 +11,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
 import org.springframework.test.web.servlet.request.AbstractMockHttpServletRequestBuilder;
 
+import java.util.Locale;
 import java.util.UUID;
 import java.util.concurrent.ThreadLocalRandom;
 
@@ -76,7 +77,7 @@ class CourseTermTest {
         open(code, null, null).andExpect(status().isConflict())
                 .andExpect(jsonPath("$.errorCode").value("DUPLICATE_COURSE_CODE"));
         open(code, null, "2").andExpect(status().isOk()).andExpect(jsonPath("$.section").value("2"));
-        open(code.toLowerCase(), springId, null).andExpect(status().isOk())
+        open(code.toLowerCase(Locale.ROOT), springId, null).andExpect(status().isOk())
                 .andExpect(jsonPath("$.catalogCourseId").value(catalogId))
                 .andExpect(jsonPath("$.termLabel").value((year - 1) + "-" + year + " Bahar"));
 
