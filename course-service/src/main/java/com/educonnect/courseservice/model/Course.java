@@ -30,7 +30,7 @@ public class Course {
     @Column(nullable = false)
     private String title;
 
-    @Column(nullable = false, unique = true)
+    @Column(nullable = false)
     private String code;
 
     @Column(columnDefinition = "TEXT")
@@ -44,6 +44,15 @@ public class Course {
 
     @Column(nullable = false)
     private UUID instructorId;
+
+    @Column(name = "term_id", nullable = false)
+    private UUID termId;
+
+    @Column(name = "catalog_course_id", nullable = false)
+    private UUID catalogCourseId;
+
+    @Column(nullable = false, length = 10)
+    private String section = "1";
 
     @Column(name = "image_url")
     @Convert(converter = ObjectUrlConverter.class)
@@ -68,6 +77,12 @@ public class Course {
     public void setCapacity(int capacity) { this.capacity = capacity; }
     public UUID getInstructorId() { return instructorId; }
     public void setInstructorId(UUID instructorId) { this.instructorId = instructorId; }
+    public UUID getTermId() { return termId; }
+    public void setTermId(UUID termId) { this.termId = termId; }
+    public UUID getCatalogCourseId() { return catalogCourseId; }
+    public void setCatalogCourseId(UUID catalogCourseId) { this.catalogCourseId = catalogCourseId; }
+    public String getSection() { return section; }
+    public void setSection(String section) { this.section = section; }
     public String getImageUrl() { return imageUrl; }
     public void setImageUrl(String imageUrl) { this.imageUrl = imageUrl; }
 

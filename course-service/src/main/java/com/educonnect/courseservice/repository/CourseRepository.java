@@ -1,6 +1,8 @@
 package com.educonnect.courseservice.repository;
 import com.educonnect.courseservice.model.Course;
 import jakarta.persistence.LockModeType;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
@@ -11,7 +13,10 @@ import java.util.UUID;
 
 public interface CourseRepository extends JpaRepository<Course, UUID> {
     List<Course> findByInstructorId(UUID instructorId);
-    boolean existsByCode(String code);
+    boolean existsByCatalogCourseIdAndTermIdAndSection(UUID catalogCourseId, UUID termId, String section);
+    boolean existsByTermId(UUID termId);
+    List<Course> findByTermId(UUID termId);
+    Page<Course> findByTermId(UUID termId, Pageable pageable);
     boolean existsByImageUrl(String imageUrl);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)

@@ -38,14 +38,15 @@ public class CourseController {
     // ===================== DERS CRUD =====================
 
     @GetMapping
-    public ResponseEntity<List<CourseResponse>> getAll() {
-        return ResponseEntity.ok(courseService.getAllCourses());
+    public ResponseEntity<List<CourseResponse>> getAll(@RequestParam(required = false) UUID termId) {
+        return ResponseEntity.ok(courseService.getAllCourses(termId));
     }
 
     @GetMapping(params = "page")
     public ResponseEntity<PageResponse<CourseResponse>> getPage(@RequestParam int page,
-                                                                @RequestParam(required = false) Integer size) {
-        return ResponseEntity.ok(courseService.getCoursesPage(page, size));
+                                                                @RequestParam(required = false) Integer size,
+                                                                @RequestParam(required = false) UUID termId) {
+        return ResponseEntity.ok(courseService.getCoursesPage(page, size, termId));
     }
 
     @GetMapping("/{id}")

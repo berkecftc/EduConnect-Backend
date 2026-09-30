@@ -3,13 +3,18 @@ package com.educonnect.courseservice.dto;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
-public class EnrolledCourseDTO {
+public class EnrolledCourseDTO implements OfferingView {
     private UUID id;
     private String title;
     private String code;
     private String description;
     private int credit;
     private String semester;
+    private UUID termId;
+    private String termLabel;
+    private String section;
+    private UUID catalogCourseId;
+    private Integer ects;
     private String imageUrl;
     private UUID instructorId;
     private String instructorName;
@@ -35,6 +40,16 @@ public class EnrolledCourseDTO {
 
     public String getSemester() { return semester; }
     public void setSemester(String semester) { this.semester = semester; }
+    public UUID getTermId() { return termId; }
+    public void setTermId(UUID termId) { this.termId = termId; }
+    public String getTermLabel() { return termLabel; }
+    public void setTermLabel(String termLabel) { this.termLabel = termLabel; }
+    public String getSection() { return section; }
+    public void setSection(String section) { this.section = section; }
+    public UUID getCatalogCourseId() { return catalogCourseId; }
+    public void setCatalogCourseId(UUID catalogCourseId) { this.catalogCourseId = catalogCourseId; }
+    public Integer getEcts() { return ects; }
+    public void setEcts(Integer ects) { this.ects = ects; }
 
     public String getImageUrl() { return imageUrl; }
     public void setImageUrl(String imageUrl) { this.imageUrl = imageUrl; }
@@ -48,4 +63,3 @@ public class EnrolledCourseDTO {
     public LocalDateTime getEnrollmentDate() { return enrollmentDate; }
     public void setEnrollmentDate(LocalDateTime enrollmentDate) { this.enrollmentDate = enrollmentDate; }
 }
-

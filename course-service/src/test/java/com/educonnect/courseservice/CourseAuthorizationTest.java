@@ -2,6 +2,7 @@ package com.educonnect.courseservice;
 
 import com.educonnect.common.test.TestTokens;
 import com.educonnect.courseservice.model.Course;
+import com.educonnect.courseservice.repository.CatalogCourseRepository;
 import com.educonnect.courseservice.repository.CourseRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -25,111 +26,109 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @CourseIntegrationTest
 class CourseAuthorizationTest {
 
-	private final UUID owner = UUID.randomUUID();
-	private final UUID otherInstructor = UUID.randomUUID();
-	private final UUID student = UUID.randomUUID();
-	private final UUID admin = UUID.randomUUID();
+    private final UUID owner = UUID.randomUUID();
+    private final UUID otherInstructor = UUID.randomUUID();
+    private final UUID student = UUID.randomUUID();
+    private final UUID admin = UUID.randomUUID();
 
-	@Autowired
-	private MockMvc mockMvc;
+    @Autowired
+    private MockMvc mockMvc;
 
-	@Autowired
-	private CourseRepository courseRepository;
+    @Autowired
+    private CourseRepository courseRepository;
 
-	private UUID courseId;
+    @Autowired
+    private CatalogCourseRepository catalogRepository;
 
-	@BeforeEach
-	void createCourse() {
-		Course course = new Course();
-		course.setTitle("Yetki Testi");
-		course.setCode("AUTH-" + UUID.randomUUID().toString().substring(0, 8));
-		course.setCredit(3);
-		course.setCapacity(10);
-		course.setInstructorId(owner);
-		courseId = courseRepository.save(course).getId();
-	}
+    private UUID courseId;
 
-	@Test
-	void onlyAcademiciansCreateCoursesAndOnlyForThemselves() throws Exception {
-		mockMvc.perform(as(multipart("/api/courses").file(coursePart(student)), TestTokens.student(student)))
-				.andExpect(status().isForbidden())
-				.andExpect(jsonPath("$.errorCode").value("UNAUTHORIZED_COURSE_ACCESS"));
-		mockMvc.perform(as(multipart("/api/courses").file(coursePart(owner)), TestTokens.academician(otherInstructor)))
-				.andExpect(status().isForbidden());
-	}
+    @BeforeEach
+    void createCourse() {
+        Course course = TestCourses.offering(catalogRepository, "Yetki Testi", owner);
+        courseId = courseRepository.save(course).getId();
+    }
 
-	@Test
-	void onlyTheOwnerOrAnAdminDeletesACourse() throws Exception {
-		mockMvc.perform(as(delete("/api/courses/{id}", courseId), TestTokens.student(student)))
-				.andExpect(status().isForbidden());
-		mockMvc.perform(as(delete("/api/courses/{id}", courseId), TestTokens.academician(otherInstructor)))
-				.andExpect(status().isForbidden());
-		assertThat(courseRepository.existsById(courseId)).isTrue();
+    @Test
+    void onlyAcademiciansCreateCoursesAndOnlyForThemselves() throws Exception {
+        mockMvc.perform(as(multipart("/api/courses").file(coursePart(student)), TestTokens.student(student)))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.errorCode").value("UNAUTHORIZED_COURSE_ACCESS"));
+        mockMvc.perform(as(multipart("/api/courses").file(coursePart(owner)), TestTokens.academician(otherInstructor)))
+                .andExpect(status().isForbidden());
+    }
 
-		mockMvc.perform(as(delete("/api/courses/{id}", courseId), TestTokens.academician(owner)))
-				.andExpect(status().isNoContent());
-		assertThat(courseRepository.existsById(courseId)).isFalse();
-	}
+    @Test
+    void onlyTheOwnerOrAnAdminDeletesACourse() throws Exception {
+        mockMvc.perform(as(delete("/api/courses/{id}", courseId), TestTokens.student(student)))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(as(delete("/api/courses/{id}", courseId), TestTokens.academician(otherInstructor)))
+                .andExpect(status().isForbidden());
+        assertThat(courseRepository.existsById(courseId)).isTrue();
 
-	@Test
-	void adminDeletesAnyCourse() throws Exception {
-		mockMvc.perform(as(delete("/api/courses/{id}", courseId), TestTokens.admin(admin)))
-				.andExpect(status().isNoContent());
-	}
+        mockMvc.perform(as(delete("/api/courses/{id}", courseId), TestTokens.academician(owner)))
+                .andExpect(status().isNoContent());
+        assertThat(courseRepository.existsById(courseId)).isFalse();
+    }
 
-	@Test
-	void onlyStudentsApplyToCourses() throws Exception {
-		mockMvc.perform(as(post("/api/courses/{id}/apply", courseId), TestTokens.academician(otherInstructor)))
-				.andExpect(status().isForbidden());
-		mockMvc.perform(as(post("/api/courses/{id}/apply", courseId), TestTokens.student(student)))
-				.andExpect(status().isCreated());
-	}
+    @Test
+    void adminDeletesAnyCourse() throws Exception {
+        mockMvc.perform(as(delete("/api/courses/{id}", courseId), TestTokens.admin(admin)))
+                .andExpect(status().isNoContent());
+    }
 
-	@Test
-	void courseDataIsVisibleOnlyToItsInstructor() throws Exception {
-		mockMvc.perform(as(get("/api/courses/{id}/applications/pending", courseId), TestTokens.academician(otherInstructor)))
-				.andExpect(status().isForbidden());
-		mockMvc.perform(as(get("/api/courses/{id}/enrolled-students", courseId), TestTokens.academician(otherInstructor)))
-				.andExpect(status().isForbidden());
-		mockMvc.perform(as(get("/api/courses/{id}/enrolled-students", courseId), TestTokens.student(student)))
-				.andExpect(status().isForbidden());
-		mockMvc.perform(as(get("/api/courses/{id}/applications/pending", courseId), TestTokens.academician(owner)))
-				.andExpect(status().isOk());
-	}
+    @Test
+    void onlyStudentsApplyToCourses() throws Exception {
+        mockMvc.perform(as(post("/api/courses/{id}/apply", courseId), TestTokens.academician(otherInstructor)))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(as(post("/api/courses/{id}/apply", courseId), TestTokens.student(student)))
+                .andExpect(status().isCreated());
+    }
 
-	@Test
-	void onlyTheInstructorPostsAnnouncements() throws Exception {
-		String body = "{\"title\":\"Sınav tarihi\",\"content\":\"Vize 10 Kasım\"}";
-		mockMvc.perform(as(post("/api/courses/{id}/announcements", courseId), TestTokens.academician(otherInstructor))
-						.contentType(MediaType.APPLICATION_JSON).content(body))
-				.andExpect(status().isForbidden());
-		mockMvc.perform(as(post("/api/courses/{id}/announcements", courseId), TestTokens.student(student))
-						.contentType(MediaType.APPLICATION_JSON).content(body))
-				.andExpect(status().isForbidden());
-		mockMvc.perform(as(post("/api/courses/{id}/announcements", courseId), TestTokens.academician(owner))
-						.contentType(MediaType.APPLICATION_JSON).content(body))
-				.andExpect(status().isCreated());
-	}
+    @Test
+    void courseDataIsVisibleOnlyToItsInstructor() throws Exception {
+        mockMvc.perform(as(get("/api/courses/{id}/applications/pending", courseId), TestTokens.academician(otherInstructor)))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(as(get("/api/courses/{id}/enrolled-students", courseId), TestTokens.academician(otherInstructor)))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(as(get("/api/courses/{id}/enrolled-students", courseId), TestTokens.student(student)))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(as(get("/api/courses/{id}/applications/pending", courseId), TestTokens.academician(owner)))
+                .andExpect(status().isOk());
+    }
 
-	@Test
-	void internalEndpointsAcceptOnlyServiceTokens() throws Exception {
-		String path = "/api/courses/internal/instructors/{id}/course-ids";
-		mockMvc.perform(get(path, owner))
-				.andExpect(status().isUnauthorized());
-		mockMvc.perform(as(get(path, owner), TestTokens.admin(admin)))
-				.andExpect(status().isForbidden());
-		mockMvc.perform(as(get(path, owner), TestTokens.service("assignment-service")))
-				.andExpect(status().isOk())
-				.andExpect(jsonPath("$[0]").value(courseId.toString()));
-	}
+    @Test
+    void onlyTheInstructorPostsAnnouncements() throws Exception {
+        String body = "{\"title\":\"Sınav tarihi\",\"content\":\"Vize 10 Kasım\"}";
+        mockMvc.perform(as(post("/api/courses/{id}/announcements", courseId), TestTokens.academician(otherInstructor))
+                        .contentType(MediaType.APPLICATION_JSON).content(body))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(as(post("/api/courses/{id}/announcements", courseId), TestTokens.student(student))
+                        .contentType(MediaType.APPLICATION_JSON).content(body))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(as(post("/api/courses/{id}/announcements", courseId), TestTokens.academician(owner))
+                        .contentType(MediaType.APPLICATION_JSON).content(body))
+                .andExpect(status().isCreated());
+    }
 
-	private static <B extends AbstractMockHttpServletRequestBuilder<B>> B as(B request, String token) {
-		return request.header(HttpHeaders.AUTHORIZATION, TestTokens.bearer(token));
-	}
+    @Test
+    void internalEndpointsAcceptOnlyServiceTokens() throws Exception {
+        String path = "/api/courses/internal/instructors/{id}/course-ids";
+        mockMvc.perform(get(path, owner))
+                .andExpect(status().isUnauthorized());
+        mockMvc.perform(as(get(path, owner), TestTokens.admin(admin)))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(as(get(path, owner), TestTokens.service("assignment-service")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0]").value(courseId.toString()));
+    }
 
-	private static MockMultipartFile coursePart(UUID instructorId) {
-		String json = "{\"title\":\"Yeni Ders\",\"code\":\"NEW-" + UUID.randomUUID().toString().substring(0, 6)
-				+ "\",\"credit\":3,\"capacity\":10,\"instructorId\":\"" + instructorId + "\"}";
-		return new MockMultipartFile("course", "", MediaType.APPLICATION_JSON_VALUE, json.getBytes());
-	}
+    private static <B extends AbstractMockHttpServletRequestBuilder<B>> B as(B request, String token) {
+        return request.header(HttpHeaders.AUTHORIZATION, TestTokens.bearer(token));
+    }
+
+    private static MockMultipartFile coursePart(UUID instructorId) {
+        String json = "{\"title\":\"Yeni Ders\",\"code\":\"NEW-" + UUID.randomUUID().toString().substring(0, 6)
+                + "\",\"credit\":3,\"capacity\":10,\"instructorId\":\"" + instructorId + "\"}";
+        return new MockMultipartFile("course", "", MediaType.APPLICATION_JSON_VALUE, json.getBytes());
+    }
 }

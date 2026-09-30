@@ -1,7 +1,13 @@
-INSERT INTO course_db.courses (id, code, title, description, credit, semester, capacity, instructor_id) VALUES
-    ('5eed0000-0000-4000-8000-00000000f001', 'SEED101', 'Programlamaya Giriş', 'Değişkenler, koşullar, döngüler ve fonksiyonlar.', 4, '2026 Güz', 40, '5eed0000-0000-4000-8000-00000000a001'),
-    ('5eed0000-0000-4000-8000-00000000f002', 'SEED202', 'Veri Yapıları', 'Liste, yığın, kuyruk, ağaç ve çizgeler.', 4, '2026 Güz', 30, '5eed0000-0000-4000-8000-00000000a001'),
-    ('5eed0000-0000-4000-8000-00000000f003', 'SEED303', 'Veritabanı Sistemleri', 'İlişkisel model, SQL ve normalizasyon.', 3, '2026 Güz', 25, '5eed0000-0000-4000-8000-00000000a002')
+INSERT INTO course_db.catalog_courses (id, code, title, credit, created_by) VALUES
+    ('5eed0000-0000-4000-8000-00000000f401', 'SEED101', 'Programlamaya Giriş', 4, '5eed0000-0000-4000-8000-00000000a001'),
+    ('5eed0000-0000-4000-8000-00000000f402', 'SEED202', 'Veri Yapıları', 4, '5eed0000-0000-4000-8000-00000000a001'),
+    ('5eed0000-0000-4000-8000-00000000f403', 'SEED303', 'Veritabanı Sistemleri', 3, '5eed0000-0000-4000-8000-00000000a002')
+ON CONFLICT DO NOTHING;
+
+INSERT INTO course_db.courses (id, code, title, description, credit, semester, capacity, instructor_id, term_id, catalog_course_id, section) VALUES
+    ('5eed0000-0000-4000-8000-00000000f001', 'SEED101', 'Programlamaya Giriş', 'Değişkenler, koşullar, döngüler ve fonksiyonlar.', 4, '2026-2027 Güz', 40, '5eed0000-0000-4000-8000-00000000a001', '7e000000-0000-4000-8000-000000002027', '5eed0000-0000-4000-8000-00000000f401', '1'),
+    ('5eed0000-0000-4000-8000-00000000f002', 'SEED202', 'Veri Yapıları', 'Liste, yığın, kuyruk, ağaç ve çizgeler.', 4, '2026-2027 Güz', 30, '5eed0000-0000-4000-8000-00000000a001', '7e000000-0000-4000-8000-000000002027', '5eed0000-0000-4000-8000-00000000f402', '1'),
+    ('5eed0000-0000-4000-8000-00000000f003', 'SEED303', 'Veritabanı Sistemleri', 'İlişkisel model, SQL ve normalizasyon.', 3, '2026-2027 Güz', 25, '5eed0000-0000-4000-8000-00000000a002', '7e000000-0000-4000-8000-000000002027', '5eed0000-0000-4000-8000-00000000f403', '1')
 ON CONFLICT DO NOTHING;
 
 INSERT INTO course_db.student_course_enrollments (id, course_id, student_id, enrollment_date, is_active) VALUES
