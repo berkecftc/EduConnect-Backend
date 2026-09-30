@@ -2,16 +2,17 @@ package com.educonnect.clubservice.service;
 
 import com.educonnect.clubservice.config.ClubRabbitMQConfig;
 import com.educonnect.clubservice.dto.message.ClubUpdateMessage;
+import com.educonnect.clubservice.model.ApprovalStatus;
 import com.educonnect.clubservice.model.Club;
+import com.educonnect.clubservice.model.ClubApprovalRequest;
 import com.educonnect.clubservice.model.ClubMembership;
 import com.educonnect.clubservice.model.ClubMembershipRequest;
+import com.educonnect.clubservice.model.DecisionAction;
 import com.educonnect.clubservice.model.MembershipRequestStatus;
-import com.educonnect.clubservice.model.RoleChangeRequest;
-import com.educonnect.clubservice.model.RoleChangeRequestStatus;
+import com.educonnect.clubservice.repository.ClubApprovalRequestRepository;
 import com.educonnect.clubservice.repository.ClubMembershipRepository;
 import com.educonnect.clubservice.repository.ClubMembershipRequestRepository;
 import com.educonnect.clubservice.repository.ClubRepository;
-import com.educonnect.clubservice.repository.RoleChangeRequestRepository;
 import com.educonnect.clubservice.security.ClubAuthorizationService;
 import com.educonnect.clubservice.security.ClubPermission;
 import com.educonnect.common.messaging.outbox.OutboxPublisher;
@@ -38,9 +39,9 @@ public class ClubClosureService {
     private final ClubRepository clubRepository;
     private final ClubMembershipRepository membershipRepository;
     private final ClubMembershipRequestRepository membershipRequestRepository;
-    private final RoleChangeRequestRepository roleChangeRequestRepository;
+    private final ClubApprovalRequestRepository approvalRequestRepository;
     private final ClubAuthorizationService clubAuthorizationService;
-    private final AdvisorChangeService advisorChangeService;
+    private final ClubDecisionLog decisionLog;
     private final ClubCacheEvictor cacheEvictor;
     private final ClubManagementStatusPublisher managementStatusPublisher;
     private final ClubNotificationPublisher notificationPublisher;
@@ -50,9 +51,9 @@ public class ClubClosureService {
     public ClubClosureService(ClubRepository clubRepository,
                               ClubMembershipRepository membershipRepository,
                               ClubMembershipRequestRepository membershipRequestRepository,
-                              RoleChangeRequestRepository roleChangeRequestRepository,
+                              ClubApprovalRequestRepository approvalRequestRepository,
                               ClubAuthorizationService clubAuthorizationService,
-                              AdvisorChangeService advisorChangeService,
+                              ClubDecisionLog decisionLog,
                               ClubCacheEvictor cacheEvictor,
                               ClubManagementStatusPublisher managementStatusPublisher,
                               ClubNotificationPublisher notificationPublisher,
@@ -60,9 +61,9 @@ public class ClubClosureService {
         this.clubRepository = clubRepository;
         this.membershipRepository = membershipRepository;
         this.membershipRequestRepository = membershipRequestRepository;
-        this.roleChangeRequestRepository = roleChangeRequestRepository;
+        this.approvalRequestRepository = approvalRequestRepository;
         this.clubAuthorizationService = clubAuthorizationService;
-        this.advisorChangeService = advisorChangeService;
+        this.decisionLog = decisionLog;
         this.cacheEvictor = cacheEvictor;
         this.managementStatusPublisher = managementStatusPublisher;
         this.notificationPublisher = notificationPublisher;
@@ -77,11 +78,16 @@ public class ClubClosureService {
             throw new ConflictException("CLUB_CLOSED", "Kulüp zaten kapatılmış.");
         }
         clubAuthorizationService.require(clubId, advisorId, ClubPermission.ADVISE);
+        close(club, advisorId, reason, null);
+        return club;
+    }
 
-        club.close(advisorId, reason, clock.instant());
+    void close(Club club, UUID closedBy, String reason, UUID closingRequestId) {
+        UUID clubId = club.getId();
+        club.close(closedBy, reason, clock.instant());
         clubRepository.save(club);
-        closePendingRequests(clubId, advisorId);
-        advisorChangeService.cancelPendingForClub(clubId);
+        closePendingRequests(clubId, closedBy, closingRequestId);
+        decisionLog.record(clubId, DecisionAction.CLUB_CLOSED, closedBy, null, reason);
 
         List<ClubMembership> activeMembers = membershipRepository.findByClubId(clubId).stream()
                 .filter(ClubMembership::isActive)
@@ -97,25 +103,25 @@ public class ClubClosureService {
         }
         outboxPublisher.publish(ClubRabbitMQConfig.CLUB_EXCHANGE_NAME, ROUTING_KEY_CLUB_DELETED,
                 new ClubUpdateMessage(clubId, club.getName(), null));
-        log.info("Club closed by advisor: clubId={}, members={}", clubId, activeMembers.size());
-        return club;
+        log.info("Club closed: clubId={}, members={}", clubId, activeMembers.size());
     }
 
-    private void closePendingRequests(UUID clubId, UUID advisorId) {
+    private void closePendingRequests(UUID clubId, UUID closedBy, UUID closingRequestId) {
         LocalDateTime now = LocalDateTime.now(clock);
         for (ClubMembershipRequest request : membershipRequestRepository.findByClubIdAndStatus(clubId, MembershipRequestStatus.PENDING)) {
             request.setStatus(MembershipRequestStatus.REJECTED);
             request.setRejectionReason(CLOSED_REASON);
-            request.setProcessedBy(advisorId);
+            request.setProcessedBy(closedBy);
             request.setProcessedDate(now);
             membershipRequestRepository.save(request);
         }
-        for (RoleChangeRequest request : roleChangeRequestRepository.findByClubIdAndStatus(clubId, RoleChangeRequestStatus.PENDING)) {
-            request.setStatus(RoleChangeRequestStatus.REJECTED);
-            request.setRejectionReason(CLOSED_REASON);
-            request.setProcessedBy(advisorId);
-            request.setProcessedAt(now);
-            roleChangeRequestRepository.save(request);
+        for (ClubApprovalRequest request : approvalRequestRepository.findByClubIdAndStatusIn(clubId, ApprovalStatus.PENDING)) {
+            if (request.getId().equals(closingRequestId)) {
+                continue;
+            }
+            request.conclude(ApprovalStatus.REJECTED, closedBy, CLOSED_REASON, clock.instant());
+            approvalRequestRepository.save(request);
+            decisionLog.record(request, DecisionAction.REJECTED, closedBy, CLOSED_REASON);
         }
     }
 }

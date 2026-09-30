@@ -118,6 +118,8 @@ public class ClubAuthorizationService {
             permissions.add(ClubPermission.UPDATE_CLUB_PROFILE);
             permissions.add(ClubPermission.CREATE_EVENT);
             permissions.add(ClubPermission.PROPOSE_ADVISOR_CHANGE);
+            permissions.add(ClubPermission.APPROVE_AS_PRESIDENT);
+            permissions.add(ClubPermission.REQUEST_CLUB_CLOSURE);
         }
         if (advisor) {
             permissions.add(ClubPermission.VIEW_MEMBERS);

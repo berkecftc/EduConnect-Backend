@@ -2,7 +2,7 @@ package com.educonnect.clubservice.service;
 
 import com.educonnect.clubservice.client.UserClient;
 import com.educonnect.clubservice.dto.response.UserSummary;
-import com.educonnect.clubservice.model.RoleChangeRequest;
+import com.educonnect.clubservice.model.ClubApprovalRequest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
@@ -42,9 +42,9 @@ class RoleChangeUserNames {
         return UNKNOWN_USER_NAME;
     }
 
-    Map<UUID, String> namesOf(List<RoleChangeRequest> requests) {
+    Map<UUID, String> namesOf(List<ClubApprovalRequest> requests) {
         List<UUID> userIds = requests.stream()
-                .flatMap(request -> Stream.of(request.getStudentId(), request.getRequesterId()))
+                .flatMap(request -> Stream.of(request.getSubjectUserId(), request.getPreparedBy()))
                 .filter(Objects::nonNull)
                 .distinct()
                 .toList();

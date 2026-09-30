@@ -1,9 +1,10 @@
 package com.educonnect.clubservice.service;
 
+import com.educonnect.clubservice.model.ApprovalStatus;
+import com.educonnect.clubservice.model.ApprovalType;
 import com.educonnect.clubservice.model.ClubPosition;
-import com.educonnect.clubservice.model.RoleChangeRequestStatus;
 import com.educonnect.clubservice.repository.ClubMembershipRepository;
-import com.educonnect.clubservice.repository.RoleChangeRequestRepository;
+import com.educonnect.clubservice.repository.ClubApprovalRequestRepository;
 import com.educonnect.clubservice.security.ClubAuthorizationService;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Component;
@@ -15,22 +16,22 @@ import java.util.UUID;
 class ClubPositionRules {
 
     private final ClubMembershipRepository membershipRepository;
-    private final RoleChangeRequestRepository roleChangeRequestRepository;
+    private final ClubApprovalRequestRepository approvalRequestRepository;
     private final ClubAuthorizationService clubAuthorizationService;
 
     ClubPositionRules(ClubMembershipRepository membershipRepository,
-                      RoleChangeRequestRepository roleChangeRequestRepository,
+                      ClubApprovalRequestRepository approvalRequestRepository,
                       ClubAuthorizationService clubAuthorizationService) {
         this.membershipRepository = membershipRepository;
-        this.roleChangeRequestRepository = roleChangeRequestRepository;
+        this.approvalRequestRepository = approvalRequestRepository;
         this.clubAuthorizationService = clubAuthorizationService;
     }
 
     void ensureCapacity(UUID clubId, ClubPosition position, boolean includePending) {
         long holders = membershipRepository.findByClubIdAndClubRoleAndIsActive(clubId, position, true).size();
         long pending = includePending
-                ? roleChangeRequestRepository.countByClubIdAndRequestedRoleAndStatus(
-                        clubId, position, RoleChangeRequestStatus.PENDING)
+                ? approvalRequestRepository.countByClubIdAndTypeAndRequestedPositionAndStatusIn(
+                        clubId, ApprovalType.ROLE_CHANGE, position, ApprovalStatus.PENDING)
                 : 0;
         if (holders + pending >= position.maxActiveHolders()) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, position.maxActiveHolders() == 1

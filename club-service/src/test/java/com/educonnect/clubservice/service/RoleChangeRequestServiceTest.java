@@ -1,26 +1,28 @@
 package com.educonnect.clubservice.service;
 
-import com.educonnect.clubservice.repository.ClubMembershipRepository;
-import com.educonnect.clubservice.repository.ClubRepository;
-import com.educonnect.clubservice.repository.RoleChangeRequestRepository;
 import com.educonnect.clubservice.client.UserClient;
 import com.educonnect.clubservice.config.ClubRabbitMQConfig;
 import com.educonnect.clubservice.dto.message.RoleChangeNotificationMessage;
 import com.educonnect.clubservice.dto.request.CreateRoleChangeRequestDTO;
+import com.educonnect.clubservice.model.ApprovalStatus;
+import com.educonnect.clubservice.model.ApprovalType;
 import com.educonnect.clubservice.model.Club;
+import com.educonnect.clubservice.model.ClubApprovalRequest;
 import com.educonnect.clubservice.model.ClubMembership;
 import com.educonnect.clubservice.model.ClubPosition;
-import com.educonnect.clubservice.model.RoleChangeRequest;
-import com.educonnect.clubservice.model.RoleChangeRequestStatus;
+import com.educonnect.clubservice.repository.ClubApprovalRequestRepository;
+import com.educonnect.clubservice.repository.ClubMembershipRepository;
+import com.educonnect.clubservice.repository.ClubRepository;
 import com.educonnect.clubservice.security.ClubAuthorizationService;
 import com.educonnect.clubservice.security.ClubPermission;
+import com.educonnect.common.messaging.outbox.OutboxPublisher;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
-import com.educonnect.common.messaging.outbox.OutboxPublisher;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.time.Instant;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
@@ -42,39 +44,47 @@ class RoleChangeRequestServiceTest {
     private final UUID presidentId = UUID.randomUUID();
     private final UUID studentId = UUID.randomUUID();
 
-    private RoleChangeRequestRepository requestRepository;
+    private ClubApprovalRequestRepository approvalRepository;
     private ClubMembershipRepository membershipRepository;
     private ClubAuthorizationService authorizationService;
     private OutboxPublisher outboxPublisher;
     private ClubManagementStatusPublisher managementStatusPublisher;
+    private ClubDecisionLog decisionLog;
     private RoleChangeRequestService service;
     private RoleChangeDecisionService decisionService;
 
     @BeforeEach
     void setUp() {
-        requestRepository = mock(RoleChangeRequestRepository.class);
+        approvalRepository = mock(ClubApprovalRequestRepository.class);
         membershipRepository = mock(ClubMembershipRepository.class);
         ClubRepository clubRepository = mock(ClubRepository.class);
         authorizationService = mock(ClubAuthorizationService.class);
         outboxPublisher = mock(OutboxPublisher.class);
         managementStatusPublisher = mock(ClubManagementStatusPublisher.class);
+        decisionLog = mock(ClubDecisionLog.class);
+        ClubLeadershipService leadershipService = mock(ClubLeadershipService.class);
+        when(leadershipService.currentLeaderOf(clubId)).thenReturn(Optional.of(presidentId));
         UserClient userClient = mock(UserClient.class);
         RoleChangeUserNames userNames = new RoleChangeUserNames(userClient);
         RoleChangeRequestMapper mapper = new RoleChangeRequestMapper(userNames);
         RoleChangeNotifier notifier = new RoleChangeNotifier(outboxPublisher, userNames);
-        ClubPositionRules positionRules = new ClubPositionRules(membershipRepository, requestRepository, authorizationService);
-        service = new RoleChangeRequestService(requestRepository, membershipRepository, clubRepository,
-                userClient, authorizationService, positionRules, notifier, mapper);
-        decisionService = new RoleChangeDecisionService(requestRepository, membershipRepository, clubRepository,
-                authorizationService, mock(ClubCacheEvictor.class), managementStatusPublisher,
-                positionRules, notifier, userNames, mapper, mock(ClubLeadershipService.class));
+        ClubPositionRules positionRules = new ClubPositionRules(membershipRepository, approvalRepository, authorizationService);
+        RoleChangeApprovalHandler handler = new RoleChangeApprovalHandler(membershipRepository, positionRules,
+                mock(ClubCacheEvictor.class), managementStatusPublisher, leadershipService, notifier, userNames);
+        ClubApprovalEngine engine = new ClubApprovalEngine(approvalRepository, clubRepository, authorizationService,
+                leadershipService, decisionLog, List.of(handler));
+        service = new RoleChangeRequestService(approvalRepository, membershipRepository, clubRepository,
+                userClient, authorizationService, positionRules, mapper, engine);
+        decisionService = new RoleChangeDecisionService(approvalRepository, membershipRepository, clubRepository,
+                authorizationService, mock(ClubCacheEvictor.class), managementStatusPublisher, notifier, userNames,
+                mapper, leadershipService, engine, decisionLog);
 
         Club club = new Club();
         club.setId(clubId);
         club.setName("Robotik");
         club.setAcademicAdvisorId(advisorId);
         when(clubRepository.findById(clubId)).thenReturn(Optional.of(club));
-        when(requestRepository.save(any(RoleChangeRequest.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(approvalRepository.save(any(ClubApprovalRequest.class))).thenAnswer(invocation -> invocation.getArgument(0));
         when(membershipRepository.findByClubIdAndClubRoleAndIsActive(any(), any(), eq(true))).thenReturn(Collections.emptyList());
         when(authorizationService.activeManagementPositionOf(any())).thenReturn(Optional.empty());
     }
@@ -89,6 +99,13 @@ class RoleChangeRequestServiceTest {
         return new CreateRoleChangeRequestDTO(target.toString(), position);
     }
 
+    private ClubApprovalRequest pendingRequest(UUID requestId, ClubPosition from, ClubPosition to) {
+        ClubApprovalRequest request = new ClubApprovalRequest(clubId, ApprovalType.ROLE_CHANGE, presidentId, studentId,
+                from, to, null, Instant.now());
+        when(approvalRepository.findById(requestId)).thenReturn(Optional.of(request));
+        return request;
+    }
+
     @Test
     void onlyActingPresidentCanProposePositionChanges() {
         when(authorizationService.require(clubId, studentId, ClubPermission.PROPOSE_POSITION_CHANGE))
@@ -97,7 +114,7 @@ class RoleChangeRequestServiceTest {
         assertThatThrownBy(() -> service.createRoleChangeRequest(clubId, requestFor(studentId, ClubPosition.BOARD_MEMBER), studentId))
                 .isInstanceOf(ResponseStatusException.class)
                 .hasMessageContaining("403");
-        verify(requestRepository, never()).save(any());
+        verify(approvalRepository, never()).save(any());
     }
 
     @Test
@@ -106,11 +123,12 @@ class RoleChangeRequestServiceTest {
 
         service.requestRoleRevocation(clubId, studentId, presidentId);
 
-        ArgumentCaptor<RoleChangeRequest> saved = ArgumentCaptor.forClass(RoleChangeRequest.class);
-        verify(requestRepository).save(saved.capture());
-        assertThat(saved.getValue().getRequestedRole()).isEqualTo(ClubPosition.MEMBER);
-        assertThat(saved.getValue().getCurrentRole()).isEqualTo(ClubPosition.VICE_PRESIDENT);
-        assertThat(saved.getValue().getStatus()).isEqualTo(RoleChangeRequestStatus.PENDING);
+        ArgumentCaptor<ClubApprovalRequest> saved = ArgumentCaptor.forClass(ClubApprovalRequest.class);
+        verify(approvalRepository).save(saved.capture());
+        assertThat(saved.getValue().getType()).isEqualTo(ApprovalType.ROLE_CHANGE);
+        assertThat(saved.getValue().getRequestedPosition()).isEqualTo(ClubPosition.MEMBER);
+        assertThat(saved.getValue().getCurrentPosition()).isEqualTo(ClubPosition.VICE_PRESIDENT);
+        assertThat(saved.getValue().getStatus()).isEqualTo(ApprovalStatus.PENDING_ADVISOR);
         assertThat(target.getClubRole()).isEqualTo(ClubPosition.VICE_PRESIDENT);
         verify(managementStatusPublisher, never()).publishCurrentStatus(any());
     }
@@ -136,8 +154,8 @@ class RoleChangeRequestServiceTest {
         givenMembership(studentId, ClubPosition.MEMBER);
         List<ClubMembership> sixHolders = Collections.nCopies(6, new ClubMembership(clubId, UUID.randomUUID(), ClubPosition.BOARD_MEMBER));
         when(membershipRepository.findByClubIdAndClubRoleAndIsActive(clubId, ClubPosition.BOARD_MEMBER, true)).thenReturn(sixHolders);
-        when(requestRepository.countByClubIdAndRequestedRoleAndStatus(clubId, ClubPosition.BOARD_MEMBER, RoleChangeRequestStatus.PENDING))
-                .thenReturn(1L);
+        when(approvalRepository.countByClubIdAndTypeAndRequestedPositionAndStatusIn(clubId, ApprovalType.ROLE_CHANGE,
+                ClubPosition.BOARD_MEMBER, ApprovalStatus.PENDING)).thenReturn(1L);
 
         assertThatThrownBy(() -> service.createRoleChangeRequest(clubId, requestFor(studentId, ClubPosition.BOARD_MEMBER), presidentId))
                 .isInstanceOf(ResponseStatusException.class)
@@ -158,39 +176,34 @@ class RoleChangeRequestServiceTest {
     @Test
     void advisorApprovalAppliesDemotionAndClosesTerm() {
         ClubMembership target = givenMembership(studentId, ClubPosition.BOARD_MEMBER);
-        RoleChangeRequest request = new RoleChangeRequest(clubId, studentId, ClubPosition.BOARD_MEMBER, ClubPosition.MEMBER, presidentId);
         UUID requestId = UUID.randomUUID();
-        when(requestRepository.findById(requestId)).thenReturn(Optional.of(request));
+        ClubApprovalRequest request = pendingRequest(requestId, ClubPosition.BOARD_MEMBER, ClubPosition.MEMBER);
 
         decisionService.approveRoleChangeRequest(requestId, advisorId);
 
         assertThat(target.getClubRole()).isEqualTo(ClubPosition.MEMBER);
         assertThat(target.getTermEndDate()).isNotNull();
-        assertThat(request.getStatus()).isEqualTo(RoleChangeRequestStatus.APPROVED);
+        assertThat(request.getStatus()).isEqualTo(ApprovalStatus.APPROVED);
+        assertThat(request.getDecidedBy()).isEqualTo(advisorId);
         verify(managementStatusPublisher).publishCurrentStatus(studentId);
-        verify(authorizationService).require(clubId, advisorId, ClubPermission.ADVISE);
     }
 
     @Test
     void onlyAdvisorCanApprove() {
-        RoleChangeRequest request = new RoleChangeRequest(clubId, studentId, ClubPosition.MEMBER, ClubPosition.TREASURER, presidentId);
         UUID requestId = UUID.randomUUID();
-        when(requestRepository.findById(requestId)).thenReturn(Optional.of(request));
-        when(authorizationService.require(clubId, presidentId, ClubPermission.ADVISE))
-                .thenThrow(new ResponseStatusException(HttpStatus.FORBIDDEN));
+        ClubApprovalRequest request = pendingRequest(requestId, ClubPosition.MEMBER, ClubPosition.TREASURER);
 
         assertThatThrownBy(() -> decisionService.approveRoleChangeRequest(requestId, presidentId))
                 .isInstanceOf(ResponseStatusException.class)
                 .hasMessageContaining("403");
-        assertThat(request.getStatus()).isEqualTo(RoleChangeRequestStatus.PENDING);
+        assertThat(request.getStatus()).isEqualTo(ApprovalStatus.PENDING_ADVISOR);
     }
 
     @Test
     void approvalFailsWhenPositionChangedMeanwhile() {
         givenMembership(studentId, ClubPosition.TREASURER);
-        RoleChangeRequest request = new RoleChangeRequest(clubId, studentId, ClubPosition.MEMBER, ClubPosition.BOARD_MEMBER, presidentId);
         UUID requestId = UUID.randomUUID();
-        when(requestRepository.findById(requestId)).thenReturn(Optional.of(request));
+        pendingRequest(requestId, ClubPosition.MEMBER, ClubPosition.BOARD_MEMBER);
 
         assertThatThrownBy(() -> decisionService.approveRoleChangeRequest(requestId, advisorId))
                 .isInstanceOf(ResponseStatusException.class)

@@ -3,6 +3,7 @@ package com.educonnect.clubservice.service;
 import com.educonnect.clubservice.model.Club;
 import com.educonnect.clubservice.model.ClubMembership;
 import com.educonnect.clubservice.model.ClubPosition;
+import com.educonnect.clubservice.model.DecisionAction;
 import com.educonnect.clubservice.repository.ClubMembershipRepository;
 import com.educonnect.clubservice.repository.ClubRepository;
 import com.educonnect.clubservice.security.ClubAuthorizationService;
@@ -31,6 +32,7 @@ public class ClubLeadershipService {
     private final ClubCacheEvictor cacheEvictor;
     private final ClubManagementStatusPublisher managementStatusPublisher;
     private final ClubNotificationPublisher notificationPublisher;
+    private final ClubDecisionLog decisionLog;
 
     public ClubLeadershipService(ClubRepository clubRepository,
                                  ClubMembershipRepository membershipRepository,
@@ -38,7 +40,8 @@ public class ClubLeadershipService {
                                  ClubPositionRules positionRules,
                                  ClubCacheEvictor cacheEvictor,
                                  ClubManagementStatusPublisher managementStatusPublisher,
-                                 ClubNotificationPublisher notificationPublisher) {
+                                 ClubNotificationPublisher notificationPublisher,
+                                 ClubDecisionLog decisionLog) {
         this.clubRepository = clubRepository;
         this.membershipRepository = membershipRepository;
         this.clubAuthorizationService = clubAuthorizationService;
@@ -46,6 +49,7 @@ public class ClubLeadershipService {
         this.cacheEvictor = cacheEvictor;
         this.managementStatusPublisher = managementStatusPublisher;
         this.notificationPublisher = notificationPublisher;
+        this.decisionLog = decisionLog;
     }
 
     public void handlePresidencyVacancy(UUID clubId) {
@@ -58,6 +62,7 @@ public class ClubLeadershipService {
                 .findFirst();
         if (vicePresident.isEmpty()) {
             log.info("Presidency vacant without vice president: clubId={}", clubId);
+            decisionLog.record(clubId, DecisionAction.PRESIDENCY_VACANT, null, null, null);
             notificationPublisher.notifyAdvisor(club, "Kulüp başkansız kaldı",
                     "\"" + club.getName() + "\" kulübünün başkanı ve başkan yardımcısı yok. "
                             + "Danışman olarak kulübün aktif üyelerinden yeni başkanı atayabilirsiniz.");
@@ -65,6 +70,7 @@ public class ClubLeadershipService {
         }
         ClubMembership successor = vicePresident.get();
         promote(successor);
+        decisionLog.record(clubId, DecisionAction.VICE_PRESIDENT_PROMOTED, null, successor.getStudentId(), null);
         log.info("Vice president promoted to president: clubId={}, studentId={}", clubId, successor.getStudentId());
         notificationPublisher.notifyUser(successor.getStudentId(), club, "Kulüp başkanlığı",
                 "\"" + club.getName() + "\" kulübünün başkanlığı boşaldığı için başkan yardımcılığından kulüp başkanlığına geçtiniz.");
@@ -90,6 +96,7 @@ public class ClubLeadershipService {
         positionRules.ensureNoManagementPositionElsewhere(studentId, clubId);
         boolean wasManagement = membership.getClubRole().isManagement();
         promote(membership);
+        decisionLog.record(clubId, DecisionAction.PRESIDENT_APPOINTED, advisorId, studentId, null);
         if (!wasManagement) {
             managementStatusPublisher.publishCurrentStatus(studentId);
         }
