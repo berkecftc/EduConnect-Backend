@@ -3,7 +3,6 @@ package com.educonnect.assignmentservice.service;
 import com.educonnect.common.web.LogValues;
 import com.educonnect.assignmentservice.client.CourseClient;
 import com.educonnect.assignmentservice.client.CourseInternalClient;
-import com.educonnect.assignmentservice.client.InternalUserClient;
 import com.educonnect.assignmentservice.client.UserClient;
 import com.educonnect.assignmentservice.dto.*;
 import com.educonnect.assignmentservice.event.AssignmentNotificationEvent;
@@ -32,11 +31,9 @@ import java.time.LocalDateTime;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
-import java.util.function.Function;
 import java.util.stream.Collectors;
 
 @Service
@@ -53,16 +50,16 @@ public class AssignmentService {
     private final CourseInternalClient courseInternalClient;
     private final UserClient userClient;
     private final AssignmentProducer assignmentProducer;
-    private final InternalUserClient internalUserClient;
+    private final StudentDirectory studentDirectory;
     private final AssignmentFiles assignmentFiles;
     private final AssessmentRules assessmentRules;
 
     public AssignmentService(AssignmentRepository repo, SubmissionRepository subRepo,
                              MinioService minio, CourseClient client, CourseInternalClient internalClient,
                              UserClient userClient, AssignmentProducer producer,
-                             InternalUserClient internalUserClient,
+                             StudentDirectory studentDirectory,
                              AssignmentFiles assignmentFiles, AssessmentRules assessmentRules) {
-        this.internalUserClient = internalUserClient;
+        this.studentDirectory = studentDirectory;
         this.assignmentRepository = repo;
         this.submissionRepository = subRepo;
         this.minioService = minio;
@@ -322,26 +319,11 @@ public class AssignmentService {
     }
 
     private List<SubmissionSummaryDTO> toSubmissionSummaries(List<AssignmentSubmission> submissions) {
-        Map<UUID, UserClient.UserProfileDTO> students = studentsById(
+        Map<UUID, UserClient.UserProfileDTO> students = studentDirectory.byId(
                 submissions.stream().map(AssignmentSubmission::getStudentId).toList());
         return submissions.stream()
                 .map(submission -> mapToSubmissionSummary(submission, students.get(submission.getStudentId())))
                 .collect(Collectors.toList());
-    }
-
-    private Map<UUID, UserClient.UserProfileDTO> studentsById(List<UUID> studentIds) {
-        List<UUID> ids = studentIds.stream().filter(Objects::nonNull).distinct().toList();
-        if (ids.isEmpty()) {
-            return Map.of();
-        }
-        try {
-            return internalUserClient.getUsersByIds(ids).stream()
-                    .filter(profile -> profile != null && profile.getId() != null)
-                    .collect(Collectors.toMap(UserClient.UserProfileDTO::getId, Function.identity(), (first, second) -> first));
-        } catch (Exception e) {
-            log.warn("Could not fetch {} student profiles: {}", ids.size(), e.getMessage());
-            return Map.of();
-        }
     }
 
     private SubmissionSummaryDTO mapToSubmissionSummary(AssignmentSubmission submission, UserClient.UserProfileDTO userProfile) {

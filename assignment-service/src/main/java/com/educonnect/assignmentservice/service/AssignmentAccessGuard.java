@@ -94,12 +94,17 @@ public class AssignmentAccessGuard {
         }
     }
 
-    public void requireEnrolledStudent(UUID courseId, UUID userId) {
+    public CourseAccess requireEnrolled(UUID courseId, UUID userId) {
         CourseAccess access = accessOf(courseId, userId);
         if (!access.enrolled()) {
             log.warn("Access denied: user {} is not enrolled in course {}", userId, courseId);
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Bu derse kayıtlı değilsiniz.");
         }
+        return access;
+    }
+
+    public void requireEnrolledStudent(UUID courseId, UUID userId) {
+        CourseAccess access = requireEnrolled(courseId, userId);
         if (!RUNNING.contains(access.status())) {
             throw new ConflictException("COURSE_CLOSED", "Ders tamamlandığı için teslim yapılamaz.");
         }
