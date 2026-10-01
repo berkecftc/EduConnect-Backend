@@ -2,6 +2,7 @@ package com.educonnect.assignmentservice.dto;
 
 import com.educonnect.assignmentservice.model.AssignmentSubmission;
 
+import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.UUID;
@@ -11,7 +12,7 @@ public record SubmissionResponse(UUID id,
                                  UUID studentId,
                                  String submissionFileUrl,
                                  LocalDateTime submittedAt,
-                                 Integer grade,
+                                 BigDecimal grade,
                                  String feedback,
                                  boolean late,
                                  Instant createdAt,

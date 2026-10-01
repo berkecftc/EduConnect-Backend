@@ -7,6 +7,7 @@ import jakarta.validation.Validation;
 import jakarta.validation.Validator;
 import org.junit.jupiter.api.Test;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Set;
@@ -53,8 +54,8 @@ class RequestValidationTest {
 
     @Test
     void gradeRequestAcceptsBoundaryGrades() {
-        assertThat(validator.validate(gradeRequest(0))).isEmpty();
-        assertThat(validator.validate(gradeRequest(100))).isEmpty();
+        assertThat(validator.validate(gradeRequest(BigDecimal.ZERO))).isEmpty();
+        assertThat(validator.validate(gradeRequest(new BigDecimal("999.99")))).isEmpty();
     }
 
     @Test
@@ -64,12 +65,12 @@ class RequestValidationTest {
 
     @Test
     void gradeRequestRejectsNegativeGrade() {
-        assertThat(paths(validator.validate(gradeRequest(-1)))).containsExactly("grade");
+        assertThat(paths(validator.validate(gradeRequest(BigDecimal.valueOf(-1))))).containsExactly("grade");
     }
 
     @Test
-    void gradeRequestRejectsGradeAboveHundred() {
-        assertThat(paths(validator.validate(gradeRequest(101)))).containsExactly("grade");
+    void gradeRequestRejectsMoreThanTwoDecimals() {
+        assertThat(paths(validator.validate(gradeRequest(new BigDecimal("12.345"))))).containsExactly("grade");
     }
 
     private AssignmentRequest validAssignmentRequest() {
@@ -81,7 +82,7 @@ class RequestValidationTest {
         return request;
     }
 
-    private GradeSubmissionRequest gradeRequest(Integer grade) {
+    private GradeSubmissionRequest gradeRequest(BigDecimal grade) {
         GradeSubmissionRequest request = new GradeSubmissionRequest();
         request.setGrade(grade);
         request.setFeedback("İyi iş");

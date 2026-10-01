@@ -36,6 +36,9 @@ public class UserDataCleanupService {
         int deleted = entityManager.createNativeQuery("DELETE FROM assignment_submissions WHERE student_id = :userId")
                 .setParameter("userId", userId)
                 .executeUpdate();
+        entityManager.createNativeQuery("UPDATE assignment_changes SET changed_by = NULL WHERE changed_by = :userId")
+                .setParameter("userId", userId)
+                .executeUpdate();
         minioService.deleteFilesAfterCommit(files);
         log.info("Silinen kullanıcının ödev teslimleri temizlendi: userId={}, rows={}, files={}", userId, deleted, files.size());
     }

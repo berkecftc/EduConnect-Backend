@@ -7,6 +7,7 @@ import com.educonnect.assignmentservice.client.InternalUserClient;
 import com.educonnect.assignmentservice.client.UserClient;
 import com.educonnect.assignmentservice.dto.*;
 import com.educonnect.assignmentservice.event.AssignmentNotificationEvent;
+import com.educonnect.assignmentservice.model.AssessmentType;
 import com.educonnect.assignmentservice.model.Assignment;
 import com.educonnect.assignmentservice.model.AssignmentSubmission;
 import com.educonnect.assignmentservice.publisher.AssignmentProducer;
@@ -28,6 +29,7 @@ import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.io.InputStream;
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.HashSet;
 import java.util.List;
@@ -56,12 +58,13 @@ public class AssignmentService {
     private final InternalUserClient internalUserClient;
     private final CacheManager cacheManager;
     private final AssignmentFiles assignmentFiles;
+    private final AssessmentRules assessmentRules;
 
     public AssignmentService(AssignmentRepository repo, SubmissionRepository subRepo,
                              MinioService minio, CourseClient client, CourseInternalClient internalClient,
                              UserClient userClient, AssignmentProducer producer,
                              InternalUserClient internalUserClient, CacheManager cacheManager,
-                             AssignmentFiles assignmentFiles) {
+                             AssignmentFiles assignmentFiles, AssessmentRules assessmentRules) {
         this.internalUserClient = internalUserClient;
         this.assignmentRepository = repo;
         this.submissionRepository = subRepo;
@@ -72,6 +75,7 @@ public class AssignmentService {
         this.assignmentProducer = producer;
         this.cacheManager = cacheManager;
         this.assignmentFiles = assignmentFiles;
+        this.assessmentRules = assessmentRules;
     }
 
     @CacheEvict(value = STUDENT_ASSIGNMENTS, allEntries = true)
@@ -79,6 +83,7 @@ public class AssignmentService {
         if (request.getDueDate() == null) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Son teslim tarihi zorunludur.");
         }
+        assessmentRules.requireWeightFits(request.getCourseId(), null, request.getWeight());
         // 1. Önce böyle bir ders var mı diye Course Service'e sor
         Map<String, Object> courseData;
         try {
@@ -100,6 +105,9 @@ public class AssignmentService {
         assignment.setDueDate(request.getDueDate());
         assignment.setCourseId(request.getCourseId());
         assignment.setFileUrl(minioService.normalizeToFullUrl(fileUrl));
+        assignment.setType(request.getType() != null ? request.getType() : AssessmentType.HOMEWORK);
+        assignment.setWeight(request.getWeight() != null ? request.getWeight() : BigDecimal.ZERO);
+        assignment.setMaxPoints(request.getMaxPoints() != null ? request.getMaxPoints() : BigDecimal.valueOf(100));
 
         Assignment saved = assignmentRepository.save(assignment);
 
@@ -151,10 +159,21 @@ public class AssignmentService {
 
     @CacheEvict(value = STUDENT_ASSIGNMENTS, allEntries = true)
     public void deleteAssignment(UUID id) {
-        List<String> files = assignmentRepository.findById(id).map(assignment -> assignmentFiles.of(List.of(assignment)))
-                .orElse(List.of());
-        assignmentRepository.deleteById(id);
+        Assignment assignment = assignmentRepository.findById(id)
+                .orElseThrow(() -> new NotFoundException("ASSIGNMENT_NOT_FOUND", "Ödev bulunamadı"));
+        assessmentRules.requireDeletable(assignment);
+        List<String> files = assignmentFiles.of(List.of(assignment));
+        assignmentRepository.delete(assignment);
         minioService.deleteFilesAfterCommit(files);
+    }
+
+    @CacheEvict(value = STUDENT_ASSIGNMENTS, allEntries = true)
+    public AssignmentResponse updateAssignment(Assignment assignment, AssignmentUpdateRequest request, UUID actorId) {
+        return mapToResponse(assessmentRules.update(assignment, request, actorId));
+    }
+
+    public List<AssignmentChangeResponse> changes(UUID assignmentId) {
+        return assessmentRules.changes(assignmentId);
     }
 
     // ÖĞRENCİ ÖDEV TESLİMİ (Deadline kontrolü + tekrar teslim)
@@ -211,13 +230,12 @@ public class AssignmentService {
     }
 
     // AKADEMİSYEN NOT VERME
-    public void gradeSubmission(UUID submissionId, Integer grade, String feedback) {
+    public void gradeSubmission(UUID submissionId, BigDecimal grade, String feedback) {
         AssignmentSubmission submission = submissionRepository.findById(submissionId)
                 .orElseThrow(() -> new NotFoundException("SUBMISSION_NOT_FOUND", "Teslim bulunamadı"));
-
-        if (grade != null && (grade < 0 || grade > 100)) {
-            throw new BadRequestException("INVALID_GRADE", "Not 0-100 arasında olmalıdır");
-        }
+        Assignment assignment = assignmentRepository.findById(submission.getAssignmentId())
+                .orElseThrow(() -> new NotFoundException("ASSIGNMENT_NOT_FOUND", "Ödev bulunamadı"));
+        assessmentRules.requireValidGrade(assignment, grade);
 
         submission.setGrade(grade);
         submission.setFeedback(feedback);
@@ -284,6 +302,9 @@ public class AssignmentService {
             dto.setDueDate(assignment.getDueDate());
             dto.setCourseId(assignment.getCourseId());
             dto.setFileUrl(assignment.getFileUrl());
+            dto.setType(assignment.getType());
+            dto.setWeight(assignment.getWeight());
+            dto.setMaxPoints(assignment.getMaxPoints());
 
             // Bu ödeve ait teslim var mı?
             submissions.stream()
@@ -315,6 +336,9 @@ public class AssignmentService {
         res.setDueDate(a.getDueDate());
         res.setCourseId(a.getCourseId());
         res.setFileUrl(a.getFileUrl());
+        res.setType(a.getType());
+        res.setWeight(a.getWeight());
+        res.setMaxPoints(a.getMaxPoints());
         return res;
     }
 

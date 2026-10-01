@@ -17,6 +17,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.Optional;
 import java.util.UUID;
@@ -56,13 +57,13 @@ class AssignmentResubmissionTest {
     void gradedSubmissionCannotBeReplaced() {
         givenAssignmentDue(LocalDateTime.now().plusDays(1));
         AssignmentSubmission graded = new AssignmentSubmission(assignmentId, studentId, "old", false);
-        graded.setGrade(85);
+        graded.setGrade(BigDecimal.valueOf(85));
         when(submissionRepository.findByAssignmentIdAndStudentId(assignmentId, studentId)).thenReturn(Optional.of(graded));
 
         assertThatThrownBy(() -> assignmentService.submitAssignment(assignmentId, studentId, null))
                 .isInstanceOf(ResponseStatusException.class)
                 .satisfies(e -> assertThat(((ResponseStatusException) e).getStatusCode()).isEqualTo(HttpStatus.CONFLICT));
-        assertThat(graded.getGrade()).isEqualTo(85);
+        assertThat(graded.getGrade()).isEqualByComparingTo("85");
         verify(submissionRepository, never()).save(any());
         verify(minioService, never()).uploadFile(any());
     }

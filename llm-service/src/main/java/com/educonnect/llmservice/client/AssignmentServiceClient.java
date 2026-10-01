@@ -3,6 +3,7 @@ package com.educonnect.llmservice.client;
 import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestHeader;
+import java.math.BigDecimal;
 import java.util.List;
 
 @FeignClient(name = "assignment-service", path = "/api/assignments")
@@ -22,7 +23,7 @@ public interface AssignmentServiceClient {
     record SubmissionResponse(
             String submissionId,
             String submittedAt,
-            Integer grade,
+            BigDecimal grade,
             String feedback,
             boolean isLate
     ) {}

@@ -2,6 +2,7 @@ package com.educonnect.assignmentservice.model;
 
 import jakarta.persistence.*;
 import com.educonnect.common.storage.ObjectUrlConverter;
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.UUID;
 import org.hibernate.annotations.CreationTimestamp;
@@ -39,6 +40,16 @@ public class Assignment {
     @Column(nullable = false)
     private UUID courseId; // Hangi derse ait?
 
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 12)
+    private AssessmentType type = AssessmentType.HOMEWORK;
+
+    @Column(nullable = false, precision = 5, scale = 2)
+    private BigDecimal weight = BigDecimal.ZERO;
+
+    @Column(name = "max_points", nullable = false, precision = 6, scale = 2)
+    private BigDecimal maxPoints = BigDecimal.valueOf(100);
+
     @Convert(converter = ObjectUrlConverter.class)
     private String fileUrl; // Hoca ek dosya yüklediyse (MinIO)
 
@@ -57,6 +68,13 @@ public class Assignment {
     public void setCourseId(UUID courseId) { this.courseId = courseId; }
     public String getFileUrl() { return fileUrl; }
     public void setFileUrl(String fileUrl) { this.fileUrl = fileUrl; }
+    public AssessmentType getType() { return type; }
+    public void setType(AssessmentType type) { this.type = type; }
+    public BigDecimal getWeight() { return weight; }
+    public void setWeight(BigDecimal weight) { this.weight = weight; }
+    public BigDecimal getMaxPoints() { return maxPoints; }
+    public void setMaxPoints(BigDecimal maxPoints) { this.maxPoints = maxPoints; }
+    public Long getVersion() { return version; }
 
     public Instant getCreatedAt() { return createdAt; }
     public Instant getUpdatedAt() { return updatedAt; }

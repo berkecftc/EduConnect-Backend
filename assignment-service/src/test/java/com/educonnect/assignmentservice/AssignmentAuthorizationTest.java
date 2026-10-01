@@ -136,7 +136,7 @@ class AssignmentAuthorizationTest {
                 .andExpect(status().isConflict());
         mockMvc.perform(as(get("/api/assignments/course/{courseId}", courseId), TestTokens.student(student)))
                 .andExpect(status().isOk());
-        assertThat(submissionRepository.findById(submissionId).orElseThrow().getGrade()).isEqualTo(70);
+        assertThat(submissionRepository.findById(submissionId).orElseThrow().getGrade()).isEqualByComparingTo("70");
     }
 
     @Test
@@ -155,7 +155,7 @@ class AssignmentAuthorizationTest {
         mockMvc.perform(as(put("/api/assignments/submissions/{id}/grade", submissionId), TestTokens.academician(instructor))
                         .contentType(MediaType.APPLICATION_JSON).content("{\"grade\":85,\"feedback\":\"İyi\"}"))
                 .andExpect(status().isOk());
-        assertThat(submissionRepository.findById(submissionId).orElseThrow().getGrade()).isEqualTo(85);
+        assertThat(submissionRepository.findById(submissionId).orElseThrow().getGrade()).isEqualByComparingTo("85");
     }
 
     @Test
@@ -197,7 +197,7 @@ class AssignmentAuthorizationTest {
         mockMvc.perform(as(put("/api/assignments/submissions/{id}/grade", submissionId), TestTokens.academician(assistant))
                         .contentType(MediaType.APPLICATION_JSON).content("{\"grade\":75,\"feedback\":\"Asistan\"}"))
                 .andExpect(status().isOk());
-        assertThat(submissionRepository.findById(submissionId).orElseThrow().getGrade()).isEqualTo(75);
+        assertThat(submissionRepository.findById(submissionId).orElseThrow().getGrade()).isEqualByComparingTo("75");
     }
 
     @Test

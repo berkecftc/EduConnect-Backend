@@ -72,6 +72,30 @@ public class AssignmentController {
         return ResponseEntity.noContent().build();
     }
 
+    @PutMapping("/{id}")
+    public ResponseEntity<AssignmentResponse> update(
+            @PathVariable UUID id,
+            @RequestBody @Valid AssignmentUpdateRequest request,
+            @RequestHeader(USER_ID_HEADER) String userIdHeader,
+            @RequestHeader(value = ROLES_HEADER, required = false) String roles
+    ) {
+        Assignment assignment = accessGuard.getAssignment(id);
+        UUID userId = parseUserId(userIdHeader);
+        accessGuard.requireAssignmentEditor(assignment.getCourseId(), userId, roles);
+        return ResponseEntity.ok(assignmentService.updateAssignment(assignment, request, userId));
+    }
+
+    @GetMapping("/{id}/changes")
+    public ResponseEntity<List<AssignmentChangeResponse>> changes(
+            @PathVariable UUID id,
+            @RequestHeader(USER_ID_HEADER) String userIdHeader,
+            @RequestHeader(value = ROLES_HEADER, required = false) String roles
+    ) {
+        Assignment assignment = accessGuard.getAssignment(id);
+        accessGuard.requireStaff(assignment.getCourseId(), parseUserId(userIdHeader), roles);
+        return ResponseEntity.ok(assignmentService.changes(id));
+    }
+
     // ÖĞRENCİ ÖDEV TESLİMİ
     @PostMapping(value = "/{assignmentId}/submit", consumes = {"multipart/form-data"})
     public ResponseEntity<SubmissionResponse> submitAssignment(
