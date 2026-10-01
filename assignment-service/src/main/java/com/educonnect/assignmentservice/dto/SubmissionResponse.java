@@ -11,6 +11,7 @@ public record SubmissionResponse(UUID id,
                                  UUID assignmentId,
                                  UUID studentId,
                                  String submissionFileUrl,
+                                 String textContent,
                                  LocalDateTime submittedAt,
                                  BigDecimal grade,
                                  String feedback,
@@ -20,7 +21,7 @@ public record SubmissionResponse(UUID id,
 
     public static SubmissionResponse from(AssignmentSubmission submission) {
         return new SubmissionResponse(submission.getId(), submission.getAssignmentId(), submission.getStudentId(),
-                submission.getSubmissionFileUrl(), submission.getSubmittedAt(), submission.getGrade(),
+                submission.getSubmissionFileUrl(), submission.getTextContent(), submission.getSubmittedAt(), submission.getGrade(),
                 submission.getFeedback(), submission.isLate(), submission.getCreatedAt(), submission.getUpdatedAt());
     }
 }

@@ -29,6 +29,11 @@ public class AssignmentRequest {
     @DecimalMax(value = "1000", message = "Azami puan en fazla 1000 olabilir")
     @Digits(integer = 4, fraction = 2, message = "Azami puan en fazla iki ondalık basamaklı olabilir")
     private BigDecimal maxPoints;
+    private LocalDateTime lateUntil;
+    @DecimalMin(value = "0", message = "Kesinti negatif olamaz")
+    @DecimalMax(value = "100", message = "Kesinti en fazla 100 olabilir")
+    @Digits(integer = 3, fraction = 2, message = "Kesinti en fazla iki ondalık basamaklı olabilir")
+    private BigDecimal latePenaltyPercent;
 
     // Getter & Setter
     public String getTitle() { return title; }
@@ -45,4 +50,8 @@ public class AssignmentRequest {
     public void setWeight(BigDecimal weight) { this.weight = weight; }
     public BigDecimal getMaxPoints() { return maxPoints; }
     public void setMaxPoints(BigDecimal maxPoints) { this.maxPoints = maxPoints; }
+    public LocalDateTime getLateUntil() { return lateUntil; }
+    public void setLateUntil(LocalDateTime lateUntil) { this.lateUntil = lateUntil; }
+    public BigDecimal getLatePenaltyPercent() { return latePenaltyPercent; }
+    public void setLatePenaltyPercent(BigDecimal latePenaltyPercent) { this.latePenaltyPercent = latePenaltyPercent; }
 }

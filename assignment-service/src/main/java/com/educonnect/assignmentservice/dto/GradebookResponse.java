@@ -17,7 +17,7 @@ public record GradebookResponse(UUID courseId, BigDecimal totalWeight, List<Colu
                       BigDecimal weightedTotal, BigDecimal gradedWeight, int missing) {
     }
 
-    public record Cell(UUID assignmentId, UUID submissionId, Status status, BigDecimal grade, boolean late,
+    public record Cell(UUID assignmentId, UUID submissionId, Status status, BigDecimal grade, BigDecimal finalGrade, boolean late,
                        LocalDateTime submittedAt) {
     }
 

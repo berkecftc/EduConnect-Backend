@@ -40,6 +40,9 @@ public class AssignmentSubmission {
     @Convert(converter = ObjectUrlConverter.class)
     private String submissionFileUrl; // MinIO'da saklanan teslim dosyasının URL'si
 
+    @Column(name = "text_content", columnDefinition = "TEXT")
+    private String textContent;
+
     @Column(name = "submitted_at", nullable = false)
     private LocalDateTime submittedAt = LocalDateTime.now();
 
@@ -76,6 +79,8 @@ public class AssignmentSubmission {
 
     public String getSubmissionFileUrl() { return submissionFileUrl; }
     public void setSubmissionFileUrl(String submissionFileUrl) { this.submissionFileUrl = submissionFileUrl; }
+    public String getTextContent() { return textContent; }
+    public void setTextContent(String textContent) { this.textContent = textContent; }
 
     public LocalDateTime getSubmittedAt() { return submittedAt; }
     public void setSubmittedAt(LocalDateTime submittedAt) { this.submittedAt = submittedAt; }

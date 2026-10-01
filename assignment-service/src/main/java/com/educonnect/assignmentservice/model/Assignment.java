@@ -56,6 +56,12 @@ public class Assignment {
     @Column(name = "grades_published_by")
     private UUID gradesPublishedBy;
 
+    @Column(name = "late_until")
+    private LocalDateTime lateUntil;
+
+    @Column(name = "late_penalty_percent", nullable = false, precision = 5, scale = 2)
+    private BigDecimal latePenaltyPercent = BigDecimal.ZERO;
+
     @Convert(converter = ObjectUrlConverter.class)
     private String fileUrl; // Hoca ek dosya yüklediyse (MinIO)
 
@@ -83,6 +89,10 @@ public class Assignment {
     public Instant getGradesPublishedAt() { return gradesPublishedAt; }
     public UUID getGradesPublishedBy() { return gradesPublishedBy; }
     public boolean gradesPublished() { return gradesPublishedAt != null; }
+    public LocalDateTime getLateUntil() { return lateUntil; }
+    public void setLateUntil(LocalDateTime lateUntil) { this.lateUntil = lateUntil; }
+    public BigDecimal getLatePenaltyPercent() { return latePenaltyPercent; }
+    public void setLatePenaltyPercent(BigDecimal latePenaltyPercent) { this.latePenaltyPercent = latePenaltyPercent; }
 
     public void publishGrades(UUID by, Instant at) {
         this.gradesPublishedAt = at;

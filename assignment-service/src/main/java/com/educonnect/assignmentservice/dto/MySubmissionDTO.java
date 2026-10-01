@@ -8,6 +8,8 @@ public class MySubmissionDTO {
     private UUID submissionId;
     private LocalDateTime submittedAt;
     private BigDecimal grade;
+    private BigDecimal finalGrade;
+    private String textContent;
     private String feedback;
     private boolean isLate;
 
@@ -22,6 +24,10 @@ public class MySubmissionDTO {
 
     public BigDecimal getGrade() { return grade; }
     public void setGrade(BigDecimal grade) { this.grade = grade; }
+    public BigDecimal getFinalGrade() { return finalGrade; }
+    public void setFinalGrade(BigDecimal finalGrade) { this.finalGrade = finalGrade; }
+    public String getTextContent() { return textContent; }
+    public void setTextContent(String textContent) { this.textContent = textContent; }
 
     public String getFeedback() { return feedback; }
     public void setFeedback(String feedback) { this.feedback = feedback; }

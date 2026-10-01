@@ -19,5 +19,10 @@ public record AssignmentUpdateRequest(
         @DecimalMin(value = "0.01", message = "Azami puan sıfırdan büyük olmalı")
         @DecimalMax(value = "1000", message = "Azami puan en fazla 1000 olabilir")
         @Digits(integer = 4, fraction = 2, message = "Azami puan en fazla iki ondalık basamaklı olabilir") BigDecimal maxPoints,
-        LocalDateTime dueDate) {
+        LocalDateTime dueDate,
+        LocalDateTime lateUntil,
+        Boolean clearLateUntil,
+        @DecimalMin(value = "0", message = "Kesinti negatif olamaz")
+        @DecimalMax(value = "100", message = "Kesinti en fazla 100 olabilir")
+        @Digits(integer = 3, fraction = 2, message = "Kesinti en fazla iki ondalık basamaklı olabilir") BigDecimal latePenaltyPercent) {
 }

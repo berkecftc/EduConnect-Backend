@@ -8,8 +8,10 @@ import com.educonnect.assignmentservice.dto.*;
 import com.educonnect.assignmentservice.event.AssignmentNotificationEvent;
 import com.educonnect.assignmentservice.model.AssessmentType;
 import com.educonnect.assignmentservice.model.Assignment;
+import com.educonnect.assignmentservice.model.AssignmentExtension;
 import com.educonnect.assignmentservice.model.AssignmentSubmission;
 import com.educonnect.assignmentservice.publisher.AssignmentProducer;
+import com.educonnect.assignmentservice.repository.AssignmentExtensionRepository;
 import com.educonnect.assignmentservice.repository.AssignmentRepository;
 import com.educonnect.assignmentservice.repository.SubmissionRepository;
 import com.educonnect.common.web.BadRequestException;
@@ -27,11 +29,9 @@ import org.springframework.web.server.ResponseStatusException;
 
 import java.io.InputStream;
 import java.math.BigDecimal;
-import java.time.LocalDateTime;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -53,12 +53,14 @@ public class AssignmentService {
     private final StudentDirectory studentDirectory;
     private final AssignmentFiles assignmentFiles;
     private final AssessmentRules assessmentRules;
+    private final AssignmentExtensionRepository extensionRepository;
 
     public AssignmentService(AssignmentRepository repo, SubmissionRepository subRepo,
                              MinioService minio, CourseClient client, CourseInternalClient internalClient,
                              UserClient userClient, AssignmentProducer producer,
                              StudentDirectory studentDirectory,
-                             AssignmentFiles assignmentFiles, AssessmentRules assessmentRules) {
+                             AssignmentFiles assignmentFiles, AssessmentRules assessmentRules,
+                             AssignmentExtensionRepository extensionRepository) {
         this.studentDirectory = studentDirectory;
         this.assignmentRepository = repo;
         this.submissionRepository = subRepo;
@@ -69,6 +71,7 @@ public class AssignmentService {
         this.assignmentProducer = producer;
         this.assignmentFiles = assignmentFiles;
         this.assessmentRules = assessmentRules;
+        this.extensionRepository = extensionRepository;
     }
 
     @CacheEvict(value = STUDENT_ASSIGNMENTS, allEntries = true)
@@ -77,6 +80,7 @@ public class AssignmentService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Son teslim tarihi zorunludur.");
         }
         assessmentRules.requireWeightFits(request.getCourseId(), null, request.getWeight());
+        AssessmentRules.requireLateWindow(request.getDueDate(), request.getLateUntil());
         // 1. Önce böyle bir ders var mı diye Course Service'e sor
         Map<String, Object> courseData;
         try {
@@ -101,6 +105,8 @@ public class AssignmentService {
         assignment.setType(request.getType() != null ? request.getType() : AssessmentType.HOMEWORK);
         assignment.setWeight(request.getWeight() != null ? request.getWeight() : BigDecimal.ZERO);
         assignment.setMaxPoints(request.getMaxPoints() != null ? request.getMaxPoints() : BigDecimal.valueOf(100));
+        assignment.setLateUntil(request.getLateUntil());
+        assignment.setLatePenaltyPercent(request.getLatePenaltyPercent() != null ? request.getLatePenaltyPercent() : BigDecimal.ZERO);
 
         Assignment saved = assignmentRepository.save(assignment);
 
@@ -169,59 +175,6 @@ public class AssignmentService {
         return assessmentRules.changes(assignmentId);
     }
 
-    // ÖĞRENCİ ÖDEV TESLİMİ (Deadline kontrolü + tekrar teslim)
-    @CacheEvict(value = STUDENT_ASSIGNMENTS, key = "#studentId")
-    public AssignmentSubmission submitAssignment(UUID assignmentId, UUID studentId, MultipartFile file) {
-        // Ödev var mı kontrol et
-        Assignment assignment = assignmentRepository.findById(assignmentId)
-                .orElseThrow(() -> new NotFoundException("ASSIGNMENT_NOT_FOUND", "Ödev bulunamadı"));
-
-        // Deadline kontrolü
-        boolean isLate = assignment.getDueDate() != null && LocalDateTime.now().isAfter(assignment.getDueDate());
-
-        // Daha önce teslim var mı kontrol et (tekrar teslim)
-        Optional<AssignmentSubmission> existingSubmission = submissionRepository.findByAssignmentIdAndStudentId(assignmentId, studentId);
-        existingSubmission.ifPresent(previous -> {
-            if (previous.getGrade() != null) {
-                throw new ResponseStatusException(HttpStatus.CONFLICT, "Notlanmış bir teslim değiştirilemez.");
-            }
-            if (isLate) {
-                throw new ResponseStatusException(HttpStatus.CONFLICT, "Son teslim tarihi geçtikten sonra teslim değiştirilemez.");
-            }
-        });
-
-        // Dosya yükle
-        String fileUrl = null;
-        if (file != null && !file.isEmpty()) {
-            fileUrl = minioService.uploadFile(file);
-        }
-
-        if (existingSubmission.isPresent()) {
-            // Mevcut teslimi güncelle
-            AssignmentSubmission submission = existingSubmission.get();
-            String previousFileUrl = submission.getSubmissionFileUrl();
-            submission.setSubmissionFileUrl(minioService.normalizeToFullUrl(fileUrl));
-            submission.setSubmittedAt(LocalDateTime.now());
-            submission.setLate(isLate);
-            submission.setGrade(null);
-            submission.setFeedback(null);
-            AssignmentSubmission saved = submissionRepository.save(submission);
-            if (previousFileUrl != null && !previousFileUrl.equals(saved.getSubmissionFileUrl())) {
-                minioService.deleteFilesAfterCommit(List.of(previousFileUrl));
-            }
-            return saved;
-        } else {
-            // Yeni teslim oluştur
-            AssignmentSubmission submission = new AssignmentSubmission(
-                    assignmentId,
-                    studentId,
-                    minioService.normalizeToFullUrl(fileUrl),
-                    isLate
-            );
-            return submissionRepository.save(submission);
-        }
-    }
-
     // BİR DERSE AİT TÜM TESLİMLERİ GETİR (Akademisyen için)
     public List<SubmissionSummaryDTO> getSubmissionsByCourse(UUID courseId) {
         // Önce bu derse ait tüm ödevleri bul
@@ -259,6 +212,8 @@ public class AssignmentService {
             return List.of();
         }
         List<Assignment> allAssignments = assignmentRepository.findByCourseIdIn(courseIds);
+        Map<UUID, AssignmentExtension> extensions = extensionRepository.findByStudentId(studentId).stream()
+                .collect(Collectors.toMap(AssignmentExtension::getAssignmentId, e -> e, (a, b) -> a));
 
         return allAssignments.stream().map(assignment -> {
             normalizeAssignmentFileUrlIfNeeded(assignment);
@@ -274,6 +229,10 @@ public class AssignmentService {
             dto.setWeight(assignment.getWeight());
             dto.setMaxPoints(assignment.getMaxPoints());
             dto.setGradesPublished(assignment.gradesPublished());
+            DeadlinePolicy.Window window = DeadlinePolicy.window(assignment, extensions.get(assignment.getId()));
+            dto.setLatePenaltyPercent(assignment.getLatePenaltyPercent());
+            dto.setEffectiveDueDate(window.due());
+            dto.setEffectiveLateUntil(window.lateUntil());
 
             // Bu ödeve ait teslim var mı?
             submissions.stream()
@@ -288,8 +247,10 @@ public class AssignmentService {
                         if (assignment.gradesPublished()) {
                             subDto.setGrade(submission.getGrade());
                             subDto.setFeedback(submission.getFeedback());
+                            subDto.setFinalGrade(DeadlinePolicy.finalGrade(assignment, submission.getGrade(), submission.isLate()));
                         }
                         subDto.setLate(submission.isLate());
+                        subDto.setTextContent(submission.getTextContent());
                         dto.setSubmission(subDto);
                     });
 
@@ -315,18 +276,25 @@ public class AssignmentService {
         res.setWeight(a.getWeight());
         res.setMaxPoints(a.getMaxPoints());
         res.setGradesPublishedAt(a.getGradesPublishedAt());
+        res.setLateUntil(a.getLateUntil());
+        res.setLatePenaltyPercent(a.getLatePenaltyPercent());
         return res;
     }
 
     private List<SubmissionSummaryDTO> toSubmissionSummaries(List<AssignmentSubmission> submissions) {
         Map<UUID, UserClient.UserProfileDTO> students = studentDirectory.byId(
                 submissions.stream().map(AssignmentSubmission::getStudentId).toList());
+        Map<UUID, Assignment> assignments = assignmentRepository.findAllById(
+                        submissions.stream().map(AssignmentSubmission::getAssignmentId).distinct().toList()).stream()
+                .collect(Collectors.toMap(Assignment::getId, a -> a));
         return submissions.stream()
-                .map(submission -> mapToSubmissionSummary(submission, students.get(submission.getStudentId())))
+                .map(submission -> mapToSubmissionSummary(submission, students.get(submission.getStudentId()),
+                        assignments.get(submission.getAssignmentId())))
                 .collect(Collectors.toList());
     }
 
-    private SubmissionSummaryDTO mapToSubmissionSummary(AssignmentSubmission submission, UserClient.UserProfileDTO userProfile) {
+    private SubmissionSummaryDTO mapToSubmissionSummary(AssignmentSubmission submission, UserClient.UserProfileDTO userProfile,
+                                                        Assignment assignment) {
         normalizeSubmissionFileUrlIfNeeded(submission);
 
         SubmissionSummaryDTO dto = new SubmissionSummaryDTO();
@@ -336,6 +304,10 @@ public class AssignmentService {
         dto.setSubmittedAt(submission.getSubmittedAt());
         dto.setGrade(submission.getGrade());
         dto.setLate(submission.isLate());
+        dto.setTextContent(submission.getTextContent());
+        if (assignment != null) {
+            dto.setFinalGrade(DeadlinePolicy.finalGrade(assignment, submission.getGrade(), submission.isLate()));
+        }
 
         if (userProfile != null) {
             dto.setStudentName(userProfile.getFirstName() + " " + userProfile.getLastName());

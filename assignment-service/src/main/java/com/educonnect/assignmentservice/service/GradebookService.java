@@ -77,7 +77,7 @@ public class GradebookService {
                 .collect(Collectors.toMap(AssignmentSubmission::getAssignmentId, s -> s, (a, b) -> a));
         List<Cell> cells = cells(assignments, mine).stream()
                 .map(cell -> published(assignments, cell.assignmentId()) || cell.grade() == null ? cell
-                        : new Cell(cell.assignmentId(), cell.submissionId(), Status.SUBMITTED, null, cell.late(),
+                        : new Cell(cell.assignmentId(), cell.submissionId(), Status.SUBMITTED, null, null, cell.late(),
                         cell.submittedAt()))
                 .toList();
         return new MyGradesResponse(courseId, columns(assignments), cells, weightedTotal(assignments, cells),
@@ -96,7 +96,7 @@ public class GradebookService {
             List<String> values = new ArrayList<>();
             values.add(Objects.toString(row.studentNumber(), ""));
             values.add(row.studentName());
-            row.grades().forEach(cell -> values.add(cell.status() == Status.NOT_SUBMITTED ? "-" : plain(cell.grade())));
+            row.grades().forEach(cell -> values.add(cell.status() == Status.NOT_SUBMITTED ? "-" : plain(cell.finalGrade())));
             values.add(plain(row.weightedTotal()));
             out.append(line(values));
         }
@@ -134,9 +134,10 @@ public class GradebookService {
         return assignments.stream().map(a -> {
             AssignmentSubmission s = submissions.get(a.getId());
             if (s == null) {
-                return new Cell(a.getId(), null, Status.NOT_SUBMITTED, null, false, null);
+                return new Cell(a.getId(), null, Status.NOT_SUBMITTED, null, null, false, null);
             }
             return new Cell(a.getId(), s.getId(), s.getGrade() != null ? Status.GRADED : Status.SUBMITTED, s.getGrade(),
+                    DeadlinePolicy.finalGrade(a, s.getGrade(), s.isLate()),
                     s.isLate(), s.getSubmittedAt());
         }).toList();
     }
@@ -145,7 +146,7 @@ public class GradebookService {
         BigDecimal total = BigDecimal.ZERO;
         for (int i = 0; i < assignments.size(); i++) {
             Assignment a = assignments.get(i);
-            BigDecimal grade = cells.get(i).grade();
+            BigDecimal grade = cells.get(i).finalGrade();
             if (grade != null && a.getWeight().signum() > 0) {
                 total = total.add(grade.multiply(a.getWeight()).divide(a.getMaxPoints(), 4, RoundingMode.HALF_UP));
             }

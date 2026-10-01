@@ -17,6 +17,8 @@ public class AssignmentResponse {
     private BigDecimal weight;
     private BigDecimal maxPoints;
     private Instant gradesPublishedAt;
+    private LocalDateTime lateUntil;
+    private BigDecimal latePenaltyPercent;
 
     // Getter & Setter
     public UUID getId() { return id; }
@@ -39,4 +41,8 @@ public class AssignmentResponse {
     public void setMaxPoints(BigDecimal maxPoints) { this.maxPoints = maxPoints; }
     public Instant getGradesPublishedAt() { return gradesPublishedAt; }
     public void setGradesPublishedAt(Instant gradesPublishedAt) { this.gradesPublishedAt = gradesPublishedAt; }
+    public LocalDateTime getLateUntil() { return lateUntil; }
+    public void setLateUntil(LocalDateTime lateUntil) { this.lateUntil = lateUntil; }
+    public BigDecimal getLatePenaltyPercent() { return latePenaltyPercent; }
+    public void setLatePenaltyPercent(BigDecimal latePenaltyPercent) { this.latePenaltyPercent = latePenaltyPercent; }
 }

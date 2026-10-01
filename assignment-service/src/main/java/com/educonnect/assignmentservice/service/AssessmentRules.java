@@ -16,6 +16,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.Instant;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
@@ -52,6 +53,12 @@ public class AssessmentRules {
         if (others.add(weight).compareTo(FULL_WEIGHT) > 0) {
             throw new ConflictException("WEIGHT_EXCEEDED", "Dersteki değerlendirmelerin ağırlık toplamı %100'ü geçemez (kalan: %"
                     + FULL_WEIGHT.subtract(others).stripTrailingZeros().toPlainString() + ").");
+        }
+    }
+
+    public static void requireLateWindow(LocalDateTime dueDate, LocalDateTime lateUntil) {
+        if (lateUntil != null && dueDate != null && !lateUntil.isAfter(dueDate)) {
+            throw new BadRequestException("INVALID_LATE_UNTIL", "Geç teslim bitişi son teslim tarihinden sonra olmalı.");
         }
     }
 
@@ -99,6 +106,19 @@ public class AssessmentRules {
                     request.dueDate().toString(), actorId, now));
             assignment.setDueDate(request.dueDate());
         }
+        LocalDateTime lateUntil = Boolean.TRUE.equals(request.clearLateUntil()) ? null
+                : request.lateUntil() != null ? request.lateUntil() : assignment.getLateUntil();
+        if (!Objects.equals(lateUntil, assignment.getLateUntil())) {
+            changes.add(change(assignment, "lateUntil", Objects.toString(assignment.getLateUntil(), null),
+                    Objects.toString(lateUntil, null), actorId, now));
+            assignment.setLateUntil(lateUntil);
+        }
+        if (request.latePenaltyPercent() != null && request.latePenaltyPercent().compareTo(assignment.getLatePenaltyPercent()) != 0) {
+            changes.add(change(assignment, "latePenalty", plain(assignment.getLatePenaltyPercent()),
+                    plain(request.latePenaltyPercent()), actorId, now));
+            assignment.setLatePenaltyPercent(request.latePenaltyPercent());
+        }
+        requireLateWindow(assignment.getDueDate(), assignment.getLateUntil());
         Assignment saved = assignmentRepository.save(assignment);
         changeRepository.saveAll(changes);
         return saved;

@@ -17,6 +17,9 @@ public class MyAssignmentDTO {
     private BigDecimal weight;
     private BigDecimal maxPoints;
     private boolean gradesPublished;
+    private BigDecimal latePenaltyPercent;
+    private LocalDateTime effectiveDueDate;
+    private LocalDateTime effectiveLateUntil;
 
     // Teslim bilgisi (null ise teslim edilmemiş)
     private MySubmissionDTO submission;
@@ -52,4 +55,10 @@ public class MyAssignmentDTO {
     public void setMaxPoints(BigDecimal maxPoints) { this.maxPoints = maxPoints; }
     public boolean isGradesPublished() { return gradesPublished; }
     public void setGradesPublished(boolean gradesPublished) { this.gradesPublished = gradesPublished; }
+    public BigDecimal getLatePenaltyPercent() { return latePenaltyPercent; }
+    public void setLatePenaltyPercent(BigDecimal latePenaltyPercent) { this.latePenaltyPercent = latePenaltyPercent; }
+    public LocalDateTime getEffectiveDueDate() { return effectiveDueDate; }
+    public void setEffectiveDueDate(LocalDateTime effectiveDueDate) { this.effectiveDueDate = effectiveDueDate; }
+    public LocalDateTime getEffectiveLateUntil() { return effectiveLateUntil; }
+    public void setEffectiveLateUntil(LocalDateTime effectiveLateUntil) { this.effectiveLateUntil = effectiveLateUntil; }
 }

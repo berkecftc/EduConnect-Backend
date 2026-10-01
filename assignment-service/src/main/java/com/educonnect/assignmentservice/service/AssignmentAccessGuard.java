@@ -6,6 +6,7 @@ import com.educonnect.assignmentservice.model.Assignment;
 import com.educonnect.assignmentservice.model.AssignmentSubmission;
 import com.educonnect.assignmentservice.repository.AssignmentRepository;
 import com.educonnect.assignmentservice.repository.SubmissionRepository;
+import com.educonnect.assignmentservice.repository.SubmissionVersionRepository;
 import com.educonnect.common.web.ConflictException;
 import feign.FeignException;
 import org.slf4j.Logger;
@@ -31,13 +32,16 @@ public class AssignmentAccessGuard {
     private final CourseInternalClient courseInternalClient;
     private final AssignmentRepository assignmentRepository;
     private final SubmissionRepository submissionRepository;
+    private final SubmissionVersionRepository versionRepository;
 
     public AssignmentAccessGuard(CourseInternalClient courseInternalClient,
                                  AssignmentRepository assignmentRepository,
-                                 SubmissionRepository submissionRepository) {
+                                 SubmissionRepository submissionRepository,
+                                 SubmissionVersionRepository versionRepository) {
         this.courseInternalClient = courseInternalClient;
         this.assignmentRepository = assignmentRepository;
         this.submissionRepository = submissionRepository;
+        this.versionRepository = versionRepository;
     }
 
     public static UUID parseUserId(String userIdHeader) {
@@ -129,16 +133,25 @@ public class AssignmentAccessGuard {
             requireCourseMember(assignment.get().getCourseId(), userId, rolesHeader);
             return;
         }
-        var submission = submissionRepository.findFirstBySubmissionFileUrl(normalizedFileUrl);
+        var submission = submissionRepository.findFirstBySubmissionFileUrl(normalizedFileUrl)
+                .or(() -> versionRepository.findFirstByFileUrl(normalizedFileUrl)
+                        .flatMap(version -> submissionRepository.findById(version.getSubmissionId())));
         if (submission.isPresent()) {
-            AssignmentSubmission s = submission.get();
-            if (Objects.equals(s.getStudentId(), userId)) {
-                return;
-            }
-            requireStaff(getAssignment(s.getAssignmentId()).getCourseId(), userId, rolesHeader);
+            requireSubmissionViewer(submission.get(), userId, rolesHeader);
             return;
         }
         throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Dosya bulunamadı.");
+    }
+
+    public void requireSubmissionViewer(AssignmentSubmission submission, UUID userId, String rolesHeader) {
+        if (isAdmin(rolesHeader) || Objects.equals(submission.getStudentId(), userId)) {
+            return;
+        }
+        requireStaff(getAssignment(submission.getAssignmentId()).getCourseId(), userId, rolesHeader);
+    }
+
+    public boolean isEnrolled(UUID courseId, UUID userId) {
+        return accessOf(courseId, userId).enrolled();
     }
 
     public Assignment getAssignment(UUID assignmentId) {
