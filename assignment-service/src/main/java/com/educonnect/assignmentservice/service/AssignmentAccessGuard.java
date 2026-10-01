@@ -1,11 +1,13 @@
 package com.educonnect.assignmentservice.service;
 
-import com.educonnect.assignmentservice.client.CourseClient;
+import com.educonnect.assignmentservice.client.CourseAccess;
 import com.educonnect.assignmentservice.client.CourseInternalClient;
 import com.educonnect.assignmentservice.model.Assignment;
 import com.educonnect.assignmentservice.model.AssignmentSubmission;
 import com.educonnect.assignmentservice.repository.AssignmentRepository;
 import com.educonnect.assignmentservice.repository.SubmissionRepository;
+import com.educonnect.common.web.ConflictException;
+import feign.FeignException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
@@ -13,8 +15,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.util.Arrays;
-import java.util.List;
-import java.util.Map;
+import java.util.Set;
 import java.util.Objects;
 import java.util.UUID;
 
@@ -23,16 +24,17 @@ public class AssignmentAccessGuard {
 
     private static final Logger log = LoggerFactory.getLogger(AssignmentAccessGuard.class);
 
-    private final CourseClient courseClient;
+    private static final Set<String> EDITABLE = Set.of("DRAFT", "OPEN", "ACTIVE");
+    private static final Set<String> GRADABLE = Set.of("OPEN", "ACTIVE", "COMPLETED");
+    private static final Set<String> RUNNING = Set.of("OPEN", "ACTIVE");
+
     private final CourseInternalClient courseInternalClient;
     private final AssignmentRepository assignmentRepository;
     private final SubmissionRepository submissionRepository;
 
-    public AssignmentAccessGuard(CourseClient courseClient,
-                                 CourseInternalClient courseInternalClient,
+    public AssignmentAccessGuard(CourseInternalClient courseInternalClient,
                                  AssignmentRepository assignmentRepository,
                                  SubmissionRepository submissionRepository) {
-        this.courseClient = courseClient;
         this.courseInternalClient = courseInternalClient;
         this.assignmentRepository = assignmentRepository;
         this.submissionRepository = submissionRepository;
@@ -55,30 +57,52 @@ public class AssignmentAccessGuard {
                 .anyMatch("ROLE_ADMIN"::equals);
     }
 
-    public void requireInstructor(UUID courseId, UUID userId, String rolesHeader) {
-        if (isAdmin(rolesHeader)) {
-            return;
+    public CourseAccess requireStaff(UUID courseId, UUID userId, String rolesHeader) {
+        CourseAccess access = accessOf(courseId, userId);
+        if (!isAdmin(rolesHeader) && !access.staff()) {
+            log.warn("Access denied: user {} is not on the staff of course {}", userId, courseId);
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Bu işlem yalnızca dersin kadrosu tarafından yapılabilir.");
         }
-        if (!Objects.equals(fetchInstructorId(courseId), userId)) {
-            log.warn("Access denied: user {} is not the instructor of course {}", userId, courseId);
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Bu işlem yalnızca dersin hocası tarafından yapılabilir.");
+        return access;
+    }
+
+    public void requireAssignmentEditor(UUID courseId, UUID userId, String rolesHeader) {
+        CourseAccess access = accessOf(courseId, userId);
+        if (!isAdmin(rolesHeader) && !access.teaches()) {
+            log.warn("Access denied: user {} does not teach course {}", userId, courseId);
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Ödevleri yalnızca dersin koordinatörü veya hocası yönetebilir.");
+        }
+        if (!EDITABLE.contains(access.status())) {
+            throw new ConflictException("COURSE_READ_ONLY", "Tamamlanmış veya arşivlenmiş derste ödev eklenemez ya da silinemez.");
+        }
+    }
+
+    public void requireGrader(UUID courseId, UUID userId, String rolesHeader) {
+        CourseAccess access = requireStaff(courseId, userId, rolesHeader);
+        if (!GRADABLE.contains(access.status())) {
+            throw new ConflictException("COURSE_READ_ONLY", "Arşivlenmiş derste puan değiştirilemez.");
         }
     }
 
     public void requireEnrolledStudent(UUID courseId, UUID userId) {
-        if (!isEnrolled(courseId, userId)) {
+        CourseAccess access = accessOf(courseId, userId);
+        if (!access.enrolled()) {
             log.warn("Access denied: user {} is not enrolled in course {}", userId, courseId);
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Bu derse kayıtlı değilsiniz.");
+        }
+        if (!RUNNING.contains(access.status())) {
+            throw new ConflictException("COURSE_CLOSED", "Ders tamamlandığı için teslim yapılamaz.");
         }
     }
 
     public void requireCourseMember(UUID courseId, UUID userId, String rolesHeader) {
-        if (isAdmin(rolesHeader)
-                || Objects.equals(fetchInstructorId(courseId), userId)
-                || isEnrolled(courseId, userId)) {
+        if (isAdmin(rolesHeader)) {
             return;
         }
-        throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Bu dersin ödevlerini görme yetkiniz yok.");
+        CourseAccess access = accessOf(courseId, userId);
+        if (!access.staff() && !access.enrolled()) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Bu dersin ödevlerini görme yetkiniz yok.");
+        }
     }
 
     public void requireFileAccess(String normalizedFileUrl, UUID userId, String rolesHeader) {
@@ -96,7 +120,7 @@ public class AssignmentAccessGuard {
             if (Objects.equals(s.getStudentId(), userId)) {
                 return;
             }
-            requireInstructor(getAssignment(s.getAssignmentId()).getCourseId(), userId, rolesHeader);
+            requireStaff(getAssignment(s.getAssignmentId()).getCourseId(), userId, rolesHeader);
             return;
         }
         throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Dosya bulunamadı.");
@@ -112,23 +136,13 @@ public class AssignmentAccessGuard {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Teslim bulunamadı."));
     }
 
-    private UUID fetchInstructorId(UUID courseId) {
-        Map<String, Object> course;
+    private CourseAccess accessOf(UUID courseId, UUID userId) {
         try {
-            course = courseClient.getCourseById(courseId);
-        } catch (Exception e) {
+            return courseInternalClient.access(courseId, userId);
+        } catch (FeignException.NotFound e) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Ders bulunamadı.");
-        }
-        Object instructorId = course != null ? course.get("instructorId") : null;
-        return instructorId != null ? UUID.fromString(instructorId.toString()) : null;
-    }
-
-    private boolean isEnrolled(UUID courseId, UUID userId) {
-        try {
-            List<UUID> studentIds = courseInternalClient.getEnrolledStudentIds(courseId);
-            return studentIds != null && studentIds.contains(userId);
-        } catch (Exception e) {
-            log.error("Could not fetch enrolled students for course {}: {}", courseId, e.getMessage());
+        } catch (FeignException e) {
+            log.error("Could not fetch course access for course {}: {}", courseId, e.getMessage());
             throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, "Ders bilgisi şu an doğrulanamıyor.");
         }
     }

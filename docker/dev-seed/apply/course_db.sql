@@ -1,7 +1,17 @@
-INSERT INTO course_db.courses (id, code, title, description, credit, semester, capacity, instructor_id) VALUES
-    ('5eed0000-0000-4000-8000-00000000f001', 'SEED101', 'Programlamaya Giriş', 'Değişkenler, koşullar, döngüler ve fonksiyonlar.', 4, '2026 Güz', 40, '5eed0000-0000-4000-8000-00000000a001'),
-    ('5eed0000-0000-4000-8000-00000000f002', 'SEED202', 'Veri Yapıları', 'Liste, yığın, kuyruk, ağaç ve çizgeler.', 4, '2026 Güz', 30, '5eed0000-0000-4000-8000-00000000a001'),
-    ('5eed0000-0000-4000-8000-00000000f003', 'SEED303', 'Veritabanı Sistemleri', 'İlişkisel model, SQL ve normalizasyon.', 3, '2026 Güz', 25, '5eed0000-0000-4000-8000-00000000a002')
+INSERT INTO course_db.catalog_courses (id, code, title, credit, created_by) VALUES
+    ('5eed0000-0000-4000-8000-00000000f401', 'SEED101', 'Programlamaya Giriş', 4, '5eed0000-0000-4000-8000-00000000a001'),
+    ('5eed0000-0000-4000-8000-00000000f402', 'SEED202', 'Veri Yapıları', 4, '5eed0000-0000-4000-8000-00000000a001'),
+    ('5eed0000-0000-4000-8000-00000000f403', 'SEED303', 'Veritabanı Sistemleri', 3, '5eed0000-0000-4000-8000-00000000a002')
+ON CONFLICT DO NOTHING;
+
+INSERT INTO course_db.courses (id, code, title, description, credit, semester, capacity, instructor_id, term_id, catalog_course_id, section) VALUES
+    ('5eed0000-0000-4000-8000-00000000f001', 'SEED101', 'Programlamaya Giriş', 'Değişkenler, koşullar, döngüler ve fonksiyonlar.', 4, '2026-2027 Güz', 40, '5eed0000-0000-4000-8000-00000000a001', '7e000000-0000-4000-8000-000000002027', '5eed0000-0000-4000-8000-00000000f401', '1'),
+    ('5eed0000-0000-4000-8000-00000000f002', 'SEED202', 'Veri Yapıları', 'Liste, yığın, kuyruk, ağaç ve çizgeler.', 4, '2026-2027 Güz', 30, '5eed0000-0000-4000-8000-00000000a001', '7e000000-0000-4000-8000-000000002027', '5eed0000-0000-4000-8000-00000000f402', '1'),
+    ('5eed0000-0000-4000-8000-00000000f003', 'SEED303', 'Veritabanı Sistemleri', 'İlişkisel model, SQL ve normalizasyon.', 3, '2026-2027 Güz', 25, '5eed0000-0000-4000-8000-00000000a002', '7e000000-0000-4000-8000-000000002027', '5eed0000-0000-4000-8000-00000000f403', '1')
+ON CONFLICT DO NOTHING;
+
+INSERT INTO course_db.course_staff (id, course_id, user_id, role, added_by) VALUES
+    ('5eed0000-0000-4000-8000-00000000f501', '5eed0000-0000-4000-8000-00000000f001', '5eed0000-0000-4000-8000-00000000a002', 'ASSISTANT', '5eed0000-0000-4000-8000-00000000a001')
 ON CONFLICT DO NOTHING;
 
 INSERT INTO course_db.student_course_enrollments (id, course_id, student_id, enrollment_date, is_active) VALUES
@@ -16,6 +26,13 @@ INSERT INTO course_db.student_course_enrollments (id, course_id, student_id, enr
     ('5eed0000-0000-4000-8000-00000000f109', '5eed0000-0000-4000-8000-00000000f003', '5eed0000-0000-4000-8000-00000000b006', now() - interval '20 days', true),
     ('5eed0000-0000-4000-8000-00000000f110', '5eed0000-0000-4000-8000-00000000f003', '5eed0000-0000-4000-8000-00000000b007', now() - interval '20 days', true)
 ON CONFLICT DO NOTHING;
+
+INSERT INTO course_db.course_enrollment_events (id, course_id, student_id, type, actor_id, occurred_at)
+SELECT gen_random_uuid(), e.course_id, e.student_id, 'ENROLLED', c.instructor_id, e.enrollment_date
+FROM course_db.student_course_enrollments e
+JOIN course_db.courses c ON c.id = e.course_id
+WHERE e.id::text LIKE '5eed%'
+  AND NOT EXISTS (SELECT 1 FROM course_db.course_enrollment_events x WHERE x.course_id = e.course_id AND x.student_id = e.student_id);
 
 INSERT INTO course_db.course_applications (id, course_id, student_id, status, application_date) VALUES
     ('5eed0000-0000-4000-8000-00000000f201', '5eed0000-0000-4000-8000-00000000f002', '5eed0000-0000-4000-8000-00000000b004', 'PENDING', now() - interval '2 days'),

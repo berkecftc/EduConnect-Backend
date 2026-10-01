@@ -1,5 +1,6 @@
 package com.educonnect.courseservice.service;
 
+import com.educonnect.common.web.ConflictException;
 import com.educonnect.common.web.LogValues;
 import com.educonnect.courseservice.client.UserClient;
 import com.educonnect.courseservice.client.UserLookup;
@@ -9,7 +10,7 @@ import com.educonnect.courseservice.exception.*;
 import com.educonnect.courseservice.model.Course;
 import com.educonnect.courseservice.model.CourseApplication;
 import com.educonnect.courseservice.model.CourseApplicationStatus;
-import com.educonnect.courseservice.model.StudentCourseEnrollment;
+import com.educonnect.courseservice.model.Term;
 import com.educonnect.courseservice.repository.CourseApplicationRepository;
 import com.educonnect.courseservice.repository.CourseRepository;
 import com.educonnect.courseservice.repository.EnrollmentRepository;
@@ -35,17 +36,26 @@ public class CourseApplicationService {
     private final EnrollmentRepository enrollmentRepository;
     private final UserClient userClient;
     private final CourseCaches courseCaches;
+    private final CourseStaffAccess staffAccess;
+    private final TermService termService;
+    private final EnrollmentLedger enrollmentLedger;
 
     public CourseApplicationService(CourseApplicationRepository applicationRepository,
                                      CourseRepository courseRepository,
                                      EnrollmentRepository enrollmentRepository,
                                      UserClient userClient,
-                                     CourseCaches courseCaches) {
+                                     CourseCaches courseCaches,
+                                     CourseStaffAccess staffAccess,
+                                     TermService termService,
+                                     EnrollmentLedger enrollmentLedger) {
         this.applicationRepository = applicationRepository;
         this.courseRepository = courseRepository;
         this.enrollmentRepository = enrollmentRepository;
         this.userClient = userClient;
         this.courseCaches = courseCaches;
+        this.staffAccess = staffAccess;
+        this.termService = termService;
+        this.enrollmentLedger = enrollmentLedger;
     }
 
     /**
@@ -57,6 +67,7 @@ public class CourseApplicationService {
         // 1. Ders var mı kontrol et
         Course course = courseRepository.findById(courseId)
                 .orElseThrow(() -> new CourseNotFoundException("Ders bulunamadı: " + courseId));
+        CourseLifecycleService.requireRunning(course);
 
         // 2. Öğrenci zaten bu derse kayıtlı mı?
         if (enrollmentRepository.existsByCourseIdAndStudentIdAndIsActive(courseId, studentId, true)) {
@@ -64,10 +75,13 @@ public class CourseApplicationService {
         }
 
         // 3. Öğrencinin zaten bekleyen başvurusu var mı?
-        CourseApplication application = applicationRepository.findByCourseIdAndStudentId(courseId, studentId)
-                .orElse(null);
-        if (application != null && application.getStatus() == CourseApplicationStatus.PENDING) {
+        if (applicationRepository.existsByCourseIdAndStudentIdAndStatus(courseId, studentId, CourseApplicationStatus.PENDING)) {
             throw new DuplicateApplicationException("Bu derse zaten bekleyen bir başvurunuz var.");
+        }
+
+        Term term = termService.find(course.getTermId());
+        if (!term.acceptsApplications(termService.today())) {
+            throw new ConflictException("ENROLLMENT_CLOSED", "Dönemin ders kayıt dönemi dışında başvuru yapılamaz.");
         }
 
         // 4. Kapasite doldu mu kontrol et (kayıtlı + onaylanmış başvurular)
@@ -77,17 +91,8 @@ public class CourseApplicationService {
         }
 
         // 5. Başvuru oluştur
-        if (application == null) {
-            application = new CourseApplication(courseId, studentId);
-        } else {
-            application.setStatus(CourseApplicationStatus.PENDING);
-            application.setApplicationDate(LocalDateTime.now());
-            application.setProcessedDate(null);
-            application.setProcessedBy(null);
-            application.setRejectionReason(null);
-        }
-        CourseApplication saved = applicationRepository.save(application);
-        courseCaches.evictInstructorCourses(course.getInstructorId());
+        CourseApplication saved = applicationRepository.save(new CourseApplication(courseId, studentId));
+        courseCaches.evictStaffCourses(course);
 
         log.info("Yeni ders başvurusu: Öğrenci {} -> Ders {} ({})", studentId, course.getTitle(), course.getCode());
 
@@ -101,10 +106,7 @@ public class CourseApplicationService {
         Course course = courseRepository.findById(courseId)
                 .orElseThrow(() -> new CourseNotFoundException("Ders bulunamadı: " + courseId));
 
-        // Dersin hocası mı kontrol et
-        if (!course.getInstructorId().equals(instructorId)) {
-            throw new UnauthorizedCourseAccessException("Bu dersin hocası değilsiniz.");
-        }
+        staffAccess.requireTeacher(course, instructorId, "Bu dersin hocası değilsiniz.");
 
         List<CourseApplication> pendingApps = applicationRepository
                 .findByCourseIdAndStatusOrderByApplicationDateAsc(courseId, CourseApplicationStatus.PENDING);
@@ -128,10 +130,8 @@ public class CourseApplicationService {
         Course course = courseRepository.findByIdForUpdate(application.getCourseId())
                 .orElseThrow(() -> new CourseNotFoundException("Ders bulunamadı: " + application.getCourseId()));
 
-        // Dersin hocası mı kontrol et
-        if (!course.getInstructorId().equals(instructorId)) {
-            throw new UnauthorizedCourseAccessException("Bu dersin hocası değilsiniz, başvuru onaylayamazsınız.");
-        }
+        staffAccess.requireTeacher(course, instructorId, "Bu dersin hocası değilsiniz, başvuru onaylayamazsınız.");
+        CourseLifecycleService.requireRunning(course);
 
         // Başvuru zaten işlenmiş mi?
         if (application.getStatus() != CourseApplicationStatus.PENDING) {
@@ -150,20 +150,9 @@ public class CourseApplicationService {
         application.setProcessedBy(instructorId);
         applicationRepository.save(application);
 
-        // Enrollment oluştur
-        StudentCourseEnrollment enrollment = enrollmentRepository
-                .findByCourseIdAndStudentId(course.getId(), application.getStudentId())
-                .orElseGet(() -> new StudentCourseEnrollment(course.getId(), application.getStudentId()));
-        if (enrollment.getId() != null) {
-            if (enrollment.isActive()) {
-                throw new AlreadyEnrolledException("Öğrenci bu derse zaten kayıtlı.");
-            }
-            enrollment.setActive(true);
-            enrollment.setEnrollmentDate(LocalDateTime.now());
-        }
-        enrollmentRepository.save(enrollment);
+        enrollmentLedger.enroll(course.getId(), application.getStudentId(), instructorId);
         courseCaches.evictStudentCourses(application.getStudentId());
-        courseCaches.evictInstructorCourses(course.getInstructorId());
+        courseCaches.evictStaffCourses(course);
 
         log.info("Başvuru onaylandı: Öğrenci {} -> Ders {} ({})",
                 application.getStudentId(), course.getTitle(), course.getCode());
@@ -182,10 +171,7 @@ public class CourseApplicationService {
         Course course = courseRepository.findById(application.getCourseId())
                 .orElseThrow(() -> new CourseNotFoundException("Ders bulunamadı: " + application.getCourseId()));
 
-        // Dersin hocası mı kontrol et
-        if (!course.getInstructorId().equals(instructorId)) {
-            throw new UnauthorizedCourseAccessException("Bu dersin hocası değilsiniz, başvuru reddedemezsiniz.");
-        }
+        staffAccess.requireTeacher(course, instructorId, "Bu dersin hocası değilsiniz, başvuru reddedemezsiniz.");
 
         // Başvuru zaten işlenmiş mi?
         if (application.getStatus() != CourseApplicationStatus.PENDING) {
@@ -198,12 +184,44 @@ public class CourseApplicationService {
         application.setProcessedBy(instructorId);
         application.setRejectionReason(rejectionReason);
         applicationRepository.save(application);
-        courseCaches.evictInstructorCourses(course.getInstructorId());
+        courseCaches.evictStaffCourses(course);
 
         log.info("Başvuru reddedildi: Öğrenci {} -> Ders {} ({}). Sebep: {}",
                 application.getStudentId(), LogValues.safe(course.getTitle()), LogValues.safe(course.getCode()), LogValues.safe(rejectionReason));
 
         return mapToResponse(application, course);
+    }
+
+    @Transactional
+    public CourseApplicationResponse withdrawApplication(UUID applicationId, UUID studentId) {
+        CourseApplication application = applicationRepository.findById(applicationId)
+                .filter(app -> app.getStudentId().equals(studentId))
+                .orElseThrow(() -> new ApplicationNotFoundException("Başvuru bulunamadı: " + applicationId));
+        if (application.getStatus() != CourseApplicationStatus.PENDING) {
+            throw new ApplicationAlreadyProcessedException("Bu başvuru zaten işlenmiş. Durum: " + application.getStatus());
+        }
+        Course course = courseRepository.findById(application.getCourseId())
+                .orElseThrow(() -> new CourseNotFoundException("Ders bulunamadı: " + application.getCourseId()));
+        application.setStatus(CourseApplicationStatus.WITHDRAWN);
+        application.setProcessedDate(LocalDateTime.now());
+        application.setProcessedBy(studentId);
+        applicationRepository.save(application);
+        courseCaches.evictStaffCourses(course);
+        return mapToResponse(application, course);
+    }
+
+    public List<CourseApplicationResponse> getApplications(UUID courseId, UUID userId, CourseApplicationStatus status) {
+        Course course = courseRepository.findById(courseId)
+                .orElseThrow(() -> new CourseNotFoundException("Ders bulunamadı: " + courseId));
+        staffAccess.requireTeacher(course, userId, "Bu dersin hocası değilsiniz.");
+        List<CourseApplication> applications = applicationRepository.findByCourseIdOrderByApplicationDateDesc(courseId).stream()
+                .filter(app -> status == null || app.getStatus() == status)
+                .toList();
+        Map<UUID, UserSummaryDto> students = UserLookup.usersById(userClient,
+                applications.stream().map(CourseApplication::getStudentId).toList());
+        return applications.stream()
+                .map(app -> mapToResponseWithStudentInfo(app, course, students.get(app.getStudentId())))
+                .toList();
     }
 
     /**
@@ -255,4 +273,3 @@ public class CourseApplicationService {
         return dto;
     }
 }
-

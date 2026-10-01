@@ -38,19 +38,23 @@ public class CourseController {
     // ===================== DERS CRUD =====================
 
     @GetMapping
-    public ResponseEntity<List<CourseResponse>> getAll() {
-        return ResponseEntity.ok(courseService.getAllCourses());
+    public ResponseEntity<List<CourseResponse>> getAll(@RequestParam(required = false) UUID termId) {
+        return ResponseEntity.ok(courseService.getAllCourses(termId));
     }
 
     @GetMapping(params = "page")
     public ResponseEntity<PageResponse<CourseResponse>> getPage(@RequestParam int page,
-                                                                @RequestParam(required = false) Integer size) {
-        return ResponseEntity.ok(courseService.getCoursesPage(page, size));
+                                                                @RequestParam(required = false) Integer size,
+                                                                @RequestParam(required = false) UUID termId) {
+        return ResponseEntity.ok(courseService.getCoursesPage(page, size, termId));
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<CourseResponse> getById(@PathVariable UUID id) {
-        return ResponseEntity.ok(courseService.getCourseById(id));
+    public ResponseEntity<CourseResponse> getById(@PathVariable UUID id,
+                                                  @RequestHeader(value = "X-Authenticated-User-Id", required = false) String userIdHeader,
+                                                  @RequestHeader(value = "X-Authenticated-User-Roles", required = false) String roles) {
+        UUID viewerId = userIdHeader != null ? UUID.fromString(userIdHeader) : null;
+        return ResponseEntity.ok(courseService.getVisibleCourse(id, viewerId, hasRole(roles, "ROLE_ADMIN")));
     }
 
     @GetMapping("/instructor/{id}")
@@ -112,16 +116,6 @@ public class CourseController {
     ) {
         UUID studentId = UUID.fromString(studentIdHeader);
         return ResponseEntity.ok(courseService.getStudentCourses(studentId));
-    }
-
-    // ÖĞRENCİ KURSTAN ÇIK
-    @DeleteMapping("/{courseId}/withdraw")
-    public ResponseEntity<String> withdrawFromCourse(
-            @PathVariable UUID courseId,
-            @RequestHeader("X-Authenticated-User-Id") String studentIdHeader
-    ) {
-        courseService.withdrawStudent(courseId, UUID.fromString(studentIdHeader));
-        return ResponseEntity.ok("Kurstan başarıyla çıkıldı");
     }
 
     // AKADEMİSYENİN DERSLERİNİ GETİR (Öğrenci sayılarıyla + kapasite + bekleyen başvuru sayısı)

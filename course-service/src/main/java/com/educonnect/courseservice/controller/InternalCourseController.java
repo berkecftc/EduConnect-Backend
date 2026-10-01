@@ -1,5 +1,6 @@
 package com.educonnect.courseservice.controller;
 
+import com.educonnect.courseservice.dto.CourseAccessResponse;
 import com.educonnect.courseservice.service.CourseService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -23,6 +24,11 @@ public class InternalCourseController {
     @GetMapping("/{courseId}/enrolled-students/ids")
     public ResponseEntity<List<UUID>> getEnrolledStudentIds(@PathVariable UUID courseId) {
         return ResponseEntity.ok(courseService.getEnrolledStudentIds(courseId));
+    }
+
+    @GetMapping("/{courseId}/access/{userId}")
+    public ResponseEntity<CourseAccessResponse> access(@PathVariable UUID courseId, @PathVariable UUID userId) {
+        return ResponseEntity.ok(courseService.accessOf(courseId, userId));
     }
 
     @GetMapping("/instructors/{instructorId}/course-ids")

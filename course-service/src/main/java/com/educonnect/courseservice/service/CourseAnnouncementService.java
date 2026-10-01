@@ -37,17 +37,20 @@ public class CourseAnnouncementService {
     private final EnrollmentRepository enrollmentRepository;
     private final CourseProducer courseProducer;
     private final UserClient userClient;
+    private final CourseStaffAccess staffAccess;
 
     public CourseAnnouncementService(CourseAnnouncementRepository announcementRepository,
                                       CourseRepository courseRepository,
                                       EnrollmentRepository enrollmentRepository,
                                       CourseProducer courseProducer,
-                                      UserClient userClient) {
+                                      UserClient userClient,
+                                      CourseStaffAccess staffAccess) {
         this.announcementRepository = announcementRepository;
         this.courseRepository = courseRepository;
         this.enrollmentRepository = enrollmentRepository;
         this.courseProducer = courseProducer;
         this.userClient = userClient;
+        this.staffAccess = staffAccess;
     }
 
     /**
@@ -58,10 +61,8 @@ public class CourseAnnouncementService {
         Course course = courseRepository.findById(courseId)
                 .orElseThrow(() -> new CourseNotFoundException("Ders bulunamadı: " + courseId));
 
-        // Dersin hocası mı kontrol et
-        if (!course.getInstructorId().equals(instructorId)) {
-            throw new UnauthorizedCourseAccessException("Bu dersin hocası değilsiniz, duyuru paylaşamazsınız.");
-        }
+        staffAccess.requireTeacher(course, instructorId, "Bu dersin hocası değilsiniz, duyuru paylaşamazsınız.");
+        CourseLifecycleService.requireAnnouncements(course);
 
         // Duyuru oluştur
         CourseAnnouncement announcement = new CourseAnnouncement();
@@ -85,7 +86,7 @@ public class CourseAnnouncementService {
                 .orElseThrow(() -> new CourseNotFoundException("Ders bulunamadı: " + courseId));
 
         boolean allowed = viewerIsAdmin
-                || course.getInstructorId().equals(viewerId)
+                || staffAccess.isStaff(course, viewerId)
                 || enrollmentRepository.existsByCourseIdAndStudentIdAndIsActive(courseId, viewerId, true);
         if (!allowed) {
             throw new UnauthorizedCourseAccessException("Bu dersin duyurularını görme yetkiniz yok.");
@@ -110,9 +111,8 @@ public class CourseAnnouncementService {
         Course course = courseRepository.findById(announcement.getCourseId())
                 .orElseThrow(() -> new CourseNotFoundException("Ders bulunamadı: " + announcement.getCourseId()));
 
-        if (!course.getInstructorId().equals(instructorId)) {
-            throw new UnauthorizedCourseAccessException("Bu duyuruyu silme yetkiniz yok.");
-        }
+        staffAccess.requireTeacher(course, instructorId, "Bu duyuruyu silme yetkiniz yok.");
+        CourseLifecycleService.requireAnnouncements(course);
 
         announcementRepository.deleteById(announcementId);
         log.info("Duyuru silindi: {}", announcementId);
@@ -169,4 +169,3 @@ public class CourseAnnouncementService {
         return dto;
     }
 }
-

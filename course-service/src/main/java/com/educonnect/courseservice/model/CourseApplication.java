@@ -5,8 +5,7 @@ import java.time.LocalDateTime;
 import java.util.UUID;
 
 @Entity
-@Table(name = "course_applications",
-        uniqueConstraints = @UniqueConstraint(columnNames = {"course_id", "student_id"}))
+@Table(name = "course_applications")
 public class CourseApplication {
 
     @Id
@@ -73,4 +72,3 @@ public class CourseApplication {
     public String getRejectionReason() { return rejectionReason; }
     public void setRejectionReason(String rejectionReason) { this.rejectionReason = rejectionReason; }
 }
-

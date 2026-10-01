@@ -15,6 +15,9 @@ public interface CourseInternalClient {
     @GetMapping("/{courseId}/enrolled-students/ids")
     List<UUID> getEnrolledStudentIds(@PathVariable("courseId") UUID courseId);
 
+    @GetMapping("/{courseId}/access/{userId}")
+    CourseAccess access(@PathVariable("courseId") UUID courseId, @PathVariable("userId") UUID userId);
+
     @GetMapping("/students/{studentId}/course-ids")
     List<UUID> getActiveCourseIds(@PathVariable("studentId") UUID studentId);
 }

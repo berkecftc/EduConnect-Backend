@@ -30,7 +30,7 @@ public class Course {
     @Column(nullable = false)
     private String title;
 
-    @Column(nullable = false, unique = true)
+    @Column(nullable = false)
     private String code;
 
     @Column(columnDefinition = "TEXT")
@@ -44,6 +44,25 @@ public class Course {
 
     @Column(nullable = false)
     private UUID instructorId;
+
+    @Column(name = "term_id", nullable = false)
+    private UUID termId;
+
+    @Column(name = "catalog_course_id", nullable = false)
+    private UUID catalogCourseId;
+
+    @Column(nullable = false, length = 10)
+    private String section = "1";
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 12)
+    private CourseStatus status = CourseStatus.ACTIVE;
+
+    @Column(name = "completed_at")
+    private Instant completedAt;
+
+    @Column(name = "archived_at")
+    private Instant archivedAt;
 
     @Column(name = "image_url")
     @Convert(converter = ObjectUrlConverter.class)
@@ -68,6 +87,27 @@ public class Course {
     public void setCapacity(int capacity) { this.capacity = capacity; }
     public UUID getInstructorId() { return instructorId; }
     public void setInstructorId(UUID instructorId) { this.instructorId = instructorId; }
+    public UUID getTermId() { return termId; }
+    public void setTermId(UUID termId) { this.termId = termId; }
+    public UUID getCatalogCourseId() { return catalogCourseId; }
+    public void setCatalogCourseId(UUID catalogCourseId) { this.catalogCourseId = catalogCourseId; }
+    public CourseStatus getStatus() { return status; }
+    public void setStatus(CourseStatus status) { this.status = status; }
+    public Instant getCompletedAt() { return completedAt; }
+    public Instant getArchivedAt() { return archivedAt; }
+
+    public void complete(Instant at) {
+        this.status = CourseStatus.COMPLETED;
+        this.completedAt = at;
+    }
+
+    public void archive(Instant at) {
+        this.status = CourseStatus.ARCHIVED;
+        this.archivedAt = at;
+    }
+
+    public String getSection() { return section; }
+    public void setSection(String section) { this.section = section; }
     public String getImageUrl() { return imageUrl; }
     public void setImageUrl(String imageUrl) { this.imageUrl = imageUrl; }
 
