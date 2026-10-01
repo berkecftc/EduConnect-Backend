@@ -31,7 +31,8 @@ public class UserDataCleanupService {
             "DELETE FROM course_staff WHERE user_id = :userId",
             "UPDATE course_staff SET added_by = NULL WHERE added_by = :userId",
             "UPDATE course_applications SET processed_by = NULL WHERE processed_by = :userId",
-            "UPDATE course_announcements SET created_by = NULL WHERE created_by = :userId");
+            "UPDATE course_announcements SET created_by = NULL WHERE created_by = :userId",
+            "UPDATE course_materials SET created_by = NULL WHERE created_by = :userId");
 
     @PersistenceContext
     private EntityManager entityManager;
