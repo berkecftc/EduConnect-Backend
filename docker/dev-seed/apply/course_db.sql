@@ -27,6 +27,13 @@ INSERT INTO course_db.student_course_enrollments (id, course_id, student_id, enr
     ('5eed0000-0000-4000-8000-00000000f110', '5eed0000-0000-4000-8000-00000000f003', '5eed0000-0000-4000-8000-00000000b007', now() - interval '20 days', true)
 ON CONFLICT DO NOTHING;
 
+INSERT INTO course_db.course_enrollment_events (id, course_id, student_id, type, actor_id, occurred_at)
+SELECT gen_random_uuid(), e.course_id, e.student_id, 'ENROLLED', c.instructor_id, e.enrollment_date
+FROM course_db.student_course_enrollments e
+JOIN course_db.courses c ON c.id = e.course_id
+WHERE e.id::text LIKE '5eed%'
+  AND NOT EXISTS (SELECT 1 FROM course_db.course_enrollment_events x WHERE x.course_id = e.course_id AND x.student_id = e.student_id);
+
 INSERT INTO course_db.course_applications (id, course_id, student_id, status, application_date) VALUES
     ('5eed0000-0000-4000-8000-00000000f201', '5eed0000-0000-4000-8000-00000000f002', '5eed0000-0000-4000-8000-00000000b004', 'PENDING', now() - interval '2 days'),
     ('5eed0000-0000-4000-8000-00000000f202', '5eed0000-0000-4000-8000-00000000f002', '5eed0000-0000-4000-8000-00000000b005', 'PENDING', now() - interval '1 day'),

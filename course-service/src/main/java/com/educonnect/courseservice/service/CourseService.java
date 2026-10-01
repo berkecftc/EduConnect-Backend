@@ -21,7 +21,6 @@ import com.educonnect.courseservice.repository.EnrollmentRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.core.io.InputStreamResource;
 import org.springframework.core.io.Resource;
@@ -209,21 +208,6 @@ public class CourseService {
 
             return dto;
         }).filter(dto -> dto != null).collect(Collectors.toList());
-    }
-
-    // 8. ÖĞRENCİ KURSTAN ÇIK (Soft Delete)
-    @Transactional
-    @CacheEvict(value = "studentCourses", key = "#studentId")
-    public void withdrawStudent(UUID courseId, UUID studentId) {
-        StudentCourseEnrollment enrollment = enrollmentRepository.findByCourseIdAndStudentId(courseId, studentId)
-                .orElseThrow(() -> new EnrollmentNotFoundException("Kayıt bulunamadı"));
-        courseRepository.findById(courseId).ifPresent(CourseLifecycleService::requireRunning);
-
-        enrollment.setActive(false);
-        enrollmentRepository.save(enrollment);
-
-        // instructorCourses cache'ini temizle (öğrenci sayısı değişti)
-        courseRepository.findById(courseId).ifPresent(courseCaches::evictStaffCourses);
     }
 
     // 9. AKADEMİSYENİN DERSLERİNİ GETİR (Cache'li + öğrenci sayısı + kapasite)

@@ -1,6 +1,7 @@
 package com.educonnect.courseservice.model;
 
 import jakarta.persistence.*;
+import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
@@ -24,6 +25,15 @@ public class StudentCourseEnrollment {
 
     @Column(name = "is_active", nullable = false)
     private boolean isActive = true;
+
+    @Column(name = "withdrawn_at")
+    private Instant withdrawnAt;
+
+    @Column(name = "withdrawn_by")
+    private UUID withdrawnBy;
+
+    @Column(name = "withdrawal_reason", length = 500)
+    private String withdrawalReason;
 
     // No-args constructor
     public StudentCourseEnrollment() {}
@@ -51,5 +61,22 @@ public class StudentCourseEnrollment {
 
     public boolean isActive() { return isActive; }
     public void setActive(boolean active) { isActive = active; }
-}
+    public Instant getWithdrawnAt() { return withdrawnAt; }
+    public UUID getWithdrawnBy() { return withdrawnBy; }
+    public String getWithdrawalReason() { return withdrawalReason; }
 
+    public void withdraw(UUID actorId, String reason, Instant at) {
+        this.isActive = false;
+        this.withdrawnAt = at;
+        this.withdrawnBy = actorId;
+        this.withdrawalReason = reason;
+    }
+
+    public void reactivate(LocalDateTime at) {
+        this.isActive = true;
+        this.enrollmentDate = at;
+        this.withdrawnAt = null;
+        this.withdrawnBy = null;
+        this.withdrawalReason = null;
+    }
+}

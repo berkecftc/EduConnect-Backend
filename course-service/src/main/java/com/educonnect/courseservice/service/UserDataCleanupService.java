@@ -25,6 +25,9 @@ public class UserDataCleanupService {
     private static final List<String> STATEMENTS = List.of(
             "DELETE FROM student_course_enrollments WHERE student_id = :userId",
             "DELETE FROM course_applications WHERE student_id = :userId",
+            "DELETE FROM course_enrollment_events WHERE student_id = :userId",
+            "UPDATE course_enrollment_events SET actor_id = NULL WHERE actor_id = :userId",
+            "UPDATE student_course_enrollments SET withdrawn_by = NULL WHERE withdrawn_by = :userId",
             "DELETE FROM course_staff WHERE user_id = :userId",
             "UPDATE course_staff SET added_by = NULL WHERE added_by = :userId",
             "UPDATE course_applications SET processed_by = NULL WHERE processed_by = :userId",

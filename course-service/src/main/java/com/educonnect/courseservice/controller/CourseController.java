@@ -118,16 +118,6 @@ public class CourseController {
         return ResponseEntity.ok(courseService.getStudentCourses(studentId));
     }
 
-    // ÖĞRENCİ KURSTAN ÇIK
-    @DeleteMapping("/{courseId}/withdraw")
-    public ResponseEntity<String> withdrawFromCourse(
-            @PathVariable UUID courseId,
-            @RequestHeader("X-Authenticated-User-Id") String studentIdHeader
-    ) {
-        courseService.withdrawStudent(courseId, UUID.fromString(studentIdHeader));
-        return ResponseEntity.ok("Kurstan başarıyla çıkıldı");
-    }
-
     // AKADEMİSYENİN DERSLERİNİ GETİR (Öğrenci sayılarıyla + kapasite + bekleyen başvuru sayısı)
     @GetMapping("/instructor/me/courses")
     public ResponseEntity<List<InstructorCourseDTO>> getMyInstructorCourses(

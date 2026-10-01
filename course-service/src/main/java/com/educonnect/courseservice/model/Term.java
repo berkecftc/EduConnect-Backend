@@ -82,6 +82,15 @@ public class Term {
         return (academicYear - 1) + "-" + academicYear + " " + season.displayName();
     }
 
+    public boolean acceptsApplications(LocalDate today) {
+        return (enrollmentOpensOn == null || !today.isBefore(enrollmentOpensOn))
+                && (enrollmentClosesOn == null || !today.isAfter(enrollmentClosesOn));
+    }
+
+    public boolean isAfterEnrollment(LocalDate day) {
+        return enrollmentClosesOn != null && day.isAfter(enrollmentClosesOn);
+    }
+
     public boolean hasEnded(LocalDate today) {
         return today.isAfter(endsOn);
     }

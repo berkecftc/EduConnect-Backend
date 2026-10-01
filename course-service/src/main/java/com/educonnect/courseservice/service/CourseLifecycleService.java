@@ -5,6 +5,7 @@ import com.educonnect.courseservice.config.CourseLifecycleSettings;
 import com.educonnect.courseservice.dto.CourseUpdateRequest;
 import com.educonnect.courseservice.exception.CourseNotFoundException;
 import com.educonnect.courseservice.model.Course;
+import com.educonnect.courseservice.model.CourseApplicationStatus;
 import com.educonnect.courseservice.model.CourseStatus;
 import com.educonnect.courseservice.model.Term;
 import com.educonnect.courseservice.repository.CourseApplicationRepository;
@@ -20,6 +21,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.Map;
@@ -148,6 +150,7 @@ public class CourseLifecycleService {
         int completed = 0;
         int archived = 0;
         int purged = 0;
+        int closedApplications = 0;
         Instant now = Instant.now(clock);
         for (Course course : courses) {
             Term term = terms.get(course.getTermId());
@@ -158,6 +161,8 @@ public class CourseLifecycleService {
             if (before.isRunning() && term.hasEnded(today)) {
                 course.complete(now);
                 completed++;
+                closedApplications += applicationRepository.closePending(course.getId(), CourseApplicationStatus.PENDING,
+                        CourseApplicationStatus.CLOSED, LocalDateTime.now(clock));
             } else if (before == CourseStatus.OPEN && !today.isBefore(term.getStartsOn())) {
                 course.setStatus(CourseStatus.ACTIVE);
                 started++;
@@ -175,7 +180,8 @@ public class CourseLifecycleService {
                 courseCaches.evictStaffCourses(course);
             }
         }
-        return Map.of("started", started, "completed", completed, "archived", archived, "purged", purged);
+        return Map.of("started", started, "completed", completed, "archived", archived, "purged", purged,
+                "closedApplications", closedApplications);
     }
 
     private Course owned(UUID courseId, UUID userId) {
