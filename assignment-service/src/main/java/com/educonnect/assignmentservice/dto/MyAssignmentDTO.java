@@ -16,6 +16,7 @@ public class MyAssignmentDTO {
     private AssessmentType type;
     private BigDecimal weight;
     private BigDecimal maxPoints;
+    private boolean gradesPublished;
 
     // Teslim bilgisi (null ise teslim edilmemiş)
     private MySubmissionDTO submission;
@@ -49,4 +50,6 @@ public class MyAssignmentDTO {
     public void setWeight(BigDecimal weight) { this.weight = weight; }
     public BigDecimal getMaxPoints() { return maxPoints; }
     public void setMaxPoints(BigDecimal maxPoints) { this.maxPoints = maxPoints; }
+    public boolean isGradesPublished() { return gradesPublished; }
+    public void setGradesPublished(boolean gradesPublished) { this.gradesPublished = gradesPublished; }
 }

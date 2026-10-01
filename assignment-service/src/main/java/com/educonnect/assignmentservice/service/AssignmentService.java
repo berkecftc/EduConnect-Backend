@@ -17,8 +17,6 @@ import com.educonnect.common.web.BadRequestException;
 import com.educonnect.common.web.NotFoundException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.cache.Cache;
-import org.springframework.cache.CacheManager;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.core.io.InputStreamResource;
@@ -56,14 +54,13 @@ public class AssignmentService {
     private final UserClient userClient;
     private final AssignmentProducer assignmentProducer;
     private final InternalUserClient internalUserClient;
-    private final CacheManager cacheManager;
     private final AssignmentFiles assignmentFiles;
     private final AssessmentRules assessmentRules;
 
     public AssignmentService(AssignmentRepository repo, SubmissionRepository subRepo,
                              MinioService minio, CourseClient client, CourseInternalClient internalClient,
                              UserClient userClient, AssignmentProducer producer,
-                             InternalUserClient internalUserClient, CacheManager cacheManager,
+                             InternalUserClient internalUserClient,
                              AssignmentFiles assignmentFiles, AssessmentRules assessmentRules) {
         this.internalUserClient = internalUserClient;
         this.assignmentRepository = repo;
@@ -73,7 +70,6 @@ public class AssignmentService {
         this.courseInternalClient = internalClient;
         this.userClient = userClient;
         this.assignmentProducer = producer;
-        this.cacheManager = cacheManager;
         this.assignmentFiles = assignmentFiles;
         this.assessmentRules = assessmentRules;
     }
@@ -229,31 +225,6 @@ public class AssignmentService {
         }
     }
 
-    // AKADEMİSYEN NOT VERME
-    public void gradeSubmission(UUID submissionId, BigDecimal grade, String feedback) {
-        AssignmentSubmission submission = submissionRepository.findById(submissionId)
-                .orElseThrow(() -> new NotFoundException("SUBMISSION_NOT_FOUND", "Teslim bulunamadı"));
-        Assignment assignment = assignmentRepository.findById(submission.getAssignmentId())
-                .orElseThrow(() -> new NotFoundException("ASSIGNMENT_NOT_FOUND", "Ödev bulunamadı"));
-        assessmentRules.requireValidGrade(assignment, grade);
-
-        submission.setGrade(grade);
-        submission.setFeedback(feedback);
-        submissionRepository.save(submission);
-        evictStudentAssignments(submission.getStudentId());
-    }
-
-    private void evictStudentAssignments(UUID studentId) {
-        try {
-            Cache cache = cacheManager.getCache(STUDENT_ASSIGNMENTS);
-            if (cache != null) {
-                cache.evict(studentId);
-            }
-        } catch (RuntimeException e) {
-            log.warn("{} cache temizlenemedi: {}", STUDENT_ASSIGNMENTS, e.getMessage());
-        }
-    }
-
     // BİR DERSE AİT TÜM TESLİMLERİ GETİR (Akademisyen için)
     public List<SubmissionSummaryDTO> getSubmissionsByCourse(UUID courseId) {
         // Önce bu derse ait tüm ödevleri bul
@@ -305,6 +276,7 @@ public class AssignmentService {
             dto.setType(assignment.getType());
             dto.setWeight(assignment.getWeight());
             dto.setMaxPoints(assignment.getMaxPoints());
+            dto.setGradesPublished(assignment.gradesPublished());
 
             // Bu ödeve ait teslim var mı?
             submissions.stream()
@@ -316,14 +288,20 @@ public class AssignmentService {
                         MySubmissionDTO subDto = new MySubmissionDTO();
                         subDto.setSubmissionId(submission.getId());
                         subDto.setSubmittedAt(submission.getSubmittedAt());
-                        subDto.setGrade(submission.getGrade());
-                        subDto.setFeedback(submission.getFeedback());
+                        if (assignment.gradesPublished()) {
+                            subDto.setGrade(submission.getGrade());
+                            subDto.setFeedback(submission.getFeedback());
+                        }
                         subDto.setLate(submission.isLate());
                         dto.setSubmission(subDto);
                     });
 
             return dto;
         }).collect(Collectors.toList());
+    }
+
+    public AssignmentResponse toResponse(Assignment assignment) {
+        return mapToResponse(assignment);
     }
 
     private AssignmentResponse mapToResponse(Assignment a) {
@@ -339,6 +317,7 @@ public class AssignmentService {
         res.setType(a.getType());
         res.setWeight(a.getWeight());
         res.setMaxPoints(a.getMaxPoints());
+        res.setGradesPublishedAt(a.getGradesPublishedAt());
         return res;
     }
 

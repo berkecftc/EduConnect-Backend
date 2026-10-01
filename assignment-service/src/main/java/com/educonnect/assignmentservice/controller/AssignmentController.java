@@ -110,21 +110,6 @@ public class AssignmentController {
         return ResponseEntity.status(HttpStatus.CREATED).body(SubmissionResponse.from(submission));
     }
 
-    // AKADEMİSYEN NOT VERME
-    @PutMapping("/submissions/{submissionId}/grade")
-    public ResponseEntity<String> gradeSubmission(
-            @PathVariable UUID submissionId,
-            @RequestBody @Valid GradeSubmissionRequest request,
-            @RequestHeader(USER_ID_HEADER) String userIdHeader,
-            @RequestHeader(value = ROLES_HEADER, required = false) String roles
-    ) {
-        AssignmentSubmission submission = accessGuard.getSubmission(submissionId);
-        Assignment assignment = accessGuard.getAssignment(submission.getAssignmentId());
-        accessGuard.requireGrader(assignment.getCourseId(), parseUserId(userIdHeader), roles);
-        assignmentService.gradeSubmission(submissionId, request.getGrade(), request.getFeedback());
-        return ResponseEntity.ok("Not başarıyla verildi");
-    }
-
     // BİR DERSE AİT TÜM TESLİMLERİ GETİR (Akademisyen)
     @GetMapping("/course/{courseId}/submissions")
     public ResponseEntity<List<SubmissionSummaryDTO>> getCourseSubmissions(

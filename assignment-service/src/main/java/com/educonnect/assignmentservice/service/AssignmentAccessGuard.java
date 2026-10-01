@@ -84,6 +84,16 @@ public class AssignmentAccessGuard {
         }
     }
 
+    public void requireGradePublisher(UUID courseId, UUID userId, String rolesHeader) {
+        CourseAccess access = accessOf(courseId, userId);
+        if (!isAdmin(rolesHeader) && !access.teaches()) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Puanları yalnızca dersin koordinatörü veya hocası ilan edebilir.");
+        }
+        if (!GRADABLE.contains(access.status())) {
+            throw new ConflictException("COURSE_READ_ONLY", "Arşivlenmiş derste puan ilan edilemez.");
+        }
+    }
+
     public void requireEnrolledStudent(UUID courseId, UUID userId) {
         CourseAccess access = accessOf(courseId, userId);
         if (!access.enrolled()) {

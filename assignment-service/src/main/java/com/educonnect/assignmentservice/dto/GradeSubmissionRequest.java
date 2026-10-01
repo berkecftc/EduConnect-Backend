@@ -12,6 +12,8 @@ public class GradeSubmissionRequest {
     private BigDecimal grade;
     @Size(max = 5000, message = "Geri bildirim en fazla 5000 karakter olabilir")
     private String feedback;
+    @Size(max = 500, message = "Gerekçe en fazla 500 karakter olabilir")
+    private String reason;
 
     public GradeSubmissionRequest() {}
 
@@ -20,4 +22,7 @@ public class GradeSubmissionRequest {
 
     public String getFeedback() { return feedback; }
     public void setFeedback(String feedback) { this.feedback = feedback; }
+
+    public String getReason() { return reason; }
+    public void setReason(String reason) { this.reason = reason; }
 }

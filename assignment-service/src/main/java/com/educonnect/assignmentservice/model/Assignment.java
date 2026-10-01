@@ -50,6 +50,12 @@ public class Assignment {
     @Column(name = "max_points", nullable = false, precision = 6, scale = 2)
     private BigDecimal maxPoints = BigDecimal.valueOf(100);
 
+    @Column(name = "grades_published_at")
+    private Instant gradesPublishedAt;
+
+    @Column(name = "grades_published_by")
+    private UUID gradesPublishedBy;
+
     @Convert(converter = ObjectUrlConverter.class)
     private String fileUrl; // Hoca ek dosya yüklediyse (MinIO)
 
@@ -74,6 +80,14 @@ public class Assignment {
     public void setWeight(BigDecimal weight) { this.weight = weight; }
     public BigDecimal getMaxPoints() { return maxPoints; }
     public void setMaxPoints(BigDecimal maxPoints) { this.maxPoints = maxPoints; }
+    public Instant getGradesPublishedAt() { return gradesPublishedAt; }
+    public UUID getGradesPublishedBy() { return gradesPublishedBy; }
+    public boolean gradesPublished() { return gradesPublishedAt != null; }
+
+    public void publishGrades(UUID by, Instant at) {
+        this.gradesPublishedAt = at;
+        this.gradesPublishedBy = by;
+    }
     public Long getVersion() { return version; }
 
     public Instant getCreatedAt() { return createdAt; }

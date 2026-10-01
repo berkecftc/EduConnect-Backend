@@ -2,6 +2,7 @@ package com.educonnect.assignmentservice.dto;
 import com.educonnect.assignmentservice.model.AssessmentType;
 
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
@@ -15,6 +16,7 @@ public class AssignmentResponse {
     private AssessmentType type;
     private BigDecimal weight;
     private BigDecimal maxPoints;
+    private Instant gradesPublishedAt;
 
     // Getter & Setter
     public UUID getId() { return id; }
@@ -35,4 +37,6 @@ public class AssignmentResponse {
     public void setWeight(BigDecimal weight) { this.weight = weight; }
     public BigDecimal getMaxPoints() { return maxPoints; }
     public void setMaxPoints(BigDecimal maxPoints) { this.maxPoints = maxPoints; }
+    public Instant getGradesPublishedAt() { return gradesPublishedAt; }
+    public void setGradesPublishedAt(Instant gradesPublishedAt) { this.gradesPublishedAt = gradesPublishedAt; }
 }
