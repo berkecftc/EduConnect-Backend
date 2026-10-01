@@ -175,6 +175,32 @@ class AssignmentAuthorizationTest {
     }
 
     @Test
+    void coInstructorsManageAssignmentsAndAssistantsOnlyReviewAndGrade() throws Exception {
+        UUID coInstructor = UUID.randomUUID();
+        UUID assistant = UUID.randomUUID();
+        FakeCourseService.staff(courseId, coInstructor, "INSTRUCTOR");
+        FakeCourseService.staff(courseId, assistant, "ASSISTANT");
+        UUID submissionId = submissionRepository.save(new AssignmentSubmission(assignmentId, student, null, false)).getId();
+
+        mockMvc.perform(as(multipart("/api/assignments").file(assignmentPart(courseId)), TestTokens.academician(assistant)))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(as(delete("/api/assignments/{id}", assignmentId), TestTokens.academician(assistant)))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(as(multipart("/api/assignments").file(assignmentPart(courseId)), TestTokens.academician(coInstructor)))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(as(get("/api/assignments/course/{courseId}", courseId), TestTokens.academician(assistant)))
+                .andExpect(status().isOk());
+        mockMvc.perform(as(get("/api/assignments/{id}/submissions", assignmentId), TestTokens.academician(assistant)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].studentId").value(student.toString()));
+        mockMvc.perform(as(put("/api/assignments/submissions/{id}/grade", submissionId), TestTokens.academician(assistant))
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"grade\":75,\"feedback\":\"Asistan\"}"))
+                .andExpect(status().isOk());
+        assertThat(submissionRepository.findById(submissionId).orElseThrow().getGrade()).isEqualTo(75);
+    }
+
+    @Test
     void aSubmissionFileIsDownloadableOnlyByItsOwnerAndTheInstructor() throws Exception {
         String response = mockMvc.perform(as(multipart("/api/assignments/{id}/submit", assignmentId).file(submissionFile()),
                         TestTokens.student(student)))

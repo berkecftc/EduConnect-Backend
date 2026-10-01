@@ -1,5 +1,8 @@
 package com.educonnect.courseservice.service;
 
+import com.educonnect.courseservice.model.Course;
+import com.educonnect.courseservice.model.CourseStaff;
+import com.educonnect.courseservice.repository.CourseStaffRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.cache.Cache;
@@ -18,9 +21,20 @@ public class CourseCaches {
     private static final Logger log = LoggerFactory.getLogger(CourseCaches.class);
 
     private final CacheManager cacheManager;
+    private final CourseStaffRepository staffRepository;
 
-    public CourseCaches(CacheManager cacheManager) {
+    public CourseCaches(CacheManager cacheManager, CourseStaffRepository staffRepository) {
         this.cacheManager = cacheManager;
+        this.staffRepository = staffRepository;
+    }
+
+    public void evictStaffCourses(Course course) {
+        evictInstructorCourses(course.getInstructorId());
+        if (course.getId() != null) {
+            staffRepository.findByCourseIdOrderByCreatedAtAsc(course.getId()).stream()
+                    .map(CourseStaff::getUserId)
+                    .forEach(this::evictInstructorCourses);
+        }
     }
 
     public void evictInstructorCourses(UUID instructorId) {

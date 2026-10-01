@@ -4,7 +4,6 @@ import com.educonnect.common.web.ConflictException;
 import com.educonnect.courseservice.config.CourseLifecycleSettings;
 import com.educonnect.courseservice.dto.CourseUpdateRequest;
 import com.educonnect.courseservice.exception.CourseNotFoundException;
-import com.educonnect.courseservice.exception.UnauthorizedCourseAccessException;
 import com.educonnect.courseservice.model.Course;
 import com.educonnect.courseservice.model.CourseStatus;
 import com.educonnect.courseservice.model.Term;
@@ -41,6 +40,7 @@ public class CourseLifecycleService {
     private final CourseRemoval courseRemoval;
     private final CourseCaches courseCaches;
     private final CourseLifecycleSettings settings;
+    private final CourseStaffAccess staffAccess;
     private final Clock clock = Clock.systemDefaultZone();
 
     public CourseLifecycleService(CourseRepository courseRepository,
@@ -49,7 +49,8 @@ public class CourseLifecycleService {
                                   CourseApplicationRepository applicationRepository,
                                   CourseRemoval courseRemoval,
                                   CourseCaches courseCaches,
-                                  CourseLifecycleSettings settings) {
+                                  CourseLifecycleSettings settings,
+                                  CourseStaffAccess staffAccess) {
         this.courseRepository = courseRepository;
         this.termRepository = termRepository;
         this.enrollmentRepository = enrollmentRepository;
@@ -57,6 +58,7 @@ public class CourseLifecycleService {
         this.courseRemoval = courseRemoval;
         this.courseCaches = courseCaches;
         this.settings = settings;
+        this.staffAccess = staffAccess;
     }
 
     public static CourseStatus initialStatus(Term term, boolean draft, LocalDate today) {
@@ -170,7 +172,7 @@ public class CourseLifecycleService {
             }
             if (course.getStatus() != before) {
                 courseRepository.save(course);
-                courseCaches.evictInstructorCourses(course.getInstructorId());
+                courseCaches.evictStaffCourses(course);
             }
         }
         return Map.of("started", started, "completed", completed, "archived", archived, "purged", purged);
@@ -179,15 +181,13 @@ public class CourseLifecycleService {
     private Course owned(UUID courseId, UUID userId) {
         Course course = courseRepository.findById(courseId)
                 .orElseThrow(() -> new CourseNotFoundException("Ders bulunamadı: " + courseId));
-        if (!course.getInstructorId().equals(userId)) {
-            throw new UnauthorizedCourseAccessException("Bu dersin hocası değilsiniz.");
-        }
+        staffAccess.requireCoordinator(course, userId);
         return course;
     }
 
     private Course saved(Course course) {
         Course saved = courseRepository.save(course);
-        courseCaches.evictInstructorCourses(course.getInstructorId());
+        courseCaches.evictStaffCourses(course);
         return saved;
     }
 

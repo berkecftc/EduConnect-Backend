@@ -6,6 +6,7 @@ import com.educonnect.clubservice.model.ClubMembership;
 import com.educonnect.clubservice.model.ClubPosition;
 import com.educonnect.clubservice.repository.ClubMembershipRepository;
 import com.educonnect.clubservice.repository.ClubRepository;
+import com.educonnect.clubservice.service.MembershipTerms;
 import com.educonnect.common.test.TestTokens;
 import com.jayway.jsonpath.JsonPath;
 import org.junit.jupiter.api.BeforeEach;
@@ -47,6 +48,9 @@ class ClubMeetingTest {
     @Autowired
     private ClubMembershipRepository membershipRepository;
 
+    @Autowired
+    private MembershipTerms membershipTerms;
+
     @MockitoBean
     private UserClient userClient;
 
@@ -67,7 +71,9 @@ class ClubMeetingTest {
     @Test
     void approvedMinutesAreNumberedIntoTheDecisionBook() throws Exception {
         String path = "/api/clubs/{clubId}/meetings";
-        String yesterday = LocalDateTime.now().minusDays(1).truncatedTo(ChronoUnit.MINUTES).toString();
+        LocalDateTime meetingAt = LocalDateTime.now().minusDays(1).truncatedTo(ChronoUnit.MINUTES);
+        String yesterday = meetingAt.toString();
+        String year = String.valueOf(membershipTerms.academicYearOf(meetingAt.toLocalDate()));
         String body = meeting(yesterday, president + "\",\"" + secretary, "\"Bahar şenliği düzenlenecek\",\"Bütçe taslağı kabul edildi\"");
         mockMvc.perform(json(post(path, clubId), TestTokens.student(member), body)).andExpect(status().isForbidden());
         mockMvc.perform(json(post(path, clubId), TestTokens.student(secretary), meeting(yesterday, member.toString(), "\"x\"")))
@@ -84,7 +90,7 @@ class ClubMeetingTest {
                 .andExpect(jsonPath("$.meeting.decisions", hasSize(2)))
                 .andReturn().getResponse().getContentAsString();
         String requestId = JsonPath.read(created, "$.id");
-        mockMvc.perform(as(get("/api/clubs/{clubId}/decision-book", clubId), TestTokens.student(president)))
+        mockMvc.perform(as(get("/api/clubs/{clubId}/decision-book", clubId).param("academicYear", year), TestTokens.student(president)))
                 .andExpect(jsonPath("$").isEmpty());
 
         mockMvc.perform(as(post("/api/clubs/{clubId}/approvals/{requestId}/approve", clubId, requestId), TestTokens.student(president)))
@@ -97,14 +103,14 @@ class ClubMeetingTest {
                 .andExpect(jsonPath("$.status").value("APPROVED"))
                 .andExpect(jsonPath("$.meeting.quorumMet").value(false));
 
-        mockMvc.perform(as(get("/api/clubs/{clubId}/decision-book", clubId), TestTokens.academician(advisor)))
+        mockMvc.perform(as(get("/api/clubs/{clubId}/decision-book", clubId).param("academicYear", year), TestTokens.academician(advisor)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[*].number", contains(1, 2, 3)))
                 .andExpect(jsonPath("$[0].text").value("Bahar şenliği düzenlenecek"))
                 .andExpect(jsonPath("$[2].label", endsWith("/3")));
-        mockMvc.perform(as(get("/api/clubs/{clubId}/meetings", clubId), TestTokens.student(boardMember)))
+        mockMvc.perform(as(get("/api/clubs/{clubId}/meetings", clubId).param("academicYear", year), TestTokens.student(boardMember)))
                 .andExpect(jsonPath("$", hasSize(2)));
-        mockMvc.perform(as(get("/api/clubs/{clubId}/decision-book", clubId), TestTokens.student(member)))
+        mockMvc.perform(as(get("/api/clubs/{clubId}/decision-book", clubId).param("academicYear", year), TestTokens.student(member)))
                 .andExpect(status().isForbidden());
     }
 

@@ -29,8 +29,8 @@ import static org.mockito.Mockito.when;
 class CopilotServiceTest {
 
     private final String instructorId = UUID.randomUUID().toString();
-    private final InstructorCourseSummary cs101 = new InstructorCourseSummary(UUID.randomUUID(), "Programlamaya Giriş", "CS101");
-    private final InstructorCourseSummary ma201 = new InstructorCourseSummary(UUID.randomUUID(), "Lineer Cebir", "MA201");
+    private final InstructorCourseSummary cs101 = new InstructorCourseSummary(UUID.randomUUID(), "Programlamaya Giriş", "CS101", "COORDINATOR");
+    private final InstructorCourseSummary ma201 = new InstructorCourseSummary(UUID.randomUUID(), "Lineer Cebir", "MA201", "INSTRUCTOR");
 
     @Mock
     private CourseServiceClient courseServiceClient;
@@ -68,6 +68,17 @@ class CopilotServiceTest {
         assertThat(request.getValue().content()).doesNotContain("sağlık");
         assertThat(reply).startsWith("Duyuru yayınlandı");
         assertThat(service.chatWithInstructor("onayla", instructorId)).contains("taslağı yok");
+    }
+
+    @Test
+    void assistantCourses_shouldNotBeOfferedForAnnouncements() {
+        InstructorCourseSummary assisted = new InstructorCourseSummary(UUID.randomUUID(), "Veri Yapıları", "CS201", "ASSISTANT");
+        when(courseServiceClient.getMyInstructorCourses(instructorId)).thenReturn(List.of(assisted));
+
+        String reply = service.chatWithInstructor("CS201 dersi yarın iptal, telafisi haftaya", instructorId);
+
+        assertThat(reply).contains("Size ait bir ders bulunamadı");
+        verify(courseServiceClient, never()).createAnnouncement(anyString(), anyString(), any());
     }
 
     @Test

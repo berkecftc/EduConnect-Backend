@@ -6,11 +6,11 @@ import com.educonnect.courseservice.model.Course;
 import com.educonnect.courseservice.publisher.CourseProducer;
 import com.educonnect.courseservice.repository.CourseAnnouncementRepository;
 import com.educonnect.courseservice.repository.CourseRepository;
+import com.educonnect.courseservice.repository.CourseStaffRepository;
 import com.educonnect.courseservice.repository.EnrollmentRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
@@ -42,11 +42,15 @@ class CourseAnnouncementServiceTest {
     @Mock
     private UserClient userClient;
 
-    @InjectMocks
+    @Mock
+    private CourseStaffRepository staffRepository;
+
     private CourseAnnouncementService announcementService;
 
     @BeforeEach
     void setUp() {
+        announcementService = new CourseAnnouncementService(announcementRepository, courseRepository, enrollmentRepository,
+                courseProducer, userClient, new CourseStaffAccess(staffRepository));
         Course course = new Course();
         course.setId(courseId);
         course.setInstructorId(instructorId);

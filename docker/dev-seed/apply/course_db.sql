@@ -10,6 +10,10 @@ INSERT INTO course_db.courses (id, code, title, description, credit, semester, c
     ('5eed0000-0000-4000-8000-00000000f003', 'SEED303', 'Veritabanı Sistemleri', 'İlişkisel model, SQL ve normalizasyon.', 3, '2026-2027 Güz', 25, '5eed0000-0000-4000-8000-00000000a002', '7e000000-0000-4000-8000-000000002027', '5eed0000-0000-4000-8000-00000000f403', '1')
 ON CONFLICT DO NOTHING;
 
+INSERT INTO course_db.course_staff (id, course_id, user_id, role, added_by) VALUES
+    ('5eed0000-0000-4000-8000-00000000f501', '5eed0000-0000-4000-8000-00000000f001', '5eed0000-0000-4000-8000-00000000a002', 'ASSISTANT', '5eed0000-0000-4000-8000-00000000a001')
+ON CONFLICT DO NOTHING;
+
 INSERT INTO course_db.student_course_enrollments (id, course_id, student_id, enrollment_date, is_active) VALUES
     ('5eed0000-0000-4000-8000-00000000f101', '5eed0000-0000-4000-8000-00000000f001', '5eed0000-0000-4000-8000-00000000b001', now() - interval '30 days', true),
     ('5eed0000-0000-4000-8000-00000000f102', '5eed0000-0000-4000-8000-00000000f001', '5eed0000-0000-4000-8000-00000000b002', now() - interval '30 days', true),

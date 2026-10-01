@@ -9,11 +9,14 @@ import com.educonnect.common.web.ConflictException;
 import com.educonnect.courseservice.model.CatalogCourse;
 import com.educonnect.courseservice.model.Course;
 import com.educonnect.courseservice.model.CourseApplicationStatus;
+import com.educonnect.courseservice.model.CourseStaff;
+import com.educonnect.courseservice.model.CourseStaffRole;
 import com.educonnect.courseservice.model.CourseStatus;
 import com.educonnect.courseservice.model.StudentCourseEnrollment;
 import com.educonnect.courseservice.model.Term;
 import com.educonnect.courseservice.repository.CourseApplicationRepository;
 import com.educonnect.courseservice.repository.CourseRepository;
+import com.educonnect.courseservice.repository.CourseStaffRepository;
 import com.educonnect.courseservice.repository.EnrollmentRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -53,6 +56,8 @@ public class CourseService {
     private final OfferingDetails offeringDetails;
     private final CourseLifecycleService lifecycleService;
     private final CourseRemoval courseRemoval;
+    private final CourseStaffAccess staffAccess;
+    private final CourseStaffRepository staffRepository;
 
     public CourseService(CourseRepository repo, EnrollmentRepository enrollRepo,
                          CourseApplicationRepository appRepo,
@@ -62,7 +67,9 @@ public class CourseService {
                          CatalogCourseService catalogCourseService,
                          OfferingDetails offeringDetails,
                          CourseLifecycleService lifecycleService,
-                         CourseRemoval courseRemoval) {
+                         CourseRemoval courseRemoval,
+                         CourseStaffAccess staffAccess,
+                         CourseStaffRepository staffRepository) {
         this.courseRepository = repo;
         this.enrollmentRepository = enrollRepo;
         this.applicationRepository = appRepo;
@@ -74,6 +81,8 @@ public class CourseService {
         this.offeringDetails = offeringDetails;
         this.lifecycleService = lifecycleService;
         this.courseRemoval = courseRemoval;
+        this.staffAccess = staffAccess;
+        this.staffRepository = staffRepository;
     }
 
     // 1. DERS OLUŞTUR (Resim + Veri + RabbitMQ)
@@ -141,7 +150,7 @@ public class CourseService {
 
     // 4. HOCAYA GÖRE GETİR
     public List<CourseResponse> getCoursesByInstructor(UUID instructorId) {
-        return mapToResponses(courseRepository.findByInstructorId(instructorId));
+        return mapToResponses(courseRepository.findTaughtBy(instructorId, CourseStaffRole.INSTRUCTOR, CourseStatus.DRAFT));
     }
 
     // 5. SİL (RabbitMQ Tetikler)
@@ -156,14 +165,15 @@ public class CourseService {
     public CourseAccessResponse accessOf(UUID courseId, UUID userId) {
         Course course = courseRepository.findById(courseId)
                 .orElseThrow(() -> new CourseNotFoundException("Ders bulunamadı: " + courseId));
-        return new CourseAccessResponse(courseId, course.getStatus(), course.getInstructorId().equals(userId),
-                enrollmentRepository.existsByCourseIdAndStudentIdAndIsActive(courseId, userId, true));
+        CourseStaffRole role = staffAccess.roleOf(course, userId).orElse(null);
+        return new CourseAccessResponse(courseId, course.getStatus(), role != null && role.teaches(),
+                enrollmentRepository.existsByCourseIdAndStudentIdAndIsActive(courseId, userId, true), role);
     }
 
     public CourseResponse getVisibleCourse(UUID id, UUID viewerId, boolean viewerIsAdmin) {
         Course course = courseRepository.findById(id)
                 .orElseThrow(() -> new CourseNotFoundException("Ders bulunamadı: " + id));
-        if (course.getStatus() == CourseStatus.DRAFT && !viewerIsAdmin && !course.getInstructorId().equals(viewerId)) {
+        if (course.getStatus() == CourseStatus.DRAFT && !viewerIsAdmin && !staffAccess.isStaff(course, viewerId)) {
             throw new CourseNotFoundException("Ders bulunamadı: " + id);
         }
         return mapToResponse(course);
@@ -213,16 +223,15 @@ public class CourseService {
         enrollmentRepository.save(enrollment);
 
         // instructorCourses cache'ini temizle (öğrenci sayısı değişti)
-        Course course = courseRepository.findById(courseId).orElse(null);
-        if (course != null) {
-            courseCaches.evictInstructorCourses(course.getInstructorId());
-        }
+        courseRepository.findById(courseId).ifPresent(courseCaches::evictStaffCourses);
     }
 
     // 9. AKADEMİSYENİN DERSLERİNİ GETİR (Cache'li + öğrenci sayısı + kapasite)
     @Cacheable(value = "instructorCourses", key = "#instructorId")
     public List<InstructorCourseDTO> getInstructorCourses(UUID instructorId) {
-        List<Course> courses = courseRepository.findByInstructorId(instructorId);
+        List<Course> courses = courseRepository.findByStaffMember(instructorId);
+        Map<UUID, CourseStaffRole> roles = staffRepository.findByUserId(instructorId).stream()
+                .collect(Collectors.toMap(CourseStaff::getCourseId, CourseStaff::getRole));
         List<UUID> courseIds = courses.stream().map(Course::getId).toList();
         Map<UUID, Long> enrolledCounts = courseIds.isEmpty() ? Map.of()
                 : toCountMap(enrollmentRepository.countActiveByCourseIds(courseIds));
@@ -243,6 +252,8 @@ public class CourseService {
             dto.setCapacity(course.getCapacity());
             dto.setEnrolledStudentCount(enrolledCounts.getOrDefault(course.getId(), 0L));
             dto.setPendingApplicationCount(pendingCounts.getOrDefault(course.getId(), 0L));
+            dto.setStaffRole(instructorId.equals(course.getInstructorId()) ? CourseStaffRole.COORDINATOR
+                    : roles.get(course.getId()));
             return dto;
         }).collect(Collectors.toList());
     }
@@ -252,9 +263,7 @@ public class CourseService {
         Course course = courseRepository.findById(courseId)
                 .orElseThrow(() -> new CourseNotFoundException("Ders bulunamadı: " + courseId));
 
-        if (!course.getInstructorId().equals(instructorId)) {
-            throw new UnauthorizedCourseAccessException("Bu dersin hocası değilsiniz.");
-        }
+        staffAccess.requireStaff(course, instructorId, "Bu dersin kadrosunda değilsiniz.");
 
         List<StudentCourseEnrollment> enrollments = enrollmentRepository.findByCourseIdAndIsActive(courseId, true);
         Map<UUID, UserSummaryDto> students = UserLookup.usersById(userClient,
@@ -282,7 +291,7 @@ public class CourseService {
     }
 
     public List<UUID> getInstructorCourseIds(UUID instructorId) {
-        return courseRepository.findByInstructorId(instructorId).stream()
+        return courseRepository.findByStaffMember(instructorId).stream()
                 .filter(course -> course.getStatus() != CourseStatus.ARCHIVED)
                 .map(Course::getId)
                 .toList();

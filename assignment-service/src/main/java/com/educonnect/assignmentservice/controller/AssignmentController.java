@@ -108,7 +108,7 @@ public class AssignmentController {
             @RequestHeader(USER_ID_HEADER) String userIdHeader,
             @RequestHeader(value = ROLES_HEADER, required = false) String roles
     ) {
-        accessGuard.requireInstructor(courseId, parseUserId(userIdHeader), roles);
+        accessGuard.requireStaff(courseId, parseUserId(userIdHeader), roles);
         return ResponseEntity.ok(assignmentService.getSubmissionsByCourse(courseId));
     }
 
@@ -120,7 +120,7 @@ public class AssignmentController {
             @RequestHeader(value = ROLES_HEADER, required = false) String roles
     ) {
         Assignment assignment = accessGuard.getAssignment(assignmentId);
-        accessGuard.requireInstructor(assignment.getCourseId(), parseUserId(userIdHeader), roles);
+        accessGuard.requireStaff(assignment.getCourseId(), parseUserId(userIdHeader), roles);
         return ResponseEntity.ok(assignmentService.getSubmissionsByAssignment(assignmentId));
     }
 

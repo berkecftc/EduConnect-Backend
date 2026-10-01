@@ -35,12 +35,18 @@ public class FakeCourseService {
     private static final Map<UUID, UUID> INSTRUCTORS = new ConcurrentHashMap<>();
     private static final Map<UUID, Set<UUID>> ENROLLMENTS = new ConcurrentHashMap<>();
     private static final Map<UUID, String> STATUSES = new ConcurrentHashMap<>();
+    private static final Map<UUID, Map<UUID, String>> STAFF = new ConcurrentHashMap<>();
     private static final HttpServer SERVER = start();
 
     public static void course(UUID courseId, UUID instructorId, UUID... enrolledStudents) {
         INSTRUCTORS.put(courseId, instructorId);
         ENROLLMENTS.put(courseId, Set.of(enrolledStudents));
         STATUSES.put(courseId, "ACTIVE");
+        STAFF.put(courseId, new ConcurrentHashMap<>(Map.of(instructorId, "COORDINATOR")));
+    }
+
+    public static void staff(UUID courseId, UUID userId, String role) {
+        STAFF.get(courseId).put(userId, role);
     }
 
     public static void status(UUID courseId, String status) {
@@ -89,9 +95,11 @@ public class FakeCourseService {
         } else if (access.matches() && INSTRUCTORS.containsKey(UUID.fromString(access.group(1)))) {
             UUID courseId = UUID.fromString(access.group(1));
             UUID userId = UUID.fromString(access.group(2));
+            String role = STAFF.get(courseId).get(userId);
             respond(exchange, 200, "{\"courseId\":\"" + courseId + "\",\"status\":\"" + STATUSES.get(courseId)
-                    + "\",\"instructor\":" + userId.equals(INSTRUCTORS.get(courseId))
-                    + ",\"enrolled\":" + ENROLLMENTS.get(courseId).contains(userId) + "}");
+                    + "\",\"instructor\":" + ("COORDINATOR".equals(role) || "INSTRUCTOR".equals(role))
+                    + ",\"enrolled\":" + ENROLLMENTS.get(courseId).contains(userId)
+                    + ",\"staffRole\":" + (role == null ? "null" : "\"" + role + "\"") + "}");
         } else if (enrolled.matches() && ENROLLMENTS.containsKey(UUID.fromString(enrolled.group(1)))) {
             respond(exchange, 200, jsonArray(ENROLLMENTS.get(UUID.fromString(enrolled.group(1)))));
         } else if (active.matches()) {

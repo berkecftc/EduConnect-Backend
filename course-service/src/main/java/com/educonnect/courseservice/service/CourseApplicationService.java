@@ -35,17 +35,20 @@ public class CourseApplicationService {
     private final EnrollmentRepository enrollmentRepository;
     private final UserClient userClient;
     private final CourseCaches courseCaches;
+    private final CourseStaffAccess staffAccess;
 
     public CourseApplicationService(CourseApplicationRepository applicationRepository,
                                      CourseRepository courseRepository,
                                      EnrollmentRepository enrollmentRepository,
                                      UserClient userClient,
-                                     CourseCaches courseCaches) {
+                                     CourseCaches courseCaches,
+                                     CourseStaffAccess staffAccess) {
         this.applicationRepository = applicationRepository;
         this.courseRepository = courseRepository;
         this.enrollmentRepository = enrollmentRepository;
         this.userClient = userClient;
         this.courseCaches = courseCaches;
+        this.staffAccess = staffAccess;
     }
 
     /**
@@ -88,7 +91,7 @@ public class CourseApplicationService {
             application.setRejectionReason(null);
         }
         CourseApplication saved = applicationRepository.save(application);
-        courseCaches.evictInstructorCourses(course.getInstructorId());
+        courseCaches.evictStaffCourses(course);
 
         log.info("Yeni ders başvurusu: Öğrenci {} -> Ders {} ({})", studentId, course.getTitle(), course.getCode());
 
@@ -102,10 +105,7 @@ public class CourseApplicationService {
         Course course = courseRepository.findById(courseId)
                 .orElseThrow(() -> new CourseNotFoundException("Ders bulunamadı: " + courseId));
 
-        // Dersin hocası mı kontrol et
-        if (!course.getInstructorId().equals(instructorId)) {
-            throw new UnauthorizedCourseAccessException("Bu dersin hocası değilsiniz.");
-        }
+        staffAccess.requireTeacher(course, instructorId, "Bu dersin hocası değilsiniz.");
 
         List<CourseApplication> pendingApps = applicationRepository
                 .findByCourseIdAndStatusOrderByApplicationDateAsc(courseId, CourseApplicationStatus.PENDING);
@@ -129,10 +129,7 @@ public class CourseApplicationService {
         Course course = courseRepository.findByIdForUpdate(application.getCourseId())
                 .orElseThrow(() -> new CourseNotFoundException("Ders bulunamadı: " + application.getCourseId()));
 
-        // Dersin hocası mı kontrol et
-        if (!course.getInstructorId().equals(instructorId)) {
-            throw new UnauthorizedCourseAccessException("Bu dersin hocası değilsiniz, başvuru onaylayamazsınız.");
-        }
+        staffAccess.requireTeacher(course, instructorId, "Bu dersin hocası değilsiniz, başvuru onaylayamazsınız.");
         CourseLifecycleService.requireRunning(course);
 
         // Başvuru zaten işlenmiş mi?
@@ -165,7 +162,7 @@ public class CourseApplicationService {
         }
         enrollmentRepository.save(enrollment);
         courseCaches.evictStudentCourses(application.getStudentId());
-        courseCaches.evictInstructorCourses(course.getInstructorId());
+        courseCaches.evictStaffCourses(course);
 
         log.info("Başvuru onaylandı: Öğrenci {} -> Ders {} ({})",
                 application.getStudentId(), course.getTitle(), course.getCode());
@@ -184,10 +181,7 @@ public class CourseApplicationService {
         Course course = courseRepository.findById(application.getCourseId())
                 .orElseThrow(() -> new CourseNotFoundException("Ders bulunamadı: " + application.getCourseId()));
 
-        // Dersin hocası mı kontrol et
-        if (!course.getInstructorId().equals(instructorId)) {
-            throw new UnauthorizedCourseAccessException("Bu dersin hocası değilsiniz, başvuru reddedemezsiniz.");
-        }
+        staffAccess.requireTeacher(course, instructorId, "Bu dersin hocası değilsiniz, başvuru reddedemezsiniz.");
 
         // Başvuru zaten işlenmiş mi?
         if (application.getStatus() != CourseApplicationStatus.PENDING) {
@@ -200,7 +194,7 @@ public class CourseApplicationService {
         application.setProcessedBy(instructorId);
         application.setRejectionReason(rejectionReason);
         applicationRepository.save(application);
-        courseCaches.evictInstructorCourses(course.getInstructorId());
+        courseCaches.evictStaffCourses(course);
 
         log.info("Başvuru reddedildi: Öğrenci {} -> Ders {} ({}). Sebep: {}",
                 application.getStudentId(), LogValues.safe(course.getTitle()), LogValues.safe(course.getCode()), LogValues.safe(rejectionReason));

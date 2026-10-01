@@ -57,24 +57,28 @@ public class AssignmentAccessGuard {
                 .anyMatch("ROLE_ADMIN"::equals);
     }
 
-    public CourseAccess requireInstructor(UUID courseId, UUID userId, String rolesHeader) {
+    public CourseAccess requireStaff(UUID courseId, UUID userId, String rolesHeader) {
         CourseAccess access = accessOf(courseId, userId);
-        if (!isAdmin(rolesHeader) && !access.instructor()) {
-            log.warn("Access denied: user {} is not the instructor of course {}", userId, courseId);
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Bu işlem yalnızca dersin hocası tarafından yapılabilir.");
+        if (!isAdmin(rolesHeader) && !access.staff()) {
+            log.warn("Access denied: user {} is not on the staff of course {}", userId, courseId);
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Bu işlem yalnızca dersin kadrosu tarafından yapılabilir.");
         }
         return access;
     }
 
     public void requireAssignmentEditor(UUID courseId, UUID userId, String rolesHeader) {
-        CourseAccess access = requireInstructor(courseId, userId, rolesHeader);
+        CourseAccess access = accessOf(courseId, userId);
+        if (!isAdmin(rolesHeader) && !access.teaches()) {
+            log.warn("Access denied: user {} does not teach course {}", userId, courseId);
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Ödevleri yalnızca dersin koordinatörü veya hocası yönetebilir.");
+        }
         if (!EDITABLE.contains(access.status())) {
             throw new ConflictException("COURSE_READ_ONLY", "Tamamlanmış veya arşivlenmiş derste ödev eklenemez ya da silinemez.");
         }
     }
 
     public void requireGrader(UUID courseId, UUID userId, String rolesHeader) {
-        CourseAccess access = requireInstructor(courseId, userId, rolesHeader);
+        CourseAccess access = requireStaff(courseId, userId, rolesHeader);
         if (!GRADABLE.contains(access.status())) {
             throw new ConflictException("COURSE_READ_ONLY", "Arşivlenmiş derste puan değiştirilemez.");
         }
@@ -96,7 +100,7 @@ public class AssignmentAccessGuard {
             return;
         }
         CourseAccess access = accessOf(courseId, userId);
-        if (!access.instructor() && !access.enrolled()) {
+        if (!access.staff() && !access.enrolled()) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Bu dersin ödevlerini görme yetkiniz yok.");
         }
     }
@@ -116,7 +120,7 @@ public class AssignmentAccessGuard {
             if (Objects.equals(s.getStudentId(), userId)) {
                 return;
             }
-            requireInstructor(getAssignment(s.getAssignmentId()).getCourseId(), userId, rolesHeader);
+            requireStaff(getAssignment(s.getAssignmentId()).getCourseId(), userId, rolesHeader);
             return;
         }
         throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Dosya bulunamadı.");

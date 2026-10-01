@@ -47,7 +47,7 @@ public class AcademicianAssignmentGuard {
         int courses = fetchIds(TAUGHT_COURSES_URI, userId).size();
         if (courses > 0) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, String.format(
-                    "Akademisyen silinemez: %d dersin hocası. Önce dersleri devredin.", courses));
+                    "Akademisyen silinemez: %d dersin kadrosunda. Önce koordinatörlüğü devredin ve kadrodan çıkarın.", courses));
         }
     }
 

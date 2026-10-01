@@ -32,8 +32,8 @@ public class CourseRemoval {
         courseCaches.evictStudentCourses(enrollmentRepository.findByCourseIdAndIsActive(course.getId(), true).stream()
                 .map(StudentCourseEnrollment::getStudentId)
                 .toList());
+        courseCaches.evictStaffCourses(course);
         courseRepository.delete(course);
         courseProducer.sendCourseDeletedEvent(new CourseEvent(course.getId(), course.getTitle(), course.getCode(), "DELETED"));
-        courseCaches.evictInstructorCourses(course.getInstructorId());
     }
 }

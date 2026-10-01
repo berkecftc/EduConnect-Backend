@@ -137,7 +137,7 @@ public class CopilotService {
 
     private List<InstructorCourseSummary> fetchInstructorCourses(String instructorId) {
         List<InstructorCourseSummary> courses = courseServiceClient.getMyInstructorCourses(instructorId);
-        return courses == null ? List.of() : courses;
+        return courses == null ? List.of() : courses.stream().filter(InstructorCourseSummary::teaches).toList();
     }
 
     private Optional<InstructorCourseSummary> resolveCourse(List<InstructorCourseSummary> courses, String userMessage) {

@@ -10,12 +10,12 @@ import com.educonnect.courseservice.model.CourseApplicationStatus;
 import com.educonnect.courseservice.model.StudentCourseEnrollment;
 import com.educonnect.courseservice.repository.CourseApplicationRepository;
 import com.educonnect.courseservice.repository.CourseRepository;
+import com.educonnect.courseservice.repository.CourseStaffRepository;
 import com.educonnect.courseservice.repository.EnrollmentRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
@@ -49,13 +49,17 @@ class CourseApplicationServiceTest {
     @Mock
     private CourseCaches courseCaches;
 
-    @InjectMocks
+    @Mock
+    private CourseStaffRepository staffRepository;
+
     private CourseApplicationService service;
 
     private Course course;
 
     @BeforeEach
     void setUp() {
+        service = new CourseApplicationService(applicationRepository, courseRepository, enrollmentRepository,
+                userClient, courseCaches, new CourseStaffAccess(staffRepository));
         course = new Course();
         course.setId(courseId);
         course.setInstructorId(instructorId);
@@ -78,7 +82,7 @@ class CourseApplicationServiceTest {
         assertThat(rejected.getProcessedBy()).isNull();
         assertThat(rejected.getProcessedDate()).isNull();
         assertThat(rejected.getRejectionReason()).isNull();
-        verify(courseCaches).evictInstructorCourses(instructorId);
+        verify(courseCaches).evictStaffCourses(course);
     }
 
     @Test
@@ -123,7 +127,7 @@ class CourseApplicationServiceTest {
         assertThat(withdrawn.isActive()).isTrue();
         assertThat(application.getStatus()).isEqualTo(CourseApplicationStatus.APPROVED);
         verify(courseCaches).evictStudentCourses(studentId);
-        verify(courseCaches).evictInstructorCourses(instructorId);
+        verify(courseCaches).evictStaffCourses(course);
     }
 
     @Test

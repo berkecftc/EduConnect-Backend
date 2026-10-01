@@ -1,5 +1,6 @@
 package com.educonnect.courseservice.dto;
 
+import com.educonnect.courseservice.model.CourseStaffRole;
 import com.educonnect.courseservice.model.CourseStatus;
 
 import java.util.UUID;
@@ -21,6 +22,7 @@ public class InstructorCourseDTO implements OfferingView {
     private long enrolledStudentCount;
     private int capacity;
     private long pendingApplicationCount;
+    private CourseStaffRole staffRole;
 
     public InstructorCourseDTO() {}
 
@@ -66,4 +68,6 @@ public class InstructorCourseDTO implements OfferingView {
 
     public long getPendingApplicationCount() { return pendingApplicationCount; }
     public void setPendingApplicationCount(long pendingApplicationCount) { this.pendingApplicationCount = pendingApplicationCount; }
+    public CourseStaffRole getStaffRole() { return staffRole; }
+    public void setStaffRole(CourseStaffRole staffRole) { this.staffRole = staffRole; }
 }
