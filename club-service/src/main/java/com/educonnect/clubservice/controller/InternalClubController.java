@@ -12,6 +12,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 @RestController
@@ -39,6 +40,11 @@ public class InternalClubController {
     @GetMapping("/{clubId}/is-member/{studentId}")
     public ResponseEntity<Boolean> isStudentMemberOfClub(@PathVariable UUID clubId, @PathVariable UUID studentId) {
         return ResponseEntity.ok(clubQueryService.isStudentMemberOfClub(clubId, studentId));
+    }
+
+    @GetMapping("/managers/{viewerId}/students/{studentId}")
+    public ResponseEntity<Map<String, Boolean>> managesStudent(@PathVariable UUID viewerId, @PathVariable UUID studentId) {
+        return ResponseEntity.ok(Map.of("related", clubQueryService.managesStudent(viewerId, studentId)));
     }
 
     @GetMapping("/{clubId}/advisor-id")

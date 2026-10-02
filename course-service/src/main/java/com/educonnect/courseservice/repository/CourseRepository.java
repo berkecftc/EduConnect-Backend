@@ -37,4 +37,16 @@ public interface CourseRepository extends JpaRepository<Course, UUID> {
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT c FROM Course c WHERE c.id = :id")
     Optional<Course> findByIdForUpdate(@Param("id") UUID id);
+
+    @Query("""
+            select count(c) > 0 from Course c
+            where c.status <> com.educonnect.courseservice.model.CourseStatus.ARCHIVED
+              and (c.instructorId = :viewerId
+                   or exists (select s.id from CourseStaff s where s.courseId = c.id and s.userId = :viewerId))
+              and (exists (select e.id from StudentCourseEnrollment e
+                           where e.courseId = c.id and e.studentId = :studentId and e.isActive = true)
+                   or exists (select a.id from CourseApplication a where a.courseId = c.id and a.studentId = :studentId
+                              and a.status = com.educonnect.courseservice.model.CourseApplicationStatus.PENDING))
+            """)
+    boolean teachesStudent(@Param("viewerId") UUID viewerId, @Param("studentId") UUID studentId);
 }

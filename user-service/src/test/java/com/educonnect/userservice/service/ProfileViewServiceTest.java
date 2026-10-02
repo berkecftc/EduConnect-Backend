@@ -1,6 +1,8 @@
 package com.educonnect.userservice.service;
 
 import com.educonnect.common.web.NotFoundException;
+import com.educonnect.userservice.client.ClubRelationClient;
+import com.educonnect.userservice.client.CourseRelationClient;
 import com.educonnect.userservice.dto.response.UserProfileResponse;
 import com.educonnect.userservice.dto.response.UserProfileResponseDTO;
 import org.junit.jupiter.api.BeforeEach;
@@ -12,6 +14,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.stream.IntStream;
@@ -31,6 +34,12 @@ class ProfileViewServiceTest {
 
     @Mock
     private ProfileAggregationService profileAggregationService;
+
+    @Mock
+    private CourseRelationClient courseRelationClient;
+
+    @Mock
+    private ClubRelationClient clubRelationClient;
 
     @InjectMocks
     private ProfileViewService profileViewService;
@@ -72,8 +81,51 @@ class ProfileViewServiceTest {
 
         assertThat(result.getEmail()).isNull();
         assertThat(result.getFirstName()).isEqualTo("Ayşe");
-        assertThat(result.getStudentNumber()).isEqualTo("2020001");
+        assertThat(result.getStudentNumber()).isNull();
         assertThat(cachedProfile.getEmail()).isEqualTo("ayse@example.edu");
+        assertThat(cachedProfile.getStudentNumber()).isEqualTo("2020001");
+    }
+
+    @Test
+    void getProfile_relatedTeachersClubManagersAndStaffSeeStudentContact() {
+        when(profileService.getUserProfile(ownerId)).thenReturn(cachedProfile);
+        UUID teacher = UUID.randomUUID();
+        UUID clubPresident = UUID.randomUUID();
+        when(courseRelationClient.teachesStudent(teacher, ownerId)).thenReturn(Map.of("related", true));
+        when(courseRelationClient.teachesStudent(clubPresident, ownerId)).thenReturn(Map.of("related", false));
+        when(clubRelationClient.managesStudent(clubPresident, ownerId)).thenReturn(Map.of("related", true));
+
+        assertThat(profileViewService.getProfile(ownerId, teacher, "ROLE_ACADEMICIAN").getStudentNumber()).isEqualTo("2020001");
+        assertThat(profileViewService.getProfile(ownerId, clubPresident, "ROLE_STUDENT").getEmail()).isEqualTo("ayse@example.edu");
+        assertThat(profileViewService.getProfile(ownerId, UUID.randomUUID(), "ROLE_STAFF,PERM_MODERATOR").getStudentNumber()).isEqualTo("2020001");
+    }
+
+    @Test
+    void getProfile_relationLookupFailureKeepsContactHidden() {
+        when(profileService.getUserProfile(ownerId)).thenReturn(cachedProfile);
+        UUID viewer = UUID.randomUUID();
+        when(courseRelationClient.teachesStudent(viewer, ownerId)).thenThrow(new IllegalStateException("course-service down"));
+        when(clubRelationClient.managesStudent(viewer, ownerId)).thenThrow(new IllegalStateException("club-service down"));
+
+        UserProfileResponse result = profileViewService.getProfile(ownerId, viewer, "ROLE_ACADEMICIAN");
+
+        assertThat(result.getEmail()).isNull();
+        assertThat(result.getStudentNumber()).isNull();
+    }
+
+    @Test
+    void getProfile_staffContactIsPublic() {
+        UserProfileResponse staff = new UserProfileResponse();
+        staff.setId(ownerId);
+        staff.setEmail("hoca@uni.edu.tr");
+        staff.setOfficeHours("Salı 10-12");
+        staff.setAffiliations(List.of(ProfileService.ACADEMICIAN_AFFILIATION));
+        when(profileService.getUserProfile(ownerId)).thenReturn(staff);
+
+        UserProfileResponse result = profileViewService.getProfile(ownerId, UUID.randomUUID(), "ROLE_STUDENT");
+
+        assertThat(result.getEmail()).isEqualTo("hoca@uni.edu.tr");
+        assertThat(result.getOfficeHours()).isEqualTo("Salı 10-12");
     }
 
     @Test

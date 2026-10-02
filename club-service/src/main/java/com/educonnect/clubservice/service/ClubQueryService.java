@@ -36,6 +36,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -47,6 +48,10 @@ import java.util.stream.Collectors;
 @Service
 @Transactional
 public class ClubQueryService {
+
+    private static final List<ClubPosition> MANAGEMENT_ROLES = Arrays.stream(ClubPosition.values())
+            .filter(ClubPosition::isManagement)
+            .toList();
 
     private static final Logger log = LoggerFactory.getLogger(ClubQueryService.class);
 
@@ -238,6 +243,11 @@ public class ClubQueryService {
         return toMembershipDtos(memberships).stream()
                 .filter(dto -> dto.getClubStatus() != ClubStatus.CLOSED)
                 .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public boolean managesStudent(UUID viewerId, UUID studentId) {
+        return clubRepository.managesStudent(viewerId, studentId, MANAGEMENT_ROLES);
     }
 
     public boolean isStudentMemberOfClub(UUID clubId, UUID studentId) {
