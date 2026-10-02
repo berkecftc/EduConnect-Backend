@@ -9,10 +9,15 @@ import org.springframework.stereotype.Repository;
 
 import java.time.Instant;
 import java.util.Optional;
+import java.util.UUID;
 
 @Repository
 public interface StudentRequestRepository extends JpaRepository<StudentRegistrationRequest, Long> {
     Optional<StudentRegistrationRequest> findByEmail(String email);
+
+    Optional<StudentRegistrationRequest> findFirstByStudentNumber(String studentNumber);
+
+    Optional<StudentRegistrationRequest> findByUserId(UUID userId);
 
     @Modifying
     @Query("UPDATE StudentRegistrationRequest r SET r.emailVerifiedAt = :now WHERE r.email = :email AND r.emailVerifiedAt IS NULL")

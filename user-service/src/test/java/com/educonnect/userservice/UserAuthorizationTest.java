@@ -72,10 +72,10 @@ class UserAuthorizationTest {
         assertThat(studentRepository.findById(owner).orElseThrow().getFirstName()).isEqualTo("Ayşe");
 
         mockMvc.perform(as(put("/api/users/profile/{id}", owner), TestTokens.student(owner))
-                        .contentType(MediaType.APPLICATION_JSON).content("{\"firstName\":\"Ayşegül\"}"))
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"bio\":\"Merhaba\"}"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.firstName").value("Ayşegül"));
-        assertThat(studentRepository.findById(owner).orElseThrow().getFirstName()).isEqualTo("Ayşegül");
+                .andExpect(jsonPath("$.bio").value("Merhaba"));
+        assertThat(studentRepository.findById(owner).orElseThrow().getBio()).isEqualTo("Merhaba");
     }
 
     @Test

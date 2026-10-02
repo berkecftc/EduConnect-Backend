@@ -3,6 +3,7 @@ package com.educonnect.authservices.service;
 import com.educonnect.authservices.config.RabbitMQConfig;
 import com.educonnect.authservices.dto.message.UserDeletedMessage;
 import com.educonnect.authservices.dto.response.UserSummaryDto;
+import com.educonnect.authservices.models.AccountType;
 import com.educonnect.authservices.models.Role;
 import com.educonnect.authservices.models.User;
 import com.educonnect.authservices.repository.AcademicianRequestRepository;
@@ -67,6 +68,11 @@ public class UserAdministrationService {
 
     @Transactional
     public void deleteUser(UUID userId) {
+        deleteUser(userId, "Admin tarafından silindi");
+    }
+
+    @Transactional
+    public void deleteUser(UUID userId, String reason) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new NoSuchElementException("Kullanıcı bulunamadı"));
         if (user.getRoles().contains(Role.ROLE_ADMIN)
@@ -79,7 +85,7 @@ public class UserAdministrationService {
         UserDeletedMessage message = new UserDeletedMessage(
                 userId,
                 userType.name(),
-                "Admin tarafından silindi"
+                reason
         );
 
         outboxPublisher.publish(
@@ -107,12 +113,10 @@ public class UserAdministrationService {
     }
 
     private static UserDeletedMessage.UserType deletedUserType(User user) {
-        if (user.getRoles().contains(Role.ROLE_STUDENT)) {
-            return UserDeletedMessage.UserType.STUDENT;
-        }
-        if (user.getRoles().contains(Role.ROLE_ACADEMICIAN)) {
-            return UserDeletedMessage.UserType.ACADEMICIAN;
-        }
-        return UserDeletedMessage.UserType.UNKNOWN;
+        return switch (AccountType.of(user.getRoles())) {
+            case ACADEMICIAN -> UserDeletedMessage.UserType.ACADEMICIAN;
+            case STUDENT -> UserDeletedMessage.UserType.STUDENT;
+            default -> UserDeletedMessage.UserType.UNKNOWN;
+        };
     }
 }

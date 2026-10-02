@@ -5,6 +5,8 @@ import java.util.Set;
 import java.util.UUID;
 
 public class UserRegisteredMessage implements Serializable {
+    private UUID programId;
+    private Integer entryYear;
 
     private UUID userId;
     private String firstName;
@@ -34,4 +36,9 @@ public class UserRegisteredMessage implements Serializable {
     public void setDepartment(String department) { this.department = department; }
     public String getStudentDocumentUrl() { return studentDocumentUrl; }
     public void setStudentDocumentUrl(String studentDocumentUrl) { this.studentDocumentUrl = studentDocumentUrl; }
+    public UUID getProgramId() { return programId; }
+    public void setProgramId(UUID programId) { this.programId = programId; }
+
+    public Integer getEntryYear() { return entryYear; }
+    public void setEntryYear(Integer entryYear) { this.entryYear = entryYear; }
 }

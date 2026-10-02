@@ -41,6 +41,15 @@ public class Student {
     @Column(name = "department")
     private String department;
 
+    @Column(name = "program_id")
+    private UUID programId;
+
+    @Column(name = "entry_year")
+    private Integer entryYear;
+
+    @Column(name = "enrollment_status", nullable = false, length = 20)
+    private String enrollmentStatus = "ACTIVE";
+
     @Column(name = "bio")
     private String bio;
 
@@ -110,6 +119,14 @@ public class Student {
     public void setDepartment(String department) {
         this.department = department;
     }
+
+    public UUID getProgramId() { return programId; }
+    public void setProgramId(UUID programId) { this.programId = programId; }
+    public Integer getEntryYear() { return entryYear; }
+    public void setEntryYear(Integer entryYear) { this.entryYear = entryYear; }
+
+    public String getEnrollmentStatus() { return enrollmentStatus; }
+    public void setEnrollmentStatus(String enrollmentStatus) { this.enrollmentStatus = enrollmentStatus; }
 
     public String getBio() {
         return bio;

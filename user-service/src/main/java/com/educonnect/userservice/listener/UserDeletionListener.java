@@ -36,13 +36,18 @@ public class UserDeletionListener {
         if (message.getUserId() == null) {
             throw new AmqpRejectAndDontRequeueException("User deletion message without user id");
         }
+        boolean archived = false;
         if (studentRepository.existsById(message.getUserId())) {
             profileService.archiveStudent(message.getUserId(), message.getReason());
             LOGGER.info("Student archived successfully via deletion message. UserID: {}", message.getUserId());
-        } else if (academicianRepository.existsById(message.getUserId())) {
+            archived = true;
+        }
+        if (academicianRepository.existsById(message.getUserId())) {
             profileService.archiveAcademician(message.getUserId(), message.getReason());
             LOGGER.info("Academician archived successfully via deletion message. UserID: {}", message.getUserId());
-        } else {
+            archived = true;
+        }
+        if (!archived) {
             LOGGER.info("No profile to archive for deleted user. UserID: {}", message.getUserId());
         }
     }

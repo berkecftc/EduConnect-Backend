@@ -37,9 +37,22 @@ public class Academician {
 
     private String title;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "academic_title")
+    private AcademicTitle academicTitle;
+
     private String department;
 
+    @Column(name = "department_id")
+    private UUID departmentId;
+
     private String officeNumber;
+
+    @Column(name = "office_hours", length = 500)
+    private String officeHours;
+
+    @Column(name = "employment_status", nullable = false, length = 20)
+    private String employmentStatus = "ACTIVE";
 
     private String bio;
 
@@ -107,6 +120,28 @@ public class Academician {
 
     public void setDepartment(String department) {
         this.department = department;
+    }
+
+    public UUID getDepartmentId() { return departmentId; }
+    public void setDepartmentId(UUID departmentId) { this.departmentId = departmentId; }
+
+    public String getOfficeHours() { return officeHours; }
+    public void setOfficeHours(String officeHours) { this.officeHours = officeHours; }
+
+    public String getEmploymentStatus() { return employmentStatus; }
+    public void setEmploymentStatus(String employmentStatus) { this.employmentStatus = employmentStatus; }
+
+    public AcademicTitle getAcademicTitle() { return academicTitle; }
+
+    public void setAcademicTitle(AcademicTitle academicTitle) {
+        this.academicTitle = academicTitle;
+        if (academicTitle != null) {
+            this.title = academicTitle.label();
+        }
+    }
+
+    public StaffCategory getStaffCategory() {
+        return academicTitle == null ? null : academicTitle.category();
     }
 
     public String getOfficeNumber() {

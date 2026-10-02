@@ -7,7 +7,10 @@ import com.educonnect.authservices.dto.message.UserRegisteredMessage;
 import com.educonnect.authservices.dto.response.AcademicianRequestAdminView;
 import com.educonnect.authservices.dto.response.StudentRequestAdminView;
 import com.educonnect.authservices.models.AcademicianRegistrationRequest;
+import com.educonnect.authservices.models.AccountType;
 import com.educonnect.authservices.models.Role;
+import com.educonnect.authservices.models.StaffStatus;
+import com.educonnect.authservices.models.StudentStatus;
 import com.educonnect.authservices.models.StudentRegistrationRequest;
 import com.educonnect.authservices.models.User;
 import com.educonnect.authservices.repository.AcademicianRequestRepository;
@@ -41,19 +44,22 @@ public class RegistrationApprovalService {
     private final OutboxPublisher outboxPublisher;
     private final MinioService minioService;
     private final EmailVerificationService emailVerificationService;
+    private final InstitutionPolicy institutionPolicy;
 
     public RegistrationApprovalService(UserRepository userRepository,
                                        AcademicianRequestRepository requestRepository,
                                        StudentRequestRepository studentRequestRepository,
                                        OutboxPublisher outboxPublisher,
                                        MinioService minioService,
-                                       EmailVerificationService emailVerificationService) {
+                                       EmailVerificationService emailVerificationService,
+                                       InstitutionPolicy institutionPolicy) {
         this.userRepository = userRepository;
         this.requestRepository = requestRepository;
         this.studentRequestRepository = studentRequestRepository;
         this.outboxPublisher = outboxPublisher;
         this.minioService = minioService;
         this.emailVerificationService = emailVerificationService;
+        this.institutionPolicy = institutionPolicy;
     }
 
     @Transactional
@@ -61,17 +67,31 @@ public class RegistrationApprovalService {
         StudentRegistrationRequest req = studentRequestRepository.findById(requestId)
                 .orElseThrow(() -> new NoSuchElementException("Öğrenci başvuru formu bulunamadı!"));
         requireVerifiedEmail(req.getEmailVerifiedAt());
+        if (req.getStudentNumber() != null) {
+            institutionPolicy.requireStudentNumberAvailable(req.getStudentNumber(), req.getId());
+        }
 
-        Set<Role> roles = Stream.of(Role.ROLE_STUDENT).collect(Collectors.toSet());
-
-        var user = new User(
-                req.getEmail(),
-                req.getPassword(),
-                roles
-        );
-        user.setEmailVerifiedAt(req.getEmailVerifiedAt() != null ? req.getEmailVerifiedAt() : Instant.now());
-
-        User savedUser = userRepository.save(user);
+        User savedUser;
+        if (req.getUserId() != null) {
+            User existing = userRepository.findById(req.getUserId())
+                    .orElseThrow(() -> new NoSuchElementException("Başvuran hesap bulunamadı!"));
+            existing.getRoles().remove(Role.ROLE_PENDING_STUDENT);
+            existing.getRoles().add(Role.ROLE_STUDENT);
+            existing.setStudentNumber(req.getStudentNumber());
+            existing.setStudentStatus(StudentStatus.ACTIVE);
+            savedUser = userRepository.save(existing);
+        } else {
+            Set<Role> roles = Stream.of(Role.ROLE_STUDENT).collect(Collectors.toSet());
+            var user = new User(
+                    req.getEmail(),
+                    req.getPassword(),
+                    roles
+            );
+            user.setEmailVerifiedAt(req.getEmailVerifiedAt() != null ? req.getEmailVerifiedAt() : Instant.now());
+            user.setStudentNumber(req.getStudentNumber());
+            user.setStudentStatus(StudentStatus.ACTIVE);
+            savedUser = userRepository.save(user);
+        }
 
         Set<String> roleStrings = Stream.of(Role.ROLE_STUDENT.name()).collect(Collectors.toSet());
 
@@ -85,6 +105,8 @@ public class RegistrationApprovalService {
                 req.getDepartment(),
                 req.getStudentDocumentUrl()
         );
+        message.setProgramId(req.getProgramId());
+        message.setEntryYear(req.getEntryYear());
 
         outboxPublisher.publish(
                 RabbitMQConfig.EXCHANGE_NAME,
@@ -111,6 +133,12 @@ public class RegistrationApprovalService {
 
         minioService.deleteStudentDocument(req.getStudentDocumentUrl());
 
+        if (req.getUserId() != null) {
+            userRepository.findById(req.getUserId()).ifPresent(user -> {
+                user.getRoles().remove(Role.ROLE_PENDING_STUDENT);
+                userRepository.save(user);
+            });
+        }
         studentRequestRepository.delete(req);
 
         LOGGER.info("Öğrenci başvurusu reddedildi. RequestId: {}", req.getId());
@@ -126,7 +154,8 @@ public class RegistrationApprovalService {
                         req.getStudentNumber(),
                         req.getDepartment(),
                         minioService.createPresignedUrl(req.getStudentDocumentUrl()),
-                        req.getEmailVerifiedAt() != null
+                        req.getEmailVerifiedAt() != null,
+                        req.getUserId() != null
                 ))
                 .toList();
     }
@@ -145,6 +174,7 @@ public class RegistrationApprovalService {
             roles.remove(Role.ROLE_PENDING_ACADEMICIAN);
             roles.add(Role.ROLE_ACADEMICIAN);
             user.setRoles(roles);
+            user.setStaffStatus(StaffStatus.ACTIVE);
             userRepository.save(user);
         } else {
             LOGGER.warn("Kullanıcı zaten PENDING rolünde değil veya işlem hatalı: {}", userId);
@@ -160,6 +190,7 @@ public class RegistrationApprovalService {
                 req.getOfficeNumber(),
                 req.getIdCardImageUrl()
         );
+        profileMessage.setDepartmentId(req.getDepartmentId());
 
         outboxPublisher.publish(RabbitMQConfig.EXCHANGE_NAME, RabbitMQConfig.ACADEMICIAN_ROUTING_KEY, profileMessage);
 
@@ -184,6 +215,9 @@ public class RegistrationApprovalService {
                         minioService.createPresignedUrl(req.getIdCardImageUrl()),
                         userRepository.findById(req.getUserId())
                                 .map(u -> u.getEmailVerifiedAt() != null)
+                                .orElse(false),
+                        userRepository.findById(req.getUserId())
+                                .map(u -> u.getRoles().contains(Role.ROLE_STUDENT))
                                 .orElse(false)
                 ))
                 .toList();
@@ -212,6 +246,12 @@ public class RegistrationApprovalService {
 
         requestRepository.delete(req);
 
+        roles.remove(Role.ROLE_PENDING_ACADEMICIAN);
+        if (AccountType.of(roles) != AccountType.UNKNOWN) {
+            userRepository.save(user);
+            LOGGER.info("Personel kaydı başvurusu reddedildi; hesap öğrenci olarak sürüyor. UserID: {}", userId);
+            return;
+        }
         userRepository.delete(user);
 
         LOGGER.info("Akademisyen başvurusu reddedildi ve kullanıcı silindi. UserID: {}", userId);

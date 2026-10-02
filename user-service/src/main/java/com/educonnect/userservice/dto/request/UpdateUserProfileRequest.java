@@ -21,6 +21,10 @@ public class UpdateUserProfileRequest {
     @Size(max = 255, message = "Ofis numarası en fazla 255 karakter olabilir")
     private String officeNumber;
 
+    @JsonAlias("office_hours")
+    @Size(max = 500, message = "Görüşme saatleri en fazla 500 karakter olabilir")
+    private String officeHours;
+
     public String getFirstName() {
         return firstName;
     }
@@ -68,5 +72,12 @@ public class UpdateUserProfileRequest {
     public void setOfficeNumber(String officeNumber) {
         this.officeNumber = officeNumber;
     }
-}
 
+    public String getOfficeHours() {
+        return officeHours;
+    }
+
+    public void setOfficeHours(String officeHours) {
+        this.officeHours = officeHours;
+    }
+}

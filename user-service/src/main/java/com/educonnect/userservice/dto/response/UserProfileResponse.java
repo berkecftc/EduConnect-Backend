@@ -1,9 +1,24 @@
 package com.educonnect.userservice.dto.response;
 import java.io.Serializable;
+import java.util.List;
 import java.util.UUID;
 
 
 public class UserProfileResponse implements Serializable{
+    private UUID programId;
+    private String programName;
+    private String programLevel;
+    private String facultyName;
+    private UUID departmentId;
+    private Integer entryYear;
+    private Integer classYear;
+    private String academicTitle;
+    private String staffCategory;
+    private List<String> affiliations;
+    private String officeNumber;
+    private String officeHours;
+    private String studentStatus;
+    private String staffStatus;
 
     private static final long serialVersionUID = -8383490846158348982L;
 
@@ -53,6 +68,61 @@ public class UserProfileResponse implements Serializable{
         copy.setStudentNumber(studentNumber);
         copy.setTitle(title);
         copy.setDepartment(department);
+        copy.setProgramId(programId);
+        copy.setProgramName(programName);
+        copy.setProgramLevel(programLevel);
+        copy.setFacultyName(facultyName);
+        copy.setDepartmentId(departmentId);
+        copy.setEntryYear(entryYear);
+        copy.setClassYear(classYear);
+        copy.setAcademicTitle(academicTitle);
+        copy.setStaffCategory(staffCategory);
+        copy.setAffiliations(affiliations);
+        copy.setOfficeNumber(officeNumber);
+        copy.setOfficeHours(officeHours);
+        copy.setStudentStatus(studentStatus);
+        copy.setStaffStatus(staffStatus);
         return copy;
     }
+    public UUID getProgramId() { return programId; }
+    public void setProgramId(UUID programId) { this.programId = programId; }
+
+    public String getProgramName() { return programName; }
+    public void setProgramName(String programName) { this.programName = programName; }
+
+    public String getProgramLevel() { return programLevel; }
+    public void setProgramLevel(String programLevel) { this.programLevel = programLevel; }
+
+    public String getFacultyName() { return facultyName; }
+    public void setFacultyName(String facultyName) { this.facultyName = facultyName; }
+
+    public UUID getDepartmentId() { return departmentId; }
+    public void setDepartmentId(UUID departmentId) { this.departmentId = departmentId; }
+
+    public Integer getEntryYear() { return entryYear; }
+    public void setEntryYear(Integer entryYear) { this.entryYear = entryYear; }
+
+    public Integer getClassYear() { return classYear; }
+    public void setClassYear(Integer classYear) { this.classYear = classYear; }
+
+    public String getAcademicTitle() { return academicTitle; }
+    public void setAcademicTitle(String academicTitle) { this.academicTitle = academicTitle; }
+
+    public String getStaffCategory() { return staffCategory; }
+    public void setStaffCategory(String staffCategory) { this.staffCategory = staffCategory; }
+
+    public List<String> getAffiliations() { return affiliations; }
+    public void setAffiliations(List<String> affiliations) { this.affiliations = affiliations; }
+
+    public String getOfficeNumber() { return officeNumber; }
+    public void setOfficeNumber(String officeNumber) { this.officeNumber = officeNumber; }
+
+    public String getOfficeHours() { return officeHours; }
+    public void setOfficeHours(String officeHours) { this.officeHours = officeHours; }
+
+    public String getStudentStatus() { return studentStatus; }
+    public void setStudentStatus(String studentStatus) { this.studentStatus = studentStatus; }
+
+    public String getStaffStatus() { return staffStatus; }
+    public void setStaffStatus(String staffStatus) { this.staffStatus = staffStatus; }
 }

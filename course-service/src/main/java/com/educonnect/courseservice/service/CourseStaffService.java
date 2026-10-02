@@ -16,7 +16,6 @@ import com.educonnect.courseservice.model.CourseStaffRole;
 import com.educonnect.courseservice.model.CourseStatus;
 import com.educonnect.courseservice.repository.CourseRepository;
 import com.educonnect.courseservice.repository.CourseStaffRepository;
-import feign.FeignException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -34,24 +33,26 @@ import java.util.stream.Stream;
 public class CourseStaffService {
 
     private static final Logger log = LoggerFactory.getLogger(CourseStaffService.class);
-    private static final String ACADEMICIAN = "Academician";
 
     private final CourseRepository courseRepository;
     private final CourseStaffRepository staffRepository;
     private final CourseStaffAccess staffAccess;
     private final CourseCaches courseCaches;
     private final UserClient userClient;
+    private final StaffEligibility staffEligibility;
 
     public CourseStaffService(CourseRepository courseRepository,
                               CourseStaffRepository staffRepository,
                               CourseStaffAccess staffAccess,
                               CourseCaches courseCaches,
-                              UserClient userClient) {
+                              UserClient userClient,
+                              StaffEligibility staffEligibility) {
         this.courseRepository = courseRepository;
         this.staffRepository = staffRepository;
         this.staffAccess = staffAccess;
         this.courseCaches = courseCaches;
         this.userClient = userClient;
+        this.staffEligibility = staffEligibility;
     }
 
     @Transactional(readOnly = true)
@@ -71,7 +72,7 @@ public class CourseStaffService {
         if (staffAccess.isStaff(course, request.userId())) {
             throw new ConflictException("STAFF_EXISTS", "Bu kullanıcı zaten dersin kadrosunda.");
         }
-        requireAcademician(request.userId());
+        staffEligibility.requireAcademician(request.userId());
         staffRepository.save(new CourseStaff(courseId, request.userId(), request.role(), actorId));
         courseCaches.evictInstructorCourses(request.userId());
         log.info("Course staff added: course={}, user={}, role={}", courseId, request.userId(), request.role());
@@ -114,7 +115,7 @@ public class CourseStaffService {
         if (request.previousCoordinatorRole() != null) {
             requireAssignable(request.previousCoordinatorRole());
         }
-        requireAcademician(next);
+        staffEligibility.requireCoordinator(next);
         staffRepository.findByCourseIdAndUserId(courseId, next).ifPresent(staffRepository::delete);
         staffRepository.flush();
         course.setInstructorId(next);
@@ -172,18 +173,6 @@ public class CourseStaffService {
         if (!role.assignable()) {
             throw new BadRequestException("COORDINATOR_NOT_ASSIGNABLE",
                     "Koordinatör kadroya eklenemez; koordinatör devri yönetici tarafından yapılır.");
-        }
-    }
-
-    private void requireAcademician(UUID userId) {
-        UserSummaryDto user;
-        try {
-            user = userClient.getUserById(userId);
-        } catch (FeignException.NotFound e) {
-            throw new NotFoundException("USER_NOT_FOUND", "Kullanıcı bulunamadı.");
-        }
-        if (user == null || !ACADEMICIAN.equalsIgnoreCase(user.getRole())) {
-            throw new ConflictException("STAFF_NOT_ACADEMICIAN", "Ders kadrosunda yalnızca akademisyenler yer alabilir.");
         }
     }
 }

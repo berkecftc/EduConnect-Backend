@@ -58,6 +58,19 @@ public class CourseApplicationService {
         this.enrollmentLedger = enrollmentLedger;
     }
 
+    private void requireNotOnLeave(UUID studentId) {
+        UserSummaryDto student;
+        try {
+            student = userClient.getUserById(studentId);
+        } catch (RuntimeException e) {
+            log.warn("Student status lookup failed for {}: {}", studentId, e.getMessage());
+            return;
+        }
+        if (student != null && "ON_LEAVE".equals(student.getStudentStatus())) {
+            throw new ConflictException("STUDENT_ON_LEAVE", "Kaydı dondurulmuş öğrenciler derse başvuramaz.");
+        }
+    }
+
     /**
      * Öğrenci derse başvuru yapar.
      * Kapasite kontrolü, mükerrer başvuru ve zaten kayıtlı olma kontrolü yapılır.
@@ -68,6 +81,7 @@ public class CourseApplicationService {
         Course course = courseRepository.findById(courseId)
                 .orElseThrow(() -> new CourseNotFoundException("Ders bulunamadı: " + courseId));
         CourseLifecycleService.requireRunning(course);
+        requireNotOnLeave(studentId);
 
         // 2. Öğrenci zaten bu derse kayıtlı mı?
         if (enrollmentRepository.existsByCourseIdAndStudentIdAndIsActive(courseId, studentId, true)) {

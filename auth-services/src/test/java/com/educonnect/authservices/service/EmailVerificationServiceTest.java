@@ -49,7 +49,7 @@ class EmailVerificationServiceTest {
         AuthSecurityProperties properties = new AuthSecurityProperties(null, null, null,
                 new AuthSecurityProperties.EmailVerification(enabled, Duration.ofHours(24)),
                 new AuthSecurityProperties.Links("https://app.example.edu/", "https://api.example.edu"),
-                null);
+                null, null);
         return new EmailVerificationService(tokenRepository, userRepository, studentRequestRepository, outboxPublisher,
                 properties, Clock.fixed(NOW, ZoneOffset.UTC));
     }

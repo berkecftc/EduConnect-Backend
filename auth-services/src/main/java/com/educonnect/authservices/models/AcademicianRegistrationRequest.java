@@ -28,6 +28,9 @@ public class AcademicianRegistrationRequest {
     private String title;       // Örn: Doç. Dr.
     private String department;  // Örn: Yazılım Müh.
 
+    @Column(name = "department_id")
+    private UUID departmentId;
+
     @Column(name = "office_number")
     private String officeNumber; // Formda varsa
 
@@ -102,4 +105,7 @@ public class AcademicianRegistrationRequest {
     public void setIdCardImageUrl(String idCardImageUrl) {
         this.idCardImageUrl = idCardImageUrl;
     }
+
+    public UUID getDepartmentId() { return departmentId; }
+    public void setDepartmentId(UUID departmentId) { this.departmentId = departmentId; }
 }

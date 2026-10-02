@@ -6,6 +6,7 @@ import com.educonnect.authservices.dto.request.RegisterRequest;
 import com.educonnect.authservices.dto.response.AuthResponse;
 import com.educonnect.authservices.models.AcademicianRegistrationRequest;
 import com.educonnect.authservices.models.Role;
+import com.educonnect.authservices.models.StudentStatus;
 import com.educonnect.authservices.models.StudentRegistrationRequest;
 import com.educonnect.authservices.models.User;
 import com.educonnect.authservices.repository.AcademicianRequestRepository;
@@ -40,6 +41,7 @@ public class RegistrationService {
     private final MinioService minioService;
     private final PasswordPolicy passwordPolicy;
     private final EmailVerificationService emailVerificationService;
+    private final InstitutionPolicy institutionPolicy;
 
     public RegistrationService(UserRepository userRepository,
                                AcademicianRequestRepository requestRepository,
@@ -50,7 +52,8 @@ public class RegistrationService {
                                RefreshTokenService refreshTokenService,
                                MinioService minioService,
                                PasswordPolicy passwordPolicy,
-                               EmailVerificationService emailVerificationService) {
+                               EmailVerificationService emailVerificationService,
+                               InstitutionPolicy institutionPolicy) {
         this.userRepository = userRepository;
         this.requestRepository = requestRepository;
         this.studentRequestRepository = studentRequestRepository;
@@ -61,11 +64,16 @@ public class RegistrationService {
         this.minioService = minioService;
         this.passwordPolicy = passwordPolicy;
         this.emailVerificationService = emailVerificationService;
+        this.institutionPolicy = institutionPolicy;
     }
 
     @Transactional
     public AuthResponse register(RegisterRequest request) {
         passwordPolicy.validateNewPassword(request.getPassword(), request.getEmail());
+        institutionPolicy.requireStudentEmail(request.getEmail());
+        String studentNumber = institutionPolicy.requireStudentNumber(request.getStudentId());
+        institutionPolicy.requireStudentNumberAvailable(studentNumber, null);
+        institutionPolicy.requireProgram(request.getProgramId());
 
         Set<Role> roles = Stream.of(Role.ROLE_STUDENT).collect(Collectors.toSet());
 
@@ -74,6 +82,8 @@ public class RegistrationService {
                 passwordEncoder.encode(request.getPassword()),
                 roles
         );
+        user.setStudentNumber(studentNumber);
+        user.setStudentStatus(StudentStatus.ACTIVE);
         user.setEmailVerifiedAt(emailVerificationService.verifiedAtForNewAccount());
 
         User savedUser = userRepository.save(user);
@@ -87,9 +97,11 @@ public class RegistrationService {
                 request.getLastName(),
                 savedUser.getEmail(),
                 roleStrings,
-                request.getStudentId(),
+                studentNumber,
                 request.getDepartment()
         );
+        message.setProgramId(request.getProgramId());
+        message.setEntryYear(request.getEntryYear());
 
         outboxPublisher.publish(
                 RabbitMQConfig.EXCHANGE_NAME,
@@ -110,6 +122,10 @@ public class RegistrationService {
         if (studentRequestRepository.findByEmail(request.getEmail()).isPresent()) {
             throw new BadRequestException("STUDENT_REQUEST_ALREADY_EXISTS", "Bu email ile zaten bir başvuru mevcut");
         }
+        institutionPolicy.requireStudentEmail(request.getEmail());
+        String studentNumber = institutionPolicy.requireStudentNumber(request.getStudentId());
+        institutionPolicy.requireStudentNumberAvailable(studentNumber, null);
+        institutionPolicy.requireProgram(request.getProgramId());
 
         if (studentDocument == null || studentDocument.isEmpty()) {
             throw new IllegalArgumentException("Öğrenci belgesi zorunludur");
@@ -125,8 +141,10 @@ public class RegistrationService {
         stuReq.setLastName(request.getLastName());
         stuReq.setEmail(request.getEmail());
         stuReq.setPassword(passwordEncoder.encode(request.getPassword()));
-        stuReq.setStudentNumber(request.getStudentId());
+        stuReq.setStudentNumber(studentNumber);
         stuReq.setDepartment(request.getDepartment());
+        stuReq.setProgramId(request.getProgramId());
+        stuReq.setEntryYear(request.getEntryYear());
         stuReq.setStudentDocumentUrl(studentDocumentUrl);
         stuReq.setEmailVerifiedAt(emailVerificationService.verifiedAtForNewAccount());
 
@@ -141,6 +159,9 @@ public class RegistrationService {
         if (userRepository.findByEmail(request.getEmail()).isPresent()) {
             throw new BadRequestException("EMAIL_ALREADY_REGISTERED", "Email already registered");
         }
+        institutionPolicy.requireStaffEmail(request.getEmail());
+        String title = AcademicTitles.require(request.getTitle());
+        institutionPolicy.requireDepartment(request.getDepartmentId());
 
         if (idCardImage == null || idCardImage.isEmpty()) {
             throw new IllegalArgumentException("Akademisyen kimlik kartı fotoğrafı zorunludur");
@@ -165,8 +186,9 @@ public class RegistrationService {
         accReq.setUserId(savedUser.getId());
         accReq.setFirstName(request.getFirstName());
         accReq.setLastName(request.getLastName());
-        accReq.setTitle(request.getTitle());
+        accReq.setTitle(title);
         accReq.setDepartment(request.getDepartment());
+        accReq.setDepartmentId(request.getDepartmentId());
         accReq.setOfficeNumber(request.getOfficeNumber());
         accReq.setIdCardImageUrl(idCardImageUrl);
 

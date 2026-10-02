@@ -18,6 +18,9 @@ public class ClubRabbitMQConfig {
     public static final String USER_DELETED_QUEUE = "club-service.user.deleted";
     public static final String USER_DELETED_ROUTING_KEY = "user.delete";
 
+    public static final String USER_AFFILIATION_STATUS_QUEUE = "club-service.user.affiliation-status";
+    public static final String USER_AFFILIATION_STATUS_ROUTING_KEY = "user.affiliation.status";
+
     @Bean
     public DirectExchange userExchange() {
         return new DirectExchange(USER_EXCHANGE_NAME);
@@ -31,6 +34,16 @@ public class ClubRabbitMQConfig {
     @Bean
     public Binding userDeletedBinding(Queue userDeletedQueue, DirectExchange userExchange) {
         return BindingBuilder.bind(userDeletedQueue).to(userExchange).with(USER_DELETED_ROUTING_KEY);
+    }
+
+    @Bean
+    public Queue userAffiliationStatusQueue() {
+        return QueueBuilder.durable(USER_AFFILIATION_STATUS_QUEUE).build();
+    }
+
+    @Bean
+    public Binding userAffiliationStatusBinding(Queue userAffiliationStatusQueue, DirectExchange userExchange) {
+        return BindingBuilder.bind(userAffiliationStatusQueue).to(userExchange).with(USER_AFFILIATION_STATUS_ROUTING_KEY);
     }
 
     @Bean

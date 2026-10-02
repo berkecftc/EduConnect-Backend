@@ -34,7 +34,7 @@ class AdminBootstrapTest {
 
     private AdminBootstrap bootstrap(String email, String password) {
         return new AdminBootstrap(userRepository, passwordEncoder, new AuthSecurityProperties(null, null, null, null, null,
-                new AuthSecurityProperties.BootstrapAdmin(email, password)));
+                new AuthSecurityProperties.BootstrapAdmin(email, password), null));
     }
 
     @Test

@@ -57,6 +57,7 @@ public class CourseService {
     private final CourseRemoval courseRemoval;
     private final CourseStaffAccess staffAccess;
     private final CourseStaffRepository staffRepository;
+    private final StaffEligibility staffEligibility;
 
     public CourseService(CourseRepository repo, EnrollmentRepository enrollRepo,
                          CourseApplicationRepository appRepo,
@@ -68,7 +69,8 @@ public class CourseService {
                          CourseLifecycleService lifecycleService,
                          CourseRemoval courseRemoval,
                          CourseStaffAccess staffAccess,
-                         CourseStaffRepository staffRepository) {
+                         CourseStaffRepository staffRepository,
+                         StaffEligibility staffEligibility) {
         this.courseRepository = repo;
         this.enrollmentRepository = enrollRepo;
         this.applicationRepository = appRepo;
@@ -82,11 +84,13 @@ public class CourseService {
         this.courseRemoval = courseRemoval;
         this.staffAccess = staffAccess;
         this.staffRepository = staffRepository;
+        this.staffEligibility = staffEligibility;
     }
 
     // 1. DERS OLUŞTUR (Resim + Veri + RabbitMQ)
     @Transactional
     public CourseResponse createCourse(CourseRequest request, MultipartFile file) {
+        staffEligibility.requireCoordinator(request.getInstructorId());
         Term term = request.getTermId() != null ? termService.find(request.getTermId()) : termService.current();
         if (term.hasEnded(termService.today())) {
             throw new ConflictException("TERM_ENDED", "Bitmiş bir döneme ders açılamaz.");

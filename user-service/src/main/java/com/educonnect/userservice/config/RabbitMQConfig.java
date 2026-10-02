@@ -22,6 +22,12 @@ public class RabbitMQConfig {
     public static final String USER_DELETE_QUEUE = "user-delete-queue";
     public static final String USER_DELETE_ROUTING_KEY = "user.delete";
 
+    public static final String USER_EMAIL_CHANGED_QUEUE = "user-email-changed-queue";
+    public static final String USER_EMAIL_CHANGED_ROUTING_KEY = "user.email.changed";
+
+    public static final String USER_AFFILIATION_STATUS_QUEUE = "user-affiliation-status-queue";
+    public static final String USER_AFFILIATION_STATUS_ROUTING_KEY = "user.affiliation.status";
+
     public static final String GAMIFICATION_EXCHANGE = "gamification.exchange";
     public static final String GAMIFICATION_PROFILE_COMPLETED_ROUTING_KEY = "gamification.user.profile_completed";
 
@@ -59,5 +65,25 @@ public class RabbitMQConfig {
     @Bean
     public Binding userDeleteBinding(Queue userDeleteQueue, DirectExchange userExchange) {
         return BindingBuilder.bind(userDeleteQueue).to(userExchange).with(USER_DELETE_ROUTING_KEY);
+    }
+
+    @Bean
+    public Queue userEmailChangedQueue() {
+        return new Queue(USER_EMAIL_CHANGED_QUEUE);
+    }
+
+    @Bean
+    public Binding userEmailChangedBinding(Queue userEmailChangedQueue, DirectExchange userExchange) {
+        return BindingBuilder.bind(userEmailChangedQueue).to(userExchange).with(USER_EMAIL_CHANGED_ROUTING_KEY);
+    }
+
+    @Bean
+    public Queue userAffiliationStatusQueue() {
+        return new Queue(USER_AFFILIATION_STATUS_QUEUE);
+    }
+
+    @Bean
+    public Binding userAffiliationStatusBinding(Queue userAffiliationStatusQueue, DirectExchange userExchange) {
+        return BindingBuilder.bind(userAffiliationStatusQueue).to(userExchange).with(USER_AFFILIATION_STATUS_ROUTING_KEY);
     }
 }

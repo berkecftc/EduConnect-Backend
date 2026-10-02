@@ -4,6 +4,7 @@ import jakarta.persistence.*;
 import com.educonnect.common.storage.ObjectUrlConverter;
 import org.hibernate.annotations.CreationTimestamp;
 import java.time.Instant;
+import java.util.UUID;
 
 @Entity
 @Table(name = "student_requests")
@@ -35,6 +36,15 @@ public class StudentRegistrationRequest {
 
     @Column(name = "department")
     private String department;
+
+    @Column(name = "program_id")
+    private UUID programId;
+
+    @Column(name = "entry_year")
+    private Integer entryYear;
+
+    @Column(name = "user_id")
+    private UUID userId;
 
     @Column(name = "student_document_url")
     @Convert(converter = ObjectUrlConverter.class)
@@ -117,5 +127,17 @@ public class StudentRegistrationRequest {
     }
 
     public Instant getCreatedAt() { return createdAt; }
-}
 
+    public UUID getProgramId() { return programId; }
+    public void setProgramId(UUID programId) { this.programId = programId; }
+    public Integer getEntryYear() { return entryYear; }
+    public void setEntryYear(Integer entryYear) { this.entryYear = entryYear; }
+
+    public UUID getUserId() {
+        return userId;
+    }
+
+    public void setUserId(UUID userId) {
+        this.userId = userId;
+    }
+}
