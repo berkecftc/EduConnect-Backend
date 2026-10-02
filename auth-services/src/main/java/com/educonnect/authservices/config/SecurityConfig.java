@@ -64,6 +64,7 @@ public class SecurityConfig {
                                          "/api/auth/request/academician-account",
                                          "/api/auth/request/student-account",
                                          "/api/auth/verify-email",
+                                         "/api/auth/email-change/confirm",
                                          "/api/auth/resend-verification").permitAll()
                         .requestMatchers("/api/auth/admin/**").hasRole("ADMIN")
                         .anyRequest().authenticated()

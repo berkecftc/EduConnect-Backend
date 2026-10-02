@@ -89,6 +89,7 @@ public class ProfileController {
             @RequestParam(required = false) String title,
             @RequestParam(required = false) String officeNumber,
             @RequestParam(name = "office_number", required = false) String officeNumberSnake,
+            @RequestParam(required = false) String officeHours,
             @RequestPart(value = "data", required = false) String dataJson,
             @RequestPart(value = "profileData", required = false) String profileDataJson,
             @RequestPart(value = "file", required = false) MultipartFile file,
@@ -106,11 +107,13 @@ public class ProfileController {
         String normalizedDepartment = coalesceNonBlank(department, bodyPart.getDepartment());
         String normalizedTitle = coalesceNonBlank(title, bodyPart.getTitle());
         String normalizedOfficeNumber = coalesceNonBlank(officeNumber, officeNumberSnake, bodyPart.getOfficeNumber());
+        String normalizedOfficeHours = coalesceNonBlank(officeHours, bodyPart.getOfficeHours());
 
         MultipartFile uploadFile = firstNonEmptyFile(file, profileImage, profilePicture);
 
         boolean hasTextUpdate = normalizedFirstName != null || normalizedLastName != null || normalizedBio != null
-                || normalizedDepartment != null || normalizedTitle != null || normalizedOfficeNumber != null;
+                || normalizedDepartment != null || normalizedTitle != null || normalizedOfficeNumber != null
+                || normalizedOfficeHours != null;
         boolean hasFile = uploadFile != null;
 
         if (!hasTextUpdate && !hasFile) {
@@ -126,6 +129,7 @@ public class ProfileController {
             request.setDepartment(normalizedDepartment);
             request.setTitle(normalizedTitle);
             request.setOfficeNumber(normalizedOfficeNumber);
+            request.setOfficeHours(normalizedOfficeHours);
             validate(request);
             profileService.updateUserProfile(userId, request);
         }

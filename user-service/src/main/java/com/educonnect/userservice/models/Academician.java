@@ -48,6 +48,9 @@ public class Academician {
 
     private String officeNumber;
 
+    @Column(name = "office_hours", length = 500)
+    private String officeHours;
+
     private String bio;
 
     @Convert(converter = ObjectUrlConverter.class)
@@ -118,6 +121,9 @@ public class Academician {
 
     public UUID getDepartmentId() { return departmentId; }
     public void setDepartmentId(UUID departmentId) { this.departmentId = departmentId; }
+
+    public String getOfficeHours() { return officeHours; }
+    public void setOfficeHours(String officeHours) { this.officeHours = officeHours; }
 
     public AcademicTitle getAcademicTitle() { return academicTitle; }
 

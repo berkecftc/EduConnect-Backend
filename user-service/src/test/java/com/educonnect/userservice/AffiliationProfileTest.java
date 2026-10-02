@@ -67,12 +67,13 @@ class AffiliationProfileTest {
         mockMvc.perform(as(put("/api/users/profile/{id}", teacher), TestTokens.academician(teacher))
                         .contentType(MediaType.APPLICATION_JSON).content("{\"title\":\"Hocam\"}"))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.errorCode").value("INVALID_TITLE"));
+                .andExpect(jsonPath("$.errorCode").value("OFFICIAL_FIELD_LOCKED"));
         mockMvc.perform(as(put("/api/users/profile/{id}", teacher), TestTokens.academician(teacher))
-                        .contentType(MediaType.APPLICATION_JSON).content("{\"title\":\"prof. dr.\"}"))
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"title\":\"doc. dr.\",\"officeHours\":\"Sali 10-12\"}"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.title").value("Prof. Dr."))
-                .andExpect(jsonPath("$.academicTitle").value("PROFESSOR"))
+                .andExpect(jsonPath("$.title").value("Doç. Dr."))
+                .andExpect(jsonPath("$.officeHours").value("Sali 10-12"))
+                .andExpect(jsonPath("$.academicTitle").value("ASSOCIATE_PROFESSOR"))
                 .andExpect(jsonPath("$.staffCategory").value("FACULTY_MEMBER"));
 
         UUID student = student(null);
@@ -106,10 +107,10 @@ class AffiliationProfileTest {
                 .andExpect(jsonPath("$.role").value("Academician"));
 
         mockMvc.perform(as(put("/api/users/profile/{id}", id), TestTokens.academician(id))
-                        .contentType(MediaType.APPLICATION_JSON).content("{\"firstName\":\"Yeni\"}"))
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"bio\":\"Yeni\"}"))
                 .andExpect(status().isOk());
-        assertThat(studentRepository.findById(id).orElseThrow().getFirstName()).isEqualTo("Yeni");
-        assertThat(academicianRepository.findById(id).orElseThrow().getFirstName()).isEqualTo("Yeni");
+        assertThat(studentRepository.findById(id).orElseThrow().getBio()).isEqualTo("Yeni");
+        assertThat(academicianRepository.findById(id).orElseThrow().getBio()).isEqualTo("Yeni");
 
         deletionListener.handleUserDeletion(new UserDeletedMessage(id, "ACADEMICIAN", "test"));
         assertThat(studentRepository.existsById(id)).isFalse();

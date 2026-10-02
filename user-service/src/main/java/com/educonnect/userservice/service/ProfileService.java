@@ -11,6 +11,7 @@ import com.educonnect.userservice.models.AcademicTitle;
 import com.educonnect.userservice.models.Academician;
 import com.educonnect.userservice.models.ArchivedAcademician;
 import com.educonnect.userservice.models.ArchivedStudent;
+import com.educonnect.userservice.models.ProfileChangeRequest;
 import com.educonnect.userservice.models.Student;
 import com.educonnect.userservice.repository.AcademicianRepository;
 import com.educonnect.userservice.repository.ArchivedAcademicianRepository;
@@ -104,28 +105,25 @@ public class ProfileService {
         if (studentOpt.isEmpty() && academicianOpt.isEmpty()) {
             throw new NotFoundException("PROFILE_NOT_FOUND", "Profile not found for user ID: " + userId);
         }
-        AcademicTitle title = null;
-        if (request.getTitle() != null) {
-            if (academicianOpt.isEmpty()) {
-                throw new BadRequestException("TITLE_NOT_ALLOWED", "Unvan yalnız akademik personel profilinde bulunur.");
-            }
-            title = AcademicTitle.parse(request.getTitle())
-                    .orElseThrow(() -> new BadRequestException("INVALID_TITLE", "Unvan katalogdaki unvanlardan biri olmalı."));
-        }
+        requireOfficialFieldsUnchanged(request, studentOpt, academicianOpt);
         boolean wasComplete = isProfileComplete(studentOpt, academicianOpt);
         studentOpt.ifPresent(student -> {
             evictStudentNumber(student.getStudentNumber());
-            applyCommonProfileUpdates(student, request);
+            if (request.getBio() != null) {
+                student.setBio(request.getBio());
+            }
             studentRepository.save(student);
         });
         if (academicianOpt.isPresent()) {
             Academician academician = academicianOpt.get();
-            applyCommonProfileUpdates(academician, request);
-            if (title != null) {
-                academician.setAcademicTitle(title);
+            if (request.getBio() != null) {
+                academician.setBio(request.getBio());
             }
             if (request.getOfficeNumber() != null) {
                 academician.setOfficeNumber(request.getOfficeNumber());
+            }
+            if (request.getOfficeHours() != null) {
+                academician.setOfficeHours(request.getOfficeHours().isBlank() ? null : request.getOfficeHours().strip());
             }
             academicianRepository.save(academician);
         }
@@ -362,6 +360,8 @@ public class ProfileService {
         dto.setBio(academician.getBio());
         dto.setDepartment(academician.getDepartment());
         dto.setTitle(academician.getTitle());
+        dto.setOfficeNumber(academician.getOfficeNumber());
+        dto.setOfficeHours(academician.getOfficeHours());
         dto.setRole("Academician");
         dto.setAffiliations(List.of(ACADEMICIAN_AFFILIATION));
         if (academician.getAcademicTitle() != null) {
@@ -376,34 +376,88 @@ public class ProfileService {
         return dto;
     }
 
-    private void applyCommonProfileUpdates(Student student, UpdateUserProfileRequest request) {
-        if (request.getFirstName() != null) {
-            student.setFirstName(request.getFirstName());
+    @Transactional(readOnly = false)
+    @CacheEvict(value = USER_PROFILE_CACHE, key = "#userId")
+    public void changeEmail(UUID userId, String email) {
+        studentRepository.findById(userId).ifPresent(student -> {
+            evictStudentNumber(student.getStudentNumber());
+            student.setEmail(email);
+            studentRepository.save(student);
+        });
+        academicianRepository.findById(userId).ifPresent(academician -> {
+            academician.setEmail(email);
+            academicianRepository.save(academician);
+        });
+    }
+
+    @Transactional(readOnly = false)
+    @CacheEvict(value = USER_PROFILE_CACHE, key = "#change.userId")
+    public void applyOfficialChange(ProfileChangeRequest change) {
+        Optional<Student> studentOpt = studentRepository.findById(change.getUserId());
+        Optional<Academician> academicianOpt = academicianRepository.findById(change.getUserId());
+        if (studentOpt.isEmpty() && academicianOpt.isEmpty()) {
+            throw new NotFoundException("PROFILE_NOT_FOUND", "Profile not found for user ID: " + change.getUserId());
         }
-        if (request.getLastName() != null) {
-            student.setLastName(request.getLastName());
+        studentOpt.ifPresent(student -> {
+            evictStudentNumber(student.getStudentNumber());
+            if (change.getFirstName() != null) {
+                student.setFirstName(change.getFirstName());
+            }
+            if (change.getLastName() != null) {
+                student.setLastName(change.getLastName());
+            }
+            if (change.getProgramId() != null) {
+                student.setProgramId(change.getProgramId());
+                student.setDepartment(catalogService.program(change.getProgramId()).departmentName());
+            }
+            studentRepository.save(student);
+        });
+        academicianOpt.ifPresent(academician -> {
+            if (change.getFirstName() != null) {
+                academician.setFirstName(change.getFirstName());
+            }
+            if (change.getLastName() != null) {
+                academician.setLastName(change.getLastName());
+            }
+            if (change.getAcademicTitle() != null) {
+                academician.setAcademicTitle(change.getAcademicTitle());
+            }
+            if (change.getDepartmentId() != null) {
+                academician.setDepartmentId(change.getDepartmentId());
+                academician.setDepartment(catalogService.department(change.getDepartmentId()).departmentName());
+            }
+            academicianRepository.save(academician);
+        });
+    }
+
+    private void requireOfficialFieldsUnchanged(UpdateUserProfileRequest request, Optional<Student> student,
+                                                Optional<Academician> academician) {
+        String firstName = academician.map(Academician::getFirstName).orElseGet(() -> student.map(Student::getFirstName).orElse(null));
+        String lastName = academician.map(Academician::getLastName).orElseGet(() -> student.map(Student::getLastName).orElse(null));
+        String department = academician.map(Academician::getDepartment).orElseGet(() -> student.map(Student::getDepartment).orElse(null));
+        boolean changed = differs(request.getFirstName(), firstName)
+                || differs(request.getLastName(), lastName)
+                || differs(request.getDepartment(), department);
+        if (request.getTitle() != null && !request.getTitle().isBlank()) {
+            if (academician.isEmpty()) {
+                throw new BadRequestException("TITLE_NOT_ALLOWED", "Unvan yalnız akademik personel profilinde bulunur.");
+            }
+            AcademicTitle current = academician.get().getAcademicTitle();
+            changed |= current != null
+                    ? AcademicTitle.parse(request.getTitle()).filter(current::equals).isEmpty()
+                    : differs(request.getTitle(), academician.get().getTitle());
         }
-        if (request.getBio() != null) {
-            student.setBio(request.getBio());
-        }
-        if (request.getDepartment() != null) {
-            student.setDepartment(request.getDepartment());
+        if (changed) {
+            throw new BadRequestException("OFFICIAL_FIELD_LOCKED",
+                    "Ad, soyad, bölüm ve unvan resmî bilgidir; değiştirmek için profil değişikliği talebi oluşturun.");
         }
     }
 
-    private void applyCommonProfileUpdates(Academician academician, UpdateUserProfileRequest request) {
-        if (request.getFirstName() != null) {
-            academician.setFirstName(request.getFirstName());
+    private static boolean differs(String requested, String current) {
+        if (requested == null || requested.isBlank()) {
+            return false;
         }
-        if (request.getLastName() != null) {
-            academician.setLastName(request.getLastName());
-        }
-        if (request.getBio() != null) {
-            academician.setBio(request.getBio());
-        }
-        if (request.getDepartment() != null) {
-            academician.setDepartment(request.getDepartment());
-        }
+        return current == null || !requested.strip().equals(current.strip());
     }
 
     private void publishProfileCompletedIfNeeded(UUID userId, boolean wasComplete, boolean isNowComplete) {
