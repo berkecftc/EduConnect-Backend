@@ -50,6 +50,7 @@ public class ClubLifecycleService {
     private final ClubManagementStatusPublisher managementStatusPublisher;
     private final ClubDecisionLog decisionLog;
     private final ApprovalChainSettings approvalChainSettings;
+    private final AdvisorDirectory advisorDirectory;
 
     public ClubLifecycleService(ClubRepository clubRepository,
                                 ClubMembershipRepository membershipRepository,
@@ -60,7 +61,8 @@ public class ClubLifecycleService {
                                 ClubCacheEvictor cacheEvictor,
                                 ClubManagementStatusPublisher managementStatusPublisher,
                                 ClubDecisionLog decisionLog,
-                                ApprovalChainSettings approvalChainSettings) {
+                                ApprovalChainSettings approvalChainSettings,
+                                AdvisorDirectory advisorDirectory) {
         this.clubRepository = clubRepository;
         this.membershipRepository = membershipRepository;
         this.archivedClubRepository = archivedClubRepository;
@@ -71,6 +73,7 @@ public class ClubLifecycleService {
         this.managementStatusPublisher = managementStatusPublisher;
         this.decisionLog = decisionLog;
         this.approvalChainSettings = approvalChainSettings;
+        this.advisorDirectory = advisorDirectory;
     }
 
     public Club updateClub(UUID clubId, UpdateClubRequest request) {
@@ -79,7 +82,10 @@ public class ClubLifecycleService {
 
         if (request.getName() != null) club.setName(request.getName());
         if (request.getAbout() != null) club.setAbout(request.getAbout());
-        if (request.getAcademicAdvisorId() != null) club.setAcademicAdvisorId(request.getAcademicAdvisorId());
+        if (request.getAcademicAdvisorId() != null && !request.getAcademicAdvisorId().equals(club.getAcademicAdvisorId())) {
+            advisorDirectory.requireAcademician(request.getAcademicAdvisorId());
+            club.setAcademicAdvisorId(request.getAcademicAdvisorId());
+        }
 
         Club updatedClub = clubRepository.save(club);
 

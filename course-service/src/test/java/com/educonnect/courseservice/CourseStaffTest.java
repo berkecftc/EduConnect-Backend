@@ -17,11 +17,13 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
+import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
 import org.springframework.test.web.servlet.request.AbstractMockHttpServletRequestBuilder;
 
+import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.Collection;
 import java.util.Map;
@@ -34,6 +36,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -41,6 +44,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 @CourseIntegrationTest
 class CourseStaffTest {
+
+    private static final UUID RESEARCH_ASSISTANT = UUID.randomUUID();
 
     private final UUID coordinator = UUID.randomUUID();
     private final UUID coInstructor = UUID.randomUUID();
@@ -191,6 +196,22 @@ class CourseStaffTest {
     }
 
     @Test
+    void researchAssistantsTeachButNeverCoordinate() throws Exception {
+        addStaff(RESEARCH_ASSISTANT, coordinator, "INSTRUCTOR").andExpect(status().isCreated());
+        mockMvc.perform(json(put("/api/courses/{id}/coordinator", course.getId()), TestTokens.admin(admin),
+                        "{\"userId\":\"" + RESEARCH_ASSISTANT + "\"}"))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.errorCode").value("RESEARCH_ASSISTANT_NOT_COORDINATOR"));
+        String json = "{\"title\":\"Arş Gör Dersi\",\"code\":\"RA-" + UUID.randomUUID().toString().substring(0, 6)
+                + "\",\"credit\":3,\"capacity\":10,\"instructorId\":\"" + RESEARCH_ASSISTANT + "\"}";
+        mockMvc.perform(as(multipart("/api/courses").file(new MockMultipartFile("course", "", MediaType.APPLICATION_JSON_VALUE,
+                        json.getBytes(StandardCharsets.UTF_8))), TestTokens.academician(RESEARCH_ASSISTANT)))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.errorCode").value("RESEARCH_ASSISTANT_NOT_COORDINATOR"));
+        assertThat(courseRepository.findById(course.getId()).orElseThrow().getInstructorId()).isEqualTo(coordinator);
+    }
+
+    @Test
     void onlyAnAdminTransfersTheCoordinatorRole() throws Exception {
         addStaff(coInstructor, coordinator, "INSTRUCTOR").andExpect(status().isCreated());
         String body = "{\"userId\":\"" + coInstructor + "\",\"previousCoordinatorRole\":\"INSTRUCTOR\"}";
@@ -250,6 +271,9 @@ class CourseStaffTest {
         user.setFirstName("Ad");
         user.setLastName(id.toString().substring(0, 4));
         user.setRole(roles.getOrDefault(id, "Academician"));
+        if (RESEARCH_ASSISTANT.equals(id)) {
+            user.setStaffCategory("RESEARCH_ASSISTANT");
+        }
         return user;
     }
 

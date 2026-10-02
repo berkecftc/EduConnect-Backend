@@ -1,5 +1,6 @@
 package com.educonnect.userservice.dto.response;
 import java.io.Serializable;
+import java.util.List;
 import java.util.UUID;
 
 
@@ -11,6 +12,9 @@ public class UserProfileResponse implements Serializable{
     private UUID departmentId;
     private Integer entryYear;
     private Integer classYear;
+    private String academicTitle;
+    private String staffCategory;
+    private List<String> affiliations;
 
     private static final long serialVersionUID = -8383490846158348982L;
 
@@ -67,6 +71,9 @@ public class UserProfileResponse implements Serializable{
         copy.setDepartmentId(departmentId);
         copy.setEntryYear(entryYear);
         copy.setClassYear(classYear);
+        copy.setAcademicTitle(academicTitle);
+        copy.setStaffCategory(staffCategory);
+        copy.setAffiliations(affiliations);
         return copy;
     }
     public UUID getProgramId() { return programId; }
@@ -89,4 +96,13 @@ public class UserProfileResponse implements Serializable{
 
     public Integer getClassYear() { return classYear; }
     public void setClassYear(Integer classYear) { this.classYear = classYear; }
+
+    public String getAcademicTitle() { return academicTitle; }
+    public void setAcademicTitle(String academicTitle) { this.academicTitle = academicTitle; }
+
+    public String getStaffCategory() { return staffCategory; }
+    public void setStaffCategory(String staffCategory) { this.staffCategory = staffCategory; }
+
+    public List<String> getAffiliations() { return affiliations; }
+    public void setAffiliations(List<String> affiliations) { this.affiliations = affiliations; }
 }

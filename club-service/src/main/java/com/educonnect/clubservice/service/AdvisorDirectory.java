@@ -2,6 +2,7 @@ package com.educonnect.clubservice.service;
 
 import com.educonnect.clubservice.client.UserClient;
 import com.educonnect.clubservice.dto.response.AcademicianSummary;
+import com.educonnect.common.web.BadRequestException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
@@ -34,6 +35,9 @@ public class AdvisorDirectory {
         }
         if (advisor == null || !"Academician".equalsIgnoreCase(advisor.getRole())) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Danışman olarak yalnızca bir akademisyen seçilebilir.");
+        }
+        if ("RESEARCH_ASSISTANT".equals(advisor.getStaffCategory())) {
+            throw new BadRequestException("ADVISOR_NOT_ELIGIBLE", "Araştırma görevlileri kulüp danışmanı olamaz.");
         }
     }
 }

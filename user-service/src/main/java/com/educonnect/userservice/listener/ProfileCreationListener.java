@@ -4,6 +4,7 @@ import com.educonnect.common.web.NotFoundException;
 import com.educonnect.userservice.config.RabbitMQConfig;
 import com.educonnect.userservice.dto.message.AcademicianProfileMessage;
 import com.educonnect.userservice.dto.message.UserRegisteredMessage;
+import com.educonnect.userservice.models.AcademicTitle;
 import com.educonnect.userservice.models.Academician;
 import com.educonnect.userservice.models.Student;
 import com.educonnect.userservice.dto.response.AcademicPlacement;
@@ -46,8 +47,7 @@ public class ProfileCreationListener {
             throw new AmqpRejectAndDontRequeueException("Registration message without user id");
         }
 
-        if (studentRepository.existsById(message.getUserId())
-                || academicianRepository.existsById(message.getUserId())) {
+        if (studentRepository.existsById(message.getUserId())) {
             LOGGER.info("Profile already exists for user ID: {}. Registration message ignored.", message.getUserId());
             return;
         }
@@ -110,6 +110,7 @@ public class ProfileCreationListener {
         newAcademician.setLastName(message.getLastName());
         newAcademician.setEmail(message.getEmail());
         newAcademician.setTitle(message.getTitle());
+        AcademicTitle.parse(message.getTitle()).ifPresent(newAcademician::setAcademicTitle);
         newAcademician.setDepartment(message.getDepartment());
         placement(message.getDepartmentId(), false).ifPresent(placement -> {
             newAcademician.setDepartmentId(placement.departmentId());

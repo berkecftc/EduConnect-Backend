@@ -2,6 +2,8 @@ package com.educonnect.userservice.controller;
 
 import com.educonnect.userservice.dto.request.AcademicUnitRequest;
 import com.educonnect.userservice.dto.response.AcademicCatalogResponse;
+import com.educonnect.userservice.dto.response.AcademicTitleResponse;
+import com.educonnect.userservice.models.AcademicTitle;
 import com.educonnect.userservice.service.AcademicCatalogService;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
@@ -15,6 +17,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.Arrays;
 import java.util.List;
 import java.util.UUID;
 
@@ -31,6 +34,11 @@ public class AcademicCatalogController {
     @GetMapping("/catalog")
     public ResponseEntity<List<AcademicCatalogResponse>> catalog() {
         return ResponseEntity.ok(catalogService.catalog(false));
+    }
+
+    @GetMapping("/titles")
+    public ResponseEntity<List<AcademicTitleResponse>> titles() {
+        return ResponseEntity.ok(Arrays.stream(AcademicTitle.values()).map(AcademicTitleResponse::of).toList());
     }
 
     @GetMapping("/catalog/all")

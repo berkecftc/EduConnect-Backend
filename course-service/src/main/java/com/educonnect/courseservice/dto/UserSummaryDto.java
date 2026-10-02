@@ -9,6 +9,7 @@ public class UserSummaryDto {
     private String studentNumber;
     private String department;
     private String role;
+    private String staffCategory;
 
     // Getter & Setter
     public UUID getId() { return id; }
@@ -25,4 +26,6 @@ public class UserSummaryDto {
     public void setDepartment(String department) { this.department = department; }
     public String getRole() { return role; }
     public void setRole(String role) { this.role = role; }
+    public String getStaffCategory() { return staffCategory; }
+    public void setStaffCategory(String staffCategory) { this.staffCategory = staffCategory; }
 }

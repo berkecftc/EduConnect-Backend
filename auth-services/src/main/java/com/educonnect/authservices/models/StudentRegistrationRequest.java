@@ -43,6 +43,9 @@ public class StudentRegistrationRequest {
     @Column(name = "entry_year")
     private Integer entryYear;
 
+    @Column(name = "user_id")
+    private UUID userId;
+
     @Column(name = "student_document_url")
     @Convert(converter = ObjectUrlConverter.class)
     private String studentDocumentUrl; // Öğrenci belgesi URL'si (MinIO'da)
@@ -129,4 +132,12 @@ public class StudentRegistrationRequest {
     public void setProgramId(UUID programId) { this.programId = programId; }
     public Integer getEntryYear() { return entryYear; }
     public void setEntryYear(Integer entryYear) { this.entryYear = entryYear; }
+
+    public UUID getUserId() {
+        return userId;
+    }
+
+    public void setUserId(UUID userId) {
+        this.userId = userId;
+    }
 }

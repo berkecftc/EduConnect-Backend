@@ -1,11 +1,13 @@
 package com.educonnect.userservice.service;
 
+import com.educonnect.common.web.BadRequestException;
 import com.educonnect.common.web.NotFoundException;
 import com.educonnect.userservice.dto.request.UpdateUserProfileRequest;
 import com.educonnect.userservice.dto.response.AcademicPlacement;
 import com.educonnect.userservice.dto.response.ArchivedAcademicianDTO;
 import com.educonnect.userservice.dto.response.ArchivedStudentDTO;
 import com.educonnect.userservice.dto.response.UserProfileResponse;
+import com.educonnect.userservice.models.AcademicTitle;
 import com.educonnect.userservice.models.Academician;
 import com.educonnect.userservice.models.ArchivedAcademician;
 import com.educonnect.userservice.models.ArchivedStudent;
@@ -28,10 +30,12 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -40,7 +44,9 @@ import java.util.stream.Collectors;
 public class ProfileService {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(ProfileService.class);
-    private static final String USER_PROFILE_CACHE = "userProfileV2";
+    private static final String USER_PROFILE_CACHE = "userProfileV3";
+    public static final String STUDENT_AFFILIATION = "STUDENT";
+    public static final String ACADEMICIAN_AFFILIATION = "ACADEMICIAN";
     private static final String USER_PROFILE_BY_STUDENT_NUMBER_CACHE = "userProfileByStudentNumberV2";
 
     private final StudentRepository studentRepository;
@@ -74,60 +80,57 @@ public class ProfileService {
 
     @Cacheable(value = USER_PROFILE_CACHE, key = "#userId")
     public UserProfileResponse getUserProfile(UUID userId) {
-
-        Optional<Student> studentOpt = studentRepository.findById(userId);
-        if (studentOpt.isPresent()) {
-            Student student = studentOpt.get();
-            return mapToResponse(student);
-        }
-
-        Optional<Academician> academicianOpt = academicianRepository.findById(userId);
-        if (academicianOpt.isPresent()) {
-            Academician academician = academicianOpt.get();
-            return mapToResponse(academician);
-        }
-
-        throw new NotFoundException("PROFILE_NOT_FOUND", "Profile not found for user ID: " + userId);
+        return toResponse(studentRepository.findById(userId), academicianRepository.findById(userId))
+                .orElseThrow(() -> new NotFoundException("PROFILE_NOT_FOUND", "Profile not found for user ID: " + userId));
     }
 
     public List<UserProfileResponse> getUserProfiles(Collection<UUID> userIds) {
-        Map<UUID, UserProfileResponse> profiles = new LinkedHashMap<>();
-        studentRepository.findAllById(userIds).forEach(student -> profiles.put(student.getId(), mapToResponse(student)));
-        academicianRepository.findAllById(userIds).forEach(academician -> profiles.putIfAbsent(academician.getId(), mapToResponse(academician)));
-        return new ArrayList<>(profiles.values());
+        Map<UUID, Student> students = new LinkedHashMap<>();
+        studentRepository.findAllById(userIds).forEach(student -> students.put(student.getId(), student));
+        Map<UUID, Academician> academicians = new LinkedHashMap<>();
+        academicianRepository.findAllById(userIds).forEach(academician -> academicians.put(academician.getId(), academician));
+        Set<UUID> ids = new LinkedHashSet<>(students.keySet());
+        ids.addAll(academicians.keySet());
+        List<UserProfileResponse> profiles = new ArrayList<>();
+        ids.forEach(id -> toResponse(Optional.ofNullable(students.get(id)), Optional.ofNullable(academicians.get(id))).ifPresent(profiles::add));
+        return profiles;
     }
 
     @Transactional(readOnly = false)
     @CacheEvict(value = USER_PROFILE_CACHE, key = "#userId")
     public UserProfileResponse updateUserProfile(UUID userId, UpdateUserProfileRequest request) {
         Optional<Student> studentOpt = studentRepository.findById(userId);
-        if (studentOpt.isPresent()) {
-            Student student = studentOpt.get();
-            evictStudentNumber(student.getStudentNumber());
-            boolean wasComplete = isStudentProfileComplete(student);
-            applyCommonProfileUpdates(student, request);
-            Student saved = studentRepository.save(student);
-            publishProfileCompletedIfNeeded(userId, wasComplete, isStudentProfileComplete(saved));
-            return mapToResponse(saved);
-        }
-
         Optional<Academician> academicianOpt = academicianRepository.findById(userId);
+        if (studentOpt.isEmpty() && academicianOpt.isEmpty()) {
+            throw new NotFoundException("PROFILE_NOT_FOUND", "Profile not found for user ID: " + userId);
+        }
+        AcademicTitle title = null;
+        if (request.getTitle() != null) {
+            if (academicianOpt.isEmpty()) {
+                throw new BadRequestException("TITLE_NOT_ALLOWED", "Unvan yalnız akademik personel profilinde bulunur.");
+            }
+            title = AcademicTitle.parse(request.getTitle())
+                    .orElseThrow(() -> new BadRequestException("INVALID_TITLE", "Unvan katalogdaki unvanlardan biri olmalı."));
+        }
+        boolean wasComplete = isProfileComplete(studentOpt, academicianOpt);
+        studentOpt.ifPresent(student -> {
+            evictStudentNumber(student.getStudentNumber());
+            applyCommonProfileUpdates(student, request);
+            studentRepository.save(student);
+        });
         if (academicianOpt.isPresent()) {
             Academician academician = academicianOpt.get();
-            boolean wasComplete = isAcademicianProfileComplete(academician);
             applyCommonProfileUpdates(academician, request);
-            if (request.getTitle() != null) {
-                academician.setTitle(request.getTitle());
+            if (title != null) {
+                academician.setAcademicTitle(title);
             }
             if (request.getOfficeNumber() != null) {
                 academician.setOfficeNumber(request.getOfficeNumber());
             }
-            Academician saved = academicianRepository.save(academician);
-            publishProfileCompletedIfNeeded(userId, wasComplete, isAcademicianProfileComplete(saved));
-            return mapToResponse(saved);
+            academicianRepository.save(academician);
         }
-
-        throw new NotFoundException("PROFILE_NOT_FOUND", "Profile not found for user ID: " + userId);
+        publishProfileCompletedIfNeeded(userId, wasComplete, isProfileComplete(studentOpt, academicianOpt));
+        return toResponse(studentOpt, academicianOpt).orElseThrow();
     }
 
     // --- YENİ METOT: Profil Resmi Yükleme ---
@@ -156,28 +159,18 @@ public class ProfileService {
         LOGGER.info("File uploaded to MinIO: {} for userId: {}", objectName, userId);
 
         // 3. Veritabanındaki kaydı güncelle
-        if (studentOpt.isPresent()) {
-            Student student = studentOpt.get();
+        boolean wasComplete = isProfileComplete(studentOpt, academicianOpt);
+        studentOpt.ifPresent(student -> {
             evictStudentNumber(student.getStudentNumber());
-            boolean wasComplete = isStudentProfileComplete(student);
-            LOGGER.info("Updating student profile. Old profileImageUrl: {}, New: {}",
-                student.getProfileImageUrl(), objectName);
             student.setProfileImageUrl(objectName);
-            Student saved = studentRepository.save(student);
-            LOGGER.info("Student profile saved. Current profileImageUrl in DB: {}",
-                saved.getProfileImageUrl());
-            publishProfileCompletedIfNeeded(userId, wasComplete, isStudentProfileComplete(saved));
-        } else {
-            Academician academician = academicianOpt.get();
-            boolean wasComplete = isAcademicianProfileComplete(academician);
-            LOGGER.info("Updating academician profile. Old profileImageUrl: {}, New: {}",
-                academician.getProfileImageUrl(), objectName);
+            studentRepository.save(student);
+        });
+        academicianOpt.ifPresent(academician -> {
             academician.setProfileImageUrl(objectName);
-            Academician saved = academicianRepository.save(academician);
-            LOGGER.info("Academician profile saved. Current profileImageUrl in DB: {}",
-                saved.getProfileImageUrl());
-            publishProfileCompletedIfNeeded(userId, wasComplete, isAcademicianProfileComplete(saved));
-        }
+            academicianRepository.save(academician);
+        });
+        LOGGER.info("Profile picture updated for userId: {}", userId);
+        publishProfileCompletedIfNeeded(userId, wasComplete, isProfileComplete(studentOpt, academicianOpt));
 
         // 4. MinIO'daki dosya yolunu döndür
         return objectName;
@@ -312,9 +305,36 @@ public class ProfileService {
                 .orElseThrow(() -> new NotFoundException("PROFILE_NOT_FOUND",
                         "Bu öğrenci numarasına sahip kullanıcı bulunamadı: " + studentNumber));
 
-        return mapToResponse(student);
+        return toResponse(Optional.of(student), academicianRepository.findById(student.getId())).orElseThrow();
     }
 
+    private Optional<UserProfileResponse> toResponse(Optional<Student> student, Optional<Academician> academician) {
+        if (academician.isPresent()) {
+            UserProfileResponse dto = mapToResponse(academician.get());
+            student.ifPresent(s -> {
+                dto.setStudentNumber(s.getStudentNumber());
+                applyProgram(dto, s);
+                dto.setAffiliations(List.of(ACADEMICIAN_AFFILIATION, STUDENT_AFFILIATION));
+            });
+            return Optional.of(dto);
+        }
+        return student.map(this::mapToResponse);
+    }
+
+    private void applyProgram(UserProfileResponse dto, Student student) {
+        if (student.getProgramId() != null) {
+            AcademicPlacement placement = catalogService.program(student.getProgramId());
+            dto.setProgramId(placement.programId());
+            dto.setProgramName(placement.programName());
+            dto.setProgramLevel(placement.programLevel().name());
+            dto.setFacultyName(Optional.ofNullable(dto.getFacultyName()).orElse(placement.facultyName()));
+            if (dto.getDepartmentId() == null) {
+                dto.setDepartmentId(placement.departmentId());
+            }
+        }
+        dto.setEntryYear(student.getEntryYear());
+        dto.setClassYear(catalogService.classYear(student.getEntryYear()));
+    }
 
     private UserProfileResponse mapToResponse(Student student) {
         UserProfileResponse dto = new UserProfileResponse();
@@ -327,16 +347,8 @@ public class ProfileService {
         dto.setDepartment(student.getDepartment());
         dto.setStudentNumber(student.getStudentNumber());
         dto.setRole("Student");
-        if (student.getProgramId() != null) {
-            AcademicPlacement placement = catalogService.program(student.getProgramId());
-            dto.setProgramId(placement.programId());
-            dto.setProgramName(placement.programName());
-            dto.setProgramLevel(placement.programLevel().name());
-            dto.setFacultyName(placement.facultyName());
-            dto.setDepartmentId(placement.departmentId());
-        }
-        dto.setEntryYear(student.getEntryYear());
-        dto.setClassYear(catalogService.classYear(student.getEntryYear()));
+        dto.setAffiliations(List.of(STUDENT_AFFILIATION));
+        applyProgram(dto, student);
         return dto;
     }
 
@@ -351,6 +363,11 @@ public class ProfileService {
         dto.setDepartment(academician.getDepartment());
         dto.setTitle(academician.getTitle());
         dto.setRole("Academician");
+        dto.setAffiliations(List.of(ACADEMICIAN_AFFILIATION));
+        if (academician.getAcademicTitle() != null) {
+            dto.setAcademicTitle(academician.getAcademicTitle().name());
+            dto.setStaffCategory(academician.getStaffCategory().name());
+        }
         if (academician.getDepartmentId() != null) {
             AcademicPlacement placement = catalogService.department(academician.getDepartmentId());
             dto.setDepartmentId(placement.departmentId());
@@ -394,6 +411,11 @@ public class ProfileService {
             gamificationEventPublisher.publishProfileCompleted(userId);
             LOGGER.info("Profile completion gamification event published. userId={}", userId);
         }
+    }
+
+    private boolean isProfileComplete(Optional<Student> student, Optional<Academician> academician) {
+        return academician.map(this::isAcademicianProfileComplete)
+                .orElseGet(() -> student.map(this::isStudentProfileComplete).orElse(false));
     }
 
     private boolean isStudentProfileComplete(Student student) {

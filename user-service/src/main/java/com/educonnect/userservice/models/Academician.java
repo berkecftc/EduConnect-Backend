@@ -37,6 +37,10 @@ public class Academician {
 
     private String title;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "academic_title")
+    private AcademicTitle academicTitle;
+
     private String department;
 
     @Column(name = "department_id")
@@ -114,6 +118,19 @@ public class Academician {
 
     public UUID getDepartmentId() { return departmentId; }
     public void setDepartmentId(UUID departmentId) { this.departmentId = departmentId; }
+
+    public AcademicTitle getAcademicTitle() { return academicTitle; }
+
+    public void setAcademicTitle(AcademicTitle academicTitle) {
+        this.academicTitle = academicTitle;
+        if (academicTitle != null) {
+            this.title = academicTitle.label();
+        }
+    }
+
+    public StaffCategory getStaffCategory() {
+        return academicTitle == null ? null : academicTitle.category();
+    }
 
     public String getOfficeNumber() {
         return officeNumber;

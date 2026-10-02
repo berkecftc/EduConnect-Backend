@@ -3,6 +3,7 @@ package com.educonnect.authservices.service;
 import com.educonnect.authservices.config.RabbitMQConfig;
 import com.educonnect.authservices.dto.message.UserDeletedMessage;
 import com.educonnect.authservices.dto.response.UserSummaryDto;
+import com.educonnect.authservices.models.AccountType;
 import com.educonnect.authservices.models.Role;
 import com.educonnect.authservices.models.User;
 import com.educonnect.authservices.repository.AcademicianRequestRepository;
@@ -107,12 +108,10 @@ public class UserAdministrationService {
     }
 
     private static UserDeletedMessage.UserType deletedUserType(User user) {
-        if (user.getRoles().contains(Role.ROLE_STUDENT)) {
-            return UserDeletedMessage.UserType.STUDENT;
-        }
-        if (user.getRoles().contains(Role.ROLE_ACADEMICIAN)) {
-            return UserDeletedMessage.UserType.ACADEMICIAN;
-        }
-        return UserDeletedMessage.UserType.UNKNOWN;
+        return switch (AccountType.of(user.getRoles())) {
+            case ACADEMICIAN -> UserDeletedMessage.UserType.ACADEMICIAN;
+            case STUDENT -> UserDeletedMessage.UserType.STUDENT;
+            default -> UserDeletedMessage.UserType.UNKNOWN;
+        };
     }
 }

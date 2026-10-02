@@ -1,6 +1,7 @@
 package com.educonnect.courseservice;
 
 import com.educonnect.common.test.TestTokens;
+import com.educonnect.courseservice.service.StaffEligibility;
 import com.educonnect.courseservice.model.Course;
 import com.educonnect.courseservice.model.CourseStatus;
 import com.educonnect.courseservice.model.StudentCourseEnrollment;
@@ -17,6 +18,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockMultipartFile;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.AbstractMockHttpServletRequestBuilder;
 
@@ -36,6 +38,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 @CourseIntegrationTest
 class CourseLifecycleTest {
+
+    @MockitoBean
+    private StaffEligibility staffEligibility;
 
     private final UUID instructor = UUID.randomUUID();
     private final UUID otherInstructor = UUID.randomUUID();

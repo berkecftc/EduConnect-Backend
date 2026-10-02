@@ -69,4 +69,3 @@ public class UpdateUserProfileRequest {
         this.officeNumber = officeNumber;
     }
 }
-

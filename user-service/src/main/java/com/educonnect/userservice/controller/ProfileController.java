@@ -7,7 +7,6 @@ import com.educonnect.userservice.dto.response.UserProfileResponse;
 import com.educonnect.userservice.dto.response.UserProfileResponseDTO;
 import tools.jackson.core.JacksonException;
 import tools.jackson.databind.ObjectMapper;
-import com.educonnect.common.security.AuditLog;
 import com.educonnect.common.security.IdentityHeaders;
 import com.educonnect.common.web.ApiException;
 import com.educonnect.common.web.BadRequestException;

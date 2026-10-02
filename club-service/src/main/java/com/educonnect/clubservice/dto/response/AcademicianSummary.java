@@ -13,6 +13,7 @@ public class AcademicianSummary {
     private String department;
     private String profileImageUrl;
     private String role;
+    private String staffCategory;
 
     public AcademicianSummary() {}
 
@@ -37,6 +38,8 @@ public class AcademicianSummary {
 
     // Yardımcı metot - Tam isim (ünvan dahil)
     public String getRole() { return role; }
+    public String getStaffCategory() { return staffCategory; }
+    public void setStaffCategory(String staffCategory) { this.staffCategory = staffCategory; }
     public void setRole(String role) { this.role = role; }
 
     public String getFullName() {
@@ -53,4 +56,3 @@ public class AcademicianSummary {
         return sb.toString().trim();
     }
 }
-

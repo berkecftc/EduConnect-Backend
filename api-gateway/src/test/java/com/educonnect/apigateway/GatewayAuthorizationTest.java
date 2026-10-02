@@ -55,7 +55,8 @@ class GatewayAuthorizationTest {
     @Test
     void publicEndpointsAreForwardedWithoutAToken() {
         List<String> publicReads = List.of("/api/clubs", "/api/clubs/" + UUID.randomUUID(), "/api/events",
-                "/api/events/" + UUID.randomUUID(), "/api/auth/verify-email?token=abc", "/api/users/academic/catalog");
+                "/api/events/" + UUID.randomUUID(), "/api/auth/verify-email?token=abc", "/api/users/academic/catalog",
+                "/api/users/academic/titles");
         for (String path : publicReads) {
             webTestClient.get().uri(path).exchange().expectStatus().isOk();
         }

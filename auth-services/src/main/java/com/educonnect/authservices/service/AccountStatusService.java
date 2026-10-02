@@ -3,6 +3,7 @@ package com.educonnect.authservices.service;
 import com.educonnect.authservices.repository.UserRepository;
 import com.educonnect.authservices.config.RabbitMQConfig;
 import com.educonnect.authservices.dto.message.UserAccountStatusMessage;
+import com.educonnect.authservices.models.AccountType;
 import com.educonnect.authservices.models.Role;
 import com.educonnect.authservices.models.User;
 import org.slf4j.Logger;
@@ -99,7 +100,7 @@ public class AccountStatusService {
     }
 
     private void notifyUser(User user, String status, String reason) {
-        String userType = user.getRoles() != null && user.getRoles().contains(Role.ROLE_ACADEMICIAN) ? "ACADEMICIAN" : "STUDENT";
+        String userType = AccountType.of(user.getRoles()) == AccountType.ACADEMICIAN ? "ACADEMICIAN" : "STUDENT";
         UserAccountStatusMessage message = new UserAccountStatusMessage(user.getEmail(), null, null, status, userType, reason);
         outboxPublisher.publish(RabbitMQConfig.EXCHANGE_NAME, RabbitMQConfig.USER_ACCOUNT_STATUS_ROUTING_KEY, message);
     }

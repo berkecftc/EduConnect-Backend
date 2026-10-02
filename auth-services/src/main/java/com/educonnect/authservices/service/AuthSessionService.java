@@ -5,6 +5,7 @@ import com.educonnect.authservices.dto.message.GamificationActionType;
 import com.educonnect.authservices.dto.message.GamificationEventMessage;
 import com.educonnect.authservices.dto.request.LoginRequest;
 import com.educonnect.authservices.dto.response.AuthResponse;
+import com.educonnect.authservices.models.AccountType;
 import com.educonnect.authservices.models.Role;
 import com.educonnect.authservices.models.User;
 import com.educonnect.authservices.repository.UserRepository;
@@ -65,7 +66,7 @@ public class AuthSessionService {
         User user = userRepository.findByEmail(loginRequest.getEmail())
                 .orElseThrow(() -> new NotFoundException("USER_NOT_FOUND", "User not found"));
 
-        if (user.getRoles().contains(Role.ROLE_PENDING_ACADEMICIAN)) {
+        if (user.getRoles().contains(Role.ROLE_PENDING_ACADEMICIAN) && AccountType.of(user.getRoles()) == AccountType.UNKNOWN) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN,
                     "Hesabınız henüz onaylanmadı. Lütfen yönetici onayını bekleyin.");
         }

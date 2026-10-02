@@ -158,6 +158,7 @@ public class RegistrationService {
             throw new BadRequestException("EMAIL_ALREADY_REGISTERED", "Email already registered");
         }
         institutionPolicy.requireStaffEmail(request.getEmail());
+        String title = AcademicTitles.require(request.getTitle());
         institutionPolicy.requireDepartment(request.getDepartmentId());
 
         if (idCardImage == null || idCardImage.isEmpty()) {
@@ -183,7 +184,7 @@ public class RegistrationService {
         accReq.setUserId(savedUser.getId());
         accReq.setFirstName(request.getFirstName());
         accReq.setLastName(request.getLastName());
-        accReq.setTitle(request.getTitle());
+        accReq.setTitle(title);
         accReq.setDepartment(request.getDepartment());
         accReq.setDepartmentId(request.getDepartmentId());
         accReq.setOfficeNumber(request.getOfficeNumber());
