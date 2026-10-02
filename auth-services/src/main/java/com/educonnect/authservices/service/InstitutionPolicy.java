@@ -89,6 +89,15 @@ public class InstitutionPolicy {
         requireUnit(DEPARTMENT, departmentId, "DEPARTMENT", "Bölüm");
     }
 
+    public UUID facultyOfProgram(UUID programId) {
+        if (programId == null) {
+            return null;
+        }
+        Map<String, Object> unit = fetchUnit(PROGRAM, programId, "PROGRAM", "Program");
+        Object facultyId = unit == null ? null : unit.get("facultyId");
+        return facultyId == null ? null : UUID.fromString(facultyId.toString());
+    }
+
     public void requireFaculty(UUID facultyId) {
         requireUnit(FACULTY, facultyId, "FACULTY", "Fakülte");
     }
@@ -97,9 +106,15 @@ public class InstitutionPolicy {
         if (id == null) {
             return;
         }
-        Map<String, Object> unit;
+        Map<String, Object> unit = fetchUnit(uri, id, code, label);
+        if (unit == null || !Boolean.TRUE.equals(unit.get("active"))) {
+            throw new BadRequestException(code + "_INACTIVE", label + " artık kayıt almıyor.");
+        }
+    }
+
+    private Map<String, Object> fetchUnit(String uri, UUID id, String code, String label) {
         try {
-            unit = restClient.get()
+            return restClient.get()
                     .uri(uri, id)
                     .headers(headers -> headers.setBearerAuth(jwtService.generateServiceToken(AcademicianAssignmentGuard.SERVICE_CLIENT_ID)))
                     .retrieve()
@@ -110,9 +125,6 @@ public class InstitutionPolicy {
             log.warn("Akademik birim doğrulanamadı: {}", e.getMessage());
             throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE,
                     "Akademik birim şu an doğrulanamıyor. Biraz sonra tekrar deneyin.");
-        }
-        if (unit == null || !Boolean.TRUE.equals(unit.get("active"))) {
-            throw new BadRequestException(code + "_INACTIVE", label + " artık kayıt almıyor.");
         }
     }
 

@@ -30,6 +30,7 @@ import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.Set;
 import java.util.UUID;
+import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -145,7 +146,12 @@ public class RegistrationApprovalService {
     }
 
     public List<StudentRequestAdminView> getAllStudentRequests() {
+        return getStudentRequests(request -> true);
+    }
+
+    public List<StudentRequestAdminView> getStudentRequests(Predicate<StudentRegistrationRequest> filter) {
         return studentRequestRepository.findAll().stream()
+                .filter(filter)
                 .map(req -> new StudentRequestAdminView(
                         req.getId(),
                         req.getFirstName(),
@@ -155,7 +161,8 @@ public class RegistrationApprovalService {
                         req.getDepartment(),
                         minioService.createPresignedUrl(req.getStudentDocumentUrl()),
                         req.getEmailVerifiedAt() != null,
-                        req.getUserId() != null
+                        req.getUserId() != null,
+                        req.getProgramId()
                 ))
                 .toList();
     }
