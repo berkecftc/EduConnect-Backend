@@ -7,5 +7,7 @@ public enum ModerationAction {
     HIDDEN,
     REMOVED,
     RESTORED,
-    REPORT_DISMISSED
+    REPORT_DISMISSED,
+    APPEAL_ACCEPTED,
+    APPEAL_REJECTED
 }
