@@ -114,14 +114,15 @@ public class AssignmentAccessGuard {
         }
     }
 
-    public void requireCourseMember(UUID courseId, UUID userId, String rolesHeader) {
+    public boolean requireCourseMember(UUID courseId, UUID userId, String rolesHeader) {
         if (isAdmin(rolesHeader)) {
-            return;
+            return true;
         }
         CourseAccess access = accessOf(courseId, userId);
         if (!access.staff() && !access.enrolled()) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Bu dersin ödevlerini görme yetkiniz yok.");
         }
+        return access.staff();
     }
 
     public void requireFileAccess(String normalizedFileUrl, UUID userId, String rolesHeader) {

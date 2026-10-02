@@ -40,6 +40,9 @@ public class UserDataCleanupService {
                 .executeUpdate();
         for (String statement : List.of(
                 "DELETE FROM assignment_extensions WHERE student_id = :userId",
+                "DELETE FROM group_members WHERE student_id = :userId",
+                "UPDATE group_members SET added_by = NULL WHERE added_by = :userId",
+                "UPDATE group_sets SET created_by = NULL WHERE created_by = :userId",
                 "UPDATE assignment_extensions SET granted_by = NULL WHERE granted_by = :userId",
                 "UPDATE assignment_changes SET changed_by = NULL WHERE changed_by = :userId",
                 "UPDATE grade_changes SET changed_by = NULL WHERE changed_by = :userId",
