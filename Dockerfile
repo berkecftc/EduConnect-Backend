@@ -14,6 +14,7 @@ RUN java -Djarmode=tools -jar app.jar extract --layers --launcher --destination 
 
 FROM eclipse-temurin:21-jre-alpine
 RUN addgroup -S app && adduser -S -G app app && mkdir -p /app/data && chown app:app /app/data
+ENV TZ=Europe/Istanbul
 WORKDIR /app
 COPY --from=extract /extract/layers/dependencies/ ./
 COPY --from=extract /extract/layers/spring-boot-loader/ ./

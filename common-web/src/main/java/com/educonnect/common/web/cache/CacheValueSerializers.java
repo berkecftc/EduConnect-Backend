@@ -7,6 +7,8 @@ import tools.jackson.databind.json.JsonMapper;
 import tools.jackson.databind.jsontype.BasicPolymorphicTypeValidator;
 import tools.jackson.databind.jsontype.PolymorphicTypeValidator;
 
+import java.math.BigDecimal;
+
 public final class CacheValueSerializers {
 
     private CacheValueSerializers() {
@@ -24,6 +26,7 @@ public final class CacheValueSerializers {
                 .allowIfSubType("com.educonnect.")
                 .allowIfSubType("java.util.")
                 .allowIfSubType("java.time.")
+                .allowIfSubType(BigDecimal.class)
                 .build();
     }
 }

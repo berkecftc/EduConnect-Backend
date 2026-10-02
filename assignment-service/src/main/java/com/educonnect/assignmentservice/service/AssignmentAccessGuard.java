@@ -6,6 +6,7 @@ import com.educonnect.assignmentservice.model.Assignment;
 import com.educonnect.assignmentservice.model.AssignmentSubmission;
 import com.educonnect.assignmentservice.repository.AssignmentRepository;
 import com.educonnect.assignmentservice.repository.SubmissionRepository;
+import com.educonnect.assignmentservice.repository.SubmissionVersionRepository;
 import com.educonnect.common.web.ConflictException;
 import feign.FeignException;
 import org.slf4j.Logger;
@@ -31,13 +32,16 @@ public class AssignmentAccessGuard {
     private final CourseInternalClient courseInternalClient;
     private final AssignmentRepository assignmentRepository;
     private final SubmissionRepository submissionRepository;
+    private final SubmissionVersionRepository versionRepository;
 
     public AssignmentAccessGuard(CourseInternalClient courseInternalClient,
                                  AssignmentRepository assignmentRepository,
-                                 SubmissionRepository submissionRepository) {
+                                 SubmissionRepository submissionRepository,
+                                 SubmissionVersionRepository versionRepository) {
         this.courseInternalClient = courseInternalClient;
         this.assignmentRepository = assignmentRepository;
         this.submissionRepository = submissionRepository;
+        this.versionRepository = versionRepository;
     }
 
     public static UUID parseUserId(String userIdHeader) {
@@ -84,12 +88,27 @@ public class AssignmentAccessGuard {
         }
     }
 
-    public void requireEnrolledStudent(UUID courseId, UUID userId) {
+    public void requireGradePublisher(UUID courseId, UUID userId, String rolesHeader) {
+        CourseAccess access = accessOf(courseId, userId);
+        if (!isAdmin(rolesHeader) && !access.teaches()) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Puanları yalnızca dersin koordinatörü veya hocası ilan edebilir.");
+        }
+        if (!GRADABLE.contains(access.status())) {
+            throw new ConflictException("COURSE_READ_ONLY", "Arşivlenmiş derste puan ilan edilemez.");
+        }
+    }
+
+    public CourseAccess requireEnrolled(UUID courseId, UUID userId) {
         CourseAccess access = accessOf(courseId, userId);
         if (!access.enrolled()) {
             log.warn("Access denied: user {} is not enrolled in course {}", userId, courseId);
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Bu derse kayıtlı değilsiniz.");
         }
+        return access;
+    }
+
+    public void requireEnrolledStudent(UUID courseId, UUID userId) {
+        CourseAccess access = requireEnrolled(courseId, userId);
         if (!RUNNING.contains(access.status())) {
             throw new ConflictException("COURSE_CLOSED", "Ders tamamlandığı için teslim yapılamaz.");
         }
@@ -114,16 +133,25 @@ public class AssignmentAccessGuard {
             requireCourseMember(assignment.get().getCourseId(), userId, rolesHeader);
             return;
         }
-        var submission = submissionRepository.findFirstBySubmissionFileUrl(normalizedFileUrl);
+        var submission = submissionRepository.findFirstBySubmissionFileUrl(normalizedFileUrl)
+                .or(() -> versionRepository.findFirstByFileUrl(normalizedFileUrl)
+                        .flatMap(version -> submissionRepository.findById(version.getSubmissionId())));
         if (submission.isPresent()) {
-            AssignmentSubmission s = submission.get();
-            if (Objects.equals(s.getStudentId(), userId)) {
-                return;
-            }
-            requireStaff(getAssignment(s.getAssignmentId()).getCourseId(), userId, rolesHeader);
+            requireSubmissionViewer(submission.get(), userId, rolesHeader);
             return;
         }
         throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Dosya bulunamadı.");
+    }
+
+    public void requireSubmissionViewer(AssignmentSubmission submission, UUID userId, String rolesHeader) {
+        if (isAdmin(rolesHeader) || Objects.equals(submission.getStudentId(), userId)) {
+            return;
+        }
+        requireStaff(getAssignment(submission.getAssignmentId()).getCourseId(), userId, rolesHeader);
+    }
+
+    public boolean isEnrolled(UUID courseId, UUID userId) {
+        return accessOf(courseId, userId).enrolled();
     }
 
     public Assignment getAssignment(UUID assignmentId) {

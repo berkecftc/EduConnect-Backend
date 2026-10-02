@@ -2,7 +2,6 @@ package com.educonnect.assignmentservice.controller;
 
 import com.educonnect.assignmentservice.dto.*;
 import com.educonnect.assignmentservice.model.Assignment;
-import com.educonnect.assignmentservice.model.AssignmentSubmission;
 import com.educonnect.assignmentservice.service.AssignmentAccessGuard;
 import com.educonnect.assignmentservice.service.AssignmentService;
 import com.educonnect.assignmentservice.service.MinioService;
@@ -10,7 +9,6 @@ import com.educonnect.common.storage.SafeFileNames;
 import jakarta.validation.Valid;
 import org.springframework.core.io.Resource;
 import org.springframework.http.HttpHeaders;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -72,33 +70,28 @@ public class AssignmentController {
         return ResponseEntity.noContent().build();
     }
 
-    // ÖĞRENCİ ÖDEV TESLİMİ
-    @PostMapping(value = "/{assignmentId}/submit", consumes = {"multipart/form-data"})
-    public ResponseEntity<SubmissionResponse> submitAssignment(
-            @PathVariable UUID assignmentId,
-            @RequestPart(value = "file", required = false) MultipartFile file,
-            @RequestHeader(USER_ID_HEADER) String studentIdHeader
-    ) {
-        UUID studentId = parseUserId(studentIdHeader);
-        Assignment assignment = accessGuard.getAssignment(assignmentId);
-        accessGuard.requireEnrolledStudent(assignment.getCourseId(), studentId);
-        AssignmentSubmission submission = assignmentService.submitAssignment(assignmentId, studentId, file);
-        return ResponseEntity.status(HttpStatus.CREATED).body(SubmissionResponse.from(submission));
-    }
-
-    // AKADEMİSYEN NOT VERME
-    @PutMapping("/submissions/{submissionId}/grade")
-    public ResponseEntity<String> gradeSubmission(
-            @PathVariable UUID submissionId,
-            @RequestBody @Valid GradeSubmissionRequest request,
+    @PutMapping("/{id}")
+    public ResponseEntity<AssignmentResponse> update(
+            @PathVariable UUID id,
+            @RequestBody @Valid AssignmentUpdateRequest request,
             @RequestHeader(USER_ID_HEADER) String userIdHeader,
             @RequestHeader(value = ROLES_HEADER, required = false) String roles
     ) {
-        AssignmentSubmission submission = accessGuard.getSubmission(submissionId);
-        Assignment assignment = accessGuard.getAssignment(submission.getAssignmentId());
-        accessGuard.requireGrader(assignment.getCourseId(), parseUserId(userIdHeader), roles);
-        assignmentService.gradeSubmission(submissionId, request.getGrade(), request.getFeedback());
-        return ResponseEntity.ok("Not başarıyla verildi");
+        Assignment assignment = accessGuard.getAssignment(id);
+        UUID userId = parseUserId(userIdHeader);
+        accessGuard.requireAssignmentEditor(assignment.getCourseId(), userId, roles);
+        return ResponseEntity.ok(assignmentService.updateAssignment(assignment, request, userId));
+    }
+
+    @GetMapping("/{id}/changes")
+    public ResponseEntity<List<AssignmentChangeResponse>> changes(
+            @PathVariable UUID id,
+            @RequestHeader(USER_ID_HEADER) String userIdHeader,
+            @RequestHeader(value = ROLES_HEADER, required = false) String roles
+    ) {
+        Assignment assignment = accessGuard.getAssignment(id);
+        accessGuard.requireStaff(assignment.getCourseId(), parseUserId(userIdHeader), roles);
+        return ResponseEntity.ok(assignmentService.changes(id));
     }
 
     // BİR DERSE AİT TÜM TESLİMLERİ GETİR (Akademisyen)

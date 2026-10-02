@@ -12,6 +12,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.InputStream;
+import java.util.Collection;
 import java.util.UUID;
 
 @Service
@@ -32,6 +33,15 @@ public class MinioService {
     public String uploadFile(MultipartFile file) {
         ValidatedUpload upload = storage.validate(file, UploadKind.IMAGE);
         return storage.put(file, upload, UUID.randomUUID() + "_" + upload.safeOriginalName());
+    }
+
+    public String uploadAttachment(MultipartFile file) {
+        ValidatedUpload upload = storage.validate(file, UploadKind.ATTACHMENT);
+        return storage.put(file, upload, UUID.randomUUID() + "_" + upload.safeOriginalName());
+    }
+
+    public void deleteFilesAfterCommit(Collection<String> fileUrls) {
+        storage.deleteAfterCommit(fileUrls);
     }
 
     public InputStream downloadFile(String fileUrl) {

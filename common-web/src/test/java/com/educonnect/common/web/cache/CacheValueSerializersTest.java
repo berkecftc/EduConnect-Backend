@@ -4,6 +4,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.data.redis.serializer.GenericJacksonJsonRedisSerializer;
 import org.springframework.data.redis.serializer.SerializationException;
 
+import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -46,6 +47,15 @@ class CacheValueSerializersTest {
     }
 
     @Test
+    void decimalValuesKeepTheirScale() {
+        List<CachedAmount> amounts = new ArrayList<>(List.of(new CachedAmount("Kısa sınav", new BigDecimal("17.50"))));
+
+        Object restored = serializer.deserialize(serializer.serialize(amounts));
+
+        assertThat(((List<?>) restored).get(0)).isEqualTo(new CachedAmount("Kısa sınav", new BigDecimal("17.50")));
+    }
+
+    @Test
     void foreignTypesAreRejected() {
         byte[] payload = ("[\"java.util.ArrayList\",[{\"@class\":\"org.springframework.context.support.ClassPathXmlApplicationContext\","
                 + "\"configLocation\":\"http://example.invalid/x.xml\"}]]").getBytes(StandardCharsets.UTF_8);
@@ -53,6 +63,9 @@ class CacheValueSerializersTest {
         assertThatThrownBy(() -> serializer.deserialize(payload))
                 .isInstanceOf(SerializationException.class)
                 .hasMessageContaining("ClassPathXmlApplicationContext");
+    }
+
+    public record CachedAmount(String label, BigDecimal amount) {
     }
 
     public record CachedRecord(String name, int count) {

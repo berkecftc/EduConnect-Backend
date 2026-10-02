@@ -30,12 +30,22 @@ public class UserDataCleanupService {
     public void deleteUserData(UUID userId) {
         @SuppressWarnings("unchecked")
         List<String> files = entityManager.createNativeQuery(
-                        "SELECT submission_file_url FROM assignment_submissions WHERE student_id = :userId AND submission_file_url IS NOT NULL")
+                        "SELECT submission_file_url FROM assignment_submissions WHERE student_id = :userId AND submission_file_url IS NOT NULL "
+                                + "UNION SELECT v.file_url FROM submission_versions v JOIN assignment_submissions s ON s.id = v.submission_id "
+                                + "WHERE s.student_id = :userId AND v.file_url IS NOT NULL")
                 .setParameter("userId", userId)
                 .getResultList();
         int deleted = entityManager.createNativeQuery("DELETE FROM assignment_submissions WHERE student_id = :userId")
                 .setParameter("userId", userId)
                 .executeUpdate();
+        for (String statement : List.of(
+                "DELETE FROM assignment_extensions WHERE student_id = :userId",
+                "UPDATE assignment_extensions SET granted_by = NULL WHERE granted_by = :userId",
+                "UPDATE assignment_changes SET changed_by = NULL WHERE changed_by = :userId",
+                "UPDATE grade_changes SET changed_by = NULL WHERE changed_by = :userId",
+                "UPDATE assignments SET grades_published_by = NULL WHERE grades_published_by = :userId")) {
+            entityManager.createNativeQuery(statement).setParameter("userId", userId).executeUpdate();
+        }
         minioService.deleteFilesAfterCommit(files);
         log.info("Silinen kullanıcının ödev teslimleri temizlendi: userId={}, rows={}, files={}", userId, deleted, files.size());
     }

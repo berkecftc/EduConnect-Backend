@@ -6,6 +6,7 @@ import com.educonnect.common.web.cache.CacheValueSerializers;
 import org.junit.jupiter.api.Test;
 import org.springframework.data.redis.serializer.GenericJacksonJsonRedisSerializer;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -22,7 +23,7 @@ class RedisCacheConfigTest {
         MySubmissionDTO submission = new MySubmissionDTO();
         submission.setSubmissionId(UUID.randomUUID());
         submission.setSubmittedAt(LocalDateTime.of(2026, 10, 2, 23, 50));
-        submission.setGrade(85);
+        submission.setGrade(new BigDecimal("85.5"));
         submission.setLate(true);
         MyAssignmentDTO assignment = new MyAssignmentDTO();
         assignment.setId(UUID.randomUUID());
@@ -35,7 +36,7 @@ class RedisCacheConfigTest {
         MyAssignmentDTO cached = (MyAssignmentDTO) ((List<?>) restored).get(0);
         assertThat(cached.getId()).isEqualTo(assignment.getId());
         assertThat(cached.getDueDate()).isEqualTo(assignment.getDueDate());
-        assertThat(cached.getSubmission().getGrade()).isEqualTo(85);
+        assertThat(cached.getSubmission().getGrade()).isEqualByComparingTo("85.5");
         assertThat(cached.getSubmission().isLate()).isTrue();
     }
 }
