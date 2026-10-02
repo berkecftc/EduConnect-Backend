@@ -7,5 +7,7 @@ public enum ParticipationRequestStatus {
     PENDING,    // Beklemede
     APPROVED,   // Onaylandı
     REJECTED,   // Reddedildi
-    CLOSED
+    CLOSED,
+    WAITLISTED,
+    WITHDRAWN
 }

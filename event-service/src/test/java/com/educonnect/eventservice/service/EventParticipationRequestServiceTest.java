@@ -4,6 +4,7 @@ import com.educonnect.common.messaging.outbox.OutboxPublisher;
 import com.educonnect.eventservice.repository.EventParticipationRequestRepository;
 import com.educonnect.eventservice.repository.EventRegistrationRepository;
 import com.educonnect.eventservice.repository.EventRepository;
+import com.educonnect.common.web.ApiException;
 import com.educonnect.eventservice.client.ClubClient;
 import com.educonnect.eventservice.model.Event;
 import com.educonnect.eventservice.model.EventParticipationRequest;
@@ -56,6 +57,7 @@ class EventParticipationRequestServiceTest {
         event.setStartsAt(LocalDateTime.now().plusDays(3));
         event.setEndsAt(event.getStartsAt().plusHours(2));
         when(eventRepository.findById(eventId)).thenReturn(Optional.of(event));
+        when(eventRepository.findByIdForUpdate(eventId)).thenReturn(Optional.of(event));
         when(clubClient.isStudentMemberOfClub(clubId, studentId)).thenReturn(true);
         when(requestRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
     }
@@ -64,7 +66,7 @@ class EventParticipationRequestServiceTest {
     void requestRequiresClubMembership() {
         when(clubClient.isStudentMemberOfClub(clubId, studentId)).thenReturn(false);
 
-        assertThatThrownBy(() -> service.createParticipationRequest(eventId, studentId, null))
+        assertThatThrownBy(() -> service.createParticipationRequest(eventId, studentId, "ROLE_STUDENT", null))
                 .isInstanceOf(ResponseStatusException.class)
                 .hasMessageContaining("403");
     }
@@ -72,16 +74,16 @@ class EventParticipationRequestServiceTest {
     @Test
     void cannotRequestPendingOrPastEvents() {
         event.setStatus(EventStatus.PENDING);
-        assertThatThrownBy(() -> service.createParticipationRequest(eventId, studentId, null))
+        assertThatThrownBy(() -> service.createParticipationRequest(eventId, studentId, "ROLE_STUDENT", null))
                 .isInstanceOf(ResponseStatusException.class)
                 .hasMessageContaining("400");
 
         event.setStatus(EventStatus.ACTIVE);
         event.setStartsAt(LocalDateTime.now().minusDays(1));
         event.setEndsAt(event.getStartsAt().plusHours(2));
-        assertThatThrownBy(() -> service.createParticipationRequest(eventId, studentId, null))
-                .isInstanceOf(ResponseStatusException.class)
-                .hasMessageContaining("400");
+        assertThatThrownBy(() -> service.createParticipationRequest(eventId, studentId, "ROLE_STUDENT", null))
+                .isInstanceOf(ApiException.class)
+                .hasFieldOrPropertyWithValue("errorCode", "REGISTRATION_CLOSED");
         verify(requestRepository, never()).save(any());
     }
 
@@ -90,7 +92,7 @@ class EventParticipationRequestServiceTest {
         when(requestRepository.findByEventIdAndStudentId(eventId, studentId))
                 .thenReturn(Optional.of(new EventParticipationRequest(eventId, studentId)));
 
-        assertThatThrownBy(() -> service.createParticipationRequest(eventId, studentId, null))
+        assertThatThrownBy(() -> service.createParticipationRequest(eventId, studentId, "ROLE_STUDENT", null))
                 .isInstanceOf(ResponseStatusException.class)
                 .hasMessageContaining("409");
     }
@@ -132,7 +134,7 @@ class EventParticipationRequestServiceTest {
         rejected.setRejectionReason("Kontenjan");
         when(requestRepository.findByEventIdAndStudentId(eventId, studentId)).thenReturn(Optional.of(rejected));
 
-        EventParticipationRequest result = service.createParticipationRequest(eventId, studentId, "tekrar");
+        EventParticipationRequest result = service.createParticipationRequest(eventId, studentId, "ROLE_STUDENT", "tekrar");
 
         assertThat(result).isSameAs(rejected);
         assertThat(result.getStatus()).isEqualTo(ParticipationRequestStatus.PENDING);

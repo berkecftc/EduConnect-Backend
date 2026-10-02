@@ -37,7 +37,8 @@ class EventResponseTest {
 
         Map<String, Object> json = objectMapper.readValue(objectMapper.writeValueAsString(EventResponse.from(event)), JSON_MAP);
 
-        assertThat(json.keySet()).containsExactlyInAnyOrder("id", "title", "description", "eventTime", "startsAt", "endsAt", "speakers", "location",
+        assertThat(json.keySet()).containsExactlyInAnyOrder("id", "title", "description", "eventTime", "startsAt", "endsAt", "speakers", "audience", "admission", "capacity",
+                "registrationOpensAt", "registrationClosesAt", "cancelUntil", "location",
                 "imageUrl", "clubId", "clubName", "status", "createdAt", "updatedAt", "rejectionReason");
         assertThat(json.get("eventTime")).isEqualTo("2026-10-05T18:30:00");
         assertThat(json.get("endsAt")).isEqualTo("2026-10-05T20:30:00");

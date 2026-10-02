@@ -58,6 +58,15 @@ public class EventSchedule {
         }
     }
 
+    public void requireValidRegistration(LocalDateTime startsAt, LocalDateTime opensAt, LocalDateTime closesAt, LocalDateTime cancelUntil) {
+        LocalDateTime close = closesAt != null ? closesAt : startsAt;
+        if (close.isAfter(startsAt) || (opensAt != null && !opensAt.isBefore(close))
+                || (cancelUntil != null && cancelUntil.isAfter(startsAt))) {
+            throw new BadRequestException("INVALID_REGISTRATION_WINDOW",
+                    "Kayıt penceresi başlangıçtan önce kapanmalı, açılış kapanıştan önce olmalı ve iptal süresi başlangıcı geçmemeli.");
+        }
+    }
+
     public void requireNotStarted(Event event) {
         if (!event.getStartsAt().isAfter(now())) {
             throw new ConflictException("EVENT_STARTED", "Başlama saati geçmiş bir etkinlik onaylanamaz.");

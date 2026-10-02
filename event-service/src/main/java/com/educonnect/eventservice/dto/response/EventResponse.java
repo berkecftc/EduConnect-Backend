@@ -1,6 +1,8 @@
 package com.educonnect.eventservice.dto.response;
 
+import com.educonnect.eventservice.model.AdmissionMode;
 import com.educonnect.eventservice.model.Event;
+import com.educonnect.eventservice.model.EventAudience;
 import com.educonnect.eventservice.model.EventStatus;
 
 import java.time.Instant;
@@ -15,6 +17,12 @@ public record EventResponse(UUID id,
                             LocalDateTime startsAt,
                             LocalDateTime endsAt,
                             String speakers,
+                            EventAudience audience,
+                            AdmissionMode admission,
+                            Integer capacity,
+                            LocalDateTime registrationOpensAt,
+                            LocalDateTime registrationClosesAt,
+                            LocalDateTime cancelUntil,
                             String location,
                             String imageUrl,
                             UUID clubId,
@@ -27,6 +35,9 @@ public record EventResponse(UUID id,
     public static EventResponse from(Event event) {
         return new EventResponse(event.getId(), event.getTitle(), event.getDescription(), event.getStartsAt(),
                 event.getStartsAt(), event.getEndsAt(), event.getSpeakers(),
+                event.getAudience(), event.getAdmission(), event.getCapacity(), event.getRegistrationOpensAt(),
+                event.getStartsAt() == null ? null : event.effectiveRegistrationClose(),
+                event.getStartsAt() == null ? null : event.effectiveCancelUntil(),
                 event.getLocation(), event.getImageUrl(), event.getClubId(), event.getClubName(), event.getStatus(),
                 event.getCreatedAt(), event.getUpdatedAt(), event.getRejectionReason());
     }

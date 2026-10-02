@@ -26,6 +26,13 @@ public class EventRegistration {
 
     private boolean attended = false; // Kulüp yetkilisi okutunca true olacak
 
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 12)
+    private RegistrationStatus status = RegistrationStatus.REGISTERED;
+
+    @Column(name = "cancelled_at")
+    private LocalDateTime cancelledAt;
+
     // --- Getter & Setter ---
     public EventRegistration() {}
 
@@ -42,4 +49,13 @@ public class EventRegistration {
     public void setRegistrationTime(LocalDateTime registrationTime) { this.registrationTime = registrationTime; }
     public boolean isAttended() { return attended; }
     public void setAttended(boolean attended) { this.attended = attended; }
+
+    public RegistrationStatus getStatus() { return status; }
+    public void setStatus(RegistrationStatus status) { this.status = status; }
+    public LocalDateTime getCancelledAt() { return cancelledAt; }
+    public void setCancelledAt(LocalDateTime cancelledAt) { this.cancelledAt = cancelledAt; }
+
+    public boolean isActive() {
+        return status == RegistrationStatus.REGISTERED;
+    }
 }

@@ -98,6 +98,8 @@ public class EventQueryService {
             dto.setQrCode(registration.getQrCode());
             dto.setRegistrationTime(registration.getRegistrationTime());
             dto.setAttended(registration.isAttended());
+            dto.setRegistrationStatus(registration.getStatus().name());
+            dto.setEventStatus(event.getStatus().name());
             return dto;
         }).filter(dto -> dto != null).collect(Collectors.toList());
     }
@@ -126,6 +128,7 @@ public class EventQueryService {
             dto.setStudentId(registration.getStudentId());
             dto.setRegistrationTime(registration.getRegistrationTime());
             dto.setAttended(registration.isAttended());
+            dto.setStatus(registration.getStatus().name());
 
             UserSummary user = users.get(registration.getStudentId());
             if (user != null) {

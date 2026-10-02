@@ -6,7 +6,9 @@ import com.educonnect.eventservice.client.ClubClient;
 import com.educonnect.eventservice.config.ApprovalChainSettings;
 import com.educonnect.eventservice.dto.request.CreateEventRequest;
 import com.educonnect.eventservice.dto.response.ClubAccess;
+import com.educonnect.eventservice.model.AdmissionMode;
 import com.educonnect.eventservice.model.Event;
+import com.educonnect.eventservice.model.EventAudience;
 import com.educonnect.eventservice.model.EventRegistration;
 import com.educonnect.eventservice.model.EventStatus;
 import com.educonnect.eventservice.repository.EventRegistrationRepository;
@@ -64,6 +66,11 @@ public class EventService {
         }
         LocalDateTime endsAt = schedule.endOrDefault(request.getStartsAt(), request.getEndsAt());
         schedule.requireValidNewSchedule(request.getStartsAt(), endsAt);
+        schedule.requireValidRegistration(request.getStartsAt(), request.getRegistrationOpensAt(), request.getRegistrationClosesAt(),
+                request.getCancelUntil());
+        if (request.getAudience() == EventAudience.CAMPUS) {
+            throw new BadRequestException("AUDIENCE_NOT_ALLOWED", "Kulüp etkinliği yalnız üyelere veya tüm öğrencilere açılabilir.");
+        }
 
         UUID resolvedClubId;
         try {
@@ -97,6 +104,12 @@ public class EventService {
         event.setStartsAt(request.getStartsAt());
         event.setEndsAt(endsAt);
         event.setSpeakers(request.getSpeakers() == null || request.getSpeakers().isBlank() ? null : request.getSpeakers().strip());
+        event.setAudience(request.getAudience() != null ? request.getAudience() : EventAudience.MEMBERS_ONLY);
+        event.setAdmission(request.getAdmission() != null ? request.getAdmission() : AdmissionMode.APPROVAL_REQUIRED);
+        event.setCapacity(request.getCapacity());
+        event.setRegistrationOpensAt(request.getRegistrationOpensAt());
+        event.setRegistrationClosesAt(request.getRegistrationClosesAt());
+        event.setCancelUntil(request.getCancelUntil());
         event.setLocation(request.getLocation());
         event.setClubName(request.getClubName());
         event.setCreatedByStudentId(creatorId);
@@ -155,6 +168,9 @@ public class EventService {
         }
         schedule.requireCheckInOpen(event);
 
+        if (!registration.isActive()) {
+            throw new BadRequestException("TICKET_CANCELLED", "Bu kayıt iptal edilmiş.");
+        }
         if (registration.isAttended()) {
             throw new BadRequestException("TICKET_ALREADY_USED", "Ticket already used/scanned.");
         }
