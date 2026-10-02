@@ -67,6 +67,18 @@ public class Post {
     @Column(name = "moderation_flag")
     private String moderationFlag;
 
+    @Column(name = "course_label")
+    private String courseLabel;
+
+    @Column(name = "attachment_url", length = 1000)
+    private String attachmentUrl;
+
+    @Column(name = "attachment_name")
+    private String attachmentName;
+
+    @Column(name = "declaration_accepted_at")
+    private Instant declarationAcceptedAt;
+
     @Column(name = "submitted_at")
     private Instant submittedAt;
 
@@ -128,6 +140,20 @@ public class Post {
 
     public String getModerationFlag() { return moderationFlag; }
     public void setModerationFlag(String moderationFlag) { this.moderationFlag = moderationFlag; }
+
+    public String getCourseLabel() { return courseLabel; }
+    public void setCourseLabel(String courseLabel) { this.courseLabel = courseLabel; }
+
+    public String getAttachmentUrl() { return attachmentUrl; }
+    public String getAttachmentName() { return attachmentName; }
+
+    public void attach(String url, String name) {
+        this.attachmentUrl = url;
+        this.attachmentName = name;
+    }
+
+    public Instant getDeclarationAcceptedAt() { return declarationAcceptedAt; }
+    public void setDeclarationAcceptedAt(Instant declarationAcceptedAt) { this.declarationAcceptedAt = declarationAcceptedAt; }
 
     public Instant getSubmittedAt() { return submittedAt; }
     public void setSubmittedAt(Instant submittedAt) { this.submittedAt = submittedAt; }

@@ -20,6 +20,8 @@ public record PostResponse(
         boolean official,
         boolean commentsDisabled,
         String reviewNote,
+        String courseLabel,
+        String attachmentName,
         UUID authorId,
         String authorName,
         String authorDepartment,

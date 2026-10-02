@@ -14,5 +14,7 @@ public record UpdatePostRequest(
 
         PostCategory category,
 
-        Boolean commentsDisabled
+        Boolean commentsDisabled,
+
+        Boolean sharingDeclaration
 ) {}

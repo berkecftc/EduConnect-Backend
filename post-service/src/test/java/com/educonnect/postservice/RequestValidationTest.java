@@ -24,56 +24,56 @@ class RequestValidationTest {
 
     @Test
     void createPostRequestAcceptsValidSample() {
-        assertThat(validator.validate(new CreatePostRequest("Başlık", "İçerik", CATEGORY, null, null, null, null, null))).isEmpty();
+        assertThat(validator.validate(new CreatePostRequest("Başlık", "İçerik", CATEGORY, null, null, null, null, null, null))).isEmpty();
     }
 
     @Test
     void createPostRequestRejectsBlankTitle() {
-        assertThat(paths(validator.validate(new CreatePostRequest(" ", "İçerik", CATEGORY, null, null, null, null, null)))).containsExactly("title");
+        assertThat(paths(validator.validate(new CreatePostRequest(" ", "İçerik", CATEGORY, null, null, null, null, null, null)))).containsExactly("title");
     }
 
     @Test
     void createPostRequestRejectsTooLongTitle() {
-        assertThat(paths(validator.validate(new CreatePostRequest("a".repeat(256), "İçerik", CATEGORY, null, null, null, null, null))))
+        assertThat(paths(validator.validate(new CreatePostRequest("a".repeat(256), "İçerik", CATEGORY, null, null, null, null, null, null))))
                 .containsExactly("title");
     }
 
     @Test
     void createPostRequestRejectsBlankContent() {
-        assertThat(paths(validator.validate(new CreatePostRequest("Başlık", "", CATEGORY, null, null, null, null, null)))).containsExactly("content");
+        assertThat(paths(validator.validate(new CreatePostRequest("Başlık", "", CATEGORY, null, null, null, null, null, null)))).containsExactly("content");
     }
 
     @Test
     void createPostRequestDefaultsMissingCategoryToQuestion() {
-        CreatePostRequest request = new CreatePostRequest("Başlık", "İçerik", null, null, null, null, null, null);
+        CreatePostRequest request = new CreatePostRequest("Başlık", "İçerik", null, null, null, null, null, null, null);
         assertThat(validator.validate(request)).isEmpty();
         assertThat(request.categoryOrDefault()).isEqualTo(PostCategory.SORU);
     }
 
     @Test
     void updatePostRequestAcceptsValidSample() {
-        assertThat(validator.validate(new UpdatePostRequest("Başlık", "İçerik", CATEGORY, null))).isEmpty();
+        assertThat(validator.validate(new UpdatePostRequest("Başlık", "İçerik", CATEGORY, null, null))).isEmpty();
     }
 
     @Test
     void updatePostRequestRejectsBlankTitle() {
-        assertThat(paths(validator.validate(new UpdatePostRequest(null, "İçerik", CATEGORY, null)))).containsExactly("title");
+        assertThat(paths(validator.validate(new UpdatePostRequest(null, "İçerik", CATEGORY, null, null)))).containsExactly("title");
     }
 
     @Test
     void updatePostRequestRejectsTooLongTitle() {
-        assertThat(paths(validator.validate(new UpdatePostRequest("a".repeat(256), "İçerik", CATEGORY, null))))
+        assertThat(paths(validator.validate(new UpdatePostRequest("a".repeat(256), "İçerik", CATEGORY, null, null))))
                 .containsExactly("title");
     }
 
     @Test
     void updatePostRequestRejectsBlankContent() {
-        assertThat(paths(validator.validate(new UpdatePostRequest("Başlık", " ", CATEGORY, null)))).containsExactly("content");
+        assertThat(paths(validator.validate(new UpdatePostRequest("Başlık", " ", CATEGORY, null, null)))).containsExactly("content");
     }
 
     @Test
     void updatePostRequestKeepsCategoryWhenMissing() {
-        assertThat(validator.validate(new UpdatePostRequest("Başlık", "İçerik", null, null))).isEmpty();
+        assertThat(validator.validate(new UpdatePostRequest("Başlık", "İçerik", null, null, null))).isEmpty();
     }
 
     @Test

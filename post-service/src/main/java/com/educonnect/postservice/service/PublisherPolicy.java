@@ -9,12 +9,14 @@ import com.educonnect.postservice.model.PublisherType;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Component;
 
+import java.util.Set;
 import java.util.UUID;
 
 @Component
 public class PublisherPolicy {
 
     static final String PREPARE_ANNOUNCEMENT = "PREPARE_ANNOUNCEMENT";
+    private static final Set<PostCategory> COURSE_TOPICS = Set.of(PostCategory.SORU, PostCategory.DERS_NOTU);
 
     private final ScopeAccessService scopeAccess;
 
@@ -30,12 +32,12 @@ public class PublisherPolicy {
                 throw new ApiException(HttpStatus.BAD_REQUEST, "PUBLISHER_REQUIRED",
                         "Duyuru bir kulüp, ders veya kampüs adına yayımlanır; yayıncıyı seçin.");
             }
-            if (clubId != null || courseId != null) {
+            if (clubId != null || (courseId != null && !COURSE_TOPICS.contains(category))) {
                 throw new ApiException(HttpStatus.BAD_REQUEST, "SCOPE_NOT_ALLOWED",
-                        "Forum gönderisi bir kulüp veya ders adına paylaşılamaz.");
+                        "Forumda yalnız soru ve ders notu bir derse bağlanabilir.");
             }
             requireForumWriter(viewer);
-            return Publication.forum();
+            return courseId == null ? Publication.forum() : forumAbout(viewer, courseId);
         }
         if (!category.official()) {
             throw new ApiException(HttpStatus.BAD_REQUEST, "INVALID_CATEGORY",
@@ -88,13 +90,22 @@ public class PublisherPolicy {
         }
         ClubAccess access = scopeAccess.clubAccess(clubId, viewer.id());
         if (access != null && (access.actingPresident() || access.advisor())) {
-            return new Publication(PublisherType.CLUB, clubId, null, access.clubName(), false);
+            return new Publication(PublisherType.CLUB, clubId, null, access.clubName(), null, false);
         }
         if (access != null && access.has(PREPARE_ANNOUNCEMENT)) {
-            return new Publication(PublisherType.CLUB, clubId, null, access.clubName(), true);
+            return new Publication(PublisherType.CLUB, clubId, null, access.clubName(), null, true);
         }
         throw new ApiException(HttpStatus.FORBIDDEN, "NOT_CLUB_PUBLISHER",
                 "Kulüp adına duyuruyu kulüp yönetimi, iletişim sorumlusu veya danışman hazırlar.");
+    }
+
+    private Publication forumAbout(Viewer viewer, UUID courseId) {
+        CourseAccess access = scopeAccess.courseAccess(courseId, viewer.id());
+        if (access == null || !access.member()) {
+            throw new ApiException(HttpStatus.FORBIDDEN, "NOT_COURSE_MEMBER",
+                    "Yalnız aldığınız veya yürüttüğünüz bir derse soru ve not bağlayabilirsiniz.");
+        }
+        return Publication.forumAbout(courseId, access.displayName());
     }
 
     private Publication course(Viewer viewer, UUID courseId, UUID clubId) {
@@ -109,7 +120,7 @@ public class PublisherPolicy {
         if ("ARCHIVED".equals(access.status())) {
             throw new ApiException(HttpStatus.CONFLICT, "COURSE_ARCHIVED", "Arşivdeki ders için duyuru yayımlanamaz.");
         }
-        return new Publication(PublisherType.COURSE, null, courseId, access.displayName(), false);
+        return new Publication(PublisherType.COURSE, null, courseId, access.displayName(), access.displayName(), false);
     }
 
     private Publication campus(Viewer viewer, UUID clubId, UUID courseId, String publisherName) {
@@ -125,7 +136,7 @@ public class PublisherPolicy {
             throw new ApiException(HttpStatus.BAD_REQUEST, "PUBLISHER_NAME_REQUIRED",
                     "Duyuruyu yayımlayan birimin adını yazın.");
         }
-        return new Publication(PublisherType.CAMPUS, null, null, publisherName.strip(), false);
+        return new Publication(PublisherType.CAMPUS, null, null, publisherName.strip(), null, false);
     }
 
     private static ApiException scopeRequired(String message) {

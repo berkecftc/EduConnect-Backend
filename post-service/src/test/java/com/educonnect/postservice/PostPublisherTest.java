@@ -219,7 +219,7 @@ class PostPublisherTest {
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.errorCode").value("CATEGORY_CHANGE_NOT_ALLOWED"));
 
-        UUID forumPost = create(TestTokens.student(outsider), "{\"title\":\"Not\",\"content\":\"Özet\",\"category\":\"DERS_NOTU\"}", "PENDING");
+        UUID forumPost = create(TestTokens.student(outsider), "{\"title\":\"Not\",\"content\":\"Özet\",\"category\":\"DERS_NOTU\",\"sharingDeclaration\":true}", "PENDING");
         mockMvc.perform(as(put("/api/posts/{id}", forumPost), TestTokens.student(outsider)).contentType(MediaType.APPLICATION_JSON)
                         .content("{\"title\":\"Not\",\"content\":\"Özet\",\"category\":\"DUYURU\"}"))
                 .andExpect(status().isBadRequest())

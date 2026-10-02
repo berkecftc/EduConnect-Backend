@@ -55,6 +55,7 @@ public class PostService {
     private final PublisherPolicy publisherPolicy;
     private final PostVisibility postVisibility;
     private final ScopeAccessService scopeAccess;
+    private final AttachmentService attachmentService;
 
     public PostService(PostRepository postRepository,
                        PostEventPublisher eventPublisher,
@@ -64,7 +65,8 @@ public class PostService {
                        CommentRepository commentRepository,
                        PublisherPolicy publisherPolicy,
                        PostVisibility postVisibility,
-                       ScopeAccessService scopeAccess) {
+                       ScopeAccessService scopeAccess,
+                       AttachmentService attachmentService) {
         this.postRepository = postRepository;
         this.eventPublisher = eventPublisher;
         this.userClient = userClient;
@@ -74,6 +76,7 @@ public class PostService {
         this.publisherPolicy = publisherPolicy;
         this.postVisibility = postVisibility;
         this.scopeAccess = scopeAccess;
+        this.attachmentService = attachmentService;
     }
 
     @Transactional
@@ -91,6 +94,11 @@ public class PostService {
         post.setClubId(publication.clubId());
         post.setCourseId(publication.courseId());
         post.setPublisherName(publication.name());
+        post.setCourseLabel(publication.courseLabel());
+        if (category == PostCategory.DERS_NOTU) {
+            requireDeclaration(request.sharingDeclaration());
+            post.setDeclarationAcceptedAt(Instant.now());
+        }
         post.setCommentsDisabled(category.official() && Boolean.TRUE.equals(request.commentsDisabled()));
         post.setStatus(publication.needsApproval() ? PostStatus.AWAITING_APPROVAL : PostStatus.PENDING);
 
@@ -123,6 +131,14 @@ public class PostService {
             }
         } else {
             publisherPolicy.requireForumWriter(viewer);
+            if (post.getCourseId() != null && category != PostCategory.SORU && category != PostCategory.DERS_NOTU) {
+                throw new ApiException(HttpStatus.BAD_REQUEST, "SCOPE_NOT_ALLOWED",
+                        "Derse bağlı gönderi yalnız soru veya ders notu olabilir.");
+            }
+            if (category == PostCategory.DERS_NOTU && post.getDeclarationAcceptedAt() == null) {
+                requireDeclaration(request.sharingDeclaration());
+                post.setDeclarationAcceptedAt(Instant.now());
+            }
         }
 
         post.setTitle(request.title());
@@ -143,6 +159,7 @@ public class PostService {
         Post post = findPostOrThrow(postId);
         validateAuthor(post, authorId);
 
+        attachmentService.discard(post);
         postRepository.delete(post);
         log.info("Post silindi — postId: {}, authorId: {}", postId, authorId);
     }
@@ -252,6 +269,13 @@ public class PostService {
         return post;
     }
 
+    private static void requireDeclaration(Boolean declared) {
+        if (!Boolean.TRUE.equals(declared)) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "DECLARATION_REQUIRED",
+                    "Ders notunu paylaşmadan önce kendi notunuz olduğunu, sınav sorusu veya telifli materyal içermediğini onaylayın.");
+        }
+    }
+
     private static boolean mayIncludeCourseAnnouncements(PostFeedFilter filter) {
         if (filter.publisherType() != null && filter.publisherType() != PublisherType.COURSE) {
             return false;
@@ -326,6 +350,8 @@ public class PostService {
                 post.isOfficial(),
                 post.isCommentsDisabled(),
                 post.getReviewNote(),
+                post.getCourseLabel(),
+                post.getAttachmentName(),
                 post.getAuthorId(),
                 authorName,
                 authorDepartment,

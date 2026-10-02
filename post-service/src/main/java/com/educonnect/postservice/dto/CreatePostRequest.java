@@ -26,7 +26,9 @@ public record CreatePostRequest(
         @Size(max = 255, message = "Yayımlayan birim adı en fazla 255 karakter olabilir")
         String publisherName,
 
-        Boolean commentsDisabled
+        Boolean commentsDisabled,
+
+        Boolean sharingDeclaration
 ) {
 
     public PostCategory categoryOrDefault() {
