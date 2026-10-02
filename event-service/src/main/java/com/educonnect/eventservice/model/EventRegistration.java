@@ -33,6 +33,16 @@ public class EventRegistration {
     @Column(name = "cancelled_at")
     private LocalDateTime cancelledAt;
 
+    @Column(name = "checked_in_at")
+    private LocalDateTime checkedInAt;
+
+    @Column(name = "checked_in_by")
+    private UUID checkedInBy;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "check_in_method", length = 10)
+    private CheckInMethod checkInMethod;
+
     // --- Getter & Setter ---
     public EventRegistration() {}
 
@@ -54,6 +64,24 @@ public class EventRegistration {
     public void setStatus(RegistrationStatus status) { this.status = status; }
     public LocalDateTime getCancelledAt() { return cancelledAt; }
     public void setCancelledAt(LocalDateTime cancelledAt) { this.cancelledAt = cancelledAt; }
+
+    public LocalDateTime getCheckedInAt() { return checkedInAt; }
+    public UUID getCheckedInBy() { return checkedInBy; }
+    public CheckInMethod getCheckInMethod() { return checkInMethod; }
+
+    public void checkIn(UUID by, CheckInMethod method, LocalDateTime at) {
+        this.attended = true;
+        this.checkedInBy = by;
+        this.checkInMethod = method;
+        this.checkedInAt = at;
+    }
+
+    public void undoCheckIn() {
+        this.attended = false;
+        this.checkedInBy = null;
+        this.checkInMethod = null;
+        this.checkedInAt = null;
+    }
 
     public boolean isActive() {
         return status == RegistrationStatus.REGISTERED;

@@ -8,6 +8,7 @@ import com.educonnect.eventservice.dto.request.CampusEventRequest;
 import com.educonnect.eventservice.dto.request.CreateEventRequest;
 import com.educonnect.eventservice.dto.response.ClubAccess;
 import com.educonnect.eventservice.model.AdmissionMode;
+import com.educonnect.eventservice.model.CheckInMethod;
 import com.educonnect.eventservice.model.Event;
 import com.educonnect.eventservice.model.EventAudience;
 import com.educonnect.eventservice.model.EventRegistration;
@@ -217,7 +218,7 @@ public class EventService {
             throw new BadRequestException("TICKET_ALREADY_USED", "Ticket already used/scanned.");
         }
 
-        registration.setAttended(true);
+        registration.checkIn(scannerId, CheckInMethod.QR, LocalDateTime.now());
         eventRegistrationRepository.save(registration);
         eventCaches.evictStudentRegistrations(registration.getStudentId());
 
