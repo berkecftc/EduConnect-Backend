@@ -2,7 +2,7 @@ package com.educonnect.postservice.controller;
 
 import com.educonnect.postservice.dto.LikeResponse;
 import com.educonnect.postservice.service.PostLikeService;
-import com.educonnect.postservice.service.PostService;
+import com.educonnect.postservice.service.Viewer;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -17,11 +17,9 @@ import java.util.UUID;
 public class PostLikeController {
 
     private final PostLikeService postLikeService;
-    private final PostService postService;
 
-    public PostLikeController(PostLikeService postLikeService, PostService postService) {
+    public PostLikeController(PostLikeService postLikeService) {
         this.postLikeService = postLikeService;
-        this.postService = postService;
     }
 
     /**
@@ -33,9 +31,7 @@ public class PostLikeController {
             @RequestHeader("X-Authenticated-User-Id") String authenticatedUserId,
             @RequestHeader("X-Authenticated-User-Roles") String roles
     ) {
-        postService.validatePostAccess(roles);
-        UUID userId = UUID.fromString(authenticatedUserId);
-        LikeResponse response = postLikeService.likePost(postId, userId);
+        LikeResponse response = postLikeService.likePost(postId, Viewer.reader(authenticatedUserId, roles));
         return ResponseEntity.ok(response);
     }
 
@@ -48,9 +44,7 @@ public class PostLikeController {
             @RequestHeader("X-Authenticated-User-Id") String authenticatedUserId,
             @RequestHeader("X-Authenticated-User-Roles") String roles
     ) {
-        postService.validatePostAccess(roles);
-        UUID userId = UUID.fromString(authenticatedUserId);
-        LikeResponse response = postLikeService.unlikePost(postId, userId);
+        LikeResponse response = postLikeService.unlikePost(postId, Viewer.reader(authenticatedUserId, roles));
         return ResponseEntity.ok(response);
     }
 
@@ -63,10 +57,7 @@ public class PostLikeController {
             @RequestHeader("X-Authenticated-User-Id") String authenticatedUserId,
             @RequestHeader("X-Authenticated-User-Roles") String roles
     ) {
-        postService.validatePostAccess(roles);
-        UUID userId = UUID.fromString(authenticatedUserId);
-        LikeResponse response = postLikeService.toggleLike(postId, userId);
+        LikeResponse response = postLikeService.toggleLike(postId, Viewer.reader(authenticatedUserId, roles));
         return ResponseEntity.ok(response);
     }
 }
-

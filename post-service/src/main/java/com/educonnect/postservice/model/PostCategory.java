@@ -1,8 +1,12 @@
 package com.educonnect.postservice.model;
 
 public enum PostCategory {
-    DUYURU,
+    SORU,
+    GENEL,
     DERS_NOTU,
-    SORU
-}
+    DUYURU;
 
+    public boolean official() {
+        return this == DUYURU;
+    }
+}

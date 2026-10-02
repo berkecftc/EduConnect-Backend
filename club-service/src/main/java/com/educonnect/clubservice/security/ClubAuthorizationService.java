@@ -40,7 +40,7 @@ public class ClubAuthorizationService {
 
     public ClubAccess accessOf(Club club, UUID userId) {
         if (userId == null) {
-            return new ClubAccess(club.getId(), null, null, false, false, Set.of());
+            return new ClubAccess(club.getId(), null, null, false, false, Set.of(), club.getName());
         }
         ClubPosition position = membershipRepository.findByClubIdAndStudentId(club.getId(), userId)
                 .filter(ClubMembership::isActive)
@@ -50,7 +50,7 @@ public class ClubAuthorizationService {
         boolean actingPresident = position == ClubPosition.PRESIDENT
                 || (position == ClubPosition.VICE_PRESIDENT && isPresidencyVacant(club.getId()));
         return new ClubAccess(club.getId(), userId, position, actingPresident, advisor,
-                permissionsFor(position, actingPresident, advisor, club.getStatus()));
+                permissionsFor(position, actingPresident, advisor, club.getStatus()), club.getName());
     }
 
     public ClubAccess require(UUID clubId, UUID userId, ClubPermission permission) {

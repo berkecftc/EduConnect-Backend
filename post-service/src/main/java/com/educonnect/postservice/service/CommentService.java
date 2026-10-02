@@ -5,12 +5,9 @@ import com.educonnect.postservice.dto.CommentResponse;
 import com.educonnect.postservice.dto.CreateCommentRequest;
 import com.educonnect.postservice.dto.UserSummaryDto;
 import com.educonnect.postservice.exception.CommentNotFoundException;
-import com.educonnect.postservice.exception.PostNotFoundException;
 import com.educonnect.postservice.exception.UnauthorizedPostAccessException;
 import com.educonnect.postservice.model.Comment;
 import com.educonnect.postservice.model.CommentStatus;
-import com.educonnect.postservice.model.Post;
-import com.educonnect.postservice.model.PostStatus;
 import com.educonnect.postservice.repository.CommentRepository;
 import com.educonnect.postservice.repository.PostRepository;
 import com.educonnect.postservice.util.BlacklistProvider;
@@ -28,7 +25,6 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
-import java.util.function.Function;
 import java.util.stream.Collectors;
 
 /**
@@ -49,15 +45,18 @@ public class CommentService {
     private final PostRepository postRepository;
     private final BlacklistProvider blacklistProvider;
     private final UserClient userClient;
+    private final PostVisibility postVisibility;
 
     public CommentService(CommentRepository commentRepository,
                           PostRepository postRepository,
                           BlacklistProvider blacklistProvider,
-                          UserClient userClient) {
+                          UserClient userClient,
+                          PostVisibility postVisibility) {
         this.commentRepository = commentRepository;
         this.postRepository = postRepository;
         this.blacklistProvider = blacklistProvider;
         this.userClient = userClient;
+        this.postVisibility = postVisibility;
     }
 
     /**
@@ -67,14 +66,9 @@ public class CommentService {
      * - İçerik blacklist kontrolünden geçer: kötü kelime → REJECTED, temiz → PUBLISHED.
      */
     @Transactional
-    public CommentResponse createComment(UUID postId, CreateCommentRequest request, UUID authorId) {
-        // Post var mı ve yayınlanmış mı kontrol et
-        var post = postRepository.findById(postId)
-                .orElseThrow(() -> new PostNotFoundException("Post bulunamadı: " + postId));
-
-        if (post.getStatus() != PostStatus.PUBLISHED) {
-            throw new IllegalArgumentException("Sadece yayınlanmış postlara yorum yapılabilir.");
-        }
+    public CommentResponse createComment(UUID postId, CreateCommentRequest request, Viewer viewer) {
+        postVisibility.requireOpenForComments(postId, viewer);
+        UUID authorId = viewer.id();
 
         // Yanıt kontrolü: parentCommentId varsa validasyon yap
         if (request.parentCommentId() != null) {
@@ -148,12 +142,8 @@ public class CommentService {
      * - Her üst yorum için yanıtlar ayrı sorgu ile alınır (sayfa başına yorum sayısı sınırlı olduğu için kabul edilebilir).
      */
     @Transactional(readOnly = true)
-    public Page<CommentResponse> getCommentsByPostId(UUID postId, UUID viewerId, Pageable pageable) {
-        Post post = postRepository.findById(postId)
-                .orElseThrow(() -> new PostNotFoundException("Post bulunamadı: " + postId));
-        if (!isVisibleTo(post, viewerId)) {
-            throw new PostNotFoundException("Post bulunamadı: " + postId);
-        }
+    public Page<CommentResponse> getCommentsByPostId(UUID postId, Viewer viewer, Pageable pageable) {
+        postVisibility.requireVisible(postId, viewer);
 
         Page<Comment> topLevelComments = commentRepository
                 .findByPostIdAndStatusAndParentCommentIdIsNull(postId, CommentStatus.PUBLISHED, pageable);
@@ -188,13 +178,6 @@ public class CommentService {
         });
     }
 
-    /**
-     * Bir post'a ait yayınlanmış yorum sayısını döndürür.
-     */
-    private static boolean isVisibleTo(Post post, UUID viewerId) {
-        return post.getStatus() == PostStatus.PUBLISHED || post.getAuthorId().equals(viewerId);
-    }
-
     public long getPublishedCommentCount(UUID postId) {
         return commentRepository.countByPostIdAndStatus(postId, CommentStatus.PUBLISHED);
     }
@@ -205,15 +188,12 @@ public class CommentService {
      * İçerik blacklist kontrolünden geçer.
      */
     @Transactional
-    public CommentResponse createReply(UUID parentCommentId, String content, UUID authorId) {
+    public CommentResponse createReply(UUID parentCommentId, String content, Viewer viewer) {
         Comment parentComment = commentRepository.findById(parentCommentId)
                 .orElseThrow(() -> new CommentNotFoundException("Yanıt verilecek yorum bulunamadı: " + parentCommentId));
 
-        Post post = postRepository.findById(parentComment.getPostId())
-                .orElseThrow(() -> new CommentNotFoundException("Yanıt verilecek yorum bulunamadı: " + parentCommentId));
-        if (post.getStatus() != PostStatus.PUBLISHED) {
-            throw new IllegalArgumentException("Sadece yayınlanmış postlara yorum yapılabilir.");
-        }
+        postVisibility.requireOpenForComments(parentComment.getPostId(), viewer);
+        UUID authorId = viewer.id();
 
         // Yanıta yanıt verilemez — sadece üst seviye yorumlara yanıt verilebilir
         if (parentComment.getParentCommentId() != null) {
@@ -248,11 +228,11 @@ public class CommentService {
      * Bir yorumun yayınlanmış yanıtlarını döndürür.
      */
     @Transactional(readOnly = true)
-    public List<CommentResponse> getRepliesByCommentId(UUID commentId, UUID viewerId) {
+    public List<CommentResponse> getRepliesByCommentId(UUID commentId, Viewer viewer) {
         Comment parentComment = commentRepository.findById(commentId)
                 .orElseThrow(() -> new CommentNotFoundException("Yorum bulunamadı: " + commentId));
         boolean visible = postRepository.findById(parentComment.getPostId())
-                .map(post -> isVisibleTo(post, viewerId))
+                .map(post -> postVisibility.canSee(post, viewer))
                 .orElse(false);
         if (!visible) {
             throw new CommentNotFoundException("Yorum bulunamadı: " + commentId);
@@ -317,4 +297,3 @@ public class CommentService {
         }
     }
 }
-

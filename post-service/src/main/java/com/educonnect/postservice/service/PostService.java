@@ -1,7 +1,9 @@
 package com.educonnect.postservice.service;
 
+import com.educonnect.common.web.ApiException;
 import com.educonnect.postservice.client.UserClient;
 import com.educonnect.postservice.dto.CreatePostRequest;
+import com.educonnect.postservice.dto.PostFeedFilter;
 import com.educonnect.postservice.dto.PostResponse;
 import com.educonnect.postservice.dto.RecentPostDto;
 import com.educonnect.postservice.dto.UpdatePostRequest;
@@ -13,20 +15,24 @@ import com.educonnect.postservice.messaging.PostEventPublisher;
 import com.educonnect.postservice.model.CommentStatus;
 import com.educonnect.postservice.model.Post;
 import com.educonnect.postservice.model.PostBookmark;
+import com.educonnect.postservice.model.PostCategory;
 import com.educonnect.postservice.model.PostStatus;
+import com.educonnect.postservice.model.PublisherType;
 import com.educonnect.postservice.repository.CommentRepository;
 import com.educonnect.postservice.repository.PostBookmarkRepository;
 import com.educonnect.postservice.repository.PostLikeRepository;
 import com.educonnect.postservice.repository.PostRepository;
+import com.educonnect.postservice.repository.PostSpecifications;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.Arrays;
+import java.time.Instant;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -35,25 +41,10 @@ import java.util.UUID;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
-/**
- * Post iş mantığı katmanı.
- *
- * Yetki doğrulaması (Authorization) Controller'da değil burada yapılır.
- * authorId, Controller'daki X-Authenticated-User-Id header'ından alınıp buraya aktarılır.
- */
 @Service
 public class PostService {
 
     private static final Logger log = LoggerFactory.getLogger(PostService.class);
-
-    /**
-     * Blog sayfasına erişebilen roller.
-     * Sadece öğrenci ve kulüp yetkilisi erişebilir.
-     */
-    private static final Set<String> ALLOWED_ROLES = Set.of(
-            "ROLE_STUDENT",
-            "ROLE_CLUB_OFFICIAL"
-    );
 
     private final PostRepository postRepository;
     private final PostEventPublisher eventPublisher;
@@ -61,96 +52,88 @@ public class PostService {
     private final PostLikeRepository postLikeRepository;
     private final PostBookmarkRepository postBookmarkRepository;
     private final CommentRepository commentRepository;
+    private final PublisherPolicy publisherPolicy;
+    private final PostVisibility postVisibility;
+    private final ScopeAccessService scopeAccess;
 
     public PostService(PostRepository postRepository,
                        PostEventPublisher eventPublisher,
                        UserClient userClient,
                        PostLikeRepository postLikeRepository,
                        PostBookmarkRepository postBookmarkRepository,
-                       CommentRepository commentRepository) {
+                       CommentRepository commentRepository,
+                       PublisherPolicy publisherPolicy,
+                       PostVisibility postVisibility,
+                       ScopeAccessService scopeAccess) {
         this.postRepository = postRepository;
         this.eventPublisher = eventPublisher;
         this.userClient = userClient;
         this.postLikeRepository = postLikeRepository;
         this.postBookmarkRepository = postBookmarkRepository;
         this.commentRepository = commentRepository;
+        this.publisherPolicy = publisherPolicy;
+        this.postVisibility = postVisibility;
+        this.scopeAccess = scopeAccess;
     }
 
-    /**
-     * Rol bazlı erişim kontrolü.
-     * API Gateway'den gelen X-Authenticated-User-Roles header'ı virgülle ayrılmış roller içerir.
-     * Kullanıcının en az bir rolü ALLOWED_ROLES içinde olmalıdır.
-     * Aksi halde 403 Forbidden fırlatılır.
-     */
-    public void validatePostAccess(String rolesHeader) {
-        if (rolesHeader == null || rolesHeader.isBlank()) {
-            throw new UnauthorizedPostAccessException("Blog sayfasına erişim yetkiniz bulunmamaktadır.");
-        }
-
-        boolean hasAccess = Arrays.stream(rolesHeader.split(","))
-                .map(String::trim)
-                .anyMatch(ALLOWED_ROLES::contains);
-
-        if (!hasAccess) {
-            throw new UnauthorizedPostAccessException(
-                    "Blog sayfasına sadece öğrenci ve kulüp yetkilileri erişebilir."
-            );
-        }
-    }
-
-    /**
-     * Yeni post oluşturur.
-     * - Status başlangıçta PENDING olarak kaydedilir.
-     * - Moderasyon olayı aynı transaction'da outbox tablosuna yazılır, commit sonrası RabbitMQ'ya gönderilir.
-     */
     @Transactional
-    public PostResponse createPost(CreatePostRequest request, UUID authorId) {
+    public PostResponse createPost(CreatePostRequest request, Viewer viewer) {
+        PostCategory category = request.categoryOrDefault();
+        Publication publication = publisherPolicy.resolve(viewer, category, request.publisherType(),
+                request.clubId(), request.courseId(), request.publisherName());
+
         Post post = new Post();
         post.setTitle(request.title());
         post.setContent(request.content());
-        post.setCategory(request.category());
-        post.setStatus(PostStatus.PENDING);
-        post.setAuthorId(authorId);
+        post.setCategory(category);
+        post.setAuthorId(viewer.id());
+        post.setPublisherType(publication.type());
+        post.setClubId(publication.clubId());
+        post.setCourseId(publication.courseId());
+        post.setPublisherName(publication.name());
+        post.setCommentsDisabled(category.official() && Boolean.TRUE.equals(request.commentsDisabled()));
+        post.setStatus(publication.needsApproval() ? PostStatus.AWAITING_APPROVAL : PostStatus.PENDING);
 
         Post savedPost = postRepository.save(post);
-        log.info("Post oluşturuldu (PENDING) — postId: {}, authorId: {}", savedPost.getId(), authorId);
+        log.info("Post oluşturuldu ({}) — postId: {}, authorId: {}", savedPost.getStatus(), savedPost.getId(), viewer.id());
+        submitForModeration(savedPost);
 
-        // Moderasyon olayını commit sonrası yayınla
-        publishModerationEvent(savedPost);
-
-        UserSummaryDto user = fetchUserSafely(authorId);
-        return mapToResponseWithUser(savedPost, user, authorId);
+        return mapToResponseWithUser(savedPost, fetchUserSafely(viewer.id()), viewer.id());
     }
 
-    /**
-     * Mevcut post'u günceller.
-     * - Sadece yazarın kendisi güncelleyebilir (Service katmanında kontrol).
-     * - Güncelleme sonrası status tekrar PENDING'e çekilir ve yeni moderasyon olayı fırlatılır.
-     */
     @Transactional
-    public PostResponse updatePost(UUID postId, UpdatePostRequest request, UUID authorId) {
+    public PostResponse updatePost(UUID postId, UpdatePostRequest request, Viewer viewer) {
         Post post = findPostOrThrow(postId);
-        validateAuthor(post, authorId);
+        validateAuthor(post, viewer.id());
+
+        PostCategory category = request.category() != null ? request.category() : post.getCategory();
+        if (category.official() != post.isOfficial()) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "CATEGORY_CHANGE_NOT_ALLOWED",
+                    "Duyuru forum gönderisine, forum gönderisi duyuruya çevrilemez.");
+        }
+        boolean needsApproval = false;
+        if (post.isOfficial()) {
+            needsApproval = publisherPolicy.reauthorize(viewer, post).needsApproval();
+            if (request.commentsDisabled() != null) {
+                post.setCommentsDisabled(request.commentsDisabled());
+            }
+        } else {
+            publisherPolicy.requireForumWriter(viewer);
+        }
 
         post.setTitle(request.title());
         post.setContent(request.content());
-        post.setCategory(request.category());
-        post.setStatus(PostStatus.PENDING); // Güncelleme sonrası tekrar moderasyona gider
+        post.setCategory(category);
+        post.setReviewNote(null);
+        post.setStatus(needsApproval ? PostStatus.AWAITING_APPROVAL : PostStatus.PENDING);
 
         Post updatedPost = postRepository.save(post);
-        log.info("Post güncellendi (PENDING) — postId: {}, authorId: {}", updatedPost.getId(), authorId);
+        log.info("Post güncellendi ({}) — postId: {}, authorId: {}", updatedPost.getStatus(), updatedPost.getId(), viewer.id());
+        submitForModeration(updatedPost);
 
-        // Yeni moderasyon olayını commit sonrası yayınla
-        publishModerationEvent(updatedPost);
-
-        UserSummaryDto user = fetchUserSafely(authorId);
-        return mapToResponseWithUser(updatedPost, user, authorId);
+        return mapToResponseWithUser(updatedPost, fetchUserSafely(viewer.id()), viewer.id());
     }
 
-    /**
-     * Post'u siler.
-     * - Sadece yazarın kendisi silebilir (Service katmanında kontrol).
-     */
     @Transactional
     public void deletePost(UUID postId, UUID authorId) {
         Post post = findPostOrThrow(postId);
@@ -160,67 +143,45 @@ public class PostService {
         log.info("Post silindi — postId: {}, authorId: {}", postId, authorId);
     }
 
-    /**
-     * Yayınlanmış postları sayfalayarak döndürür.
-     * Sadece status=PUBLISHED olanlar listelenir.
-     *
-     * N+1 analizi:
-     * - findByStatus tek bir SQL sorgusu çalıştırır.
-     * - Yazar bilgileri için sayfadaki benzersiz authorId'ler toplanır ve
-     *   her biri için tek tek user-service çağrısı yapılır, sonuçlar bir Map'te cache'lenir.
-     * - Bu sayede aynı yazar birden fazla post yazmışsa tekrar çağrı yapılmaz.
-     */
     @Transactional(readOnly = true)
-    public Page<PostResponse> getPublishedPosts(Pageable pageable, UUID currentUserId) {
-        Page<Post> postPage = postRepository.findByStatus(PostStatus.PUBLISHED, pageable);
-
-        // Sayfadaki benzersiz authorId'leri topla ve batch olarak user bilgilerini çek
-        List<UUID> uniqueAuthorIds = postPage.getContent().stream()
-                .map(Post::getAuthorId)
-                .distinct()
-                .toList();
-
-        Map<UUID, UserSummaryDto> userCache = fetchUsersSafely(uniqueAuthorIds);
-
-        return postPage.map(post -> mapToResponseWithUser(post, userCache.get(post.getAuthorId()), currentUserId));
+    public Page<PostResponse> getPublishedPosts(PostFeedFilter filter, Pageable pageable, Viewer viewer) {
+        boolean allCourses = viewer.seesAllScopes();
+        Set<UUID> courseIds = allCourses || !mayIncludeCourseAnnouncements(filter)
+                ? Set.of()
+                : scopeAccess.memberCourseIds(viewer);
+        Page<Post> postPage = postRepository.findAll(
+                PostSpecifications.publishedFeed(filter, allCourses, courseIds), pageable);
+        return mapPage(postPage, viewer.id());
     }
 
-    /**
-     * Kullanıcının kaydettiği (bookmark) postları sayfalayarak döndürür.
-     */
     @Transactional(readOnly = true)
-    public Page<PostResponse> getSavedPosts(UUID currentUserId, Pageable pageable) {
-        Page<PostBookmark> bookmarkPage = postBookmarkRepository.findByUserIdOrderByCreatedAtDesc(currentUserId, pageable);
+    public Page<PostResponse> getSavedPosts(Viewer viewer, Pageable pageable) {
+        Page<PostBookmark> bookmarkPage = postBookmarkRepository.findByUserIdOrderByCreatedAtDesc(viewer.id(), pageable);
 
         List<UUID> postIds = bookmarkPage.getContent().stream()
                 .map(PostBookmark::getPostId)
                 .toList();
 
         Map<UUID, Post> postMap = postRepository.findAllById(postIds).stream()
-                .filter(post -> post.getStatus() == PostStatus.PUBLISHED)
+                .filter(post -> post.getStatus() == PostStatus.PUBLISHED && postVisibility.canSee(post, viewer))
                 .collect(Collectors.toMap(Post::getId, Function.identity()));
 
-        List<UUID> uniqueAuthorIds = postMap.values().stream()
+        Map<UUID, UserSummaryDto> userCache = fetchUsersSafely(postMap.values().stream()
                 .map(Post::getAuthorId)
                 .distinct()
-                .toList();
-
-        Map<UUID, UserSummaryDto> userCache = fetchUsersSafely(uniqueAuthorIds);
+                .toList());
 
         List<PostResponse> responses = bookmarkPage.getContent().stream()
                 .filter(bookmark -> postMap.containsKey(bookmark.getPostId()))
                 .map(bookmark -> {
                     Post post = postMap.get(bookmark.getPostId());
-                    return mapToResponseWithUser(post, userCache.get(post.getAuthorId()), currentUserId);
+                    return mapToResponseWithUser(post, userCache.get(post.getAuthorId()), viewer.id());
                 })
                 .toList();
 
         return new PageImpl<>(responses, pageable, bookmarkPage.getTotalElements());
     }
 
-    /**
-     * Tek bir post'u ID'sine göre getirir.
-     */
     @Transactional(readOnly = true)
     public Page<PostResponse> getMyPosts(UUID authorId, Pageable pageable) {
         Page<Post> postPage = postRepository.findByAuthorId(authorId, pageable);
@@ -229,22 +190,43 @@ public class PostService {
     }
 
     @Transactional(readOnly = true)
-    public PostResponse getPostById(UUID postId, UUID currentUserId) {
-        Post post = findPostOrThrow(postId);
-        if (post.getStatus() != PostStatus.PUBLISHED && !currentUserId.equals(post.getAuthorId())) {
-            throw new PostNotFoundException("Post bulunamadı: " + postId);
-        }
-        UserSummaryDto user = fetchUserSafely(post.getAuthorId());
-        return mapToResponseWithUser(post, user, currentUserId);
+    public PostResponse getPostById(UUID postId, Viewer viewer) {
+        Post post = postVisibility.requireVisible(postId, viewer);
+        return mapToResponseWithUser(post, fetchUserSafely(post.getAuthorId()), viewer.id());
     }
 
-    /**
-     * API Composition için: kullanıcının en güncel 5 yayınlanmış postunu döndürür.
-     */
+    @Transactional(readOnly = true)
+    public Page<PostResponse> getAwaitingClubApproval(UUID clubId, Viewer viewer, Pageable pageable) {
+        publisherPolicy.requireClubApprover(viewer, clubId);
+        return mapPage(postRepository.findByClubIdAndStatus(clubId, PostStatus.AWAITING_APPROVAL, pageable), viewer.id());
+    }
+
+    @Transactional
+    public PostResponse approveClubAnnouncement(UUID postId, Viewer viewer) {
+        Post post = findAwaitingApproval(postId, viewer);
+        post.approve(viewer.id(), Instant.now());
+        post.setStatus(PostStatus.PENDING);
+        Post saved = postRepository.save(post);
+        log.info("Kulüp duyurusu başkan tarafından onaylandı — postId: {}, approver: {}", postId, viewer.id());
+        submitForModeration(saved);
+        return mapToResponseWithUser(saved, fetchUserSafely(saved.getAuthorId()), viewer.id());
+    }
+
+    @Transactional
+    public PostResponse rejectClubAnnouncement(UUID postId, String note, Viewer viewer) {
+        Post post = findAwaitingApproval(postId, viewer);
+        post.setStatus(PostStatus.REJECTED);
+        post.setReviewNote(note.strip());
+        Post saved = postRepository.save(post);
+        log.info("Kulüp duyurusu başkan tarafından reddedildi — postId: {}, reviewer: {}", postId, viewer.id());
+        return mapToResponseWithUser(saved, fetchUserSafely(saved.getAuthorId()), viewer.id());
+    }
+
     @Transactional(readOnly = true)
     public List<RecentPostDto> getRecentPostsByUser(UUID userId) {
         return postRepository.findTop5ByAuthorIdAndStatusOrderByCreatedAtDesc(userId, PostStatus.PUBLISHED)
                 .stream()
+                .filter(post -> post.getPublisherType() != PublisherType.COURSE)
                 .map(post -> new RecentPostDto(
                         post.getId(),
                         post.getTitle(),
@@ -254,19 +236,41 @@ public class PostService {
                 .toList();
     }
 
-    // ═══════════════════════════════════════════════
-    // PRIVATE HELPER METOTLAR
-    // ═══════════════════════════════════════════════
+    private Post findAwaitingApproval(UUID postId, Viewer viewer) {
+        Post post = findPostOrThrow(postId);
+        if (post.getPublisherType() != PublisherType.CLUB) {
+            throw new PostNotFoundException("Post bulunamadı: " + postId);
+        }
+        publisherPolicy.requireClubApprover(viewer, post.getClubId());
+        if (post.getStatus() != PostStatus.AWAITING_APPROVAL) {
+            throw new ApiException(HttpStatus.CONFLICT, "NOT_AWAITING_APPROVAL", "Bu duyuru onay beklemiyor.");
+        }
+        return post;
+    }
+
+    private static boolean mayIncludeCourseAnnouncements(PostFeedFilter filter) {
+        if (filter.publisherType() != null && filter.publisherType() != PublisherType.COURSE) {
+            return false;
+        }
+        if (Boolean.FALSE.equals(filter.official())) {
+            return false;
+        }
+        return filter.category() == null || filter.category().official();
+    }
+
+    private Page<PostResponse> mapPage(Page<Post> postPage, UUID currentUserId) {
+        Map<UUID, UserSummaryDto> userCache = fetchUsersSafely(postPage.getContent().stream()
+                .map(Post::getAuthorId)
+                .distinct()
+                .toList());
+        return postPage.map(post -> mapToResponseWithUser(post, userCache.get(post.getAuthorId()), currentUserId));
+    }
 
     private Post findPostOrThrow(UUID postId) {
         return postRepository.findById(postId)
                 .orElseThrow(() -> new PostNotFoundException("Post bulunamadı: " + postId));
     }
 
-    /**
-     * Yetki kontrolü: Post'un yazarı ile isteği yapan kullanıcı eşleşmeli.
-     * Eşleşmezse UnauthorizedPostAccessException fırlatılır.
-     */
     private void validateAuthor(Post post, UUID authorId) {
         if (!authorId.equals(post.getAuthorId())) {
             throw new UnauthorizedPostAccessException(
@@ -275,15 +279,16 @@ public class PostService {
         }
     }
 
-    private void publishModerationEvent(Post post) {
-        PostModerationEvent event = new PostModerationEvent(
+    private void submitForModeration(Post post) {
+        if (post.getStatus() != PostStatus.PENDING) {
+            return;
+        }
+        eventPublisher.publishModerationEvent(new PostModerationEvent(
                 post.getId(),
                 post.getTitle(),
                 post.getContent(),
-                UUID.randomUUID() // Her olay için benzersiz eventId
-        );
-
-        eventPublisher.publishModerationEvent(event);
+                UUID.randomUUID()
+        ));
     }
 
     private PostResponse mapToResponseWithUser(Post post, UserSummaryDto user, UUID currentUserId) {
@@ -308,6 +313,13 @@ public class PostService {
                 post.getContent(),
                 post.getCategory(),
                 post.getStatus(),
+                post.getPublisherType(),
+                post.getClubId(),
+                post.getCourseId(),
+                post.getPublisherName(),
+                post.isOfficial(),
+                post.isCommentsDisabled(),
+                post.getReviewNote(),
                 post.getAuthorId(),
                 authorName,
                 authorDepartment,
@@ -320,10 +332,6 @@ public class PostService {
         );
     }
 
-    /**
-     * user-service'ten kullanıcı bilgilerini güvenli şekilde çeker.
-     * Servis erişilemezse veya hata olursa null döner — post response'u yine de oluşturulur.
-     */
     private Map<UUID, UserSummaryDto> fetchUsersSafely(List<UUID> userIds) {
         Map<UUID, UserSummaryDto> users = new HashMap<>();
         for (UUID userId : userIds) {
@@ -347,4 +355,3 @@ public class PostService {
         }
     }
 }
-

@@ -66,17 +66,22 @@ class PostAuthorizationTest {
     }
 
     @Test
-    void onlyStudentsAndClubOfficialsUseTheBlog() throws Exception {
+    void onlyStudentsWriteForumPostsWhileEveryCommunityRoleReads() throws Exception {
         mockMvc.perform(as(post("/api/posts"), TestTokens.academician(academician)).contentType(MediaType.APPLICATION_JSON).content(POST_BODY))
                 .andExpect(status().isForbidden())
-                .andExpect(jsonPath("$.errorCode").value("POST_ACCESS_DENIED"));
+                .andExpect(jsonPath("$.errorCode").value("FORUM_POSTING_NOT_ALLOWED"));
         mockMvc.perform(as(post("/api/posts"), TestTokens.admin(admin)).contentType(MediaType.APPLICATION_JSON).content(POST_BODY))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.errorCode").value("FORUM_POSTING_NOT_ALLOWED"));
+        mockMvc.perform(as(get("/api/posts"), TestTokens.user(UUID.randomUUID(), "ROLE_PENDING_STUDENT")))
                 .andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.errorCode").value("POST_ACCESS_DENIED"));
         mockMvc.perform(as(get("/api/posts"), TestTokens.academician(academician)))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isOk());
         mockMvc.perform(as(get("/api/posts/{id}", publishedId), TestTokens.admin(admin)))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isOk());
+        mockMvc.perform(as(get("/api/posts/{id}", publishedId), TestTokens.user(UUID.randomUUID(), "ROLE_STAFF,PERM_MODERATOR")))
+                .andExpect(status().isOk());
         assertThat(postRepository.findByAuthorId(academician, Pageable.unpaged())).isEmpty();
 
         mockMvc.perform(as(post("/api/posts"), TestTokens.student(otherStudent)).contentType(MediaType.APPLICATION_JSON).content(POST_BODY))
@@ -145,14 +150,14 @@ class PostAuthorizationTest {
     }
 
     @Test
-    void commentingRequiresABlogRoleAndAPublishedPost() throws Exception {
-        mockMvc.perform(as(post("/api/posts/{id}/comments", publishedId), TestTokens.academician(academician))
-                        .contentType(MediaType.APPLICATION_JSON).content(COMMENT_BODY))
-                .andExpect(status().isForbidden());
-        mockMvc.perform(as(post("/api/posts/comments/{id}/replies", commentId), TestTokens.admin(admin))
+    void commentingRequiresACommunityRoleAndAPublishedPost() throws Exception {
+        mockMvc.perform(as(post("/api/posts/{id}/comments", publishedId), TestTokens.user(UUID.randomUUID(), "ROLE_PENDING_ACADEMICIAN"))
                         .contentType(MediaType.APPLICATION_JSON).content(COMMENT_BODY))
                 .andExpect(status().isForbidden());
         mockMvc.perform(as(post("/api/posts/{id}/comments", pendingId), TestTokens.student(otherStudent))
+                        .contentType(MediaType.APPLICATION_JSON).content(COMMENT_BODY))
+                .andExpect(status().isNotFound());
+        mockMvc.perform(as(post("/api/posts/{id}/comments", pendingId), TestTokens.student(author))
                         .contentType(MediaType.APPLICATION_JSON).content(COMMENT_BODY))
                 .andExpect(status().isBadRequest());
         assertThat(commentRepository.countByPostIdAndStatus(pendingId, CommentStatus.PUBLISHED)).isZero();
@@ -165,6 +170,12 @@ class PostAuthorizationTest {
                         .contentType(MediaType.APPLICATION_JSON).content(COMMENT_BODY))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.authorId").value(otherStudent.toString()));
+        mockMvc.perform(as(post("/api/posts/{id}/comments", publishedId), TestTokens.academician(academician))
+                        .contentType(MediaType.APPLICATION_JSON).content(COMMENT_BODY))
+                .andExpect(status().isCreated());
+        mockMvc.perform(as(post("/api/posts/comments/{id}/replies", commentId), TestTokens.admin(admin))
+                        .contentType(MediaType.APPLICATION_JSON).content(COMMENT_BODY))
+                .andExpect(status().isCreated());
     }
 
     @Test
@@ -235,12 +246,12 @@ class PostAuthorizationTest {
     }
 
     @Test
-    void likesNeedABlogRoleAndAPublishedPost() throws Exception {
-        mockMvc.perform(as(put("/api/posts/{id}/likes", publishedId), TestTokens.academician(academician)))
-                .andExpect(status().isForbidden());
-        mockMvc.perform(as(post("/api/posts/{id}/like", publishedId), TestTokens.admin(admin)))
+    void likesNeedACommunityRoleAndAPublishedPost() throws Exception {
+        mockMvc.perform(as(put("/api/posts/{id}/likes", publishedId), TestTokens.user(UUID.randomUUID(), "ROLE_PENDING_STUDENT")))
                 .andExpect(status().isForbidden());
         mockMvc.perform(as(put("/api/posts/{id}/likes", pendingId), TestTokens.student(otherStudent)))
+                .andExpect(status().isNotFound());
+        mockMvc.perform(as(put("/api/posts/{id}/likes", pendingId), TestTokens.student(author)))
                 .andExpect(status().isBadRequest());
         assertThat(postLikeRepository.countByPostId(publishedId)).isZero();
         assertThat(postLikeRepository.countByPostId(pendingId)).isZero();

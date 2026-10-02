@@ -5,13 +5,14 @@ import com.educonnect.postservice.model.PostStatus;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
 import java.util.UUID;
 
 @Repository
-public interface PostRepository extends JpaRepository<Post, UUID> {
+public interface PostRepository extends JpaRepository<Post, UUID>, JpaSpecificationExecutor<Post> {
 
     /**
      * Belirli statüdeki postları sayfalayarak döndürür.
@@ -29,5 +30,6 @@ public interface PostRepository extends JpaRepository<Post, UUID> {
      * Service katmanında yetki doğrulaması için kullanılır.
      */
     boolean existsByIdAndAuthorId(UUID id, UUID authorId);
-}
 
+    Page<Post> findByClubIdAndStatus(UUID clubId, PostStatus status, Pageable pageable);
+}

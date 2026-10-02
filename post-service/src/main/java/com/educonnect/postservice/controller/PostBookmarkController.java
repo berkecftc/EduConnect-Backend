@@ -2,7 +2,7 @@ package com.educonnect.postservice.controller;
 
 import com.educonnect.postservice.dto.BookmarkResponse;
 import com.educonnect.postservice.service.PostBookmarkService;
-import com.educonnect.postservice.service.PostService;
+import com.educonnect.postservice.service.Viewer;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -17,11 +17,9 @@ import java.util.UUID;
 public class PostBookmarkController {
 
     private final PostBookmarkService postBookmarkService;
-    private final PostService postService;
 
-    public PostBookmarkController(PostBookmarkService postBookmarkService, PostService postService) {
+    public PostBookmarkController(PostBookmarkService postBookmarkService) {
         this.postBookmarkService = postBookmarkService;
-        this.postService = postService;
     }
 
     /**
@@ -33,10 +31,7 @@ public class PostBookmarkController {
             @RequestHeader("X-Authenticated-User-Id") String authenticatedUserId,
             @RequestHeader("X-Authenticated-User-Roles") String roles
     ) {
-        postService.validatePostAccess(roles);
-        UUID userId = UUID.fromString(authenticatedUserId);
-        BookmarkResponse response = postBookmarkService.toggleBookmark(postId, userId);
+        BookmarkResponse response = postBookmarkService.toggleBookmark(postId, Viewer.reader(authenticatedUserId, roles));
         return ResponseEntity.ok(response);
     }
 }
-

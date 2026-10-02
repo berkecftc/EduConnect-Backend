@@ -3,7 +3,7 @@ package com.educonnect.postservice.controller;
 import com.educonnect.postservice.dto.CommentResponse;
 import com.educonnect.postservice.dto.CreateCommentRequest;
 import com.educonnect.postservice.service.CommentService;
-import com.educonnect.postservice.service.PostService;
+import com.educonnect.postservice.service.Viewer;
 import jakarta.validation.Valid;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -28,11 +28,9 @@ import java.util.UUID;
 public class CommentController {
 
     private final CommentService commentService;
-    private final PostService postService;
 
-    public CommentController(CommentService commentService, PostService postService) {
+    public CommentController(CommentService commentService) {
         this.commentService = commentService;
-        this.postService = postService;
     }
 
     /**
@@ -47,9 +45,7 @@ public class CommentController {
             @RequestHeader("X-Authenticated-User-Id") String authenticatedUserId,
             @RequestHeader("X-Authenticated-User-Roles") String roles
     ) {
-        postService.validatePostAccess(roles);
-        UUID authorId = UUID.fromString(authenticatedUserId);
-        CommentResponse response = commentService.createComment(postId, request, authorId);
+        CommentResponse response = commentService.createComment(postId, request, Viewer.reader(authenticatedUserId, roles));
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
@@ -65,8 +61,7 @@ public class CommentController {
             @PageableDefault(size = 10, sort = "createdAt", direction = org.springframework.data.domain.Sort.Direction.DESC)
             Pageable pageable
     ) {
-        postService.validatePostAccess(roles);
-        return ResponseEntity.ok(commentService.getCommentsByPostId(postId, UUID.fromString(authenticatedUserId), pageable));
+        return ResponseEntity.ok(commentService.getCommentsByPostId(postId, Viewer.reader(authenticatedUserId, roles), pageable));
     }
 
     /**
@@ -80,10 +75,7 @@ public class CommentController {
             @RequestHeader("X-Authenticated-User-Id") String authenticatedUserId,
             @RequestHeader("X-Authenticated-User-Roles") String roles
     ) {
-        postService.validatePostAccess(roles);
-        UUID authorId = UUID.fromString(authenticatedUserId);
-        commentService.deleteComment(postId, commentId, authorId);
+        commentService.deleteComment(postId, commentId, Viewer.reader(authenticatedUserId, roles).id());
         return ResponseEntity.noContent().build();
     }
 }
-

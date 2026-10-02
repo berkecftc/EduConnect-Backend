@@ -10,7 +10,8 @@ public record ClubAccess(UUID clubId,
                          ClubPosition position,
                          boolean actingPresident,
                          boolean advisor,
-                         Set<ClubPermission> permissions) {
+                         Set<ClubPermission> permissions,
+                         String clubName) {
 
     public boolean member() {
         return position != null;

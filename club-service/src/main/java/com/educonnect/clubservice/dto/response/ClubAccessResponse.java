@@ -13,7 +13,8 @@ public record ClubAccessResponse(UUID clubId,
                                  boolean member,
                                  boolean actingPresident,
                                  boolean advisor,
-                                 Set<String> permissions) {
+                                 Set<String> permissions,
+                                 String clubName) {
 
     public static ClubAccessResponse from(ClubAccess access) {
         return new ClubAccessResponse(
@@ -23,6 +24,7 @@ public record ClubAccessResponse(UUID clubId,
                 access.member(),
                 access.actingPresident(),
                 access.advisor(),
-                access.permissions().stream().map(ClubPermission::name).collect(Collectors.toUnmodifiableSet()));
+                access.permissions().stream().map(ClubPermission::name).collect(Collectors.toUnmodifiableSet()),
+                access.clubName());
     }
 }

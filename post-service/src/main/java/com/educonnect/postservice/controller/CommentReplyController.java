@@ -3,7 +3,7 @@ package com.educonnect.postservice.controller;
 import com.educonnect.postservice.dto.CommentResponse;
 import com.educonnect.postservice.dto.CreateCommentRequest;
 import com.educonnect.postservice.service.CommentService;
-import com.educonnect.postservice.service.PostService;
+import com.educonnect.postservice.service.Viewer;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -25,11 +25,9 @@ import java.util.UUID;
 public class CommentReplyController {
 
     private final CommentService commentService;
-    private final PostService postService;
 
-    public CommentReplyController(CommentService commentService, PostService postService) {
+    public CommentReplyController(CommentService commentService) {
         this.commentService = commentService;
-        this.postService = postService;
     }
 
     /**
@@ -44,9 +42,7 @@ public class CommentReplyController {
             @RequestHeader("X-Authenticated-User-Id") String authenticatedUserId,
             @RequestHeader("X-Authenticated-User-Roles") String roles
     ) {
-        postService.validatePostAccess(roles);
-        UUID authorId = UUID.fromString(authenticatedUserId);
-        CommentResponse response = commentService.createReply(commentId, request.content(), authorId);
+        CommentResponse response = commentService.createReply(commentId, request.content(), Viewer.reader(authenticatedUserId, roles));
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
@@ -59,10 +55,8 @@ public class CommentReplyController {
             @RequestHeader("X-Authenticated-User-Id") String authenticatedUserId,
             @RequestHeader("X-Authenticated-User-Roles") String roles
     ) {
-        postService.validatePostAccess(roles);
         List<CommentResponse> replies = commentService.getRepliesByCommentId(commentId,
-                UUID.fromString(authenticatedUserId));
+                Viewer.reader(authenticatedUserId, roles));
         return ResponseEntity.ok(replies);
     }
 }
-
