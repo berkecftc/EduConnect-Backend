@@ -81,7 +81,7 @@ public class EmailVerificationService {
                 clock.instant().plus(settings.tokenTtl())));
 
         EmailVerificationMessage message = new EmailVerificationMessage(email, firstName,
-                links.publicApiBaseUrl() + "/api/auth/verify-email?token=" + rawToken,
+                links.frontendBaseUrl() + "/verify-email?token=" + rawToken,
                 settings.tokenTtl().toHours());
         outboxPublisher.publish(RabbitMQConfig.EXCHANGE_NAME, RabbitMQConfig.EMAIL_VERIFICATION_ROUTING_KEY, message);
     }
@@ -123,10 +123,6 @@ public class EmailVerificationService {
         if (user.isPresent()) {
             sendVerification(email, null);
         }
-    }
-
-    public String loginRedirectUrl(boolean verified) {
-        return links.frontendBaseUrl() + "/login?emailVerified=" + verified;
     }
 
     @Transactional

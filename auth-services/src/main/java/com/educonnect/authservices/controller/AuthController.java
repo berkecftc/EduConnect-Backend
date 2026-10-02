@@ -7,10 +7,8 @@ import com.educonnect.authservices.dto.request.RefreshTokenRequest;
 import com.educonnect.authservices.dto.request.RegisterRequest;
 import com.educonnect.authservices.dto.request.ResendVerificationRequest;
 import com.educonnect.authservices.dto.request.ResetPasswordRequest;
+import com.educonnect.authservices.dto.request.VerifyEmailRequest;
 import com.educonnect.authservices.service.EmailVerificationService;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import java.net.URI;
 import com.educonnect.authservices.dto.response.AuthResponse;
 import com.educonnect.authservices.service.AuthSessionService;
 import com.educonnect.authservices.service.PasswordService;
@@ -33,6 +31,7 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.http.MediaType;
 
+import java.util.Map;
 import java.util.NoSuchElementException;
 
 @RestController
@@ -101,12 +100,13 @@ public class AuthController {
         return ResponseEntity.ok("Academician account request received. Pending admin approval.");
     }
 
-    @GetMapping("/verify-email")
-    public ResponseEntity<Void> verifyEmail(@RequestParam(value = "token", required = false) String token) {
-        boolean verified = emailVerificationService.verify(token);
-        return ResponseEntity.status(HttpStatus.FOUND)
-                .location(URI.create(emailVerificationService.loginRedirectUrl(verified)))
-                .build();
+    @PostMapping("/verify-email")
+    public ResponseEntity<Map<String, String>> verifyEmail(@Valid @RequestBody VerifyEmailRequest request) {
+        if (!emailVerificationService.verify(request.token())) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "VERIFICATION_LINK_INVALID",
+                    "Doğrulama bağlantısı geçersiz veya süresi dolmuş. Yeni bir bağlantı isteyin.");
+        }
+        return ResponseEntity.ok(Map.of("status", "VERIFIED", "message", "E-posta adresiniz doğrulandı."));
     }
 
     @PostMapping("/resend-verification")
