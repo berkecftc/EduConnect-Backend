@@ -98,6 +98,7 @@ class EmailChangeServiceTest {
         verify(outboxPublisher).publish(eq(RabbitMQConfig.EXCHANGE_NAME), eq(RabbitMQConfig.EMAIL_VERIFICATION_ROUTING_KEY), sent.capture());
         assertThat(sent.getValue().email()).isEqualTo("yeni@ogr.uni.edu.tr");
         assertThat(sent.getValue().purpose()).isEqualTo(EmailVerificationMessage.EMAIL_CHANGE);
+        assertThat(sent.getValue().verificationLink()).startsWith("https://app.example.edu/email-change/confirm?token=");
         assertThat(user.getEmail()).isEqualTo("ayse@ogr.uni.edu.tr");
 
         String rawToken = sent.getValue().verificationLink().substring(sent.getValue().verificationLink().indexOf("token=") + 6);
