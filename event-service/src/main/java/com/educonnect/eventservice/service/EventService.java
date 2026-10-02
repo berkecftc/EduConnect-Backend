@@ -4,9 +4,13 @@ import com.educonnect.common.web.ApiException;
 import com.educonnect.common.web.BadRequestException;
 import com.educonnect.eventservice.client.ClubClient;
 import com.educonnect.eventservice.config.ApprovalChainSettings;
+import com.educonnect.eventservice.dto.request.CampusEventRequest;
 import com.educonnect.eventservice.dto.request.CreateEventRequest;
 import com.educonnect.eventservice.dto.response.ClubAccess;
+import com.educonnect.eventservice.model.AdmissionMode;
+import com.educonnect.eventservice.model.CheckInMethod;
 import com.educonnect.eventservice.model.Event;
+import com.educonnect.eventservice.model.EventAudience;
 import com.educonnect.eventservice.model.EventRegistration;
 import com.educonnect.eventservice.model.EventStatus;
 import com.educonnect.eventservice.repository.EventRegistrationRepository;
@@ -19,7 +23,6 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
-import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -38,6 +41,7 @@ public class EventService {
     private final EventAuthorizationService eventAuthorizationService;
     private final EventCaches eventCaches;
     private final ApprovalChainSettings approvalChain;
+    private final EventSchedule schedule;
 
     public EventService(EventRepository eventRepository,
                         MinioService minioService,
@@ -45,7 +49,8 @@ public class EventService {
                         ClubClient clubClient,
                         EventAuthorizationService eventAuthorizationService,
                         EventCaches eventCaches,
-                        ApprovalChainSettings approvalChain) {
+                        ApprovalChainSettings approvalChain,
+                        EventSchedule schedule) {
         this.eventRepository = eventRepository;
         this.minioService = minioService;
         this.eventRegistrationRepository = eventRegistrationRepository;
@@ -53,13 +58,62 @@ public class EventService {
         this.eventAuthorizationService = eventAuthorizationService;
         this.eventCaches = eventCaches;
         this.approvalChain = approvalChain;
+        this.schedule = schedule;
+    }
+
+    public Event createCampusEvent(CampusEventRequest request, MultipartFile posterFile, UUID creatorId) {
+        boolean hasPoster = posterFile != null && !posterFile.isEmpty();
+        if (hasPoster) {
+            minioService.validateImage(posterFile);
+        }
+        LocalDateTime endsAt = schedule.endOrDefault(request.startsAt(), request.endsAt());
+        schedule.requireValidNewSchedule(request.startsAt(), endsAt);
+        schedule.requireValidRegistration(request.startsAt(), request.registrationOpensAt(), request.registrationClosesAt(),
+                request.cancelUntil());
+
+        Event event = new Event();
+        event.setTitle(request.title().strip());
+        event.setDescription(request.description());
+        event.setStartsAt(request.startsAt());
+        event.setEndsAt(endsAt);
+        event.setLocation(request.location());
+        event.setSpeakers(request.speakers() == null || request.speakers().isBlank() ? null : request.speakers().strip());
+        event.setOrganizerName(request.organizerName().strip());
+        event.setAudience(EventAudience.CAMPUS);
+        event.setAdmission(request.admission() != null ? request.admission() : AdmissionMode.AUTO_CONFIRM);
+        event.setCapacity(request.capacity());
+        event.setRegistrationOpensAt(request.registrationOpensAt());
+        event.setRegistrationClosesAt(request.registrationClosesAt());
+        event.setCancelUntil(request.cancelUntil());
+        event.setCreatedByStudentId(creatorId);
+        event.setStatus(EventStatus.ACTIVE);
+        event.setPublishedAt(LocalDateTime.now());
+        Event saved = eventRepository.save(event);
+        if (hasPoster) {
+            saved.setImageUrl(minioService.uploadFile(posterFile, "events", saved.getId().toString()));
+            saved = eventRepository.save(saved);
+        }
+        eventCaches.evictEventListings(saved);
+        log.info("Campus event published: eventId={}, by={}", saved.getId(), creatorId);
+        return saved;
+    }
+
+    public List<Event> campusEvents() {
+        return eventRepository.findByClubIdIsNullOrderByStartsAtDesc();
     }
 
     public Event createEvent(CreateEventRequest request, MultipartFile posterFile, UUID creatorId) {
-        if (posterFile == null || posterFile.isEmpty()) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Etkinlik afişi zorunludur.");
+        boolean hasPoster = posterFile != null && !posterFile.isEmpty();
+        if (hasPoster) {
+            minioService.validateImage(posterFile);
         }
-        minioService.validateImage(posterFile);
+        LocalDateTime endsAt = schedule.endOrDefault(request.getStartsAt(), request.getEndsAt());
+        schedule.requireValidNewSchedule(request.getStartsAt(), endsAt);
+        schedule.requireValidRegistration(request.getStartsAt(), request.getRegistrationOpensAt(), request.getRegistrationClosesAt(),
+                request.getCancelUntil());
+        if (request.getAudience() == EventAudience.CAMPUS) {
+            throw new BadRequestException("AUDIENCE_NOT_ALLOWED", "Kulüp etkinliği yalnız üyelere veya tüm öğrencilere açılabilir.");
+        }
 
         UUID resolvedClubId;
         try {
@@ -90,7 +144,15 @@ public class EventService {
         Event event = new Event();
         event.setTitle(request.getTitle());
         event.setDescription(request.getDescription());
-        event.setEventTime(request.getEventTime());
+        event.setStartsAt(request.getStartsAt());
+        event.setEndsAt(endsAt);
+        event.setSpeakers(request.getSpeakers() == null || request.getSpeakers().isBlank() ? null : request.getSpeakers().strip());
+        event.setAudience(request.getAudience() != null ? request.getAudience() : EventAudience.MEMBERS_ONLY);
+        event.setAdmission(request.getAdmission() != null ? request.getAdmission() : AdmissionMode.APPROVAL_REQUIRED);
+        event.setCapacity(request.getCapacity());
+        event.setRegistrationOpensAt(request.getRegistrationOpensAt());
+        event.setRegistrationClosesAt(request.getRegistrationClosesAt());
+        event.setCancelUntil(request.getCancelUntil());
         event.setLocation(request.getLocation());
         event.setClubName(request.getClubName());
         event.setCreatedByStudentId(creatorId);
@@ -99,12 +161,11 @@ public class EventService {
 
         Event savedEvent = eventRepository.save(event);
 
-        log.info("Uploading poster for event: {}", savedEvent.getId());
-        String objectName = minioService.uploadFile(posterFile, "events", savedEvent.getId().toString());
-        log.info("Poster uploaded successfully. URL: {}", objectName);
-        savedEvent.setImageUrl(objectName);
-        savedEvent = eventRepository.save(savedEvent);
-        log.info("Event saved with imageUrl: {}", savedEvent.getImageUrl());
+        if (hasPoster) {
+            String objectName = minioService.uploadFile(posterFile, "events", savedEvent.getId().toString());
+            savedEvent.setImageUrl(objectName);
+            savedEvent = eventRepository.save(savedEvent);
+        }
         eventCaches.evictEventListings(savedEvent);
 
         return savedEvent;
@@ -116,7 +177,7 @@ public class EventService {
                 .filter(event -> event.getStatus() == EventStatus.PENDING_PRESIDENT
                         || event.getStatus() == EventStatus.PENDING
                         || (event.getStatus() == EventStatus.ACTIVE
-                            && (event.getEventTime() == null || event.getEventTime().isAfter(now))))
+                            && event.getEndsAt().isAfter(now)))
                 .toList();
         cancelled.forEach(event -> event.setStatus(EventStatus.CANCELLED));
         eventRepository.saveAll(cancelled);
@@ -148,12 +209,16 @@ public class EventService {
         if (event.getStatus() != EventStatus.ACTIVE) {
             throw new BadRequestException("EVENT_NOT_ACTIVE", "Event is not active.");
         }
+        schedule.requireCheckInOpen(event);
 
+        if (!registration.isActive()) {
+            throw new BadRequestException("TICKET_CANCELLED", "Bu kayıt iptal edilmiş.");
+        }
         if (registration.isAttended()) {
             throw new BadRequestException("TICKET_ALREADY_USED", "Ticket already used/scanned.");
         }
 
-        registration.setAttended(true);
+        registration.checkIn(scannerId, CheckInMethod.QR, LocalDateTime.now());
         eventRegistrationRepository.save(registration);
         eventCaches.evictStudentRegistrations(registration.getStudentId());
 

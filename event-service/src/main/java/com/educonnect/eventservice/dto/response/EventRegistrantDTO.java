@@ -16,6 +16,7 @@ public class EventRegistrantDTO {
     private LocalDateTime registrationTime;
     private boolean attended;
     private String qrCode;
+    private String status;
 
     public EventRegistrantDTO() {}
 
@@ -55,5 +56,7 @@ public class EventRegistrantDTO {
 
     public String getQrCode() { return qrCode; }
     public void setQrCode(String qrCode) { this.qrCode = qrCode; }
-}
 
+    public String getStatus() { return status; }
+    public void setStatus(String status) { this.status = status; }
+}

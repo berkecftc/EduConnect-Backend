@@ -65,7 +65,7 @@ class EmailChangeServiceTest {
         when(emailVerificationService.isRequired()).thenReturn(verificationRequired);
         AuthSecurityProperties properties = new AuthSecurityProperties(null, null, null,
                 new AuthSecurityProperties.EmailVerification(verificationRequired, Duration.ofHours(24)),
-                new AuthSecurityProperties.Links("https://app.example.edu", "https://api.example.edu"),
+                new AuthSecurityProperties.Links("https://app.example.edu"),
                 null, null);
         return new EmailChangeService(userRepository, studentRequestRepository, tokenRepository, passwordEncoder,
                 institutionPolicy, emailVerificationService, refreshTokenService, outboxPublisher, properties,

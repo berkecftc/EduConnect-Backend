@@ -7,6 +7,9 @@ import feign.FeignException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 
@@ -21,6 +24,8 @@ public class EventAuthorizationService {
     public static final String APPROVE_AS_PRESIDENT = "APPROVE_AS_PRESIDENT";
     public static final String MANAGE_EVENT_OPERATIONS = "MANAGE_EVENT_OPERATIONS";
     public static final String ADVISE = "ADVISE";
+    public static final String CAMPUS_PUBLISHER = "PERM_CAMPUS_PUBLISHER";
+    private static final String ADMIN = "ROLE_ADMIN";
 
     private static final Logger log = LoggerFactory.getLogger(EventAuthorizationService.class);
 
@@ -66,12 +71,31 @@ public class EventAuthorizationService {
     }
 
     public boolean canManageEvent(Event event, UUID userId) {
+        if (event.isCampus()) {
+            return userId != null && isCampusPublisher();
+        }
         return userId != null && accessOf(event.getClubId(), userId).has(MANAGE_EVENT_OPERATIONS);
+    }
+
+    public static boolean isCampusPublisher() {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        return authentication != null && authentication.getAuthorities().stream()
+                .map(GrantedAuthority::getAuthority)
+                .anyMatch(authority -> CAMPUS_PUBLISHER.equals(authority) || ADMIN.equals(authority));
+    }
+
+    public void requireOrganizer(Event event, UUID userId, String clubPermission) {
+        if (event.isCampus() ? !(userId != null && isCampusPublisher()) : userId == null || !accessOf(event.getClubId(), userId).has(clubPermission)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Bu işlem için yetkiniz yok.");
+        }
     }
 
     public boolean canViewEventInternals(Event event, UUID userId) {
         if (userId == null) {
             return false;
+        }
+        if (event.isCampus()) {
+            return isCampusPublisher();
         }
         ClubAccess access = accessOf(event.getClubId(), userId);
         return access.has(MANAGE_EVENT_OPERATIONS) || access.has(ADVISE);

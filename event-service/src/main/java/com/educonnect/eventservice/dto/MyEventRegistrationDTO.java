@@ -12,6 +12,8 @@ public class MyEventRegistrationDTO {
     private String qrCode;
     private LocalDateTime registrationTime;
     private boolean attended;
+    private String registrationStatus;
+    private String eventStatus;
 
     public MyEventRegistrationDTO() {}
 
@@ -39,5 +41,9 @@ public class MyEventRegistrationDTO {
 
     public boolean isAttended() { return attended; }
     public void setAttended(boolean attended) { this.attended = attended; }
-}
 
+    public String getRegistrationStatus() { return registrationStatus; }
+    public void setRegistrationStatus(String registrationStatus) { this.registrationStatus = registrationStatus; }
+    public String getEventStatus() { return eventStatus; }
+    public void setEventStatus(String eventStatus) { this.eventStatus = eventStatus; }
+}

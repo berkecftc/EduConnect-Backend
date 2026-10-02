@@ -49,7 +49,8 @@ class EventQueryServiceAuthorizationTest {
         event.setId(eventId);
         event.setClubId(clubId);
         event.setStatus(EventStatus.ACTIVE);
-        event.setEventTime(LocalDateTime.now().plusDays(3));
+        event.setStartsAt(LocalDateTime.now().plusDays(3));
+        event.setEndsAt(event.getStartsAt().plusHours(2));
         when(eventRepository.findById(eventId)).thenReturn(Optional.of(event));
     }
 

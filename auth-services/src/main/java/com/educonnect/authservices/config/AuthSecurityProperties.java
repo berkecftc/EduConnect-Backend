@@ -20,7 +20,7 @@ public record AuthSecurityProperties(PasswordPolicy passwordPolicy,
         loginProtection = loginProtection != null ? loginProtection : new LoginProtection(false, 0, null);
         refreshTokens = refreshTokens != null ? refreshTokens : new RefreshTokens(0);
         emailVerification = emailVerification != null ? emailVerification : new EmailVerification(false, null);
-        links = links != null ? links : new Links(null, null);
+        links = links != null ? links : new Links(null);
         bootstrapAdmin = bootstrapAdmin != null ? bootstrapAdmin : new BootstrapAdmin(null, null);
         institution = institution != null ? institution : new Institution(null, null, null);
     }
@@ -54,11 +54,10 @@ public record AuthSecurityProperties(PasswordPolicy passwordPolicy,
         }
     }
 
-    public record Links(String frontendBaseUrl, String publicApiBaseUrl) {
+    public record Links(String frontendBaseUrl) {
 
         public Links {
             frontendBaseUrl = trimTrailingSlash(frontendBaseUrl != null ? frontendBaseUrl : "http://localhost:5173");
-            publicApiBaseUrl = trimTrailingSlash(publicApiBaseUrl != null ? publicApiBaseUrl : "http://localhost:8080");
         }
 
         private static String trimTrailingSlash(String url) {

@@ -48,7 +48,7 @@ class EmailVerificationServiceTest {
     private EmailVerificationService service(boolean enabled) {
         AuthSecurityProperties properties = new AuthSecurityProperties(null, null, null,
                 new AuthSecurityProperties.EmailVerification(enabled, Duration.ofHours(24)),
-                new AuthSecurityProperties.Links("https://app.example.edu/", "https://api.example.edu"),
+                new AuthSecurityProperties.Links("https://app.example.edu/"),
                 null, null);
         return new EmailVerificationService(tokenRepository, userRepository, studentRequestRepository, outboxPublisher,
                 properties, Clock.fixed(NOW, ZoneOffset.UTC));
@@ -86,7 +86,7 @@ class EmailVerificationServiceTest {
                 eq(RabbitMQConfig.EMAIL_VERIFICATION_ROUTING_KEY), sent.capture());
 
         String link = sent.getValue().verificationLink();
-        assertThat(link).startsWith("https://api.example.edu/api/auth/verify-email?token=");
+        assertThat(link).startsWith("https://app.example.edu/verify-email?token=");
         String rawToken = link.substring(link.indexOf("token=") + 6);
         assertThat(saved.getValue().getTokenHash()).isEqualTo(OpaqueTokens.hash(rawToken)).isNotEqualTo(rawToken);
         assertThat(saved.getValue().getExpiresAt()).isEqualTo(NOW.plus(Duration.ofHours(24)));
@@ -147,10 +147,5 @@ class EmailVerificationServiceTest {
 
         verifyNoInteractions(outboxPublisher);
         verify(tokenRepository, never()).save(any());
-    }
-
-    @Test
-    void loginRedirectUrl_shouldPointToFrontendLogin() {
-        assertThat(service(true).loginRedirectUrl(true)).isEqualTo("https://app.example.edu/login?emailVerified=true");
     }
 }

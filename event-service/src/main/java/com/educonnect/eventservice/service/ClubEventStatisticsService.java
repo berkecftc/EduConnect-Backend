@@ -2,6 +2,7 @@ package com.educonnect.eventservice.service;
 
 import com.educonnect.eventservice.dto.response.ClubEventStatistics;
 import com.educonnect.eventservice.model.Event;
+import com.educonnect.eventservice.model.RegistrationStatus;
 import com.educonnect.eventservice.model.EventStatus;
 import com.educonnect.eventservice.repository.EventRegistrationRepository;
 import com.educonnect.eventservice.repository.EventRepository;
@@ -28,12 +29,12 @@ public class ClubEventStatisticsService {
     }
 
     public ClubEventStatistics statisticsOf(UUID clubId, LocalDateTime from, LocalDateTime to) {
-        List<Event> events = eventRepository.findByClubIdAndEventTimeGreaterThanEqualAndEventTimeLessThan(clubId, from, to);
+        List<Event> events = eventRepository.findByClubIdAndStartsAtGreaterThanEqualAndStartsAtLessThan(clubId, from, to);
         List<UUID> held = events.stream()
                 .filter(event -> event.getStatus() == EventStatus.COMPLETED || event.getStatus() == EventStatus.ACTIVE)
                 .map(Event::getId)
                 .toList();
-        long registrations = held.isEmpty() ? 0 : registrationRepository.countByEventIdIn(held);
+        long registrations = held.isEmpty() ? 0 : registrationRepository.countByEventIdInAndStatusNot(held, RegistrationStatus.CANCELLED);
         long attendances = held.isEmpty() ? 0 : registrationRepository.countByEventIdInAndAttendedTrue(held);
         return new ClubEventStatistics(events.size(),
                 count(events, EventStatus.COMPLETED),
