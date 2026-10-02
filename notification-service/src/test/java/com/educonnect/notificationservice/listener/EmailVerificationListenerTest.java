@@ -1,6 +1,7 @@
 package com.educonnect.notificationservice.listener;
 
 import com.educonnect.notificationservice.dto.message.EmailVerificationMessage;
+import com.educonnect.notificationservice.dto.message.PasswordResetMessage;
 import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -25,6 +26,14 @@ class EmailVerificationListenerTest {
 
         assertThat(html).contains("Yeni Adresimi Doğrula").contains("email-change/confirm?token=abc").doesNotContain("başvurunuzu");
         assertThat(EmailVerificationListener.buildChangedNotice()).contains("Bu değişikliği siz yapmadıysanız");
+    }
+
+    @Test
+    void accountSetupEmailCarriesTheLinkAndItsValidity() {
+        PasswordResetMessage message = new PasswordResetMessage("ogrenciisleri@uni.edu.tr", null, null, "t", "https://app.example.edu/reset-password?token=t");
+        message.setValidHours(72);
+
+        assertThat(PasswordResetListener.buildAccountSetupEmail(message)).contains("Şifremi Belirle").contains("72 saat").contains("token=t");
     }
 
     @Test

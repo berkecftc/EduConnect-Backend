@@ -20,6 +20,7 @@ import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
+import java.time.Duration;
 import java.time.Instant;
 import java.util.NoSuchElementException;
 
@@ -27,6 +28,8 @@ import java.util.NoSuchElementException;
 public class PasswordService {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(PasswordService.class);
+    public static final String ACCOUNT_SETUP = "ACCOUNT_SETUP";
+    private static final Duration ACCOUNT_SETUP_VALIDITY = Duration.ofHours(72);
 
     private final UserRepository userRepository;
     private final PasswordResetTokenRepository passwordResetTokenRepository;
@@ -85,6 +88,17 @@ public class PasswordService {
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new NoSuchElementException("Bu email adresi ile kayıtlı kullanıcı bulunamadı."));
 
+        issueResetLink(user, Duration.ofMinutes(15), null);
+        LOGGER.info("Şifre sıfırlama e-postası kuyruğa alındı. UserID: {}", user.getId());
+    }
+
+    @Transactional
+    public void sendAccountSetupLink(User user) {
+        issueResetLink(user, ACCOUNT_SETUP_VALIDITY, ACCOUNT_SETUP);
+        LOGGER.info("Hesap kurulum bağlantısı kuyruğa alındı. UserID: {}", user.getId());
+    }
+
+    private void issueResetLink(User user, Duration validity, String purpose) {
         passwordResetTokenRepository.deleteByUserId(user.getId());
 
         String token = OpaqueTokens.generate();
@@ -92,7 +106,7 @@ public class PasswordService {
         PasswordResetToken resetToken = new PasswordResetToken(
                 OpaqueTokens.hash(token),
                 user.getId(),
-                Instant.now().plusSeconds(15 * 60)
+                Instant.now().plus(validity)
         );
         passwordResetTokenRepository.save(resetToken);
 
@@ -105,14 +119,14 @@ public class PasswordService {
                 token,
                 resetLink
         );
+        message.setPurpose(purpose);
+        message.setValidHours(validity.toHours());
 
         outboxPublisher.publish(
                 RabbitMQConfig.EXCHANGE_NAME,
                 RabbitMQConfig.PASSWORD_RESET_ROUTING_KEY,
                 message
         );
-
-        LOGGER.info("Şifre sıfırlama e-postası kuyruğa alındı. UserID: {}", user.getId());
     }
 
     @Transactional

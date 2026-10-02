@@ -29,6 +29,7 @@ public class InstitutionPolicy {
     private static final String PROFILE_BY_STUDENT_NUMBER = "http://user-service/api/users/internal/profiles/by-student-number/{number}";
     private static final String PROGRAM = "http://user-service/api/users/internal/academic/programs/{id}";
     private static final String DEPARTMENT = "http://user-service/api/users/internal/academic/departments/{id}";
+    private static final String FACULTY = "http://user-service/api/users/internal/academic/faculties/{id}";
     private static final ParameterizedTypeReference<Map<String, Object>> UNIT = new ParameterizedTypeReference<>() {
     };
 
@@ -86,6 +87,10 @@ public class InstitutionPolicy {
 
     public void requireDepartment(UUID departmentId) {
         requireUnit(DEPARTMENT, departmentId, "DEPARTMENT", "Bölüm");
+    }
+
+    public void requireFaculty(UUID facultyId) {
+        requireUnit(FACULTY, facultyId, "FACULTY", "Fakülte");
     }
 
     private void requireUnit(String uri, UUID id, String code, String label) {

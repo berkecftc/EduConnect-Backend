@@ -133,6 +133,13 @@ public class AcademicCatalogService {
     }
 
     @Transactional(readOnly = true)
+    public AcademicPlacement faculty(UUID facultyId) {
+        Faculty faculty = facultyRepository.findById(facultyId)
+                .orElseThrow(() -> new NotFoundException("FACULTY_NOT_FOUND", "Fakülte bulunamadı."));
+        return new AcademicPlacement(faculty.getId(), faculty.getName(), null, null, null, null, null, null, faculty.isActive());
+    }
+
+    @Transactional(readOnly = true)
     public AcademicPlacement department(UUID departmentId) {
         Department department = departmentRepository.findById(departmentId)
                 .orElseThrow(() -> new NotFoundException("DEPARTMENT_NOT_FOUND", "Bölüm bulunamadı."));
