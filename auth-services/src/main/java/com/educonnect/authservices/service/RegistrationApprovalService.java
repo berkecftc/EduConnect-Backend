@@ -41,19 +41,22 @@ public class RegistrationApprovalService {
     private final OutboxPublisher outboxPublisher;
     private final MinioService minioService;
     private final EmailVerificationService emailVerificationService;
+    private final InstitutionPolicy institutionPolicy;
 
     public RegistrationApprovalService(UserRepository userRepository,
                                        AcademicianRequestRepository requestRepository,
                                        StudentRequestRepository studentRequestRepository,
                                        OutboxPublisher outboxPublisher,
                                        MinioService minioService,
-                                       EmailVerificationService emailVerificationService) {
+                                       EmailVerificationService emailVerificationService,
+                                       InstitutionPolicy institutionPolicy) {
         this.userRepository = userRepository;
         this.requestRepository = requestRepository;
         this.studentRequestRepository = studentRequestRepository;
         this.outboxPublisher = outboxPublisher;
         this.minioService = minioService;
         this.emailVerificationService = emailVerificationService;
+        this.institutionPolicy = institutionPolicy;
     }
 
     @Transactional
@@ -61,6 +64,9 @@ public class RegistrationApprovalService {
         StudentRegistrationRequest req = studentRequestRepository.findById(requestId)
                 .orElseThrow(() -> new NoSuchElementException("Öğrenci başvuru formu bulunamadı!"));
         requireVerifiedEmail(req.getEmailVerifiedAt());
+        if (req.getStudentNumber() != null) {
+            institutionPolicy.requireStudentNumberAvailable(req.getStudentNumber(), req.getId());
+        }
 
         Set<Role> roles = Stream.of(Role.ROLE_STUDENT).collect(Collectors.toSet());
 
@@ -70,6 +76,7 @@ public class RegistrationApprovalService {
                 roles
         );
         user.setEmailVerifiedAt(req.getEmailVerifiedAt() != null ? req.getEmailVerifiedAt() : Instant.now());
+        user.setStudentNumber(req.getStudentNumber());
 
         User savedUser = userRepository.save(user);
 

@@ -3,6 +3,8 @@ package com.educonnect.authservices.config;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
 import java.time.Duration;
+import java.util.List;
+import java.util.Locale;
 
 @ConfigurationProperties(prefix = "educonnect.auth")
 public record AuthSecurityProperties(PasswordPolicy passwordPolicy,
@@ -10,7 +12,8 @@ public record AuthSecurityProperties(PasswordPolicy passwordPolicy,
                                      RefreshTokens refreshTokens,
                                      EmailVerification emailVerification,
                                      Links links,
-                                     BootstrapAdmin bootstrapAdmin) {
+                                     BootstrapAdmin bootstrapAdmin,
+                                     Institution institution) {
 
     public AuthSecurityProperties {
         passwordPolicy = passwordPolicy != null ? passwordPolicy : new PasswordPolicy(false, 0);
@@ -19,6 +22,7 @@ public record AuthSecurityProperties(PasswordPolicy passwordPolicy,
         emailVerification = emailVerification != null ? emailVerification : new EmailVerification(false, null);
         links = links != null ? links : new Links(null, null);
         bootstrapAdmin = bootstrapAdmin != null ? bootstrapAdmin : new BootstrapAdmin(null, null);
+        institution = institution != null ? institution : new Institution(null, null, null);
     }
 
     public record PasswordPolicy(boolean enabled, int minLength) {
@@ -59,6 +63,22 @@ public record AuthSecurityProperties(PasswordPolicy passwordPolicy,
 
         private static String trimTrailingSlash(String url) {
             return url.endsWith("/") ? url.substring(0, url.length() - 1) : url;
+        }
+    }
+
+    public record Institution(List<String> studentEmailDomains, List<String> staffEmailDomains, String studentNumberPattern) {
+
+        public Institution {
+            studentEmailDomains = normalize(studentEmailDomains);
+            staffEmailDomains = normalize(staffEmailDomains);
+            studentNumberPattern = studentNumberPattern != null && !studentNumberPattern.isBlank() ? studentNumberPattern : "[0-9]{5,12}";
+        }
+
+        private static List<String> normalize(List<String> domains) {
+            return domains == null ? List.of() : domains.stream()
+                    .filter(domain -> domain != null && !domain.isBlank())
+                    .map(domain -> domain.strip().toLowerCase(Locale.ROOT).replaceFirst("^@", ""))
+                    .toList();
         }
     }
 

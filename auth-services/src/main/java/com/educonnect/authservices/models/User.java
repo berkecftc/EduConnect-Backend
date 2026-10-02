@@ -54,6 +54,9 @@ public class User implements UserDetails {
     @Column(name = "email_verified_at")
     private Instant emailVerifiedAt;
 
+    @Column(name = "student_number", length = 32)
+    private String studentNumber;
+
     public void setEmail(String email) { this.email = email; }
     public void setPassword(String password) { this.password = password; }
 
@@ -102,6 +105,8 @@ public class User implements UserDetails {
     public Instant getStatusChangedAt() { return statusChangedAt; }
     public String getStatusReason() { return statusReason; }
     public Instant getEmailVerifiedAt() { return emailVerifiedAt; }
+    public String getStudentNumber() { return studentNumber; }
+    public void setStudentNumber(String studentNumber) { this.studentNumber = studentNumber; }
     public void setEmailVerifiedAt(Instant emailVerifiedAt) { this.emailVerifiedAt = emailVerifiedAt; }
 
     public boolean isSuspended() { return status == AccountStatus.SUSPENDED; }

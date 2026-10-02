@@ -14,6 +14,8 @@ import java.util.Optional;
 public interface StudentRequestRepository extends JpaRepository<StudentRegistrationRequest, Long> {
     Optional<StudentRegistrationRequest> findByEmail(String email);
 
+    Optional<StudentRegistrationRequest> findFirstByStudentNumber(String studentNumber);
+
     @Modifying
     @Query("UPDATE StudentRegistrationRequest r SET r.emailVerifiedAt = :now WHERE r.email = :email AND r.emailVerifiedAt IS NULL")
     int markEmailVerified(@Param("email") String email, @Param("now") Instant now);
