@@ -29,17 +29,20 @@ public class EventAdvisorService {
     private final ClubClient clubClient;
     private final EventAuthorizationService eventAuthorizationService;
     private final EventCaches eventCaches;
+    private final EventSchedule schedule;
 
     public EventAdvisorService(EventRepository eventRepository,
                                OutboxPublisher outboxPublisher,
                                ClubClient clubClient,
                                EventAuthorizationService eventAuthorizationService,
-                               EventCaches eventCaches) {
+                               EventCaches eventCaches,
+                               EventSchedule schedule) {
         this.eventRepository = eventRepository;
         this.outboxPublisher = outboxPublisher;
         this.clubClient = clubClient;
         this.eventAuthorizationService = eventAuthorizationService;
         this.eventCaches = eventCaches;
+        this.schedule = schedule;
     }
 
     public List<Event> getAllEventsForAdvisor(UUID advisorId) {
@@ -70,6 +73,7 @@ public class EventAdvisorService {
         }
 
         validateAdvisorAuthorization(event.getClubId(), approverId);
+        schedule.requireNotStarted(event);
 
         event.setStatus(EventStatus.ACTIVE);
         Event savedEvent = eventRepository.save(event);
@@ -79,7 +83,7 @@ public class EventAdvisorService {
                 savedEvent.getId(),
                 savedEvent.getTitle(),
                 savedEvent.getDescription(),
-                savedEvent.getEventTime(),
+                savedEvent.getStartsAt(),
                 savedEvent.getLocation(),
                 savedEvent.getClubId(),
                 savedEvent.getClubName()

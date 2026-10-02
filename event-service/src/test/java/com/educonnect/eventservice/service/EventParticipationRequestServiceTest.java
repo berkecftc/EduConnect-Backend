@@ -53,7 +53,8 @@ class EventParticipationRequestServiceTest {
         event.setId(eventId);
         event.setClubId(clubId);
         event.setStatus(EventStatus.ACTIVE);
-        event.setEventTime(LocalDateTime.now().plusDays(3));
+        event.setStartsAt(LocalDateTime.now().plusDays(3));
+        event.setEndsAt(event.getStartsAt().plusHours(2));
         when(eventRepository.findById(eventId)).thenReturn(Optional.of(event));
         when(clubClient.isStudentMemberOfClub(clubId, studentId)).thenReturn(true);
         when(requestRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
@@ -76,7 +77,8 @@ class EventParticipationRequestServiceTest {
                 .hasMessageContaining("400");
 
         event.setStatus(EventStatus.ACTIVE);
-        event.setEventTime(LocalDateTime.now().minusDays(1));
+        event.setStartsAt(LocalDateTime.now().minusDays(1));
+        event.setEndsAt(event.getStartsAt().plusHours(2));
         assertThatThrownBy(() -> service.createParticipationRequest(eventId, studentId, null))
                 .isInstanceOf(ResponseStatusException.class)
                 .hasMessageContaining("400");
@@ -106,11 +108,13 @@ class EventParticipationRequestServiceTest {
                 .isInstanceOf(ResponseStatusException.class).hasMessageContaining("409");
 
         event.setStatus(EventStatus.ACTIVE);
-        event.setEventTime(LocalDateTime.now().minusHours(1));
+        event.setStartsAt(LocalDateTime.now().minusHours(1));
+        event.setEndsAt(event.getStartsAt().plusHours(2));
         assertThatThrownBy(() -> service.approveParticipationRequest(requestId, approverId))
                 .isInstanceOf(ResponseStatusException.class).hasMessageContaining("409");
 
-        event.setEventTime(LocalDateTime.now().plusDays(1));
+        event.setStartsAt(LocalDateTime.now().plusDays(1));
+        event.setEndsAt(event.getStartsAt().plusHours(2));
         when(clubClient.isStudentMemberOfClub(clubId, studentId)).thenReturn(false);
         assertThatThrownBy(() -> service.approveParticipationRequest(requestId, approverId))
                 .isInstanceOf(ResponseStatusException.class).hasMessageContaining("409");

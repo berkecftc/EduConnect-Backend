@@ -13,6 +13,8 @@ import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.time.Clock;
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.Optional;
 import java.util.UUID;
@@ -40,13 +42,15 @@ class EventServiceAuthorizationTest {
         registrationRepository = mock(EventRegistrationRepository.class);
         authorizationService = mock(EventAuthorizationService.class);
         service = new EventService(eventRepository, mock(MinioService.class), registrationRepository,
-                mock(ClubClient.class), authorizationService, mock(EventCaches.class), new ApprovalChainSettings(false));
+                mock(ClubClient.class), authorizationService, mock(EventCaches.class), new ApprovalChainSettings(false),
+                new EventSchedule(Duration.ZERO, Duration.ofMinutes(60), Duration.ofHours(2), Clock.systemDefaultZone()));
 
         event = new Event();
         event.setId(eventId);
         event.setClubId(clubId);
         event.setStatus(EventStatus.ACTIVE);
-        event.setEventTime(LocalDateTime.now().plusDays(3));
+        event.setStartsAt(LocalDateTime.now().plusDays(3));
+        event.setEndsAt(event.getStartsAt().plusHours(2));
         when(eventRepository.findById(eventId)).thenReturn(Optional.of(event));
     }
 

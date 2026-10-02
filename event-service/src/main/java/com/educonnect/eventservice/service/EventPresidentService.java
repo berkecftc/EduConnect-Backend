@@ -23,13 +23,16 @@ public class EventPresidentService {
     private final EventRepository eventRepository;
     private final EventAuthorizationService eventAuthorizationService;
     private final EventCaches eventCaches;
+    private final EventSchedule schedule;
 
     public EventPresidentService(EventRepository eventRepository,
                                  EventAuthorizationService eventAuthorizationService,
-                                 EventCaches eventCaches) {
+                                 EventCaches eventCaches,
+                                 EventSchedule schedule) {
         this.eventRepository = eventRepository;
         this.eventAuthorizationService = eventAuthorizationService;
         this.eventCaches = eventCaches;
+        this.schedule = schedule;
     }
 
     @Transactional(readOnly = true)
@@ -46,6 +49,7 @@ public class EventPresidentService {
 
     public Event approve(UUID eventId, UUID userId) {
         Event event = pendingForPresident(eventId, userId);
+        schedule.requireNotStarted(event);
         event.setStatus(EventStatus.PENDING);
         Event saved = eventRepository.save(event);
         eventCaches.evictEvent(saved);

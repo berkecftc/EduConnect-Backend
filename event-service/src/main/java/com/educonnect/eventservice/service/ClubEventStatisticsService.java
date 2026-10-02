@@ -28,7 +28,7 @@ public class ClubEventStatisticsService {
     }
 
     public ClubEventStatistics statisticsOf(UUID clubId, LocalDateTime from, LocalDateTime to) {
-        List<Event> events = eventRepository.findByClubIdAndEventTimeGreaterThanEqualAndEventTimeLessThan(clubId, from, to);
+        List<Event> events = eventRepository.findByClubIdAndStartsAtGreaterThanEqualAndStartsAtLessThan(clubId, from, to);
         List<UUID> held = events.stream()
                 .filter(event -> event.getStatus() == EventStatus.COMPLETED || event.getStatus() == EventStatus.ACTIVE)
                 .map(Event::getId)

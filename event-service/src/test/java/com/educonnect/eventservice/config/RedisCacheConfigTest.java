@@ -25,7 +25,8 @@ class RedisCacheConfigTest {
         Event event = new Event();
         event.setId(UUID.randomUUID());
         event.setTitle("Tanışma");
-        event.setEventTime(LocalDateTime.of(2026, 10, 1, 18, 0));
+        event.setStartsAt(LocalDateTime.of(2026, 10, 1, 18, 0));
+        event.setEndsAt(event.getStartsAt().plusHours(2));
         event.setStatus(EventStatus.ACTIVE);
         List<Event> events = new ArrayList<>(List.of(event));
 
@@ -34,7 +35,7 @@ class RedisCacheConfigTest {
         assertThat(restored).isInstanceOf(List.class);
         Event restoredEvent = (Event) ((List<?>) restored).get(0);
         assertThat(restoredEvent.getId()).isEqualTo(event.getId());
-        assertThat(restoredEvent.getEventTime()).isEqualTo(event.getEventTime());
+        assertThat(restoredEvent.getStartsAt()).isEqualTo(event.getStartsAt());
         assertThat(restoredEvent.getStatus()).isEqualTo(EventStatus.ACTIVE);
     }
 

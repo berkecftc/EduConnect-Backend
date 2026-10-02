@@ -62,7 +62,7 @@ public class EventParticipationRequestService {
         if (event.getStatus() != EventStatus.ACTIVE) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Bu etkinlik artık aktif değil");
         }
-        if (event.getEventTime() != null && event.getEventTime().isBefore(LocalDateTime.now())) {
+        if (event.getStartsAt().isBefore(LocalDateTime.now())) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Geçmiş bir etkinliğe katılım isteği gönderilemez");
         }
 
@@ -115,7 +115,7 @@ public class EventParticipationRequestService {
         if (event.getStatus() != EventStatus.ACTIVE) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Etkinlik artık aktif değil; istek onaylanamaz");
         }
-        if (event.getEventTime() != null && event.getEventTime().isBefore(LocalDateTime.now())) {
+        if (event.getStartsAt().isBefore(LocalDateTime.now())) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Geçmiş bir etkinlik için istek onaylanamaz");
         }
         if (!isStudentMemberOfClub(request.getStudentId(), event.getClubId())) {
@@ -137,7 +137,7 @@ public class EventParticipationRequestService {
         EventRegistrationMessage message = new EventRegistrationMessage(
                 request.getStudentId(),
                 event.getTitle(),
-                event.getEventTime(),
+                event.getStartsAt(),
                 event.getLocation(),
                 savedRegistration.getQrCode()
         );

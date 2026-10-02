@@ -19,7 +19,6 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
-import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -38,6 +37,7 @@ public class EventService {
     private final EventAuthorizationService eventAuthorizationService;
     private final EventCaches eventCaches;
     private final ApprovalChainSettings approvalChain;
+    private final EventSchedule schedule;
 
     public EventService(EventRepository eventRepository,
                         MinioService minioService,
@@ -45,7 +45,8 @@ public class EventService {
                         ClubClient clubClient,
                         EventAuthorizationService eventAuthorizationService,
                         EventCaches eventCaches,
-                        ApprovalChainSettings approvalChain) {
+                        ApprovalChainSettings approvalChain,
+                        EventSchedule schedule) {
         this.eventRepository = eventRepository;
         this.minioService = minioService;
         this.eventRegistrationRepository = eventRegistrationRepository;
@@ -53,13 +54,16 @@ public class EventService {
         this.eventAuthorizationService = eventAuthorizationService;
         this.eventCaches = eventCaches;
         this.approvalChain = approvalChain;
+        this.schedule = schedule;
     }
 
     public Event createEvent(CreateEventRequest request, MultipartFile posterFile, UUID creatorId) {
-        if (posterFile == null || posterFile.isEmpty()) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Etkinlik afişi zorunludur.");
+        boolean hasPoster = posterFile != null && !posterFile.isEmpty();
+        if (hasPoster) {
+            minioService.validateImage(posterFile);
         }
-        minioService.validateImage(posterFile);
+        LocalDateTime endsAt = schedule.endOrDefault(request.getStartsAt(), request.getEndsAt());
+        schedule.requireValidNewSchedule(request.getStartsAt(), endsAt);
 
         UUID resolvedClubId;
         try {
@@ -90,7 +94,9 @@ public class EventService {
         Event event = new Event();
         event.setTitle(request.getTitle());
         event.setDescription(request.getDescription());
-        event.setEventTime(request.getEventTime());
+        event.setStartsAt(request.getStartsAt());
+        event.setEndsAt(endsAt);
+        event.setSpeakers(request.getSpeakers() == null || request.getSpeakers().isBlank() ? null : request.getSpeakers().strip());
         event.setLocation(request.getLocation());
         event.setClubName(request.getClubName());
         event.setCreatedByStudentId(creatorId);
@@ -99,12 +105,11 @@ public class EventService {
 
         Event savedEvent = eventRepository.save(event);
 
-        log.info("Uploading poster for event: {}", savedEvent.getId());
-        String objectName = minioService.uploadFile(posterFile, "events", savedEvent.getId().toString());
-        log.info("Poster uploaded successfully. URL: {}", objectName);
-        savedEvent.setImageUrl(objectName);
-        savedEvent = eventRepository.save(savedEvent);
-        log.info("Event saved with imageUrl: {}", savedEvent.getImageUrl());
+        if (hasPoster) {
+            String objectName = minioService.uploadFile(posterFile, "events", savedEvent.getId().toString());
+            savedEvent.setImageUrl(objectName);
+            savedEvent = eventRepository.save(savedEvent);
+        }
         eventCaches.evictEventListings(savedEvent);
 
         return savedEvent;
@@ -116,7 +121,7 @@ public class EventService {
                 .filter(event -> event.getStatus() == EventStatus.PENDING_PRESIDENT
                         || event.getStatus() == EventStatus.PENDING
                         || (event.getStatus() == EventStatus.ACTIVE
-                            && (event.getEventTime() == null || event.getEventTime().isAfter(now))))
+                            && event.getEndsAt().isAfter(now)))
                 .toList();
         cancelled.forEach(event -> event.setStatus(EventStatus.CANCELLED));
         eventRepository.saveAll(cancelled);
@@ -148,6 +153,7 @@ public class EventService {
         if (event.getStatus() != EventStatus.ACTIVE) {
             throw new BadRequestException("EVENT_NOT_ACTIVE", "Event is not active.");
         }
+        schedule.requireCheckInOpen(event);
 
         if (registration.isAttended()) {
             throw new BadRequestException("TICKET_ALREADY_USED", "Ticket already used/scanned.");

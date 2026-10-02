@@ -12,6 +12,9 @@ public record EventResponse(UUID id,
                             String title,
                             String description,
                             LocalDateTime eventTime,
+                            LocalDateTime startsAt,
+                            LocalDateTime endsAt,
+                            String speakers,
                             String location,
                             String imageUrl,
                             UUID clubId,
@@ -22,7 +25,8 @@ public record EventResponse(UUID id,
                             String rejectionReason) {
 
     public static EventResponse from(Event event) {
-        return new EventResponse(event.getId(), event.getTitle(), event.getDescription(), event.getEventTime(),
+        return new EventResponse(event.getId(), event.getTitle(), event.getDescription(), event.getStartsAt(),
+                event.getStartsAt(), event.getEndsAt(), event.getSpeakers(),
                 event.getLocation(), event.getImageUrl(), event.getClubId(), event.getClubName(), event.getStatus(),
                 event.getCreatedAt(), event.getUpdatedAt(), event.getRejectionReason());
     }

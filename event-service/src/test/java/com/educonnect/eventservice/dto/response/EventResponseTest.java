@@ -27,7 +27,8 @@ class EventResponseTest {
         event.setId(UUID.randomUUID());
         event.setTitle("Satranç Turnuvası");
         event.setDescription("Açık turnuva");
-        event.setEventTime(LocalDateTime.of(2026, 10, 5, 18, 30));
+        event.setStartsAt(LocalDateTime.of(2026, 10, 5, 18, 30));
+        event.setEndsAt(event.getStartsAt().plusHours(2));
         event.setLocation("Konferans Salonu");
         event.setClubId(UUID.randomUUID());
         event.setClubName("Satranç Kulübü");
@@ -36,9 +37,10 @@ class EventResponseTest {
 
         Map<String, Object> json = objectMapper.readValue(objectMapper.writeValueAsString(EventResponse.from(event)), JSON_MAP);
 
-        assertThat(json.keySet()).containsExactlyInAnyOrder("id", "title", "description", "eventTime", "location",
+        assertThat(json.keySet()).containsExactlyInAnyOrder("id", "title", "description", "eventTime", "startsAt", "endsAt", "speakers", "location",
                 "imageUrl", "clubId", "clubName", "status", "createdAt", "updatedAt", "rejectionReason");
         assertThat(json.get("eventTime")).isEqualTo("2026-10-05T18:30:00");
+        assertThat(json.get("endsAt")).isEqualTo("2026-10-05T20:30:00");
         assertThat(json.get("status")).isEqualTo("ACTIVE");
     }
 

@@ -56,8 +56,8 @@ class RequestValidationTest {
     }
 
     @Test
-    void createEventRequestRejectsMissingEventTime() {
-        assertCreateEventViolation(request -> request.setEventTime(null), "eventTime");
+    void createEventRequestRejectsMissingStart() {
+        assertCreateEventViolation(request -> request.setStartsAt(null), "startsAt");
     }
 
     @Test
@@ -84,7 +84,7 @@ class RequestValidationTest {
         CreateEventRequest request = new CreateEventRequest();
         request.setTitle("Tanışma Toplantısı");
         request.setDescription("Açıklama");
-        request.setEventTime(LocalDateTime.now().plusDays(3));
+        request.setStartsAt(LocalDateTime.now().plusDays(3));
         request.setLocation("Konferans Salonu");
         request.setClubName("Satranç Kulübü");
         return request;

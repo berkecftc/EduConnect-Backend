@@ -34,8 +34,14 @@ public class Event {
     @Column(columnDefinition = "TEXT")
     private String description;
 
-    @Column(nullable = false)
-    private LocalDateTime eventTime; // Tarih ve Saat
+    @Column(name = "starts_at", nullable = false)
+    private LocalDateTime startsAt;
+
+    @Column(name = "ends_at", nullable = false)
+    private LocalDateTime endsAt;
+
+    @Column(columnDefinition = "TEXT")
+    private String speakers;
 
     private String location; // Yer
 
@@ -68,8 +74,12 @@ public class Event {
     public void setTitle(String title) { this.title = title; }
     public String getDescription() { return description; }
     public void setDescription(String description) { this.description = description; }
-    public LocalDateTime getEventTime() { return eventTime; }
-    public void setEventTime(LocalDateTime eventTime) { this.eventTime = eventTime; }
+    public LocalDateTime getStartsAt() { return startsAt; }
+    public void setStartsAt(LocalDateTime startsAt) { this.startsAt = startsAt; }
+    public LocalDateTime getEndsAt() { return endsAt; }
+    public void setEndsAt(LocalDateTime endsAt) { this.endsAt = endsAt; }
+    public String getSpeakers() { return speakers; }
+    public void setSpeakers(String speakers) { this.speakers = speakers; }
     public String getLocation() { return location; }
     public void setLocation(String location) { this.location = location; }
     public String getImageUrl() { return imageUrl; }
