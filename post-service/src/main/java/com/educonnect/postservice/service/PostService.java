@@ -283,6 +283,8 @@ public class PostService {
         if (post.getStatus() != PostStatus.PENDING) {
             return;
         }
+        post.setSubmittedAt(Instant.now());
+        post.setModerationFlag(null);
         eventPublisher.publishModerationEvent(new PostModerationEvent(
                 post.getId(),
                 post.getTitle(),

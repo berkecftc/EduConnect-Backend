@@ -1,6 +1,8 @@
 package com.educonnect.postservice.service;
 
+import com.educonnect.common.web.ApiException;
 import com.educonnect.postservice.exception.UnauthorizedPostAccessException;
+import org.springframework.http.HttpStatus;
 
 import java.util.Arrays;
 import java.util.Set;
@@ -15,6 +17,7 @@ public record Viewer(UUID id, Set<String> roles) {
     static final String STAFF = "ROLE_STAFF";
     static final String ADMIN = "ROLE_ADMIN";
     static final String CAMPUS_PUBLISHER = "PERM_CAMPUS_PUBLISHER";
+    static final String MODERATOR = "PERM_MODERATOR";
 
     private static final Set<String> COMMUNITY_ROLES = Set.of(STUDENT, CLUB_OFFICIAL, ACADEMICIAN, STAFF, ADMIN);
 
@@ -60,5 +63,16 @@ public record Viewer(UUID id, Set<String> roles) {
 
     public boolean campusPublisher() {
         return has(ADMIN) || has(CAMPUS_PUBLISHER);
+    }
+
+    public boolean moderator() {
+        return has(ADMIN) || has(MODERATOR);
+    }
+
+    public void requireModerator() {
+        if (!moderator()) {
+            throw new ApiException(HttpStatus.FORBIDDEN, "NOT_MODERATOR",
+                    "Bu işlem için moderatör yetkisi gerekir.");
+        }
     }
 }

@@ -5,6 +5,7 @@ import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.LastModifiedDate;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
+import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
@@ -44,6 +45,15 @@ public class Comment {
     @Column(nullable = false)
     private CommentStatus status;
 
+    @Column(name = "moderation_flag")
+    private String moderationFlag;
+
+    @Column(name = "moderation_note", length = 1000)
+    private String moderationNote;
+
+    @Column(name = "submitted_at")
+    private Instant submittedAt;
+
     @CreatedDate
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
@@ -73,10 +83,18 @@ public class Comment {
     public CommentStatus getStatus() { return status; }
     public void setStatus(CommentStatus status) { this.status = status; }
 
+    public String getModerationFlag() { return moderationFlag; }
+    public void setModerationFlag(String moderationFlag) { this.moderationFlag = moderationFlag; }
+
+    public String getModerationNote() { return moderationNote; }
+    public void setModerationNote(String moderationNote) { this.moderationNote = moderationNote; }
+
+    public Instant getSubmittedAt() { return submittedAt; }
+    public void setSubmittedAt(Instant submittedAt) { this.submittedAt = submittedAt; }
+
     public LocalDateTime getCreatedAt() { return createdAt; }
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
 
     public LocalDateTime getUpdatedAt() { return updatedAt; }
     public void setUpdatedAt(LocalDateTime updatedAt) { this.updatedAt = updatedAt; }
 }
-

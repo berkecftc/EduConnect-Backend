@@ -2,6 +2,8 @@ package com.educonnect.postservice.util;
 
 import org.springframework.stereotype.Component;
 
+import java.util.Arrays;
+import java.util.Locale;
 import java.util.Set;
 
 /**
@@ -13,6 +15,8 @@ import java.util.Set;
  */
 @Component
 public class BlacklistProvider {
+
+    private static final Locale TURKISH = Locale.forLanguageTag("tr");
 
     private static final Set<String> BLACKLIST = Set.of(
             "küfür", "hakaret", "spam", "reklam", "argo",
@@ -27,8 +31,8 @@ public class BlacklistProvider {
         if (text == null || text.isBlank()) {
             return false;
         }
-        String lowerText = text.toLowerCase();
-        return BLACKLIST.stream().anyMatch(lowerText::contains);
+        String[] tokens = text.toLowerCase(TURKISH).split("[^\\p{L}\\p{N}]+");
+        return Arrays.stream(tokens).anyMatch(token -> BLACKLIST.stream().anyMatch(token::startsWith));
     }
 
     /**
@@ -38,4 +42,3 @@ public class BlacklistProvider {
         return BLACKLIST;
     }
 }
-

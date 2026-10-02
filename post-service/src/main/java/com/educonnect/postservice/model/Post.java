@@ -64,6 +64,12 @@ public class Post {
     @Column(name = "review_note", length = 1000)
     private String reviewNote;
 
+    @Column(name = "moderation_flag")
+    private String moderationFlag;
+
+    @Column(name = "submitted_at")
+    private Instant submittedAt;
+
     @CreatedDate
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
@@ -119,6 +125,12 @@ public class Post {
 
     public String getReviewNote() { return reviewNote; }
     public void setReviewNote(String reviewNote) { this.reviewNote = reviewNote; }
+
+    public String getModerationFlag() { return moderationFlag; }
+    public void setModerationFlag(String moderationFlag) { this.moderationFlag = moderationFlag; }
+
+    public Instant getSubmittedAt() { return submittedAt; }
+    public void setSubmittedAt(Instant submittedAt) { this.submittedAt = submittedAt; }
 
     public boolean isOfficial() { return category != null && category.official(); }
 

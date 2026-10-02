@@ -75,6 +75,10 @@ public class AiModerationService {
         }
     }
 
+    public boolean blockedTermHit(String title, String content) {
+        return containsBlockedTerm((title == null ? "" : title) + " " + (content == null ? "" : content));
+    }
+
     boolean containsBlockedTerm(String text) {
         String normalized = compact(text);
         return blockedTerms.stream().anyMatch(normalized::contains);

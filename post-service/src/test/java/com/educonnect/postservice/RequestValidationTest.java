@@ -94,13 +94,13 @@ class RequestValidationTest {
 
     @Test
     void moderationDecisionRequestAcceptsValidSample() {
-        assertThat(validator.validate(new ModerationDecisionRequest("TEMIZ", UUID.randomUUID().toString()))).isEmpty();
-        assertThat(validator.validate(new ModerationDecisionRequest("ZORBA", null))).isEmpty();
+        assertThat(validator.validate(new ModerationDecisionRequest("TEMIZ", UUID.randomUUID().toString(), "LLM"))).isEmpty();
+        assertThat(validator.validate(new ModerationDecisionRequest("ZORBA", null, null))).isEmpty();
     }
 
     @Test
     void moderationDecisionRequestRejectsBlankDecision() {
-        assertThat(paths(validator.validate(new ModerationDecisionRequest(" ", null)))).containsExactly("decision");
+        assertThat(paths(validator.validate(new ModerationDecisionRequest(" ", null, null)))).containsExactly("decision");
     }
 
     private static List<String> paths(Set<? extends ConstraintViolation<?>> violations) {

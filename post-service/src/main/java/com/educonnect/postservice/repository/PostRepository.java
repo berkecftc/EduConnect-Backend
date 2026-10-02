@@ -8,6 +8,8 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.stereotype.Repository;
 
+import java.time.Instant;
+import java.util.Collection;
 import java.util.List;
 import java.util.UUID;
 
@@ -32,4 +34,8 @@ public interface PostRepository extends JpaRepository<Post, UUID>, JpaSpecificat
     boolean existsByIdAndAuthorId(UUID id, UUID authorId);
 
     Page<Post> findByClubIdAndStatus(UUID clubId, PostStatus status, Pageable pageable);
+
+    List<Post> findByStatusAndSubmittedAtBefore(PostStatus status, Instant cutoff);
+
+    Page<Post> findByStatusIn(Collection<PostStatus> statuses, Pageable pageable);
 }

@@ -1,11 +1,8 @@
 package com.educonnect.postservice.model;
 
-/**
- * Yorum durumu.
- * Blacklist kontrolü sonucuna göre PUBLISHED veya REJECTED olur.
- */
 public enum CommentStatus {
+    PENDING,
+    IN_REVIEW,
     PUBLISHED,
     REJECTED
 }
-
