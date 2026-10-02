@@ -92,6 +92,8 @@ public class RegistrationApprovalService {
                 req.getDepartment(),
                 req.getStudentDocumentUrl()
         );
+        message.setProgramId(req.getProgramId());
+        message.setEntryYear(req.getEntryYear());
 
         outboxPublisher.publish(
                 RabbitMQConfig.EXCHANGE_NAME,
@@ -167,6 +169,7 @@ public class RegistrationApprovalService {
                 req.getOfficeNumber(),
                 req.getIdCardImageUrl()
         );
+        profileMessage.setDepartmentId(req.getDepartmentId());
 
         outboxPublisher.publish(RabbitMQConfig.EXCHANGE_NAME, RabbitMQConfig.ACADEMICIAN_ROUTING_KEY, profileMessage);
 

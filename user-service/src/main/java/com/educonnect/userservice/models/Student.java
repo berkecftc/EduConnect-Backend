@@ -41,6 +41,12 @@ public class Student {
     @Column(name = "department")
     private String department;
 
+    @Column(name = "program_id")
+    private UUID programId;
+
+    @Column(name = "entry_year")
+    private Integer entryYear;
+
     @Column(name = "bio")
     private String bio;
 
@@ -110,6 +116,11 @@ public class Student {
     public void setDepartment(String department) {
         this.department = department;
     }
+
+    public UUID getProgramId() { return programId; }
+    public void setProgramId(UUID programId) { this.programId = programId; }
+    public Integer getEntryYear() { return entryYear; }
+    public void setEntryYear(Integer entryYear) { this.entryYear = entryYear; }
 
     public String getBio() {
         return bio;

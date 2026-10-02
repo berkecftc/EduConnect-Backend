@@ -5,6 +5,7 @@ import java.util.UUID;
 
 // Bu mesaj, 'user-service' tarafından dinlenecek
 public class AcademicianProfileMessage implements Serializable {
+    private UUID departmentId;
 
     private UUID userId; // auth_db'deki User ID
     private String firstName;
@@ -45,4 +46,6 @@ public class AcademicianProfileMessage implements Serializable {
     public void setUserId(UUID userId) { this.userId = userId; }
     public String getIdCardImageUrl() { return idCardImageUrl; }
     public void setIdCardImageUrl(String idCardImageUrl) { this.idCardImageUrl = idCardImageUrl; }
+    public UUID getDepartmentId() { return departmentId; }
+    public void setDepartmentId(UUID departmentId) { this.departmentId = departmentId; }
 }

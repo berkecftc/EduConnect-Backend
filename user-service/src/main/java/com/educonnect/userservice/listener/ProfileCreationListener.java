@@ -1,10 +1,13 @@
 package com.educonnect.userservice.listener;
 
+import com.educonnect.common.web.NotFoundException;
 import com.educonnect.userservice.config.RabbitMQConfig;
 import com.educonnect.userservice.dto.message.AcademicianProfileMessage;
 import com.educonnect.userservice.dto.message.UserRegisteredMessage;
 import com.educonnect.userservice.models.Academician;
 import com.educonnect.userservice.models.Student;
+import com.educonnect.userservice.dto.response.AcademicPlacement;
+import com.educonnect.userservice.service.AcademicCatalogService;
 import com.educonnect.userservice.repository.AcademicianRepository;
 import com.educonnect.userservice.repository.StudentRepository;
 import org.slf4j.Logger;
@@ -13,15 +16,21 @@ import org.springframework.amqp.AmqpRejectAndDontRequeueException;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
 import org.springframework.stereotype.Component;
 
+import java.util.Optional;
+import java.util.UUID;
+
 @Component
 public class ProfileCreationListener {
 
     private final StudentRepository studentRepository;
     private final AcademicianRepository academicianRepository;
+    private final AcademicCatalogService catalogService;
 
-    public ProfileCreationListener(StudentRepository studentRepository, AcademicianRepository academicianRepository) {
+    public ProfileCreationListener(StudentRepository studentRepository, AcademicianRepository academicianRepository,
+                                   AcademicCatalogService catalogService) {
         this.studentRepository = studentRepository;
         this.academicianRepository = academicianRepository;
+        this.catalogService = catalogService;
     }
 
     private static final Logger LOGGER = LoggerFactory.getLogger(ProfileCreationListener.class);
@@ -60,6 +69,11 @@ public class ProfileCreationListener {
             // Ek alanlar
             newStudent.setStudentNumber(message.getStudentNumber());
             newStudent.setDepartment(message.getDepartment());
+            placement(message.getProgramId(), true).ifPresent(placement -> {
+                newStudent.setProgramId(placement.programId());
+                newStudent.setDepartment(placement.departmentName());
+            });
+            newStudent.setEntryYear(message.getEntryYear());
             newStudent.setStudentDocumentUrl(message.getStudentDocumentUrl()); // Öğrenci belgesi URL'si
 
             studentRepository.save(newStudent);
@@ -97,6 +111,10 @@ public class ProfileCreationListener {
         newAcademician.setEmail(message.getEmail());
         newAcademician.setTitle(message.getTitle());
         newAcademician.setDepartment(message.getDepartment());
+        placement(message.getDepartmentId(), false).ifPresent(placement -> {
+            newAcademician.setDepartmentId(placement.departmentId());
+            newAcademician.setDepartment(placement.departmentName());
+        });
         newAcademician.setOfficeNumber(message.getOfficeNumber());
         newAcademician.setIdCardImageUrl(message.getIdCardImageUrl()); // Kimlik kartı fotoğrafı URL'si
         // newAcademician.setActive(false); // (Opsiyonel: Aktivasyon için)
@@ -104,5 +122,17 @@ public class ProfileCreationListener {
         academicianRepository.save(newAcademician);
 
         LOGGER.info("Academician profile created successfully (pending admin approval) for user ID: {}", newAcademician.getId());
+    }
+
+    private Optional<AcademicPlacement> placement(UUID id, boolean program) {
+        if (id == null) {
+            return Optional.empty();
+        }
+        try {
+            return Optional.of(program ? catalogService.program(id) : catalogService.department(id));
+        } catch (NotFoundException e) {
+            LOGGER.warn("Academic unit {} not found; profile created without it", id);
+            return Optional.empty();
+        }
     }
 }

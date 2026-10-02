@@ -2,6 +2,7 @@ package com.educonnect.userservice.service;
 
 import com.educonnect.common.web.NotFoundException;
 import com.educonnect.userservice.dto.request.UpdateUserProfileRequest;
+import com.educonnect.userservice.dto.response.AcademicPlacement;
 import com.educonnect.userservice.dto.response.ArchivedAcademicianDTO;
 import com.educonnect.userservice.dto.response.ArchivedStudentDTO;
 import com.educonnect.userservice.dto.response.UserProfileResponse;
@@ -49,6 +50,7 @@ public class ProfileService {
     private final MinioService minioService;
     private final GamificationEventPublisher gamificationEventPublisher;
     private final CacheManager cacheManager;
+    private final AcademicCatalogService catalogService;
 
     // Elle constructor ekleyelim
     public ProfileService(StudentRepository studentRepository,
@@ -57,7 +59,8 @@ public class ProfileService {
                          ArchivedAcademicianRepository archivedAcademicianRepository,
                          MinioService minioService,
                          GamificationEventPublisher gamificationEventPublisher,
-                         CacheManager cacheManager) {
+                         CacheManager cacheManager,
+                         AcademicCatalogService catalogService) {
         this.studentRepository = studentRepository;
         this.academicianRepository = academicianRepository;
         this.archivedStudentRepository = archivedStudentRepository;
@@ -65,6 +68,7 @@ public class ProfileService {
         this.minioService = minioService;
         this.gamificationEventPublisher = gamificationEventPublisher;
         this.cacheManager = cacheManager;
+        this.catalogService = catalogService;
     }
 
 
@@ -323,6 +327,16 @@ public class ProfileService {
         dto.setDepartment(student.getDepartment());
         dto.setStudentNumber(student.getStudentNumber());
         dto.setRole("Student");
+        if (student.getProgramId() != null) {
+            AcademicPlacement placement = catalogService.program(student.getProgramId());
+            dto.setProgramId(placement.programId());
+            dto.setProgramName(placement.programName());
+            dto.setProgramLevel(placement.programLevel().name());
+            dto.setFacultyName(placement.facultyName());
+            dto.setDepartmentId(placement.departmentId());
+        }
+        dto.setEntryYear(student.getEntryYear());
+        dto.setClassYear(catalogService.classYear(student.getEntryYear()));
         return dto;
     }
 
@@ -337,6 +351,11 @@ public class ProfileService {
         dto.setDepartment(academician.getDepartment());
         dto.setTitle(academician.getTitle());
         dto.setRole("Academician");
+        if (academician.getDepartmentId() != null) {
+            AcademicPlacement placement = catalogService.department(academician.getDepartmentId());
+            dto.setDepartmentId(placement.departmentId());
+            dto.setFacultyName(placement.facultyName());
+        }
         return dto;
     }
 

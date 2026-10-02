@@ -7,12 +7,14 @@ import com.educonnect.authservices.repository.UserRepository;
 import com.educonnect.common.web.ApiException;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.test.web.client.MockRestServiceServer;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
@@ -29,6 +31,7 @@ import static org.springframework.test.web.client.response.MockRestResponseCreat
 class InstitutionPolicyTest {
 
     private static final String PROFILE = "http://user-service/api/users/internal/profiles/by-student-number/";
+    private static final String UNITS = "http://user-service/api/users/internal/academic/";
 
     private final UserRepository userRepository = mock(UserRepository.class);
     private final StudentRequestRepository requestRepository = mock(StudentRequestRepository.class);
@@ -85,6 +88,31 @@ class InstitutionPolicyTest {
         assertCode(() -> policy.requireStudentNumberAvailable("22222", null), "STUDENT_NUMBER_TAKEN");
         assertCode(() -> policy.requireStudentNumberAvailable("33333", null), "STUDENT_NUMBER_TAKEN");
         assertThatThrownBy(() -> policy.requireStudentNumberAvailable("44444", null))
+                .isInstanceOf(ResponseStatusException.class)
+                .satisfies(e -> assertThat(((ResponseStatusException) e).getStatusCode()).isEqualTo(HttpStatus.SERVICE_UNAVAILABLE));
+        server.verify();
+    }
+
+    @Test
+    void programsAndDepartmentsMustExistAndBeActiveWhenGiven() {
+        InstitutionPolicy policy = policy(null, null, null);
+        UUID active = UUID.randomUUID();
+        UUID passive = UUID.randomUUID();
+        UUID missing = UUID.randomUUID();
+        UUID broken = UUID.randomUUID();
+        server.expect(requestTo(UNITS + "programs/" + active))
+                .andExpect(header("Authorization", "Bearer service-token"))
+                .andRespond(withSuccess("{\"active\":true}", MediaType.APPLICATION_JSON));
+        server.expect(requestTo(UNITS + "departments/" + passive)).andRespond(withSuccess("{\"active\":false}", MediaType.APPLICATION_JSON));
+        server.expect(requestTo(UNITS + "programs/" + missing)).andRespond(withResourceNotFound());
+        server.expect(requestTo(UNITS + "departments/" + broken)).andRespond(withServerError());
+
+        assertThatCode(() -> policy.requireProgram(null)).doesNotThrowAnyException();
+        assertThatCode(() -> policy.requireDepartment(null)).doesNotThrowAnyException();
+        assertThatCode(() -> policy.requireProgram(active)).doesNotThrowAnyException();
+        assertCode(() -> policy.requireDepartment(passive), "DEPARTMENT_INACTIVE");
+        assertCode(() -> policy.requireProgram(missing), "PROGRAM_NOT_FOUND");
+        assertThatThrownBy(() -> policy.requireDepartment(broken))
                 .isInstanceOf(ResponseStatusException.class)
                 .satisfies(e -> assertThat(((ResponseStatusException) e).getStatusCode()).isEqualTo(HttpStatus.SERVICE_UNAVAILABLE));
         server.verify();

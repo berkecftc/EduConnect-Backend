@@ -4,6 +4,13 @@ import java.util.UUID;
 
 
 public class UserProfileResponse implements Serializable{
+    private UUID programId;
+    private String programName;
+    private String programLevel;
+    private String facultyName;
+    private UUID departmentId;
+    private Integer entryYear;
+    private Integer classYear;
 
     private static final long serialVersionUID = -8383490846158348982L;
 
@@ -53,6 +60,33 @@ public class UserProfileResponse implements Serializable{
         copy.setStudentNumber(studentNumber);
         copy.setTitle(title);
         copy.setDepartment(department);
+        copy.setProgramId(programId);
+        copy.setProgramName(programName);
+        copy.setProgramLevel(programLevel);
+        copy.setFacultyName(facultyName);
+        copy.setDepartmentId(departmentId);
+        copy.setEntryYear(entryYear);
+        copy.setClassYear(classYear);
         return copy;
     }
+    public UUID getProgramId() { return programId; }
+    public void setProgramId(UUID programId) { this.programId = programId; }
+
+    public String getProgramName() { return programName; }
+    public void setProgramName(String programName) { this.programName = programName; }
+
+    public String getProgramLevel() { return programLevel; }
+    public void setProgramLevel(String programLevel) { this.programLevel = programLevel; }
+
+    public String getFacultyName() { return facultyName; }
+    public void setFacultyName(String facultyName) { this.facultyName = facultyName; }
+
+    public UUID getDepartmentId() { return departmentId; }
+    public void setDepartmentId(UUID departmentId) { this.departmentId = departmentId; }
+
+    public Integer getEntryYear() { return entryYear; }
+    public void setEntryYear(Integer entryYear) { this.entryYear = entryYear; }
+
+    public Integer getClassYear() { return classYear; }
+    public void setClassYear(Integer classYear) { this.classYear = classYear; }
 }

@@ -39,6 +39,9 @@ public class Academician {
 
     private String department;
 
+    @Column(name = "department_id")
+    private UUID departmentId;
+
     private String officeNumber;
 
     private String bio;
@@ -108,6 +111,9 @@ public class Academician {
     public void setDepartment(String department) {
         this.department = department;
     }
+
+    public UUID getDepartmentId() { return departmentId; }
+    public void setDepartmentId(UUID departmentId) { this.departmentId = departmentId; }
 
     public String getOfficeNumber() {
         return officeNumber;

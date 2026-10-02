@@ -72,6 +72,7 @@ public class RegistrationService {
         institutionPolicy.requireStudentEmail(request.getEmail());
         String studentNumber = institutionPolicy.requireStudentNumber(request.getStudentId());
         institutionPolicy.requireStudentNumberAvailable(studentNumber, null);
+        institutionPolicy.requireProgram(request.getProgramId());
 
         Set<Role> roles = Stream.of(Role.ROLE_STUDENT).collect(Collectors.toSet());
 
@@ -97,6 +98,8 @@ public class RegistrationService {
                 studentNumber,
                 request.getDepartment()
         );
+        message.setProgramId(request.getProgramId());
+        message.setEntryYear(request.getEntryYear());
 
         outboxPublisher.publish(
                 RabbitMQConfig.EXCHANGE_NAME,
@@ -120,6 +123,7 @@ public class RegistrationService {
         institutionPolicy.requireStudentEmail(request.getEmail());
         String studentNumber = institutionPolicy.requireStudentNumber(request.getStudentId());
         institutionPolicy.requireStudentNumberAvailable(studentNumber, null);
+        institutionPolicy.requireProgram(request.getProgramId());
 
         if (studentDocument == null || studentDocument.isEmpty()) {
             throw new IllegalArgumentException("Öğrenci belgesi zorunludur");
@@ -137,6 +141,8 @@ public class RegistrationService {
         stuReq.setPassword(passwordEncoder.encode(request.getPassword()));
         stuReq.setStudentNumber(studentNumber);
         stuReq.setDepartment(request.getDepartment());
+        stuReq.setProgramId(request.getProgramId());
+        stuReq.setEntryYear(request.getEntryYear());
         stuReq.setStudentDocumentUrl(studentDocumentUrl);
         stuReq.setEmailVerifiedAt(emailVerificationService.verifiedAtForNewAccount());
 
@@ -152,6 +158,7 @@ public class RegistrationService {
             throw new BadRequestException("EMAIL_ALREADY_REGISTERED", "Email already registered");
         }
         institutionPolicy.requireStaffEmail(request.getEmail());
+        institutionPolicy.requireDepartment(request.getDepartmentId());
 
         if (idCardImage == null || idCardImage.isEmpty()) {
             throw new IllegalArgumentException("Akademisyen kimlik kartı fotoğrafı zorunludur");
@@ -178,6 +185,7 @@ public class RegistrationService {
         accReq.setLastName(request.getLastName());
         accReq.setTitle(request.getTitle());
         accReq.setDepartment(request.getDepartment());
+        accReq.setDepartmentId(request.getDepartmentId());
         accReq.setOfficeNumber(request.getOfficeNumber());
         accReq.setIdCardImageUrl(idCardImageUrl);
 
