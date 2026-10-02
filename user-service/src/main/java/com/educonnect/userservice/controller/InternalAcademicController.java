@@ -25,6 +25,11 @@ public class InternalAcademicController {
         return ResponseEntity.ok(catalogService.program(programId));
     }
 
+    @GetMapping("/faculties/{facultyId}")
+    public ResponseEntity<AcademicPlacement> faculty(@PathVariable UUID facultyId) {
+        return ResponseEntity.ok(catalogService.faculty(facultyId));
+    }
+
     @GetMapping("/departments/{departmentId}")
     public ResponseEntity<AcademicPlacement> department(@PathVariable UUID departmentId) {
         return ResponseEntity.ok(catalogService.department(departmentId));

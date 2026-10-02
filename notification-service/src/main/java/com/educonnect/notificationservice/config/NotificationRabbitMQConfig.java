@@ -40,6 +40,9 @@ public class NotificationRabbitMQConfig {
     public static final String NOTIFICATION_REGISTRATION_QUEUE = "notification-registration-queue";
     public static final String ROUTING_KEY_EVENT_REGISTERED = "event.registered";
 
+    public static final String NOTIFICATION_EVENT_CHANGED_QUEUE = "notification-event-changed-queue";
+    public static final String ROUTING_KEY_EVENT_CHANGED = "event.changed";
+
     public static final String CLUB_MEMBERSHIP_NOTIFICATION_QUEUE = "notification-club-membership-queue";
     public static final String ROUTING_KEY_CLUB_MEMBERSHIP = "club.membership.notification";
     public static final String CLUB_ROLE_CHANGE_NOTIFICATION_QUEUE = "notification-club-role-change-queue";
@@ -109,6 +112,16 @@ public class NotificationRabbitMQConfig {
     @Bean
     public Binding bindingEventCreated(Queue notificationEventQueue, DirectExchange clubExchange) {
         return BindingBuilder.bind(notificationEventQueue).to(clubExchange).with(ROUTING_KEY_EVENT_CREATED);
+    }
+
+    @Bean
+    public Queue notificationEventChangedQueue() {
+        return new Queue(NOTIFICATION_EVENT_CHANGED_QUEUE);
+    }
+
+    @Bean
+    public Binding bindingEventChanged(Queue notificationEventChangedQueue, DirectExchange clubExchange) {
+        return BindingBuilder.bind(notificationEventChangedQueue).to(clubExchange).with(ROUTING_KEY_EVENT_CHANGED);
     }
 
     // --- COURSE EXCHANGE TANIMLARI ---

@@ -25,6 +25,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.function.Function;
+import java.util.stream.Stream;
 
 @Service
 public class JWTService {
@@ -73,13 +74,13 @@ public class JWTService {
         Map<String, Object> claims = new HashMap<>();
         if (userDetails instanceof User user) {
             claims.put("userId", user.getId().toString());
-            String rolesString = user.getRoles().stream()
-                    .sorted((r1, r2) -> {
-                        if (r1.name().equals("ROLE_ADMIN")) return -1;
-                        if (r2.name().equals("ROLE_ADMIN")) return 1;
-                        return r1.name().compareTo(r2.name());
-                    })
-                    .map(Enum::name)
+            String rolesString = Stream.concat(user.getRoles().stream()
+                            .sorted((r1, r2) -> {
+                                if (r1.name().equals("ROLE_ADMIN")) return -1;
+                                if (r2.name().equals("ROLE_ADMIN")) return 1;
+                                return r1.name().compareTo(r2.name());
+                            })
+                            .map(Enum::name), user.permissionAuthorities().stream())
                     .reduce((a, b) -> a + "," + b)
                     .orElse("");
             claims.put("roles", rolesString);

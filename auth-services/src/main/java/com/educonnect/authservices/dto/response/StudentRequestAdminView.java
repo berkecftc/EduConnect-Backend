@@ -1,5 +1,7 @@
 package com.educonnect.authservices.dto.response;
 
+import java.util.UUID;
+
 public record StudentRequestAdminView(
         Long id,
         String firstName,
@@ -9,5 +11,6 @@ public record StudentRequestAdminView(
         String department,
         String studentDocumentUrl,
         boolean emailVerified,
-        boolean additionalAffiliation
+        boolean additionalAffiliation,
+        UUID programId
 ) {}

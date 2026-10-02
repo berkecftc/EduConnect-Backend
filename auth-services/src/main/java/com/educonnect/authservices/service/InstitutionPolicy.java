@@ -29,6 +29,7 @@ public class InstitutionPolicy {
     private static final String PROFILE_BY_STUDENT_NUMBER = "http://user-service/api/users/internal/profiles/by-student-number/{number}";
     private static final String PROGRAM = "http://user-service/api/users/internal/academic/programs/{id}";
     private static final String DEPARTMENT = "http://user-service/api/users/internal/academic/departments/{id}";
+    private static final String FACULTY = "http://user-service/api/users/internal/academic/faculties/{id}";
     private static final ParameterizedTypeReference<Map<String, Object>> UNIT = new ParameterizedTypeReference<>() {
     };
 
@@ -88,13 +89,32 @@ public class InstitutionPolicy {
         requireUnit(DEPARTMENT, departmentId, "DEPARTMENT", "Bölüm");
     }
 
+    public UUID facultyOfProgram(UUID programId) {
+        if (programId == null) {
+            return null;
+        }
+        Map<String, Object> unit = fetchUnit(PROGRAM, programId, "PROGRAM", "Program");
+        Object facultyId = unit == null ? null : unit.get("facultyId");
+        return facultyId == null ? null : UUID.fromString(facultyId.toString());
+    }
+
+    public void requireFaculty(UUID facultyId) {
+        requireUnit(FACULTY, facultyId, "FACULTY", "Fakülte");
+    }
+
     private void requireUnit(String uri, UUID id, String code, String label) {
         if (id == null) {
             return;
         }
-        Map<String, Object> unit;
+        Map<String, Object> unit = fetchUnit(uri, id, code, label);
+        if (unit == null || !Boolean.TRUE.equals(unit.get("active"))) {
+            throw new BadRequestException(code + "_INACTIVE", label + " artık kayıt almıyor.");
+        }
+    }
+
+    private Map<String, Object> fetchUnit(String uri, UUID id, String code, String label) {
         try {
-            unit = restClient.get()
+            return restClient.get()
                     .uri(uri, id)
                     .headers(headers -> headers.setBearerAuth(jwtService.generateServiceToken(AcademicianAssignmentGuard.SERVICE_CLIENT_ID)))
                     .retrieve()
@@ -105,9 +125,6 @@ public class InstitutionPolicy {
             log.warn("Akademik birim doğrulanamadı: {}", e.getMessage());
             throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE,
                     "Akademik birim şu an doğrulanamıyor. Biraz sonra tekrar deneyin.");
-        }
-        if (unit == null || !Boolean.TRUE.equals(unit.get("active"))) {
-            throw new BadRequestException(code + "_INACTIVE", label + " artık kayıt almıyor.");
         }
     }
 

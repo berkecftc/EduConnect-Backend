@@ -32,4 +32,8 @@ public interface EventParticipationRequestRepository extends JpaRepository<Event
 
     // Birden fazla etkinlik için bekleyen başvuruları getir
     List<EventParticipationRequest> findByEventIdInAndStatus(List<UUID> eventIds, ParticipationRequestStatus status);
+
+    Optional<EventParticipationRequest> findFirstByEventIdAndStatusOrderByRequestDateAsc(UUID eventId, ParticipationRequestStatus status);
+
+    long countByEventIdAndStatus(UUID eventId, ParticipationRequestStatus status);
 }

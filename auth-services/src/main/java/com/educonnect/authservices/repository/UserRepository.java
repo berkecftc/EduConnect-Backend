@@ -21,6 +21,10 @@ public interface UserRepository extends JpaRepository<User, UUID> {
 
     List<User> findByClosureDueAtBefore(Instant moment);
 
+    List<User> findTop50ByEmailContainingIgnoreCaseOrderByEmailAsc(String email);
+
+    Optional<User> findFirstByStudentNumber(String studentNumber);
+
     boolean existsByStudentNumber(String studentNumber);
 
     // Pending kulüp görevlisi başvuruları

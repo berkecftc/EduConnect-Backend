@@ -47,12 +47,12 @@ public class EventQueryService {
     }
 
     public List<Event> getAllActiveEvents() {
-        return eventRepository.findByStatusOrderByEventTimeAsc(EventStatus.ACTIVE);
+        return eventRepository.findByStatusOrderByStartsAtAsc(EventStatus.ACTIVE);
     }
 
     public PageResponse<Event> getActiveEventsPage(int page, Integer size) {
         Page<Event> events = eventRepository.findByStatus(EventStatus.ACTIVE,
-                PageResponse.request(page, size, Sort.by("eventTime").and(Sort.by("id"))));
+                PageResponse.request(page, size, Sort.by("startsAt").and(Sort.by("id"))));
         return PageResponse.of(events, events.getContent());
     }
 
@@ -93,11 +93,13 @@ public class EventQueryService {
             dto.setEventId(event.getId());
             dto.setEventTitle(event.getTitle());
             dto.setEventDescription(event.getDescription());
-            dto.setEventDate(event.getEventTime());
+            dto.setEventDate(event.getStartsAt());
             dto.setEventLocation(event.getLocation());
             dto.setQrCode(registration.getQrCode());
             dto.setRegistrationTime(registration.getRegistrationTime());
             dto.setAttended(registration.isAttended());
+            dto.setRegistrationStatus(registration.getStatus().name());
+            dto.setEventStatus(event.getStatus().name());
             return dto;
         }).filter(dto -> dto != null).collect(Collectors.toList());
     }
@@ -126,6 +128,7 @@ public class EventQueryService {
             dto.setStudentId(registration.getStudentId());
             dto.setRegistrationTime(registration.getRegistrationTime());
             dto.setAttended(registration.isAttended());
+            dto.setStatus(registration.getStatus().name());
 
             UserSummary user = users.get(registration.getStudentId());
             if (user != null) {

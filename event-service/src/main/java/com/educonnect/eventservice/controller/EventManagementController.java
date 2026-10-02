@@ -40,18 +40,12 @@ public class EventManagementController {
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<EventResponse> createEvent(
             @Valid @RequestPart("data") CreateEventRequest request, // JSON verisi
-            @RequestPart(value = "poster") MultipartFile poster, // Afiş dosyası (zorunlu)
+            @RequestPart(value = "poster", required = false) MultipartFile poster,
             @RequestHeader("X-Authenticated-User-Id") String userIdHeader
     ) {
         UUID creatorId = UUID.fromString(userIdHeader);
 
-        // Afiş dosyası boş olamaz
-        if (poster == null || poster.isEmpty()) {
-            throw new BadRequestException("POSTER_REQUIRED", "Afiş dosyası zorunludur.");
-        }
-
-        // Dosya türü kontrolü - sadece resim dosyaları kabul edilir
-        String contentType = poster.getContentType();
+        String contentType = poster == null || poster.isEmpty() ? "image/" : poster.getContentType();
         if (contentType == null || !contentType.startsWith("image/")) {
             throw new BadRequestException("INVALID_POSTER_TYPE", "Afiş yalnızca resim dosyası olabilir.");
         }

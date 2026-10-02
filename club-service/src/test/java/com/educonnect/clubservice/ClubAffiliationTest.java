@@ -29,6 +29,7 @@ import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -127,6 +128,21 @@ class ClubAffiliationTest {
         assertThat(club.getAcademicAdvisorId()).isNull();
         assertThat(club.getStatus()).isEqualTo(ClubStatus.AWAITING_ADVISOR);
         assertThat(actions()).contains(DecisionAction.ADVISOR_LEFT);
+    }
+
+    @Test
+    void clubManagementAndTheAdvisorAreRelatedToMembers() throws Exception {
+        for (UUID viewer : new UUID[]{president, advisor}) {
+            mockMvc.perform(get("/api/clubs/internal/managers/{viewer}/students/{student}", viewer, member)
+                            .header(HttpHeaders.AUTHORIZATION, TestTokens.bearer(TestTokens.service("user-service"))))
+                    .andExpect(jsonPath("$.related").value(true));
+        }
+        mockMvc.perform(get("/api/clubs/internal/managers/{viewer}/students/{student}", member, president)
+                        .header(HttpHeaders.AUTHORIZATION, TestTokens.bearer(TestTokens.service("user-service"))))
+                .andExpect(jsonPath("$.related").value(false));
+        mockMvc.perform(get("/api/clubs/internal/managers/{viewer}/students/{student}", president, applicant)
+                        .header(HttpHeaders.AUTHORIZATION, TestTokens.bearer(TestTokens.service("user-service"))))
+                .andExpect(jsonPath("$.related").value(false));
     }
 
     private ClubMembership membership(UUID studentId) {

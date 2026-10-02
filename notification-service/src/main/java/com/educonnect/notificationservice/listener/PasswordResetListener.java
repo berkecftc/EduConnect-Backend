@@ -16,6 +16,7 @@ import org.springframework.stereotype.Component;
 public class PasswordResetListener {
 
     private static final Logger log = LoggerFactory.getLogger(PasswordResetListener.class);
+    private static final String ACCOUNT_SETUP = "ACCOUNT_SETUP";
 
     private final EmailService emailService;
 
@@ -27,11 +28,47 @@ public class PasswordResetListener {
     public void handlePasswordReset(PasswordResetMessage message) {
         log.info("Şifre sıfırlama mesajı alındı: email={}", LogMasking.email(message.getEmail()));
 
-        String subject = "EduConnect - Şifre Sıfırlama Talebi";
-        String htmlBody = buildPasswordResetEmail(message);
+        boolean setup = ACCOUNT_SETUP.equals(message.getPurpose());
+        String subject = setup ? "EduConnect - Görevli Hesabınız Açıldı" : "EduConnect - Şifre Sıfırlama Talebi";
+        String htmlBody = setup ? buildAccountSetupEmail(message) : buildPasswordResetEmail(message);
 
         emailService.sendHtmlEmail(message.getEmail(), subject, htmlBody);
         log.info("Şifre sıfırlama e-postası gönderildi: {}", LogMasking.email(message.getEmail()));
+    }
+
+    static String buildAccountSetupEmail(PasswordResetMessage message) {
+        String link = HtmlText.escape(message.getResetLink());
+        return String.format("""
+            <html>
+            <body style="font-family: Arial, sans-serif; color: #333; background-color: #f9f9f9; padding: 20px;">
+                <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 10px; padding: 30px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
+                    <h1 style="color: #3498db; margin: 0 0 20px 0; text-align: center;">Görevli Hesabınız Açıldı</h1>
+                    <p style="font-size: 16px;">Merhaba,</p>
+                    <p style="font-size: 16px;">
+                        Bu adres için bir EduConnect görevli hesabı açıldı. Hesabı kullanmaya başlamak için şifrenizi belirleyin.
+                    </p>
+                    <div style="text-align: center; margin: 30px 0;">
+                        <a href="%s"
+                           style="background-color: #3498db; color: white; padding: 14px 35px; text-decoration: none; border-radius: 5px; font-size: 16px; font-weight: bold;">
+                            Şifremi Belirle
+                        </a>
+                    </div>
+                    <div style="background-color: #fff3cd; border: 1px solid #ffc107; border-radius: 5px; padding: 15px; margin: 20px 0;">
+                        Bu bağlantı <strong>%d saat</strong> geçerlidir. Süre dolarsa "Şifremi unuttum" ile yeni bağlantı isteyebilirsiniz.
+                    </div>
+                    <p style="font-size: 14px; color: #666;">
+                        Bağlantı çalışmıyorsa aşağıdaki adresi tarayıcınıza kopyalayın:<br>
+                        <span style="word-break: break-all; color: #3498db;">%s</span>
+                    </p>
+                    <hr style="border: none; border-top: 1px solid #eee; margin: 30px 0;">
+                    <p style="font-size: 14px; color: #888; text-align: center;">
+                        EduConnect Ekibi<br>
+                        <small>Bu e-posta otomatik olarak gönderilmiştir. Lütfen yanıtlamayınız.</small>
+                    </p>
+                </div>
+            </body>
+            </html>
+            """, link, message.getValidHours(), link);
     }
 
     private String buildPasswordResetEmail(PasswordResetMessage message) {
@@ -51,37 +88,37 @@ public class PasswordResetListener {
                     <div style="text-align: center; margin-bottom: 30px;">
                         <h1 style="color: #3498db; margin: 0;">🔐 Şifre Sıfırlama</h1>
                     </div>
-                    
+
                     <p style="font-size: 16px;">%s</p>
-                    
+
                     <p style="font-size: 16px;">
                         EduConnect hesabınız için bir şifre sıfırlama talebi aldık.
                     </p>
-                    
+
                     <p style="font-size: 16px;">
                         Şifrenizi sıfırlamak için aşağıdaki butona tıklayın:
                     </p>
-                    
+
                     <div style="text-align: center; margin: 30px 0;">
-                        <a href="%s" 
+                        <a href="%s"
                            style="background-color: #3498db; color: white; padding: 14px 35px; text-decoration: none; border-radius: 5px; font-size: 16px; font-weight: bold;">
                             Şifremi Sıfırla
                         </a>
                     </div>
-                    
+
                     <div style="background-color: #fff3cd; border: 1px solid #ffc107; border-radius: 5px; padding: 15px; margin: 20px 0;">
                         <strong>⚠️ Önemli:</strong><br>
                         Bu link <strong>15 dakika</strong> içinde geçerliliğini yitirecektir.<br>
                         Eğer bu talebi siz yapmadıysanız, bu e-postayı görmezden gelebilirsiniz.
                     </div>
-                    
+
                     <p style="font-size: 14px; color: #666;">
                         Link çalışmıyorsa, aşağıdaki adresi tarayıcınıza kopyalayabilirsiniz:<br>
                         <span style="word-break: break-all; color: #3498db;">%s</span>
                     </p>
-                    
+
                     <hr style="border: none; border-top: 1px solid #eee; margin: 30px 0;">
-                    
+
                     <p style="font-size: 14px; color: #888; text-align: center;">
                         EduConnect Ekibi<br>
                         <small>Bu e-posta otomatik olarak gönderilmiştir. Lütfen yanıtlamayınız.</small>
@@ -96,4 +133,3 @@ public class PasswordResetListener {
         );
     }
 }
-

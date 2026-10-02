@@ -2,12 +2,18 @@ package com.educonnect.eventservice.repository;
 
 import com.educonnect.eventservice.model.Event;
 import com.educonnect.eventservice.model.EventStatus;
+import jakarta.persistence.LockModeType;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 import java.time.LocalDateTime;
+import java.util.Collection;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 @Repository
@@ -22,7 +28,7 @@ public interface EventRepository extends JpaRepository<Event, UUID> {
     // Belirli bir durumdaki (örn: PENDING) etkinlikleri getir
     List<Event> findByStatus(EventStatus status);
 
-    List<Event> findByStatusOrderByEventTimeAsc(EventStatus status);
+    List<Event> findByStatusOrderByStartsAtAsc(EventStatus status);
 
     Page<Event> findByStatus(EventStatus status, Pageable pageable);
 
@@ -40,5 +46,15 @@ public interface EventRepository extends JpaRepository<Event, UUID> {
     // Birden fazla kulübe ait tüm etkinlikleri getir
     List<Event> findByClubIdIn(List<UUID> clubIds);
 
-    List<Event> findByClubIdAndEventTimeGreaterThanEqualAndEventTimeLessThan(UUID clubId, LocalDateTime from, LocalDateTime to);
+    List<Event> findByClubIdAndStartsAtGreaterThanEqualAndStartsAtLessThan(UUID clubId, LocalDateTime from, LocalDateTime to);
+
+    List<Event> findByStatusAndEndsAtBefore(EventStatus status, LocalDateTime moment);
+
+    List<Event> findByStatusInAndStartsAtBefore(Collection<EventStatus> statuses, LocalDateTime moment);
+
+    List<Event> findByClubIdIsNullOrderByStartsAtDesc();
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select e from Event e where e.id = :id")
+    Optional<Event> findByIdForUpdate(@Param("id") UUID id);
 }

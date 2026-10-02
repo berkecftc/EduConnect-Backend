@@ -24,6 +24,7 @@ import org.springframework.test.web.servlet.request.AbstractMockHttpServletReque
 
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.Base64;
 import java.util.HashMap;
 import java.util.List;
@@ -277,6 +278,13 @@ class EventAuthorizationTest {
         assertThat(registrationRepository.findByQrCode(otherQr).orElseThrow().isAttended()).isFalse();
 
         mockMvc.perform(json(post("/api/events/manage/verify-qr"), TestTokens.student(officer), qrBody(qr)))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.errorCode").value("CHECK_IN_CLOSED"));
+        Event live = eventRepository.findById(eventId).orElseThrow();
+        live.setStartsAt(LocalDateTime.now().minusMinutes(10));
+        live.setEndsAt(LocalDateTime.now().plusHours(1));
+        eventRepository.save(live);
+        mockMvc.perform(json(post("/api/events/manage/verify-qr"), TestTokens.student(officer), qrBody(qr)))
                 .andExpect(status().isOk());
         assertThat(registrationRepository.findByQrCode(qr).orElseThrow().isAttended()).isTrue();
     }
@@ -353,6 +361,24 @@ class EventAuthorizationTest {
     }
 
     @Test
+    void eventsAreScheduledAheadAndThePosterIsOptional() throws Exception {
+        given(clubClient.getClubIdByName(any())).willReturn(clubId);
+        LocalDateTime start = LocalDateTime.now().plusDays(10).withNano(0);
+
+        mockMvc.perform(as(multipart("/api/events/manage").file(eventData(LocalDateTime.now().minusDays(1).withNano(0), null)), TestTokens.student(president)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errorCode").value("EVENT_IN_PAST"));
+        mockMvc.perform(as(multipart("/api/events/manage").file(eventData(start, start.minusHours(1))), TestTokens.student(president)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errorCode").value("INVALID_EVENT_TIMES"));
+        mockMvc.perform(as(multipart("/api/events/manage").file(eventData(start, null)), TestTokens.student(president)))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.status").value("PENDING"))
+                .andExpect(jsonPath("$.endsAt").value(start.plusHours(2).format(DateTimeFormatter.ISO_LOCAL_DATE_TIME)))
+                .andExpect(jsonPath("$.imageUrl").doesNotExist());
+    }
+
+    @Test
     void eventCreationForAnUnknownClubIsABadRequest() throws Exception {
         Request request = Request.create(Request.HttpMethod.GET, "http://club-service", Map.of(), null,
                 StandardCharsets.UTF_8, null);
@@ -407,7 +433,8 @@ class EventAuthorizationTest {
     private UUID event(UUID club, EventStatus status) {
         Event event = new Event();
         event.setTitle("Yetki Etkinliği");
-        event.setEventTime(LocalDateTime.now().plusDays(7));
+        event.setStartsAt(LocalDateTime.now().plusDays(7));
+        event.setEndsAt(event.getStartsAt().plusHours(2));
         event.setLocation("Konferans Salonu");
         event.setClubId(club);
         event.setClubName("Kulüp " + club);
@@ -432,7 +459,12 @@ class EventAuthorizationTest {
     }
 
     private MockMultipartFile eventData() {
-        String json = "{\"title\":\"Yeni Etkinlik\",\"eventTime\":\"" + LocalDateTime.now().plusDays(10).withNano(0)
+        return eventData(LocalDateTime.now().plusDays(10).withNano(0), null);
+    }
+
+    private MockMultipartFile eventData(LocalDateTime startsAt, LocalDateTime endsAt) {
+        String json = "{\"title\":\"Yeni Etkinlik\",\"eventTime\":\"" + startsAt
+                + (endsAt == null ? "" : "\",\"endsAt\":\"" + endsAt)
                 + "\",\"location\":\"Salon\",\"clubName\":\"Kulüp " + clubId + "\"}";
         return new MockMultipartFile("data", "", MediaType.APPLICATION_JSON_VALUE, json.getBytes(StandardCharsets.UTF_8));
     }

@@ -43,6 +43,29 @@ public class ProfileChangeController {
         return ResponseEntity.ok(changeService.mine(userId));
     }
 
+    @GetMapping("/verification/change-requests")
+    @PreAuthorize("hasAuthority('PERM_STUDENT_VERIFIER') or hasAuthority('PERM_STAFF_VERIFIER')")
+    public ResponseEntity<List<ProfileChangeResponse>> verifierList(
+            @RequestParam(defaultValue = "PENDING") ProfileChangeRequest.Status status,
+            @RequestHeader(IdentityHeaders.USER_ID) UUID verifierId) {
+        return ResponseEntity.ok(changeService.listForVerifier(verifierId, status));
+    }
+
+    @PostMapping("/verification/change-requests/{requestId}/approve")
+    @PreAuthorize("hasAuthority('PERM_STUDENT_VERIFIER') or hasAuthority('PERM_STAFF_VERIFIER')")
+    public ResponseEntity<ProfileChangeResponse> verifierApprove(@PathVariable UUID requestId,
+                                                                 @RequestHeader(IdentityHeaders.USER_ID) UUID verifierId) {
+        return ResponseEntity.ok(changeService.approveAsVerifier(requestId, verifierId));
+    }
+
+    @PostMapping("/verification/change-requests/{requestId}/reject")
+    @PreAuthorize("hasAuthority('PERM_STUDENT_VERIFIER') or hasAuthority('PERM_STAFF_VERIFIER')")
+    public ResponseEntity<ProfileChangeResponse> verifierReject(@PathVariable UUID requestId,
+                                                                @RequestBody(required = false) Map<String, String> body,
+                                                                @RequestHeader(IdentityHeaders.USER_ID) UUID verifierId) {
+        return ResponseEntity.ok(changeService.rejectAsVerifier(requestId, verifierId, body == null ? null : body.get("note")));
+    }
+
     @GetMapping("/admin/change-requests")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<List<ProfileChangeResponse>> list(

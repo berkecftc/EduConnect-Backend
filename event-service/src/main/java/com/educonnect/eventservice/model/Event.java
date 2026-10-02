@@ -34,19 +34,51 @@ public class Event {
     @Column(columnDefinition = "TEXT")
     private String description;
 
-    @Column(nullable = false)
-    private LocalDateTime eventTime; // Tarih ve Saat
+    @Column(name = "starts_at", nullable = false)
+    private LocalDateTime startsAt;
+
+    @Column(name = "ends_at", nullable = false)
+    private LocalDateTime endsAt;
+
+    @Column(columnDefinition = "TEXT")
+    private String speakers;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 20)
+    private EventAudience audience = EventAudience.MEMBERS_ONLY;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 20)
+    private AdmissionMode admission = AdmissionMode.APPROVAL_REQUIRED;
+
+    private Integer capacity;
+
+    @Column(name = "registration_opens_at")
+    private LocalDateTime registrationOpensAt;
+
+    @Column(name = "registration_closes_at")
+    private LocalDateTime registrationClosesAt;
+
+    @Column(name = "cancel_until")
+    private LocalDateTime cancelUntil;
+
+    @Column(name = "cancellation_reason", columnDefinition = "TEXT")
+    private String cancellationReason;
+
+    @Column(name = "published_at")
+    private LocalDateTime publishedAt;
 
     private String location; // Yer
 
     @Convert(converter = ObjectUrlConverter.class)
     private String imageUrl; // Afiş (MinIO URL)
 
-    @Column(nullable = false)
     private UUID clubId; // Hangi kulüp düzenliyor?
 
-    @Column(nullable = false)
     private String clubName; // Performans için kulüp adını da burada tutabiliriz (Denormalizasyon)
+
+    @Column(name = "organizer_name", length = 200)
+    private String organizerName;
 
     // Etkinlik durumu (ACTIVE, CANCELLED, COMPLETED)
     @Enumerated(EnumType.STRING)
@@ -68,8 +100,42 @@ public class Event {
     public void setTitle(String title) { this.title = title; }
     public String getDescription() { return description; }
     public void setDescription(String description) { this.description = description; }
-    public LocalDateTime getEventTime() { return eventTime; }
-    public void setEventTime(LocalDateTime eventTime) { this.eventTime = eventTime; }
+    public LocalDateTime getStartsAt() { return startsAt; }
+    public void setStartsAt(LocalDateTime startsAt) { this.startsAt = startsAt; }
+    public LocalDateTime getEndsAt() { return endsAt; }
+    public void setEndsAt(LocalDateTime endsAt) { this.endsAt = endsAt; }
+    public String getSpeakers() { return speakers; }
+    public void setSpeakers(String speakers) { this.speakers = speakers; }
+    public EventAudience getAudience() { return audience; }
+    public void setAudience(EventAudience audience) { this.audience = audience; }
+    public AdmissionMode getAdmission() { return admission; }
+    public void setAdmission(AdmissionMode admission) { this.admission = admission; }
+    public Integer getCapacity() { return capacity; }
+    public void setCapacity(Integer capacity) { this.capacity = capacity; }
+    public LocalDateTime getRegistrationOpensAt() { return registrationOpensAt; }
+    public void setRegistrationOpensAt(LocalDateTime registrationOpensAt) { this.registrationOpensAt = registrationOpensAt; }
+    public LocalDateTime getRegistrationClosesAt() { return registrationClosesAt; }
+    public void setRegistrationClosesAt(LocalDateTime registrationClosesAt) { this.registrationClosesAt = registrationClosesAt; }
+    public LocalDateTime getCancelUntil() { return cancelUntil; }
+    public void setCancelUntil(LocalDateTime cancelUntil) { this.cancelUntil = cancelUntil; }
+    public String getCancellationReason() { return cancellationReason; }
+    public void setCancellationReason(String cancellationReason) { this.cancellationReason = cancellationReason; }
+    public LocalDateTime getPublishedAt() { return publishedAt; }
+    public void setPublishedAt(LocalDateTime publishedAt) { this.publishedAt = publishedAt; }
+    public String getOrganizerName() { return organizerName; }
+    public void setOrganizerName(String organizerName) { this.organizerName = organizerName; }
+
+    public boolean isCampus() {
+        return clubId == null;
+    }
+
+    public LocalDateTime effectiveRegistrationClose() {
+        return registrationClosesAt != null ? registrationClosesAt : startsAt;
+    }
+
+    public LocalDateTime effectiveCancelUntil() {
+        return cancelUntil != null ? cancelUntil : startsAt;
+    }
     public String getLocation() { return location; }
     public void setLocation(String location) { this.location = location; }
     public String getImageUrl() { return imageUrl; }

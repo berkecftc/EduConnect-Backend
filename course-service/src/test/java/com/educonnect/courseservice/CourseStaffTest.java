@@ -208,6 +208,22 @@ class CourseStaffTest {
     }
 
     @Test
+    void theStaffOfACourseIsRelatedToItsApplicantsAndStudents() throws Exception {
+        addStaff(assistant, coordinator, "ASSISTANT").andExpect(status().isCreated());
+        mockMvc.perform(as(post("/api/courses/{id}/apply", course.getId()), TestTokens.student(student)))
+                .andExpect(status().isCreated());
+
+        for (UUID viewer : new UUID[]{coordinator, assistant}) {
+            mockMvc.perform(as(get("/api/courses/internal/staff/{viewer}/students/{student}", viewer, student), TestTokens.service("user-service")))
+                    .andExpect(jsonPath("$.related").value(true));
+        }
+        mockMvc.perform(as(get("/api/courses/internal/staff/{viewer}/students/{student}", outsider, student), TestTokens.service("user-service")))
+                .andExpect(jsonPath("$.related").value(false));
+        mockMvc.perform(as(get("/api/courses/internal/staff/{viewer}/students/{student}", coordinator, student), TestTokens.student(student)))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
     void researchAssistantsTeachButNeverCoordinate() throws Exception {
         addStaff(RESEARCH_ASSISTANT, coordinator, "INSTRUCTOR").andExpect(status().isCreated());
         mockMvc.perform(json(put("/api/courses/{id}/coordinator", course.getId()), TestTokens.admin(admin),

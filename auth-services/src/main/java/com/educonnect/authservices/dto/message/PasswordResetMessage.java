@@ -13,6 +13,8 @@ public class PasswordResetMessage implements Serializable {
     private String lastName;
     private String resetToken;
     private String resetLink;
+    private String purpose;
+    private long validHours;
 
     public PasswordResetMessage() {
     }
@@ -65,5 +67,20 @@ public class PasswordResetMessage implements Serializable {
     public void setResetLink(String resetLink) {
         this.resetLink = resetLink;
     }
-}
 
+    public String getPurpose() {
+        return purpose;
+    }
+
+    public void setPurpose(String purpose) {
+        this.purpose = purpose;
+    }
+
+    public long getValidHours() {
+        return validHours;
+    }
+
+    public void setValidHours(long validHours) {
+        this.validHours = validHours;
+    }
+}

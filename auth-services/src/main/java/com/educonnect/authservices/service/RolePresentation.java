@@ -12,7 +12,7 @@ public final class RolePresentation {
 
     private static final String PENDING_PREFIX = "ROLE_PENDING_";
     private static final List<Role> PRIMARY_PRIORITY = List.of(
-            Role.ROLE_ADMIN, Role.ROLE_ACADEMICIAN, Role.ROLE_CLUB_OFFICIAL, Role.ROLE_STUDENT);
+            Role.ROLE_ADMIN, Role.ROLE_STAFF, Role.ROLE_ACADEMICIAN, Role.ROLE_CLUB_OFFICIAL, Role.ROLE_STUDENT);
 
     private RolePresentation() {
     }

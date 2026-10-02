@@ -63,7 +63,8 @@ class ClubEventStatisticsTest {
     private UUID event(EventStatus status, LocalDateTime at) {
         Event event = new Event();
         event.setTitle("İstatistik etkinliği");
-        event.setEventTime(at);
+        event.setStartsAt(at);
+        event.setEndsAt(event.getStartsAt().plusHours(2));
         event.setClubId(clubId);
         event.setClubName("İstatistik Kulübü");
         event.setStatus(status);

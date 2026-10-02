@@ -1,6 +1,7 @@
 package com.educonnect.eventservice.repository;
 
 import com.educonnect.eventservice.model.EventRegistration;
+import com.educonnect.eventservice.model.RegistrationStatus;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 import java.util.Collection;
@@ -25,5 +26,15 @@ public interface EventRegistrationRepository extends JpaRepository<EventRegistra
 
     long countByEventIdIn(Collection<UUID> eventIds);
 
+    long countByEventIdInAndStatusNot(Collection<UUID> eventIds, RegistrationStatus status);
+
     long countByEventIdInAndAttendedTrue(Collection<UUID> eventIds);
+
+    long countByEventIdAndStatus(UUID eventId, RegistrationStatus status);
+
+    Optional<EventRegistration> findByEventIdAndStudentId(UUID eventId, UUID studentId);
+
+    boolean existsByEventIdAndStudentIdAndStatus(UUID eventId, UUID studentId, RegistrationStatus status);
+
+    List<EventRegistration> findByEventIdAndStatusAndAttendedFalse(UUID eventId, RegistrationStatus status);
 }

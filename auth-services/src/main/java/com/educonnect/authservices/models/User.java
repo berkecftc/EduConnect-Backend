@@ -7,9 +7,12 @@ import org.springframework.security.core.userdetails.UserDetails;
 
 import java.time.Instant;
 import java.util.Collection;
+import java.util.HashSet;
 import java.util.Set;
+import java.util.TreeSet;
 import java.util.UUID;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
@@ -68,13 +71,20 @@ public class User implements UserDetails {
     @Column(name = "closure_due_at")
     private Instant closureDueAt;
 
+    @Column(name = "display_name", length = 200)
+    private String displayName;
+
+    @ElementCollection(fetch = FetchType.EAGER)
+    @CollectionTable(name = "staff_permission_grants", joinColumns = @JoinColumn(name = "user_id"))
+    private Set<StaffGrant> staffGrants = new HashSet<>();
+
     public void setEmail(String email) { this.email = email; }
     public void setPassword(String password) { this.password = password; }
 
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
-        return roles.stream()
-                .map(role -> new SimpleGrantedAuthority(role.name()))
+        return Stream.concat(roles.stream().map(Role::name), permissionAuthorities().stream())
+                .map(SimpleGrantedAuthority::new)
                 .collect(Collectors.toList());
     }
 
@@ -127,6 +137,15 @@ public class User implements UserDetails {
 
     public Instant getClosureDueAt() { return closureDueAt; }
     public void setClosureDueAt(Instant closureDueAt) { this.closureDueAt = closureDueAt; }
+
+    public String getDisplayName() { return displayName; }
+    public void setDisplayName(String displayName) { this.displayName = displayName; }
+
+    public Set<StaffGrant> getStaffGrants() { return staffGrants; }
+
+    public Set<String> permissionAuthorities() {
+        return staffGrants.stream().map(grant -> grant.getPermission().authority()).collect(Collectors.toCollection(TreeSet::new));
+    }
     public void setEmailVerifiedAt(Instant emailVerifiedAt) { this.emailVerifiedAt = emailVerifiedAt; }
 
     public boolean isSuspended() { return status == AccountStatus.SUSPENDED; }

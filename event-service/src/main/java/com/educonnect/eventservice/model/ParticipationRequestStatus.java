@@ -6,6 +6,8 @@ package com.educonnect.eventservice.model;
 public enum ParticipationRequestStatus {
     PENDING,    // Beklemede
     APPROVED,   // Onaylandı
-    REJECTED    // Reddedildi
+    REJECTED,   // Reddedildi
+    CLOSED,
+    WAITLISTED,
+    WITHDRAWN
 }
-

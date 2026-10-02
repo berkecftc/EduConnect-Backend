@@ -4,6 +4,7 @@ import java.util.Collection;
 
 public enum AccountType {
     ADMIN,
+    STAFF,
     ACADEMICIAN,
     STUDENT,
     UNKNOWN;
@@ -14,6 +15,9 @@ public enum AccountType {
         }
         if (roles.contains(Role.ROLE_ADMIN)) {
             return ADMIN;
+        }
+        if (roles.contains(Role.ROLE_STAFF)) {
+            return STAFF;
         }
         if (roles.contains(Role.ROLE_ACADEMICIAN)) {
             return ACADEMICIAN;

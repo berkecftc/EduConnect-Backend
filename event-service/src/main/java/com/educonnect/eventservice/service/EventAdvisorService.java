@@ -15,6 +15,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 
@@ -29,17 +30,20 @@ public class EventAdvisorService {
     private final ClubClient clubClient;
     private final EventAuthorizationService eventAuthorizationService;
     private final EventCaches eventCaches;
+    private final EventSchedule schedule;
 
     public EventAdvisorService(EventRepository eventRepository,
                                OutboxPublisher outboxPublisher,
                                ClubClient clubClient,
                                EventAuthorizationService eventAuthorizationService,
-                               EventCaches eventCaches) {
+                               EventCaches eventCaches,
+                               EventSchedule schedule) {
         this.eventRepository = eventRepository;
         this.outboxPublisher = outboxPublisher;
         this.clubClient = clubClient;
         this.eventAuthorizationService = eventAuthorizationService;
         this.eventCaches = eventCaches;
+        this.schedule = schedule;
     }
 
     public List<Event> getAllEventsForAdvisor(UUID advisorId) {
@@ -70,16 +74,24 @@ public class EventAdvisorService {
         }
 
         validateAdvisorAuthorization(event.getClubId(), approverId);
+        schedule.requireNotStarted(event);
 
+        boolean firstPublication = event.getPublishedAt() == null;
         event.setStatus(EventStatus.ACTIVE);
+        if (firstPublication) {
+            event.setPublishedAt(LocalDateTime.now());
+        }
         Event savedEvent = eventRepository.save(event);
         eventCaches.evictEvent(savedEvent);
+        if (!firstPublication) {
+            return savedEvent;
+        }
 
         EventCreatedMessage message = new EventCreatedMessage(
                 savedEvent.getId(),
                 savedEvent.getTitle(),
                 savedEvent.getDescription(),
-                savedEvent.getEventTime(),
+                savedEvent.getStartsAt(),
                 savedEvent.getLocation(),
                 savedEvent.getClubId(),
                 savedEvent.getClubName()
