@@ -55,7 +55,7 @@ class GatewayAuthorizationTest {
     @Test
     void publicEndpointsAreForwardedWithoutAToken() {
         List<String> publicReads = List.of("/api/clubs", "/api/clubs/" + UUID.randomUUID(), "/api/events",
-                "/api/events/" + UUID.randomUUID(), "/api/auth/verify-email?token=abc", "/api/auth/email-change/confirm?token=abc", "/api/users/academic/catalog",
+                "/api/events/" + UUID.randomUUID(), "/api/auth/verify-email?token=abc", "/api/users/academic/catalog",
                 "/api/users/academic/titles");
         for (String path : publicReads) {
             webTestClient.get().uri(path).exchange().expectStatus().isOk();
@@ -64,7 +64,9 @@ class GatewayAuthorizationTest {
                 .exchange().expectStatus().isOk();
         webTestClient.post().uri("/api/auth/register").contentType(MediaType.APPLICATION_JSON).bodyValue("{}")
                 .exchange().expectStatus().isOk();
-        assertThat(echoServer.receivedPaths()).hasSize(publicReads.size() + 2);
+        webTestClient.post().uri("/api/auth/email-change/confirm").contentType(MediaType.APPLICATION_JSON).bodyValue("{}")
+                .exchange().expectStatus().isOk();
+        assertThat(echoServer.receivedPaths()).hasSize(publicReads.size() + 3);
 
         webTestClient.get().uri("/api/gamification/badges/first_step/image")
                 .exchange()
