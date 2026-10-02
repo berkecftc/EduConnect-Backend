@@ -7,5 +7,7 @@ public enum PositionEndReason {
     LEFT_CLUB,
     EXPELLED,
     HANDOVER,
-    CLUB_CLOSED
+    CLUB_CLOSED,
+    ON_LEAVE,
+    AFFILIATION_ENDED
 }

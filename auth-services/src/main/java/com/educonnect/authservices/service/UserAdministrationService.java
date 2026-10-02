@@ -68,6 +68,11 @@ public class UserAdministrationService {
 
     @Transactional
     public void deleteUser(UUID userId) {
+        deleteUser(userId, "Admin tarafından silindi");
+    }
+
+    @Transactional
+    public void deleteUser(UUID userId, String reason) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new NoSuchElementException("Kullanıcı bulunamadı"));
         if (user.getRoles().contains(Role.ROLE_ADMIN)
@@ -80,7 +85,7 @@ public class UserAdministrationService {
         UserDeletedMessage message = new UserDeletedMessage(
                 userId,
                 userType.name(),
-                "Admin tarafından silindi"
+                reason
         );
 
         outboxPublisher.publish(

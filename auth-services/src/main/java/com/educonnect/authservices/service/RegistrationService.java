@@ -6,6 +6,7 @@ import com.educonnect.authservices.dto.request.RegisterRequest;
 import com.educonnect.authservices.dto.response.AuthResponse;
 import com.educonnect.authservices.models.AcademicianRegistrationRequest;
 import com.educonnect.authservices.models.Role;
+import com.educonnect.authservices.models.StudentStatus;
 import com.educonnect.authservices.models.StudentRegistrationRequest;
 import com.educonnect.authservices.models.User;
 import com.educonnect.authservices.repository.AcademicianRequestRepository;
@@ -82,6 +83,7 @@ public class RegistrationService {
                 roles
         );
         user.setStudentNumber(studentNumber);
+        user.setStudentStatus(StudentStatus.ACTIVE);
         user.setEmailVerifiedAt(emailVerificationService.verifiedAtForNewAccount());
 
         User savedUser = userRepository.save(user);

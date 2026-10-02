@@ -57,6 +57,17 @@ public class User implements UserDetails {
     @Column(name = "student_number", length = 32)
     private String studentNumber;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "student_status", length = 20)
+    private StudentStatus studentStatus;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "staff_status", length = 20)
+    private StaffStatus staffStatus;
+
+    @Column(name = "closure_due_at")
+    private Instant closureDueAt;
+
     public void setEmail(String email) { this.email = email; }
     public void setPassword(String password) { this.password = password; }
 
@@ -107,6 +118,15 @@ public class User implements UserDetails {
     public Instant getEmailVerifiedAt() { return emailVerifiedAt; }
     public String getStudentNumber() { return studentNumber; }
     public void setStudentNumber(String studentNumber) { this.studentNumber = studentNumber; }
+
+    public StudentStatus getStudentStatus() { return studentStatus; }
+    public void setStudentStatus(StudentStatus studentStatus) { this.studentStatus = studentStatus; }
+
+    public StaffStatus getStaffStatus() { return staffStatus; }
+    public void setStaffStatus(StaffStatus staffStatus) { this.staffStatus = staffStatus; }
+
+    public Instant getClosureDueAt() { return closureDueAt; }
+    public void setClosureDueAt(Instant closureDueAt) { this.closureDueAt = closureDueAt; }
     public void setEmailVerifiedAt(Instant emailVerifiedAt) { this.emailVerifiedAt = emailVerifiedAt; }
 
     public boolean isSuspended() { return status == AccountStatus.SUSPENDED; }

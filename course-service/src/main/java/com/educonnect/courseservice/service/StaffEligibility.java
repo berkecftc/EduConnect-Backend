@@ -35,11 +35,15 @@ public class StaffEligibility {
         if (user == null || !ACADEMICIAN.equalsIgnoreCase(user.getRole())) {
             throw new ConflictException("STAFF_NOT_ACADEMICIAN", "Ders kadrosunda yalnızca akademisyenler yer alabilir.");
         }
+        if (user.getStaffStatus() != null && !"ACTIVE".equals(user.getStaffStatus())) {
+            throw new ConflictException("STAFF_NOT_ACTIVE", "İzinli veya görevi sona ermiş personel derse atanamaz.");
+        }
         return user;
     }
 
     public void requireCoordinator(UUID userId) {
-        if (RESEARCH_ASSISTANT.equals(requireAcademician(userId).getStaffCategory())) {
+        UserSummaryDto user = requireAcademician(userId);
+        if (RESEARCH_ASSISTANT.equals(user.getStaffCategory())) {
             throw new ConflictException("RESEARCH_ASSISTANT_NOT_COORDINATOR",
                     "Araştırma görevlileri ders koordinatörü olamaz; derse hoca veya asistan olarak eklenebilir.");
         }

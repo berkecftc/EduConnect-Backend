@@ -36,6 +36,9 @@ public class AdvisorDirectory {
         if (advisor == null || !"Academician".equalsIgnoreCase(advisor.getRole())) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Danışman olarak yalnızca bir akademisyen seçilebilir.");
         }
+        if (advisor.getStaffStatus() != null && !"ACTIVE".equals(advisor.getStaffStatus())) {
+            throw new BadRequestException("ADVISOR_NOT_ELIGIBLE", "İzinli veya görevi sona ermiş personel kulüp danışmanı olamaz.");
+        }
         if ("RESEARCH_ASSISTANT".equals(advisor.getStaffCategory())) {
             throw new BadRequestException("ADVISOR_NOT_ELIGIBLE", "Araştırma görevlileri kulüp danışmanı olamaz.");
         }

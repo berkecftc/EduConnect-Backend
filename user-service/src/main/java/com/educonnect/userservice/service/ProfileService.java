@@ -311,6 +311,7 @@ public class ProfileService {
             UserProfileResponse dto = mapToResponse(academician.get());
             student.ifPresent(s -> {
                 dto.setStudentNumber(s.getStudentNumber());
+                dto.setStudentStatus(s.getEnrollmentStatus());
                 applyProgram(dto, s);
                 dto.setAffiliations(List.of(ACADEMICIAN_AFFILIATION, STUDENT_AFFILIATION));
             });
@@ -346,6 +347,7 @@ public class ProfileService {
         dto.setStudentNumber(student.getStudentNumber());
         dto.setRole("Student");
         dto.setAffiliations(List.of(STUDENT_AFFILIATION));
+        dto.setStudentStatus(student.getEnrollmentStatus());
         applyProgram(dto, student);
         return dto;
     }
@@ -364,6 +366,7 @@ public class ProfileService {
         dto.setOfficeHours(academician.getOfficeHours());
         dto.setRole("Academician");
         dto.setAffiliations(List.of(ACADEMICIAN_AFFILIATION));
+        dto.setStaffStatus(academician.getEmploymentStatus());
         if (academician.getAcademicTitle() != null) {
             dto.setAcademicTitle(academician.getAcademicTitle().name());
             dto.setStaffCategory(academician.getStaffCategory().name());
@@ -374,6 +377,27 @@ public class ProfileService {
             dto.setFacultyName(placement.facultyName());
         }
         return dto;
+    }
+
+    @Transactional(readOnly = false)
+    @CacheEvict(value = USER_PROFILE_CACHE, key = "#userId")
+    public void applyAffiliationStatus(UUID userId, String affiliation, String status, boolean ended, boolean accountClosing) {
+        Optional<Student> student = studentRepository.findById(userId);
+        Optional<Academician> academician = academicianRepository.findById(userId);
+        if (STUDENT_AFFILIATION.equals(affiliation) && student.isPresent()) {
+            evictStudentNumber(student.get().getStudentNumber());
+            student.get().setEnrollmentStatus(status);
+            studentRepository.save(student.get());
+            if (ended && !accountClosing && academician.isPresent()) {
+                archiveStudent(userId, "Öğrenci kaydı sona erdi: " + status);
+            }
+        } else if (ACADEMICIAN_AFFILIATION.equals(affiliation) && academician.isPresent()) {
+            academician.get().setEmploymentStatus(status);
+            academicianRepository.save(academician.get());
+            if (ended && !accountClosing && student.isPresent()) {
+                archiveAcademician(userId, "Personel kaydı sona erdi: " + status);
+            }
+        }
     }
 
     @Transactional(readOnly = false)

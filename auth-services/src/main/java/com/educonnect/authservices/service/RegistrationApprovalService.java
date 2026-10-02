@@ -9,6 +9,8 @@ import com.educonnect.authservices.dto.response.StudentRequestAdminView;
 import com.educonnect.authservices.models.AcademicianRegistrationRequest;
 import com.educonnect.authservices.models.AccountType;
 import com.educonnect.authservices.models.Role;
+import com.educonnect.authservices.models.StaffStatus;
+import com.educonnect.authservices.models.StudentStatus;
 import com.educonnect.authservices.models.StudentRegistrationRequest;
 import com.educonnect.authservices.models.User;
 import com.educonnect.authservices.repository.AcademicianRequestRepository;
@@ -76,6 +78,7 @@ public class RegistrationApprovalService {
             existing.getRoles().remove(Role.ROLE_PENDING_STUDENT);
             existing.getRoles().add(Role.ROLE_STUDENT);
             existing.setStudentNumber(req.getStudentNumber());
+            existing.setStudentStatus(StudentStatus.ACTIVE);
             savedUser = userRepository.save(existing);
         } else {
             Set<Role> roles = Stream.of(Role.ROLE_STUDENT).collect(Collectors.toSet());
@@ -86,6 +89,7 @@ public class RegistrationApprovalService {
             );
             user.setEmailVerifiedAt(req.getEmailVerifiedAt() != null ? req.getEmailVerifiedAt() : Instant.now());
             user.setStudentNumber(req.getStudentNumber());
+            user.setStudentStatus(StudentStatus.ACTIVE);
             savedUser = userRepository.save(user);
         }
 
@@ -170,6 +174,7 @@ public class RegistrationApprovalService {
             roles.remove(Role.ROLE_PENDING_ACADEMICIAN);
             roles.add(Role.ROLE_ACADEMICIAN);
             user.setRoles(roles);
+            user.setStaffStatus(StaffStatus.ACTIVE);
             userRepository.save(user);
         } else {
             LOGGER.warn("Kullanıcı zaten PENDING rolünde değil veya işlem hatalı: {}", userId);

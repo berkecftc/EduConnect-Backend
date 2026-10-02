@@ -87,6 +87,11 @@ public class ClubMembershipRequestService {
             throw new ConflictException("CLUB_CLOSED", "Kapatılmış kulübe üyelik başvurusu yapılamaz.");
         }
 
+        UserSummary applicant = fetchUserSummary(studentId);
+        if (applicant != null && "ON_LEAVE".equals(applicant.getStudentStatus())) {
+            throw new ConflictException("STUDENT_ON_LEAVE", "Kaydı dondurulmuş öğrenciler kulüplere üye olamaz.");
+        }
+
         // 2. Zaten üye mi kontrol et
         if (membershipRepository.existsByClubIdAndStudentIdAndIsActive(clubId, studentId, true)) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Bu kulübe zaten üyesiniz");

@@ -95,13 +95,22 @@ public class ClubMembership extends AbstractAggregateRoot<ClubMembership> {
     public void end(MembershipEndReason reason, LocalDateTime at) {
         if (clubRole != null && clubRole.isManagement()) {
             registerEvent(new PositionChanged(clubId, studentId, clubRole, ClubPosition.MEMBER, at,
-                    reason == MembershipEndReason.EXPELLED ? PositionEndReason.EXPELLED : PositionEndReason.LEFT_CLUB));
+                    positionEndReason(reason)));
             clubRole = ClubPosition.MEMBER;
             termEndDate = at;
         }
         this.isActive = false;
         this.endReason = reason;
         this.endedAt = at;
+    }
+
+    private static PositionEndReason positionEndReason(MembershipEndReason reason) {
+        return switch (reason) {
+            case EXPELLED -> PositionEndReason.EXPELLED;
+            case FROZEN -> PositionEndReason.ON_LEAVE;
+            case AFFILIATION_ENDED -> PositionEndReason.AFFILIATION_ENDED;
+            default -> PositionEndReason.LEFT_CLUB;
+        };
     }
 
     public void assignPosition(ClubPosition position, LocalDateTime at, PositionEndReason reason) {

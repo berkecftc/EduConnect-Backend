@@ -17,6 +17,8 @@ public class UserProfileResponse implements Serializable{
     private List<String> affiliations;
     private String officeNumber;
     private String officeHours;
+    private String studentStatus;
+    private String staffStatus;
 
     private static final long serialVersionUID = -8383490846158348982L;
 
@@ -78,6 +80,8 @@ public class UserProfileResponse implements Serializable{
         copy.setAffiliations(affiliations);
         copy.setOfficeNumber(officeNumber);
         copy.setOfficeHours(officeHours);
+        copy.setStudentStatus(studentStatus);
+        copy.setStaffStatus(staffStatus);
         return copy;
     }
     public UUID getProgramId() { return programId; }
@@ -115,4 +119,10 @@ public class UserProfileResponse implements Serializable{
 
     public String getOfficeHours() { return officeHours; }
     public void setOfficeHours(String officeHours) { this.officeHours = officeHours; }
+
+    public String getStudentStatus() { return studentStatus; }
+    public void setStudentStatus(String studentStatus) { this.studentStatus = studentStatus; }
+
+    public String getStaffStatus() { return staffStatus; }
+    public void setStaffStatus(String staffStatus) { this.staffStatus = staffStatus; }
 }

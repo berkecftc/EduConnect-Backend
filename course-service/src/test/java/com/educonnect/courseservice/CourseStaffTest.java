@@ -46,6 +46,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 class CourseStaffTest {
 
     private static final UUID RESEARCH_ASSISTANT = UUID.randomUUID();
+    private static final UUID STAFF_ON_LEAVE = UUID.randomUUID();
+    private static final UUID STUDENT_ON_LEAVE = UUID.randomUUID();
 
     private final UUID coordinator = UUID.randomUUID();
     private final UUID coInstructor = UUID.randomUUID();
@@ -196,6 +198,16 @@ class CourseStaffTest {
     }
 
     @Test
+    void peopleOnLeaveNeitherJoinTheStaffNorApply() throws Exception {
+        addStaff(STAFF_ON_LEAVE, coordinator, "ASSISTANT")
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.errorCode").value("STAFF_NOT_ACTIVE"));
+        mockMvc.perform(as(post("/api/courses/{id}/apply", course.getId()), TestTokens.student(STUDENT_ON_LEAVE)))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.errorCode").value("STUDENT_ON_LEAVE"));
+    }
+
+    @Test
     void researchAssistantsTeachButNeverCoordinate() throws Exception {
         addStaff(RESEARCH_ASSISTANT, coordinator, "INSTRUCTOR").andExpect(status().isCreated());
         mockMvc.perform(json(put("/api/courses/{id}/coordinator", course.getId()), TestTokens.admin(admin),
@@ -273,6 +285,13 @@ class CourseStaffTest {
         user.setRole(roles.getOrDefault(id, "Academician"));
         if (RESEARCH_ASSISTANT.equals(id)) {
             user.setStaffCategory("RESEARCH_ASSISTANT");
+        }
+        if (STAFF_ON_LEAVE.equals(id)) {
+            user.setStaffStatus("ON_LEAVE");
+        }
+        if (STUDENT_ON_LEAVE.equals(id)) {
+            user.setRole("Student");
+            user.setStudentStatus("ON_LEAVE");
         }
         return user;
     }

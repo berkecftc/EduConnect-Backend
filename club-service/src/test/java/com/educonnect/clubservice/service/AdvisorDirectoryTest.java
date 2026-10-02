@@ -24,10 +24,14 @@ class AdvisorDirectoryTest {
         UUID lecturer = UUID.randomUUID();
         UUID researchAssistant = UUID.randomUUID();
         UUID student = UUID.randomUUID();
+        UUID retired = UUID.randomUUID();
         when(userClient.getAcademicianById(professor)).thenReturn(summary("Academician", "FACULTY_MEMBER"));
         when(userClient.getAcademicianById(lecturer)).thenReturn(summary("Academician", null));
         when(userClient.getAcademicianById(researchAssistant)).thenReturn(summary("Academician", "RESEARCH_ASSISTANT"));
         when(userClient.getAcademicianById(student)).thenReturn(summary("Student", null));
+        AcademicianSummary gone = summary("Academician", "FACULTY_MEMBER");
+        gone.setStaffStatus("RETIRED");
+        when(userClient.getAcademicianById(retired)).thenReturn(gone);
 
         assertThatCode(() -> directory.requireAcademician(professor)).doesNotThrowAnyException();
         assertThatCode(() -> directory.requireAcademician(lecturer)).doesNotThrowAnyException();
@@ -35,6 +39,9 @@ class AdvisorDirectoryTest {
                 .isInstanceOf(ApiException.class)
                 .hasFieldOrPropertyWithValue("errorCode", "ADVISOR_NOT_ELIGIBLE");
         assertThatThrownBy(() -> directory.requireAcademician(student)).isInstanceOf(ResponseStatusException.class);
+        assertThatThrownBy(() -> directory.requireAcademician(retired))
+                .isInstanceOf(ApiException.class)
+                .hasFieldOrPropertyWithValue("errorCode", "ADVISOR_NOT_ELIGIBLE");
     }
 
     private static AcademicianSummary summary(String role, String staffCategory) {

@@ -2,8 +2,10 @@ package com.educonnect.userservice;
 
 import com.educonnect.common.test.TestTokens;
 import com.educonnect.userservice.dto.message.AcademicianProfileMessage;
+import com.educonnect.userservice.dto.message.AffiliationStatusChangedMessage;
 import com.educonnect.userservice.dto.message.UserDeletedMessage;
 import com.educonnect.userservice.dto.message.UserRegisteredMessage;
+import com.educonnect.userservice.listener.AffiliationStatusListener;
 import com.educonnect.userservice.listener.ProfileCreationListener;
 import com.educonnect.userservice.listener.UserDeletionListener;
 import com.educonnect.userservice.models.AcademicTitle;
@@ -17,6 +19,7 @@ import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.AbstractMockHttpServletRequestBuilder;
 
+import java.time.LocalDate;
 import java.util.Set;
 import java.util.UUID;
 
@@ -38,6 +41,9 @@ class AffiliationProfileTest {
 
     @Autowired
     private UserDeletionListener deletionListener;
+
+    @Autowired
+    private AffiliationStatusListener statusListener;
 
     @Autowired
     private StudentRepository studentRepository;
@@ -115,6 +121,27 @@ class AffiliationProfileTest {
         deletionListener.handleUserDeletion(new UserDeletedMessage(id, "ACADEMICIAN", "test"));
         assertThat(studentRepository.existsById(id)).isFalse();
         assertThat(academicianRepository.existsById(id)).isFalse();
+    }
+
+    @Test
+    void statusChangesReachTheProfileAndEndOnlyTheirOwnAffiliation() throws Exception {
+        UUID id = academician("Arş. Gör.");
+        student(id);
+        statusListener.handleStatusChange(new AffiliationStatusChangedMessage(id, "STUDENT", "ON_LEAVE", false, false, LocalDate.now(), null));
+        mockMvc.perform(as(get("/api/users/profile/{id}", id), TestTokens.academician(id)))
+                .andExpect(jsonPath("$.studentStatus").value("ON_LEAVE"))
+                .andExpect(jsonPath("$.staffStatus").value("ACTIVE"));
+
+        statusListener.handleStatusChange(new AffiliationStatusChangedMessage(id, "STUDENT", "GRADUATED", true, false, LocalDate.now(), null));
+        assertThat(studentRepository.existsById(id)).isFalse();
+        assertThat(academicianRepository.existsById(id)).isTrue();
+        mockMvc.perform(as(get("/api/users/profile/{id}", id), TestTokens.academician(id)))
+                .andExpect(jsonPath("$.affiliations.length()").value(1))
+                .andExpect(jsonPath("$.studentStatus").doesNotExist());
+
+        UUID leaving = student(null);
+        statusListener.handleStatusChange(new AffiliationStatusChangedMessage(leaving, "STUDENT", "WITHDRAWN", true, true, LocalDate.now(), null));
+        assertThat(studentRepository.findById(leaving).orElseThrow().getEnrollmentStatus()).isEqualTo("WITHDRAWN");
     }
 
     private UUID academician(String title) {

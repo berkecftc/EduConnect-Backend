@@ -9,6 +9,7 @@ public class UserSummary {
     private String department;
     private String email;
     private String studentNumber;
+    private String studentStatus;
 
     // Getter & Setter
     public UUID getId() { return id; }
@@ -23,6 +24,8 @@ public class UserSummary {
     public void setEmail(String email) { this.email = email; }
     public String getStudentNumber() { return studentNumber; }
     public void setStudentNumber(String studentNumber) { this.studentNumber = studentNumber; }
+    public String getStudentStatus() { return studentStatus; }
+    public void setStudentStatus(String studentStatus) { this.studentStatus = studentStatus; }
 
     // Yardımcı metot
     public String getFullName() {

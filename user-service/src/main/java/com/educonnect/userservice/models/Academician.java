@@ -51,6 +51,9 @@ public class Academician {
     @Column(name = "office_hours", length = 500)
     private String officeHours;
 
+    @Column(name = "employment_status", nullable = false, length = 20)
+    private String employmentStatus = "ACTIVE";
+
     private String bio;
 
     @Convert(converter = ObjectUrlConverter.class)
@@ -124,6 +127,9 @@ public class Academician {
 
     public String getOfficeHours() { return officeHours; }
     public void setOfficeHours(String officeHours) { this.officeHours = officeHours; }
+
+    public String getEmploymentStatus() { return employmentStatus; }
+    public void setEmploymentStatus(String employmentStatus) { this.employmentStatus = employmentStatus; }
 
     public AcademicTitle getAcademicTitle() { return academicTitle; }
 
