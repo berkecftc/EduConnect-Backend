@@ -30,7 +30,8 @@ public record EventResponse(UUID id,
                             EventStatus status,
                             Instant createdAt,
                             Instant updatedAt,
-                            String rejectionReason) {
+                            String rejectionReason,
+                            String cancellationReason) {
 
     public static EventResponse from(Event event) {
         return new EventResponse(event.getId(), event.getTitle(), event.getDescription(), event.getStartsAt(),
@@ -39,7 +40,7 @@ public record EventResponse(UUID id,
                 event.getStartsAt() == null ? null : event.effectiveRegistrationClose(),
                 event.getStartsAt() == null ? null : event.effectiveCancelUntil(),
                 event.getLocation(), event.getImageUrl(), event.getClubId(), event.getClubName(), event.getStatus(),
-                event.getCreatedAt(), event.getUpdatedAt(), event.getRejectionReason());
+                event.getCreatedAt(), event.getUpdatedAt(), event.getRejectionReason(), event.getCancellationReason());
     }
 
     public static List<EventResponse> from(List<Event> events) {

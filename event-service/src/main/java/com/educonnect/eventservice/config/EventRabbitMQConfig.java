@@ -27,6 +27,7 @@ public class EventRabbitMQConfig {
 
     // ... mevcut sabitler ...
     public static final String ROUTING_KEY_EVENT_REGISTERED = "event.registered";
+    public static final String ROUTING_KEY_EVENT_CHANGED = "event.changed";
 
     public static final String USER_EXCHANGE_NAME = "user-exchange";
     public static final String USER_DELETED_QUEUE = "event-service.user.deleted";

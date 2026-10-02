@@ -39,7 +39,7 @@ class EventResponseTest {
 
         assertThat(json.keySet()).containsExactlyInAnyOrder("id", "title", "description", "eventTime", "startsAt", "endsAt", "speakers", "audience", "admission", "capacity",
                 "registrationOpensAt", "registrationClosesAt", "cancelUntil", "location",
-                "imageUrl", "clubId", "clubName", "status", "createdAt", "updatedAt", "rejectionReason");
+                "imageUrl", "clubId", "clubName", "status", "createdAt", "updatedAt", "rejectionReason", "cancellationReason");
         assertThat(json.get("eventTime")).isEqualTo("2026-10-05T18:30:00");
         assertThat(json.get("endsAt")).isEqualTo("2026-10-05T20:30:00");
         assertThat(json.get("status")).isEqualTo("ACTIVE");

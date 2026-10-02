@@ -62,6 +62,12 @@ public class Event {
     @Column(name = "cancel_until")
     private LocalDateTime cancelUntil;
 
+    @Column(name = "cancellation_reason", columnDefinition = "TEXT")
+    private String cancellationReason;
+
+    @Column(name = "published_at")
+    private LocalDateTime publishedAt;
+
     private String location; // Yer
 
     @Convert(converter = ObjectUrlConverter.class)
@@ -111,6 +117,10 @@ public class Event {
     public void setRegistrationClosesAt(LocalDateTime registrationClosesAt) { this.registrationClosesAt = registrationClosesAt; }
     public LocalDateTime getCancelUntil() { return cancelUntil; }
     public void setCancelUntil(LocalDateTime cancelUntil) { this.cancelUntil = cancelUntil; }
+    public String getCancellationReason() { return cancellationReason; }
+    public void setCancellationReason(String cancellationReason) { this.cancellationReason = cancellationReason; }
+    public LocalDateTime getPublishedAt() { return publishedAt; }
+    public void setPublishedAt(LocalDateTime publishedAt) { this.publishedAt = publishedAt; }
 
     public LocalDateTime effectiveRegistrationClose() {
         return registrationClosesAt != null ? registrationClosesAt : startsAt;

@@ -15,6 +15,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 
@@ -75,9 +76,16 @@ public class EventAdvisorService {
         validateAdvisorAuthorization(event.getClubId(), approverId);
         schedule.requireNotStarted(event);
 
+        boolean firstPublication = event.getPublishedAt() == null;
         event.setStatus(EventStatus.ACTIVE);
+        if (firstPublication) {
+            event.setPublishedAt(LocalDateTime.now());
+        }
         Event savedEvent = eventRepository.save(event);
         eventCaches.evictEvent(savedEvent);
+        if (!firstPublication) {
+            return savedEvent;
+        }
 
         EventCreatedMessage message = new EventCreatedMessage(
                 savedEvent.getId(),
