@@ -5,5 +5,7 @@ public enum PostStatus {
     PENDING,
     IN_REVIEW,
     PUBLISHED,
-    REJECTED
+    REJECTED,
+    HIDDEN,
+    REMOVED
 }

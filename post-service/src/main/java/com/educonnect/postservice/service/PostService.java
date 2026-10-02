@@ -105,6 +105,10 @@ public class PostService {
     public PostResponse updatePost(UUID postId, UpdatePostRequest request, Viewer viewer) {
         Post post = findPostOrThrow(postId);
         validateAuthor(post, viewer.id());
+        if (post.getStatus() == PostStatus.HIDDEN || post.getStatus() == PostStatus.REMOVED) {
+            throw new ApiException(HttpStatus.CONFLICT, "CONTENT_LOCKED",
+                    "Gizlenen veya kaldırılan gönderi düzenlenemez; karara itiraz edebilirsiniz.");
+        }
 
         PostCategory category = request.category() != null ? request.category() : post.getCategory();
         if (category.official() != post.isOfficial()) {

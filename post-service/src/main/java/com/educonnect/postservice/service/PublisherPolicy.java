@@ -61,6 +61,18 @@ public class PublisherPolicy {
         }
     }
 
+    boolean ownsScope(Viewer viewer, Post post) {
+        if (post.getClubId() != null) {
+            ClubAccess access = scopeAccess.clubAccess(post.getClubId(), viewer.id());
+            return access != null && (access.actingPresident() || access.advisor());
+        }
+        if (post.getCourseId() != null) {
+            CourseAccess access = scopeAccess.courseAccess(post.getCourseId(), viewer.id());
+            return access != null && access.instructor();
+        }
+        return false;
+    }
+
     ClubAccess requireClubApprover(Viewer viewer, UUID clubId) {
         ClubAccess access = scopeAccess.clubAccess(clubId, viewer.id());
         if (access == null || !access.actingPresident()) {

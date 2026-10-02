@@ -14,13 +14,11 @@ import com.educonnect.postservice.model.Comment;
 import com.educonnect.postservice.model.CommentStatus;
 import com.educonnect.postservice.model.ModerationAction;
 import com.educonnect.postservice.model.ModerationActor;
-import com.educonnect.postservice.model.ModerationRecord;
 import com.educonnect.postservice.model.ModerationTarget;
 import com.educonnect.postservice.model.Post;
 import com.educonnect.postservice.model.PostCategory;
 import com.educonnect.postservice.model.PostStatus;
 import com.educonnect.postservice.repository.CommentRepository;
-import com.educonnect.postservice.repository.ModerationRecordRepository;
 import com.educonnect.postservice.repository.PostRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -45,16 +43,16 @@ public class PostModerationService {
 
     private final PostRepository postRepository;
     private final CommentRepository commentRepository;
-    private final ModerationRecordRepository recordRepository;
+    private final ModerationLog moderationLog;
     private final OutboxPublisher outboxPublisher;
 
     public PostModerationService(PostRepository postRepository,
                                  CommentRepository commentRepository,
-                                 ModerationRecordRepository recordRepository,
+                                 ModerationLog moderationLog,
                                  OutboxPublisher outboxPublisher) {
         this.postRepository = postRepository;
         this.commentRepository = commentRepository;
-        this.recordRepository = recordRepository;
+        this.moderationLog = moderationLog;
         this.outboxPublisher = outboxPublisher;
     }
 
@@ -223,7 +221,7 @@ public class PostModerationService {
 
     private void record(ModerationTarget target, UUID targetId, UUID postId, ModerationAction action,
                         ModerationActor actor, UUID actorId, String reason) {
-        recordRepository.save(new ModerationRecord(target, targetId, postId, action, actor, actorId, reason, Instant.now()));
+        moderationLog.record(target, targetId, postId, action, actor, actorId, reason);
     }
 
     private static String requireReason(String reason) {
