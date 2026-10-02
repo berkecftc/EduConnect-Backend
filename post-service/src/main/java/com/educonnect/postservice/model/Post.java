@@ -79,6 +79,9 @@ public class Post {
     @Column(name = "declaration_accepted_at")
     private Instant declarationAcceptedAt;
 
+    @Column(name = "accepted_comment_id")
+    private UUID acceptedCommentId;
+
     @Column(name = "submitted_at")
     private Instant submittedAt;
 
@@ -154,6 +157,9 @@ public class Post {
 
     public Instant getDeclarationAcceptedAt() { return declarationAcceptedAt; }
     public void setDeclarationAcceptedAt(Instant declarationAcceptedAt) { this.declarationAcceptedAt = declarationAcceptedAt; }
+
+    public UUID getAcceptedCommentId() { return acceptedCommentId; }
+    public void setAcceptedCommentId(UUID acceptedCommentId) { this.acceptedCommentId = acceptedCommentId; }
 
     public Instant getSubmittedAt() { return submittedAt; }
     public void setSubmittedAt(Instant submittedAt) { this.submittedAt = submittedAt; }

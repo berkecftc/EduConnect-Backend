@@ -18,7 +18,6 @@ public interface UserReputationRepository extends JpaRepository<UserReputation, 
     List<UserReputation> findByOrderByTotalPointsDescUserIdAsc(Pageable pageable);
 
     @Modifying
-    @Query("UPDATE UserReputation u SET u.currentStreak = 0 WHERE u.currentStreak > 0 AND u.lastLoginDate IS NOT NULL AND u.lastLoginDate < :yesterday")
-    int resetInactiveStreaks(@Param("yesterday") LocalDate yesterday);
+    @Query("UPDATE UserReputation u SET u.currentStreak = 0 WHERE u.currentStreak > 0 AND u.lastContributionWeek IS NOT NULL AND u.lastContributionWeek < :previousWeek")
+    int resetInactiveStreaks(@Param("previousWeek") LocalDate previousWeek);
 }
-

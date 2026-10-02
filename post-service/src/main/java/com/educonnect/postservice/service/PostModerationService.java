@@ -245,7 +245,8 @@ public class PostModerationService {
                 post.getAuthorId(),
                 ActionType.POST_PUBLISHED,
                 post.getId().toString(),
-                OffsetDateTime.now()
+                OffsetDateTime.now(),
+                post.getId()
         );
         outboxPublisher.publish(
                 RabbitMQConfig.GAMIFICATION_EXCHANGE,

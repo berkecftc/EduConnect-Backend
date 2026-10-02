@@ -10,6 +10,7 @@ public class GamificationEvent implements Serializable {
     private ActionType actionType;
     private String referenceId;
     private OffsetDateTime occurredAt;
+    private UUID contentId;
 
     public GamificationEvent() {
     }
@@ -19,6 +20,12 @@ public class GamificationEvent implements Serializable {
         this.actionType = actionType;
         this.referenceId = referenceId;
         this.occurredAt = occurredAt;
+    }
+
+    public GamificationEvent(UUID userId, ActionType actionType, String referenceId, OffsetDateTime occurredAt,
+                             UUID contentId) {
+        this(userId, actionType, referenceId, occurredAt);
+        this.contentId = contentId;
     }
 
     public UUID getUserId() {
@@ -52,6 +59,12 @@ public class GamificationEvent implements Serializable {
     public void setOccurredAt(OffsetDateTime occurredAt) {
         this.occurredAt = occurredAt;
     }
+
+    public UUID getContentId() {
+        return contentId;
+    }
+
+    public void setContentId(UUID contentId) {
+        this.contentId = contentId;
+    }
 }
-
-

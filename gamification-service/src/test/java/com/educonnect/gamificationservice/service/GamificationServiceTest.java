@@ -28,7 +28,6 @@ import java.util.UUID;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -75,58 +74,81 @@ class GamificationServiceTest {
     }
 
     @Test
-    void shouldAddTenPointsForPostPublished() {
+    void notesEarnPointsWhenOthersSaveThem() {
         UUID userId = UUID.randomUUID();
+        UUID noteId = UUID.randomUUID();
         UserReputation reputation = UserReputation.initialize(userId);
         reputation.setTotalPoints(20);
 
-        GamificationEvent event = new GamificationEvent(userId, ActionType.POST_PUBLISHED, "post-42", OffsetDateTime.now());
-
-        when(pointHistoryRepository.existsByUserIdAndActionTypeAndReferenceId(userId, ActionType.POST_PUBLISHED, "post-42"))
-                .thenReturn(false);
+        GamificationEvent event = new GamificationEvent(userId, ActionType.NOTE_SAVED, noteId + ":saver", OffsetDateTime.now());
+        event.setContentId(noteId);
         when(userReputationRepository.findById(userId)).thenReturn(Optional.of(reputation));
 
         gamificationService.processEvent(event);
 
         ArgumentCaptor<UserReputation> reputationCaptor = ArgumentCaptor.forClass(UserReputation.class);
         verify(userReputationRepository).saveAndFlush(reputationCaptor.capture());
-        assertEquals(30, reputationCaptor.getValue().getTotalPoints());
+        assertEquals(23, reputationCaptor.getValue().getTotalPoints());
 
         ArgumentCaptor<PointHistory> historyCaptor = ArgumentCaptor.forClass(PointHistory.class);
         verify(pointHistoryRepository).saveAndFlush(historyCaptor.capture());
-        assertEquals(10, historyCaptor.getValue().getPointsEarned());
+        assertEquals(3, historyCaptor.getValue().getPointsEarned());
+        assertEquals(noteId, historyCaptor.getValue().getContentId());
     }
 
     @Test
-    void shouldKeepStreakAndGiveMilestoneBonusOnSeventhDay() {
+    void contributionsExtendTheWeeklyStreakWhileLoginsEarnNothing() {
         UUID userId = UUID.randomUUID();
         UserReputation reputation = UserReputation.initialize(userId);
-        reputation.setCurrentStreak(6);
-        reputation.setHighestStreak(6);
-        reputation.setLastLoginDate(LocalDate.of(2026, 3, 23));
-
-        GamificationEvent event = new GamificationEvent(
-                userId,
-                ActionType.DAILY_LOGIN,
-                "LOGIN:2026-03-24:" + userId,
-                OffsetDateTime.of(2026, 3, 24, 8, 30, 0, 0, ZoneOffset.UTC)
-        );
-
-        when(pointHistoryRepository.existsByUserIdAndActionTypeAndReferenceId(eq(userId), eq(ActionType.DAILY_LOGIN), anyString()))
-                .thenReturn(false);
+        reputation.setTotalPoints(40);
+        reputation.setCurrentStreak(2);
+        reputation.setHighestStreak(2);
+        reputation.setLastContributionWeek(LocalDate.of(2026, 3, 16));
         when(userReputationRepository.findById(userId)).thenReturn(Optional.of(reputation));
 
-        gamificationService.processEvent(event);
+        gamificationService.processEvent(new GamificationEvent(userId, ActionType.DAILY_LOGIN,
+                "LOGIN:2026-03-24:" + userId, OffsetDateTime.of(2026, 3, 24, 8, 30, 0, 0, ZoneOffset.UTC)));
+        verify(userReputationRepository, never()).saveAndFlush(any(UserReputation.class));
+
+        gamificationService.processEvent(new GamificationEvent(userId, ActionType.POST_PUBLISHED, "post-42",
+                OffsetDateTime.of(2026, 3, 24, 8, 30, 0, 0, ZoneOffset.UTC)));
 
         ArgumentCaptor<UserReputation> reputationCaptor = ArgumentCaptor.forClass(UserReputation.class);
         verify(userReputationRepository).saveAndFlush(reputationCaptor.capture());
-        assertEquals(110, reputationCaptor.getValue().getTotalPoints());
-        assertEquals(7, reputationCaptor.getValue().getCurrentStreak());
-        assertEquals(7, reputationCaptor.getValue().getHighestStreak());
+        assertEquals(40, reputationCaptor.getValue().getTotalPoints());
+        assertEquals(3, reputationCaptor.getValue().getCurrentStreak());
+        assertEquals(3, reputationCaptor.getValue().getHighestStreak());
+        assertEquals(LocalDate.of(2026, 3, 23), reputationCaptor.getValue().getLastContributionWeek());
+    }
 
-        ArgumentCaptor<PointHistory> historyCaptor = ArgumentCaptor.forClass(PointHistory.class);
-        verify(pointHistoryRepository).saveAndFlush(historyCaptor.capture());
-        assertEquals(110, historyCaptor.getValue().getPointsEarned());
+    @Test
+    void removedContentLosesItsPointsAndGetsThemBackWhenRestored() {
+        UUID userId = UUID.randomUUID();
+        UUID noteId = UUID.randomUUID();
+        UserReputation reputation = UserReputation.initialize(userId);
+        reputation.setTotalPoints(50);
+        when(userReputationRepository.findById(userId)).thenReturn(Optional.of(reputation));
+        when(pointHistoryRepository.findByUserIdAndContentId(userId, noteId))
+                .thenReturn(List.of(history(ActionType.NOTE_LIKED, 2), history(ActionType.NOTE_SAVED, 3)));
+
+        GamificationEvent reversal = new GamificationEvent(userId, ActionType.POINTS_REVERSED, "revoke:1", OffsetDateTime.now());
+        reversal.setContentId(noteId);
+        gamificationService.processEvent(reversal);
+        assertEquals(45, reputation.getTotalPoints());
+
+        when(pointHistoryRepository.findByUserIdAndContentId(userId, noteId)).thenReturn(List.of(
+                history(ActionType.NOTE_LIKED, 2), history(ActionType.NOTE_SAVED, 3), history(ActionType.POINTS_REVERSED, -5)));
+        GamificationEvent restore = new GamificationEvent(userId, ActionType.POINTS_RESTORED, "restore:1", OffsetDateTime.now());
+        restore.setContentId(noteId);
+        gamificationService.processEvent(restore);
+        assertEquals(50, reputation.getTotalPoints());
+    }
+
+    private static PointHistory history(ActionType type, int points) {
+        PointHistory row = new PointHistory();
+        row.setActionType(type);
+        row.setPointsEarned(points);
+        return row;
     }
 
     @Test
@@ -137,20 +159,20 @@ class GamificationServiceTest {
 
         GamificationEvent event = new GamificationEvent(
                 userId,
-                ActionType.POST_PUBLISHED,
-                "post-999",
+                ActionType.NOTE_LIKED,
+                "post-999:liker",
                 OffsetDateTime.now()
         );
 
-        when(pointHistoryRepository.existsByUserIdAndActionTypeAndReferenceId(userId, ActionType.POST_PUBLISHED, "post-999"))
+        when(pointHistoryRepository.existsByUserIdAndActionTypeAndReferenceId(userId, ActionType.NOTE_LIKED, "post-999:liker"))
                 .thenReturn(false);
         when(pointHistoryRepository.countByUserIdAndActionTypeAndCreatedAtBetweenAndPointsEarnedGreaterThan(
                 eq(userId),
-                eq(ActionType.POST_PUBLISHED),
+                eq(ActionType.NOTE_LIKED),
                 any(),
                 any(),
                 eq(0)
-        )).thenReturn(3L);
+        )).thenReturn(30L);
         when(userReputationRepository.findById(userId)).thenReturn(Optional.of(reputation));
 
         gamificationService.processEvent(event);

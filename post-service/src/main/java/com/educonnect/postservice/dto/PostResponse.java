@@ -22,6 +22,7 @@ public record PostResponse(
         String reviewNote,
         String courseLabel,
         String attachmentName,
+        UUID acceptedCommentId,
         UUID authorId,
         String authorName,
         String authorDepartment,

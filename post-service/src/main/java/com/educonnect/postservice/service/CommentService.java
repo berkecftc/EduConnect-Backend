@@ -39,17 +39,20 @@ public class CommentService {
     private final UserClient userClient;
     private final PostVisibility postVisibility;
     private final PostEventPublisher eventPublisher;
+    private final ContributionEvents contributionEvents;
 
     public CommentService(CommentRepository commentRepository,
                           PostRepository postRepository,
                           UserClient userClient,
                           PostVisibility postVisibility,
-                          PostEventPublisher eventPublisher) {
+                          PostEventPublisher eventPublisher,
+                          ContributionEvents contributionEvents) {
         this.commentRepository = commentRepository;
         this.postRepository = postRepository;
         this.userClient = userClient;
         this.postVisibility = postVisibility;
         this.eventPublisher = eventPublisher;
+        this.contributionEvents = contributionEvents;
     }
 
     @Transactional
@@ -90,6 +93,7 @@ public class CommentService {
                     "Bu yorumu sadece yazarı silebilir. commentId: " + commentId);
         }
 
+        contributionEvents.revoke(comment.getAuthorId(), comment.getId());
         commentRepository.delete(comment);
         log.info("Yorum silindi — commentId: {}, postId: {}, authorId: {}", commentId, postId, authorId);
     }

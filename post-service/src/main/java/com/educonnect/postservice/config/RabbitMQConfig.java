@@ -31,6 +31,8 @@ public class RabbitMQConfig {
     public static final String ROUTING_KEY_GAMIFICATION_POST_PUBLISHED = "gamification.post.published";
     public static final String ROUTING_KEY_GAMIFICATION_ANSWER_ACCEPTED = "gamification.answer.accepted";
     public static final String ROUTING_KEY_GAMIFICATION_REPORT_RESOLVED = "gamification.report.resolved";
+    public static final String ROUTING_KEY_GAMIFICATION_NOTE_APPRECIATED = "gamification.note.appreciated";
+    public static final String ROUTING_KEY_GAMIFICATION_CONTENT_REVISED = "gamification.content.revised";
 
     public static final String USER_EXCHANGE = "user-exchange";
     public static final String USER_DELETED_QUEUE = "post-service.user.deleted";

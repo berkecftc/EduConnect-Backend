@@ -1,6 +1,7 @@
 package com.educonnect.postservice.service;
 
 import com.educonnect.postservice.dto.LikeResponse;
+import com.educonnect.postservice.model.Post;
 import com.educonnect.postservice.model.PostLike;
 import com.educonnect.postservice.repository.PostLikeRepository;
 import org.slf4j.Logger;
@@ -22,10 +23,13 @@ public class PostLikeService {
 
     private final PostLikeRepository postLikeRepository;
     private final PostVisibility postVisibility;
+    private final ContributionEvents contributionEvents;
 
-    public PostLikeService(PostLikeRepository postLikeRepository, PostVisibility postVisibility) {
+    public PostLikeService(PostLikeRepository postLikeRepository, PostVisibility postVisibility,
+                           ContributionEvents contributionEvents) {
         this.postLikeRepository = postLikeRepository;
         this.postVisibility = postVisibility;
+        this.contributionEvents = contributionEvents;
     }
 
     /**
@@ -50,7 +54,7 @@ public class PostLikeService {
      */
     @Transactional
     public LikeResponse likePost(UUID postId, Viewer viewer) {
-        validateLikeablePost(postId, viewer);
+        Post post = validateLikeablePost(postId, viewer);
         UUID userId = viewer.id();
 
         if (postLikeRepository.existsByPostIdAndUserId(postId, userId)) {
@@ -62,6 +66,7 @@ public class PostLikeService {
         like.setPostId(postId);
         like.setUserId(userId);
         postLikeRepository.save(like);
+        contributionEvents.noteLiked(post, userId);
         log.info("Post beğenildi — postId: {}, userId: {}", postId, userId);
 
         long count = postLikeRepository.countByPostId(postId);
@@ -101,7 +106,7 @@ public class PostLikeService {
         return postLikeRepository.existsByPostIdAndUserId(postId, userId);
     }
 
-    private void validateLikeablePost(UUID postId, Viewer viewer) {
-        postVisibility.requirePublished(postId, viewer, "Sadece yayınlanmış postlar beğenilebilir.");
+    private Post validateLikeablePost(UUID postId, Viewer viewer) {
+        return postVisibility.requirePublished(postId, viewer, "Sadece yayınlanmış postlar beğenilebilir.");
     }
 }

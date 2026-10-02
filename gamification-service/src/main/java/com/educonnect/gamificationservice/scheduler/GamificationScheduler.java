@@ -6,6 +6,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
+import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.ZoneId;
 
@@ -20,13 +21,12 @@ public class GamificationScheduler {
         this.gamificationService = gamificationService;
     }
 
-    @Scheduled(cron = "0 0 0 * * *", zone = "Europe/Istanbul")
+    @Scheduled(cron = "0 5 0 * * *", zone = "Europe/Istanbul")
     public void resetInactiveStreaks() {
-        LocalDate yesterday = LocalDate.now(ZoneId.of("Europe/Istanbul")).minusDays(1);
-        int resetCount = gamificationService.resetInactiveStreaks(yesterday);
+        LocalDate previousWeek = LocalDate.now(ZoneId.of("Europe/Istanbul")).with(DayOfWeek.MONDAY).minusWeeks(1);
+        int resetCount = gamificationService.resetInactiveStreaks(previousWeek);
         if (resetCount > 0) {
             log.info("Inactive streak reset completed. resetCount={}", resetCount);
         }
     }
 }
-

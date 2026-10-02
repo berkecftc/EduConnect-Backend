@@ -56,6 +56,7 @@ public class PostService {
     private final PostVisibility postVisibility;
     private final ScopeAccessService scopeAccess;
     private final AttachmentService attachmentService;
+    private final ContributionEvents contributionEvents;
 
     public PostService(PostRepository postRepository,
                        PostEventPublisher eventPublisher,
@@ -66,7 +67,8 @@ public class PostService {
                        PublisherPolicy publisherPolicy,
                        PostVisibility postVisibility,
                        ScopeAccessService scopeAccess,
-                       AttachmentService attachmentService) {
+                       AttachmentService attachmentService,
+                       ContributionEvents contributionEvents) {
         this.postRepository = postRepository;
         this.eventPublisher = eventPublisher;
         this.userClient = userClient;
@@ -77,6 +79,7 @@ public class PostService {
         this.postVisibility = postVisibility;
         this.scopeAccess = scopeAccess;
         this.attachmentService = attachmentService;
+        this.contributionEvents = contributionEvents;
     }
 
     @Transactional
@@ -160,6 +163,7 @@ public class PostService {
         validateAuthor(post, authorId);
 
         attachmentService.discard(post);
+        contributionEvents.revoke(post.getAuthorId(), post.getId());
         postRepository.delete(post);
         log.info("Post silindi — postId: {}, authorId: {}", postId, authorId);
     }
@@ -352,6 +356,7 @@ public class PostService {
                 post.getReviewNote(),
                 post.getCourseLabel(),
                 post.getAttachmentName(),
+                post.getAcceptedCommentId(),
                 post.getAuthorId(),
                 authorName,
                 authorDepartment,

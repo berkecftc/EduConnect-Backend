@@ -51,19 +51,22 @@ public class AppealService {
     private final CommentRepository commentRepository;
     private final ContentControlService contentControl;
     private final ModerationLog moderationLog;
+    private final ContributionEvents contributionEvents;
 
     public AppealService(ModerationAppealRepository appealRepository,
                          ModerationRecordRepository recordRepository,
                          PostRepository postRepository,
                          CommentRepository commentRepository,
                          ContentControlService contentControl,
-                         ModerationLog moderationLog) {
+                         ModerationLog moderationLog,
+                         ContributionEvents contributionEvents) {
         this.appealRepository = appealRepository;
         this.recordRepository = recordRepository;
         this.postRepository = postRepository;
         this.commentRepository = commentRepository;
         this.contentControl = contentControl;
         this.moderationLog = moderationLog;
+        this.contributionEvents = contributionEvents;
     }
 
     @Transactional
@@ -153,6 +156,7 @@ public class AppealService {
             post.setModerationFlag(null);
             post.setReviewNote(null);
             postRepository.save(post);
+            contributionEvents.restore(post.getAuthorId(), post.getId());
         } else {
             Comment comment = commentRepository.findById(appeal.getTargetId()).orElseThrow(AppealService::contentChanged);
             if (COMMENT_APPEALABLE.get(comment.getStatus()) != appeal.getAppealedAction()) {
@@ -162,6 +166,7 @@ public class AppealService {
             comment.setModerationFlag(null);
             comment.setModerationNote(null);
             commentRepository.save(comment);
+            contributionEvents.restore(comment.getAuthorId(), comment.getId());
         }
         contentControl.dismissReports(appeal.getTargetType(), appeal.getTargetId(), moderator.id(), reason);
     }

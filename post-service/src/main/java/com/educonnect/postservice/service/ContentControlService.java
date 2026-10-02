@@ -47,19 +47,22 @@ public class ContentControlService {
     private final PublisherPolicy publisherPolicy;
     private final ModerationLog moderationLog;
     private final OutboxPublisher outboxPublisher;
+    private final ContributionEvents contributionEvents;
 
     public ContentControlService(PostRepository postRepository,
                                  CommentRepository commentRepository,
                                  ContentReportRepository reportRepository,
                                  PublisherPolicy publisherPolicy,
                                  ModerationLog moderationLog,
-                                 OutboxPublisher outboxPublisher) {
+                                 OutboxPublisher outboxPublisher,
+                                 ContributionEvents contributionEvents) {
         this.postRepository = postRepository;
         this.commentRepository = commentRepository;
         this.reportRepository = reportRepository;
         this.publisherPolicy = publisherPolicy;
         this.moderationLog = moderationLog;
         this.outboxPublisher = outboxPublisher;
+        this.contributionEvents = contributionEvents;
     }
 
     @Transactional
@@ -97,6 +100,7 @@ public class ContentControlService {
         moderationLog.record(ModerationTarget.POST, post.getId(), post.getId(), ModerationAction.REMOVED,
                 ModerationActor.MODERATOR, moderator.id(), reason.strip());
         upholdReports(ModerationTarget.POST, post.getId(), moderator.id(), reason.strip());
+        contributionEvents.revoke(post.getAuthorId(), post.getId());
         log.warn("Post removed by a moderator. postId={}, moderator={}", postId, moderator.id());
     }
 
@@ -114,6 +118,7 @@ public class ContentControlService {
         moderationLog.record(ModerationTarget.COMMENT, comment.getId(), comment.getPostId(), ModerationAction.REMOVED,
                 ModerationActor.MODERATOR, moderator.id(), reason.strip());
         upholdReports(ModerationTarget.COMMENT, comment.getId(), moderator.id(), reason.strip());
+        contributionEvents.revoke(comment.getAuthorId(), comment.getId());
         log.warn("Comment removed by a moderator. commentId={}, moderator={}", commentId, moderator.id());
     }
 
@@ -131,6 +136,7 @@ public class ContentControlService {
         moderationLog.record(ModerationTarget.POST, post.getId(), post.getId(), ModerationAction.RESTORED,
                 ModerationActor.MODERATOR, moderator.id(), clean(reason));
         dismissReports(ModerationTarget.POST, post.getId(), moderator.id(), clean(reason));
+        contributionEvents.restore(post.getAuthorId(), post.getId());
     }
 
     @Transactional
@@ -147,6 +153,7 @@ public class ContentControlService {
         moderationLog.record(ModerationTarget.COMMENT, comment.getId(), comment.getPostId(), ModerationAction.RESTORED,
                 ModerationActor.MODERATOR, moderator.id(), clean(reason));
         dismissReports(ModerationTarget.COMMENT, comment.getId(), moderator.id(), clean(reason));
+        contributionEvents.restore(comment.getAuthorId(), comment.getId());
     }
 
     void hideForReports(ModerationTarget target, UUID targetId) {
@@ -172,6 +179,7 @@ public class ContentControlService {
         post.setReviewNote(reason);
         postRepository.save(post);
         moderationLog.record(ModerationTarget.POST, post.getId(), post.getId(), ModerationAction.HIDDEN, actor, actorId, reason);
+        contributionEvents.revoke(post.getAuthorId(), post.getId());
         log.info("Post hidden. postId={}, actor={}", post.getId(), actor);
     }
 
@@ -181,6 +189,7 @@ public class ContentControlService {
         commentRepository.save(comment);
         moderationLog.record(ModerationTarget.COMMENT, comment.getId(), comment.getPostId(), ModerationAction.HIDDEN,
                 actor, actorId, reason);
+        contributionEvents.revoke(comment.getAuthorId(), comment.getId());
         log.info("Comment hidden. commentId={}, actor={}", comment.getId(), actor);
     }
 

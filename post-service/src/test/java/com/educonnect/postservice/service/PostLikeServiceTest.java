@@ -38,11 +38,14 @@ class PostLikeServiceTest {
     @Mock
     private ScopeAccessService scopeAccess;
 
+    @Mock
+    private ContributionEvents contributionEvents;
+
     private PostLikeService postLikeService;
 
     @BeforeEach
     void setUp() {
-        postLikeService = new PostLikeService(postLikeRepository, new PostVisibility(postRepository, scopeAccess));
+        postLikeService = new PostLikeService(postLikeRepository, new PostVisibility(postRepository, scopeAccess), contributionEvents);
     }
 
     @Test
