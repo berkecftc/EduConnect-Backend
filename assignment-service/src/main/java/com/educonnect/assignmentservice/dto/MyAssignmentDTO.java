@@ -20,6 +20,9 @@ public class MyAssignmentDTO {
     private BigDecimal latePenaltyPercent;
     private LocalDateTime effectiveDueDate;
     private LocalDateTime effectiveLateUntil;
+    private UUID groupSetId;
+    private UUID groupId;
+    private String groupName;
 
     // Teslim bilgisi (null ise teslim edilmemiş)
     private MySubmissionDTO submission;
@@ -61,4 +64,10 @@ public class MyAssignmentDTO {
     public void setEffectiveDueDate(LocalDateTime effectiveDueDate) { this.effectiveDueDate = effectiveDueDate; }
     public LocalDateTime getEffectiveLateUntil() { return effectiveLateUntil; }
     public void setEffectiveLateUntil(LocalDateTime effectiveLateUntil) { this.effectiveLateUntil = effectiveLateUntil; }
+    public UUID getGroupSetId() { return groupSetId; }
+    public void setGroupSetId(UUID groupSetId) { this.groupSetId = groupSetId; }
+    public UUID getGroupId() { return groupId; }
+    public void setGroupId(UUID groupId) { this.groupId = groupId; }
+    public String getGroupName() { return groupName; }
+    public void setGroupName(String groupName) { this.groupName = groupName; }
 }

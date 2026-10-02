@@ -3,6 +3,7 @@ package com.educonnect.assignmentservice.listener;
 import com.educonnect.assignmentservice.config.RabbitMQConfig;
 import com.educonnect.assignmentservice.event.CourseEvent;
 import com.educonnect.assignmentservice.repository.AssignmentRepository;
+import com.educonnect.assignmentservice.repository.GroupSetRepository;
 import com.educonnect.assignmentservice.service.AssignmentFiles;
 import com.educonnect.assignmentservice.service.AssignmentService;
 import com.educonnect.assignmentservice.service.MinioService;
@@ -23,13 +24,16 @@ public class CourseEventListener {
     private final AssignmentRepository assignmentRepository;
     private final AssignmentFiles assignmentFiles;
     private final MinioService minioService;
+    private final GroupSetRepository groupSetRepository;
 
     public CourseEventListener(AssignmentRepository assignmentRepository,
                                AssignmentFiles assignmentFiles,
-                               MinioService minioService) {
+                               MinioService minioService,
+                               GroupSetRepository groupSetRepository) {
         this.assignmentRepository = assignmentRepository;
         this.assignmentFiles = assignmentFiles;
         this.minioService = minioService;
+        this.groupSetRepository = groupSetRepository;
     }
 
     @RabbitListener(queues = RabbitMQConfig.ASSIGNMENT_QUEUE)
@@ -38,6 +42,7 @@ public class CourseEventListener {
     public void handleCourseDeletedEvent(CourseEvent event) {
         List<String> files = assignmentFiles.of(assignmentRepository.findByCourseId(event.getCourseId()));
         assignmentRepository.deleteByCourseId(event.getCourseId());
+        groupSetRepository.deleteByCourseId(event.getCourseId());
         minioService.deleteFilesAfterCommit(files);
         log.info("Silinen derse ait ödevler temizlendi: courseId={}, files={}", event.getCourseId(), files.size());
     }

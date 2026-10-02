@@ -22,6 +22,7 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -42,21 +43,24 @@ public class GradebookService {
     private final SubmissionRepository submissionRepository;
     private final CourseInternalClient courseInternalClient;
     private final StudentDirectory studentDirectory;
+    private final GroupWork groupWork;
 
     public GradebookService(AssignmentRepository assignmentRepository,
                             SubmissionRepository submissionRepository,
                             CourseInternalClient courseInternalClient,
-                            StudentDirectory studentDirectory) {
+                            StudentDirectory studentDirectory,
+                            GroupWork groupWork) {
         this.assignmentRepository = assignmentRepository;
         this.submissionRepository = submissionRepository;
         this.courseInternalClient = courseInternalClient;
         this.studentDirectory = studentDirectory;
+        this.groupWork = groupWork;
     }
 
     public GradebookResponse gradebook(UUID courseId) {
         List<Assignment> assignments = assessments(courseId);
         List<UUID> studentIds = enrolledStudents(courseId);
-        Map<UUID, Map<UUID, AssignmentSubmission>> submissions = submissionsByStudent(assignments);
+        Map<UUID, Map<UUID, Entry>> submissions = submissionsByStudent(assignments);
         Map<UUID, UserClient.UserProfileDTO> profiles = studentDirectory.byId(studentIds);
         List<Row> rows = studentIds.stream().map(studentId -> {
             UserClient.UserProfileDTO profile = profiles.get(studentId);
@@ -73,8 +77,7 @@ public class GradebookService {
 
     public MyGradesResponse myGrades(UUID courseId, UUID studentId) {
         List<Assignment> assignments = assessments(courseId);
-        Map<UUID, AssignmentSubmission> mine = submissionRepository.findByStudentId(studentId).stream()
-                .collect(Collectors.toMap(AssignmentSubmission::getAssignmentId, s -> s, (a, b) -> a));
+        Map<UUID, Entry> mine = submissionsByStudent(assignments).getOrDefault(studentId, Map.of());
         List<Cell> cells = cells(assignments, mine).stream()
                 .map(cell -> published(assignments, cell.assignmentId()) || cell.grade() == null ? cell
                         : new Cell(cell.assignmentId(), cell.submissionId(), Status.SUBMITTED, null, null, cell.late(),
@@ -116,13 +119,29 @@ public class GradebookService {
         }
     }
 
-    private Map<UUID, Map<UUID, AssignmentSubmission>> submissionsByStudent(List<Assignment> assignments) {
+    private record Entry(AssignmentSubmission submission, BigDecimal grade) {
+    }
+
+    private Map<UUID, Map<UUID, Entry>> submissionsByStudent(List<Assignment> assignments) {
         if (assignments.isEmpty()) {
             return Map.of();
         }
-        return submissionRepository.findByAssignmentIdIn(assignments.stream().map(Assignment::getId).toList()).stream()
-                .collect(Collectors.groupingBy(AssignmentSubmission::getStudentId,
-                        Collectors.toMap(AssignmentSubmission::getAssignmentId, s -> s, (a, b) -> a)));
+        List<AssignmentSubmission> all = submissionRepository.findByAssignmentIdIn(assignments.stream().map(Assignment::getId).toList());
+        List<AssignmentSubmission> group = all.stream().filter(s -> s.getGroupId() != null).toList();
+        Map<UUID, List<UUID>> members = groupWork.membersByGroup(group.stream().map(AssignmentSubmission::getGroupId).distinct().toList());
+        Map<UUID, Map<UUID, BigDecimal>> overrides = groupWork.overrides(group.stream().map(AssignmentSubmission::getId).toList());
+        Map<UUID, Map<UUID, Entry>> result = new HashMap<>();
+        for (AssignmentSubmission s : all) {
+            if (s.getGroupId() == null) {
+                result.computeIfAbsent(s.getStudentId(), k -> new HashMap<>()).putIfAbsent(s.getAssignmentId(), new Entry(s, s.getGrade()));
+                continue;
+            }
+            for (UUID member : members.getOrDefault(s.getGroupId(), List.of())) {
+                BigDecimal grade = overrides.getOrDefault(s.getId(), Map.of()).getOrDefault(member, s.getGrade());
+                result.computeIfAbsent(member, k -> new HashMap<>()).putIfAbsent(s.getAssignmentId(), new Entry(s, grade));
+            }
+        }
+        return result;
     }
 
     private static List<Column> columns(List<Assignment> assignments) {
@@ -130,14 +149,15 @@ public class GradebookService {
                 a.getMaxPoints(), a.getDueDate(), a.gradesPublished())).toList();
     }
 
-    private static List<Cell> cells(List<Assignment> assignments, Map<UUID, AssignmentSubmission> submissions) {
+    private static List<Cell> cells(List<Assignment> assignments, Map<UUID, Entry> submissions) {
         return assignments.stream().map(a -> {
-            AssignmentSubmission s = submissions.get(a.getId());
-            if (s == null) {
+            Entry entry = submissions.get(a.getId());
+            if (entry == null) {
                 return new Cell(a.getId(), null, Status.NOT_SUBMITTED, null, null, false, null);
             }
-            return new Cell(a.getId(), s.getId(), s.getGrade() != null ? Status.GRADED : Status.SUBMITTED, s.getGrade(),
-                    DeadlinePolicy.finalGrade(a, s.getGrade(), s.isLate()),
+            AssignmentSubmission s = entry.submission();
+            return new Cell(a.getId(), s.getId(), entry.grade() != null ? Status.GRADED : Status.SUBMITTED, entry.grade(),
+                    DeadlinePolicy.finalGrade(a, entry.grade(), s.isLate()),
                     s.isLate(), s.getSubmittedAt());
         }).toList();
     }

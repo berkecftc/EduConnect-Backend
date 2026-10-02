@@ -3,12 +3,14 @@ package com.educonnect.assignmentservice.controller;
 import com.educonnect.assignmentservice.dto.AssignmentResponse;
 import com.educonnect.assignmentservice.dto.GradeChangeResponse;
 import com.educonnect.assignmentservice.dto.GradeSubmissionRequest;
+import com.educonnect.assignmentservice.dto.MemberGradeRequest;
 import com.educonnect.assignmentservice.model.Assignment;
 import com.educonnect.assignmentservice.model.AssignmentSubmission;
 import com.educonnect.assignmentservice.service.AssignmentAccessGuard;
 import com.educonnect.assignmentservice.service.GradingService;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -49,6 +51,33 @@ public class GradingController {
         accessGuard.requireGrader(assignment.getCourseId(), userId, roles);
         gradingService.grade(submission, assignment, request.getGrade(), request.getFeedback(), request.getReason(), userId);
         return ResponseEntity.ok("Not başarıyla verildi");
+    }
+
+    @PutMapping("/submissions/{submissionId}/members/{studentId}/grade")
+    public ResponseEntity<String> gradeMember(@PathVariable UUID submissionId,
+                                              @PathVariable UUID studentId,
+                                              @RequestBody @Valid MemberGradeRequest request,
+                                              @RequestHeader(USER_ID_HEADER) String userIdHeader,
+                                              @RequestHeader(value = ROLES_HEADER, required = false) String roles) {
+        AssignmentSubmission submission = accessGuard.getSubmission(submissionId);
+        Assignment assignment = accessGuard.getAssignment(submission.getAssignmentId());
+        UUID userId = parseUserId(userIdHeader);
+        accessGuard.requireGrader(assignment.getCourseId(), userId, roles);
+        gradingService.gradeMember(submission, assignment, studentId, request.grade(), request.reason(), userId);
+        return ResponseEntity.ok("Kişisel puan verildi");
+    }
+
+    @DeleteMapping("/submissions/{submissionId}/members/{studentId}/grade")
+    public ResponseEntity<Void> clearMemberGrade(@PathVariable UUID submissionId,
+                                                 @PathVariable UUID studentId,
+                                                 @RequestHeader(USER_ID_HEADER) String userIdHeader,
+                                                 @RequestHeader(value = ROLES_HEADER, required = false) String roles) {
+        AssignmentSubmission submission = accessGuard.getSubmission(submissionId);
+        Assignment assignment = accessGuard.getAssignment(submission.getAssignmentId());
+        UUID userId = parseUserId(userIdHeader);
+        accessGuard.requireGrader(assignment.getCourseId(), userId, roles);
+        gradingService.clearMemberGrade(submission, assignment, studentId, userId);
+        return ResponseEntity.noContent().build();
     }
 
     @PostMapping("/{assignmentId}/publish-grades")

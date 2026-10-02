@@ -34,17 +34,21 @@ public class SubmissionVersion {
     @Column(nullable = false)
     private boolean late;
 
+    @Column(name = "submitted_by")
+    private UUID submittedBy;
+
     protected SubmissionVersion() {
     }
 
     public SubmissionVersion(UUID submissionId, int versionNo, String fileUrl, String textContent,
-                             LocalDateTime submittedAt, boolean late) {
+                             LocalDateTime submittedAt, boolean late, UUID submittedBy) {
         this.submissionId = submissionId;
         this.versionNo = versionNo;
         this.fileUrl = fileUrl;
         this.textContent = textContent;
         this.submittedAt = submittedAt;
         this.late = late;
+        this.submittedBy = submittedBy;
     }
 
     public UUID getId() { return id; }
@@ -54,4 +58,5 @@ public class SubmissionVersion {
     public String getTextContent() { return textContent; }
     public LocalDateTime getSubmittedAt() { return submittedAt; }
     public boolean isLate() { return late; }
+    public UUID getSubmittedBy() { return submittedBy; }
 }

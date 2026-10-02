@@ -14,6 +14,8 @@ public class SubmissionSummaryDTO {
     private BigDecimal grade;
     private BigDecimal finalGrade;
     private String textContent;
+    private UUID groupId;
+    private String groupName;
     private boolean isLate;
 
     public SubmissionSummaryDTO() {}
@@ -43,6 +45,10 @@ public class SubmissionSummaryDTO {
     public void setFinalGrade(BigDecimal finalGrade) { this.finalGrade = finalGrade; }
     public String getTextContent() { return textContent; }
     public void setTextContent(String textContent) { this.textContent = textContent; }
+    public UUID getGroupId() { return groupId; }
+    public void setGroupId(UUID groupId) { this.groupId = groupId; }
+    public String getGroupName() { return groupName; }
+    public void setGroupName(String groupName) { this.groupName = groupName; }
 
     public boolean isLate() { return isLate; }
     public void setLate(boolean late) { isLate = late; }

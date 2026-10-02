@@ -62,6 +62,9 @@ public class Assignment {
     @Column(name = "late_penalty_percent", nullable = false, precision = 5, scale = 2)
     private BigDecimal latePenaltyPercent = BigDecimal.ZERO;
 
+    @Column(name = "group_set_id")
+    private UUID groupSetId;
+
     @Convert(converter = ObjectUrlConverter.class)
     private String fileUrl; // Hoca ek dosya yüklediyse (MinIO)
 
@@ -93,6 +96,9 @@ public class Assignment {
     public void setLateUntil(LocalDateTime lateUntil) { this.lateUntil = lateUntil; }
     public BigDecimal getLatePenaltyPercent() { return latePenaltyPercent; }
     public void setLatePenaltyPercent(BigDecimal latePenaltyPercent) { this.latePenaltyPercent = latePenaltyPercent; }
+    public UUID getGroupSetId() { return groupSetId; }
+    public void setGroupSetId(UUID groupSetId) { this.groupSetId = groupSetId; }
+    public boolean isGroupWork() { return groupSetId != null; }
 
     public void publishGrades(UUID by, Instant at) {
         this.gradesPublishedAt = at;

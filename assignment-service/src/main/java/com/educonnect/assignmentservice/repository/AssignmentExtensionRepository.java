@@ -11,4 +11,5 @@ public interface AssignmentExtensionRepository extends JpaRepository<AssignmentE
     Optional<AssignmentExtension> findByAssignmentIdAndStudentId(UUID assignmentId, UUID studentId);
     List<AssignmentExtension> findByAssignmentIdOrderByDueDateAsc(UUID assignmentId);
     List<AssignmentExtension> findByStudentId(UUID studentId);
+    List<AssignmentExtension> findByAssignmentIdAndStudentIdIn(UUID assignmentId, java.util.Collection<UUID> studentIds);
 }

@@ -10,9 +10,13 @@ import com.educonnect.assignmentservice.model.AssessmentType;
 import com.educonnect.assignmentservice.model.Assignment;
 import com.educonnect.assignmentservice.model.AssignmentExtension;
 import com.educonnect.assignmentservice.model.AssignmentSubmission;
+import com.educonnect.assignmentservice.model.CourseGroup;
+import com.educonnect.assignmentservice.model.GroupMember;
 import com.educonnect.assignmentservice.publisher.AssignmentProducer;
 import com.educonnect.assignmentservice.repository.AssignmentExtensionRepository;
 import com.educonnect.assignmentservice.repository.AssignmentRepository;
+import com.educonnect.assignmentservice.repository.CourseGroupRepository;
+import com.educonnect.assignmentservice.repository.GroupMemberRepository;
 import com.educonnect.assignmentservice.repository.SubmissionRepository;
 import com.educonnect.common.web.BadRequestException;
 import com.educonnect.common.web.NotFoundException;
@@ -32,9 +36,11 @@ import java.math.BigDecimal;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 @Service
 public class AssignmentService {
@@ -54,13 +60,18 @@ public class AssignmentService {
     private final AssignmentFiles assignmentFiles;
     private final AssessmentRules assessmentRules;
     private final AssignmentExtensionRepository extensionRepository;
+    private final GroupMemberRepository groupMemberRepository;
+    private final CourseGroupRepository groupRepository;
+    private final GroupWork groupWork;
 
     public AssignmentService(AssignmentRepository repo, SubmissionRepository subRepo,
                              MinioService minio, CourseClient client, CourseInternalClient internalClient,
                              UserClient userClient, AssignmentProducer producer,
                              StudentDirectory studentDirectory,
                              AssignmentFiles assignmentFiles, AssessmentRules assessmentRules,
-                             AssignmentExtensionRepository extensionRepository) {
+                             AssignmentExtensionRepository extensionRepository,
+                             GroupMemberRepository groupMemberRepository, CourseGroupRepository groupRepository,
+                             GroupWork groupWork) {
         this.studentDirectory = studentDirectory;
         this.assignmentRepository = repo;
         this.submissionRepository = subRepo;
@@ -72,6 +83,9 @@ public class AssignmentService {
         this.assignmentFiles = assignmentFiles;
         this.assessmentRules = assessmentRules;
         this.extensionRepository = extensionRepository;
+        this.groupMemberRepository = groupMemberRepository;
+        this.groupRepository = groupRepository;
+        this.groupWork = groupWork;
     }
 
     @CacheEvict(value = STUDENT_ASSIGNMENTS, allEntries = true)
@@ -81,6 +95,7 @@ public class AssignmentService {
         }
         assessmentRules.requireWeightFits(request.getCourseId(), null, request.getWeight());
         AssessmentRules.requireLateWindow(request.getDueDate(), request.getLateUntil());
+        assessmentRules.requireGroupSet(request.getCourseId(), request.getGroupSetId());
         // 1. Önce böyle bir ders var mı diye Course Service'e sor
         Map<String, Object> courseData;
         try {
@@ -106,6 +121,7 @@ public class AssignmentService {
         assignment.setWeight(request.getWeight() != null ? request.getWeight() : BigDecimal.ZERO);
         assignment.setMaxPoints(request.getMaxPoints() != null ? request.getMaxPoints() : BigDecimal.valueOf(100));
         assignment.setLateUntil(request.getLateUntil());
+        assignment.setGroupSetId(request.getGroupSetId());
         assignment.setLatePenaltyPercent(request.getLatePenaltyPercent() != null ? request.getLatePenaltyPercent() : BigDecimal.ZERO);
 
         Assignment saved = assignmentRepository.save(assignment);
@@ -196,7 +212,17 @@ public class AssignmentService {
     @Cacheable(value = STUDENT_ASSIGNMENTS, key = "#studentId")
     public List<MyAssignmentDTO> getStudentAssignments(UUID studentId) {
         // Öğrencinin teslimleri
-        List<AssignmentSubmission> submissions = submissionRepository.findByStudentId(studentId);
+        List<GroupMember> memberships = groupMemberRepository.findByStudentId(studentId);
+        Map<UUID, GroupMember> membershipBySet = memberships.stream()
+                .collect(Collectors.toMap(GroupMember::getGroupSetId, m -> m, (a, b) -> a));
+        Map<UUID, String> groupNames = groupRepository.findAllById(memberships.stream().map(GroupMember::getGroupId).toList())
+                .stream().collect(Collectors.toMap(CourseGroup::getId, CourseGroup::getName));
+        List<AssignmentSubmission> groupSubmissions = memberships.isEmpty() ? List.of()
+                : submissionRepository.findByGroupIdIn(memberships.stream().map(GroupMember::getGroupId).toList());
+        Map<UUID, Map<UUID, BigDecimal>> overrides = groupWork.overrides(groupSubmissions.stream().map(AssignmentSubmission::getId).toList());
+        List<AssignmentSubmission> submissions = Stream.concat(
+                submissionRepository.findByStudentId(studentId).stream().filter(s -> s.getGroupId() == null),
+                groupSubmissions.stream()).toList();
 
         Set<UUID> courseIds = new HashSet<>();
         try {
@@ -229,14 +255,23 @@ public class AssignmentService {
             dto.setWeight(assignment.getWeight());
             dto.setMaxPoints(assignment.getMaxPoints());
             dto.setGradesPublished(assignment.gradesPublished());
-            DeadlinePolicy.Window window = DeadlinePolicy.window(assignment, extensions.get(assignment.getId()));
+            GroupMember membership = assignment.isGroupWork() ? membershipBySet.get(assignment.getGroupSetId()) : null;
+            DeadlinePolicy.Window window = assignment.isGroupWork()
+                    ? (membership != null ? groupWork.groupWindow(assignment, membership.getGroupId()) : DeadlinePolicy.window(assignment, null))
+                    : DeadlinePolicy.window(assignment, extensions.get(assignment.getId()));
             dto.setLatePenaltyPercent(assignment.getLatePenaltyPercent());
             dto.setEffectiveDueDate(window.due());
             dto.setEffectiveLateUntil(window.lateUntil());
+            dto.setGroupSetId(assignment.getGroupSetId());
+            if (membership != null) {
+                dto.setGroupId(membership.getGroupId());
+                dto.setGroupName(groupNames.get(membership.getGroupId()));
+            }
 
             // Bu ödeve ait teslim var mı?
             submissions.stream()
                     .filter(sub -> sub.getAssignmentId().equals(assignment.getId()))
+                    .filter(sub -> !assignment.isGroupWork() || (membership != null && membership.getGroupId().equals(sub.getGroupId())))
                     .findFirst()
                     .ifPresent(submission -> {
                         normalizeSubmissionFileUrlIfNeeded(submission);
@@ -245,9 +280,11 @@ public class AssignmentService {
                         subDto.setSubmissionId(submission.getId());
                         subDto.setSubmittedAt(submission.getSubmittedAt());
                         if (assignment.gradesPublished()) {
-                            subDto.setGrade(submission.getGrade());
+                            BigDecimal grade = overrides.getOrDefault(submission.getId(), Map.of())
+                                    .getOrDefault(studentId, submission.getGrade());
+                            subDto.setGrade(grade);
                             subDto.setFeedback(submission.getFeedback());
-                            subDto.setFinalGrade(DeadlinePolicy.finalGrade(assignment, submission.getGrade(), submission.isLate()));
+                            subDto.setFinalGrade(DeadlinePolicy.finalGrade(assignment, grade, submission.isLate()));
                         }
                         subDto.setLate(submission.isLate());
                         subDto.setTextContent(submission.getTextContent());
@@ -277,6 +314,7 @@ public class AssignmentService {
         res.setMaxPoints(a.getMaxPoints());
         res.setGradesPublishedAt(a.getGradesPublishedAt());
         res.setLateUntil(a.getLateUntil());
+        res.setGroupSetId(a.getGroupSetId());
         res.setLatePenaltyPercent(a.getLatePenaltyPercent());
         return res;
     }
@@ -287,9 +325,17 @@ public class AssignmentService {
         Map<UUID, Assignment> assignments = assignmentRepository.findAllById(
                         submissions.stream().map(AssignmentSubmission::getAssignmentId).distinct().toList()).stream()
                 .collect(Collectors.toMap(Assignment::getId, a -> a));
+        Map<UUID, String> groupNames = groupRepository.findAllById(submissions.stream().map(AssignmentSubmission::getGroupId)
+                        .filter(Objects::nonNull).distinct().toList()).stream()
+                .collect(Collectors.toMap(CourseGroup::getId, CourseGroup::getName));
         return submissions.stream()
-                .map(submission -> mapToSubmissionSummary(submission, students.get(submission.getStudentId()),
-                        assignments.get(submission.getAssignmentId())))
+                .map(submission -> {
+                    SubmissionSummaryDTO dto = mapToSubmissionSummary(submission, students.get(submission.getStudentId()),
+                            assignments.get(submission.getAssignmentId()));
+                    dto.setGroupId(submission.getGroupId());
+                    dto.setGroupName(groupNames.get(submission.getGroupId()));
+                    return dto;
+                })
                 .collect(Collectors.toList());
     }
 

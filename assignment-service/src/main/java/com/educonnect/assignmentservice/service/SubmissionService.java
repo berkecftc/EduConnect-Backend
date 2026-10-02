@@ -3,8 +3,8 @@ package com.educonnect.assignmentservice.service;
 import com.educonnect.assignmentservice.dto.SubmissionVersionResponse;
 import com.educonnect.assignmentservice.model.Assignment;
 import com.educonnect.assignmentservice.model.AssignmentSubmission;
+import com.educonnect.assignmentservice.model.GroupMember;
 import com.educonnect.assignmentservice.model.SubmissionVersion;
-import com.educonnect.assignmentservice.repository.AssignmentExtensionRepository;
 import com.educonnect.assignmentservice.repository.AssignmentRepository;
 import com.educonnect.assignmentservice.repository.SubmissionRepository;
 import com.educonnect.assignmentservice.repository.SubmissionVersionRepository;
@@ -32,31 +32,35 @@ public class SubmissionService {
     private final AssignmentRepository assignmentRepository;
     private final SubmissionRepository submissionRepository;
     private final SubmissionVersionRepository versionRepository;
-    private final AssignmentExtensionRepository extensionRepository;
+    private final GroupWork groupWork;
     private final MinioService minioService;
+    private final StudentAssignmentCache studentCache;
     private final Clock clock;
 
     @Autowired
     public SubmissionService(AssignmentRepository assignmentRepository,
                              SubmissionRepository submissionRepository,
                              SubmissionVersionRepository versionRepository,
-                             AssignmentExtensionRepository extensionRepository,
-                             MinioService minioService) {
-        this(assignmentRepository, submissionRepository, versionRepository, extensionRepository, minioService,
-                Clock.systemDefaultZone());
+                             GroupWork groupWork,
+                             MinioService minioService,
+                             StudentAssignmentCache studentCache) {
+        this(assignmentRepository, submissionRepository, versionRepository, groupWork, minioService,
+                studentCache, Clock.systemDefaultZone());
     }
 
     SubmissionService(AssignmentRepository assignmentRepository,
                       SubmissionRepository submissionRepository,
                       SubmissionVersionRepository versionRepository,
-                      AssignmentExtensionRepository extensionRepository,
+                      GroupWork groupWork,
                       MinioService minioService,
+                      StudentAssignmentCache studentCache,
                       Clock clock) {
         this.assignmentRepository = assignmentRepository;
         this.submissionRepository = submissionRepository;
         this.versionRepository = versionRepository;
-        this.extensionRepository = extensionRepository;
+        this.groupWork = groupWork;
         this.minioService = minioService;
+        this.studentCache = studentCache;
         this.clock = clock;
     }
 
@@ -72,14 +76,18 @@ public class SubmissionService {
         if (body != null && body.length() > MAX_TEXT_LENGTH) {
             throw new BadRequestException("SUBMISSION_TOO_LONG", "Metin en fazla " + MAX_TEXT_LENGTH + " karakter olabilir.");
         }
-        DeadlinePolicy.Window window = DeadlinePolicy.window(assignment,
-                extensionRepository.findByAssignmentIdAndStudentId(assignmentId, studentId).orElse(null));
+        UUID groupId = null;
+        if (assignment.isGroupWork()) {
+            groupId = groupWork.membership(assignment, studentId).map(GroupMember::getGroupId)
+                    .orElseThrow(() -> new ConflictException("NOT_IN_GROUP", "Bu grup ödevini teslim etmek için bir grupta olmalısınız."));
+        }
+        DeadlinePolicy.Window window = groupWork.window(assignment, studentId);
         LocalDateTime now = LocalDateTime.now(clock);
         if (window.isClosed(now)) {
             throw new ConflictException("SUBMISSION_CLOSED", "Teslim süresi doldu.");
         }
         boolean late = window.isLate(now);
-        Optional<AssignmentSubmission> existing = submissionRepository.findByAssignmentIdAndStudentId(assignmentId, studentId);
+        Optional<AssignmentSubmission> existing = groupWork.submissionOf(assignment, studentId);
         existing.ifPresent(previous -> {
             if (previous.getGrade() != null) {
                 throw new ConflictException("SUBMISSION_GRADED", "Notlanmış bir teslim değiştirilemez.");
@@ -90,13 +98,18 @@ public class SubmissionService {
         });
         String fileUrl = hasFile ? minioService.normalizeToFullUrl(minioService.uploadFile(file)) : null;
         AssignmentSubmission submission = existing.orElseGet(() -> new AssignmentSubmission(assignmentId, studentId, null, late));
+        submission.setStudentId(studentId);
+        submission.setGroupId(groupId);
         submission.setSubmissionFileUrl(fileUrl);
         submission.setTextContent(body);
         submission.setSubmittedAt(now);
         submission.setLate(late);
         AssignmentSubmission saved = submissionRepository.save(submission);
         versionRepository.save(new SubmissionVersion(saved.getId(), versionRepository.countBySubmissionId(saved.getId()) + 1,
-                fileUrl, body, now, late));
+                fileUrl, body, now, late, studentId));
+        if (groupId != null) {
+            studentCache.evict(groupWork.membersByGroup(List.of(groupId)).getOrDefault(groupId, List.of()));
+        }
         return saved;
     }
 
@@ -104,7 +117,7 @@ public class SubmissionService {
     public List<SubmissionVersionResponse> versions(UUID submissionId) {
         return versionRepository.findBySubmissionIdOrderByVersionNoDesc(submissionId).stream()
                 .map(v -> new SubmissionVersionResponse(v.getVersionNo(), v.getFileUrl(), v.getTextContent(),
-                        v.getSubmittedAt(), v.isLate()))
+                        v.getSubmittedAt(), v.isLate(), v.getSubmittedBy()))
                 .toList();
     }
 }

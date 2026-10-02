@@ -8,6 +8,7 @@ import jakarta.validation.constraints.Size;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.UUID;
 
 public record AssignmentUpdateRequest(
         @Size(min = 1, max = 255, message = "Ödev başlığı 1-255 karakter olmalı") String title,
@@ -24,5 +25,7 @@ public record AssignmentUpdateRequest(
         Boolean clearLateUntil,
         @DecimalMin(value = "0", message = "Kesinti negatif olamaz")
         @DecimalMax(value = "100", message = "Kesinti en fazla 100 olabilir")
-        @Digits(integer = 3, fraction = 2, message = "Kesinti en fazla iki ondalık basamaklı olabilir") BigDecimal latePenaltyPercent) {
+        @Digits(integer = 3, fraction = 2, message = "Kesinti en fazla iki ondalık basamaklı olabilir") BigDecimal latePenaltyPercent,
+        UUID groupSetId,
+        Boolean clearGroupSet) {
 }
