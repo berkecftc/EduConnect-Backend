@@ -26,14 +26,17 @@ public class ExtensionService {
     private final AssignmentExtensionRepository extensionRepository;
     private final SubmissionRepository submissionRepository;
     private final StudentDirectory studentDirectory;
+    private final GroupWork groupWork;
     private final Clock clock = Clock.systemDefaultZone();
 
     public ExtensionService(AssignmentExtensionRepository extensionRepository,
                             SubmissionRepository submissionRepository,
+                            GroupWork groupWork,
                             StudentDirectory studentDirectory) {
         this.extensionRepository = extensionRepository;
         this.submissionRepository = submissionRepository;
         this.studentDirectory = studentDirectory;
+        this.groupWork = groupWork;
     }
 
     @Transactional(readOnly = true)
@@ -54,7 +57,7 @@ public class ExtensionService {
         String reason = request.reason() == null || request.reason().isBlank() ? null : request.reason().strip();
         extension.grant(request.dueDate(), reason, actorId, Instant.now(clock));
         AssignmentExtension saved = extensionRepository.save(extension);
-        refreshLateFlag(assignment, studentId, saved);
+        refreshLateFlag(assignment, studentId);
         return response(assignment, saved, studentDirectory.byId(List.of(studentId)).get(studentId));
     }
 
@@ -63,12 +66,14 @@ public class ExtensionService {
         AssignmentExtension extension = extensionRepository.findByAssignmentIdAndStudentId(assignment.getId(), studentId)
                 .orElseThrow(() -> new NotFoundException("EXTENSION_NOT_FOUND", "Bu öğrenci için süre uzatımı yok."));
         extensionRepository.delete(extension);
-        refreshLateFlag(assignment, studentId, null);
+        refreshLateFlag(assignment, studentId);
     }
 
-    private void refreshLateFlag(Assignment assignment, UUID studentId, AssignmentExtension extension) {
-        DeadlinePolicy.Window window = DeadlinePolicy.window(assignment, extension);
-        submissionRepository.findByAssignmentIdAndStudentId(assignment.getId(), studentId).ifPresent(submission -> {
+    private void refreshLateFlag(Assignment assignment, UUID studentId) {
+        groupWork.submissionOf(assignment, studentId).ifPresent(submission -> {
+            DeadlinePolicy.Window window = submission.getGroupId() != null
+                    ? groupWork.groupWindow(assignment, submission.getGroupId())
+                    : groupWork.window(assignment, studentId);
             boolean late = window.isLate(submission.getSubmittedAt());
             if (late != submission.isLate()) {
                 submission.setLate(late);

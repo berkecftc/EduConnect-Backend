@@ -17,7 +17,6 @@ import org.springframework.web.server.ResponseStatusException;
 
 import java.util.Arrays;
 import java.util.Set;
-import java.util.Objects;
 import java.util.UUID;
 
 @Component
@@ -33,15 +32,18 @@ public class AssignmentAccessGuard {
     private final AssignmentRepository assignmentRepository;
     private final SubmissionRepository submissionRepository;
     private final SubmissionVersionRepository versionRepository;
+    private final GroupWork groupWork;
 
     public AssignmentAccessGuard(CourseInternalClient courseInternalClient,
                                  AssignmentRepository assignmentRepository,
                                  SubmissionRepository submissionRepository,
-                                 SubmissionVersionRepository versionRepository) {
+                                 SubmissionVersionRepository versionRepository,
+                                 GroupWork groupWork) {
         this.courseInternalClient = courseInternalClient;
         this.assignmentRepository = assignmentRepository;
         this.submissionRepository = submissionRepository;
         this.versionRepository = versionRepository;
+        this.groupWork = groupWork;
     }
 
     public static UUID parseUserId(String userIdHeader) {
@@ -145,7 +147,7 @@ public class AssignmentAccessGuard {
     }
 
     public void requireSubmissionViewer(AssignmentSubmission submission, UUID userId, String rolesHeader) {
-        if (isAdmin(rolesHeader) || Objects.equals(submission.getStudentId(), userId)) {
+        if (isAdmin(rolesHeader) || groupWork.canSee(submission, userId)) {
             return;
         }
         requireStaff(getAssignment(submission.getAssignmentId()).getCourseId(), userId, rolesHeader);

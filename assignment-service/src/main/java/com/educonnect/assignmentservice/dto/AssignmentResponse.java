@@ -19,6 +19,7 @@ public class AssignmentResponse {
     private Instant gradesPublishedAt;
     private LocalDateTime lateUntil;
     private BigDecimal latePenaltyPercent;
+    private UUID groupSetId;
 
     // Getter & Setter
     public UUID getId() { return id; }
@@ -45,4 +46,6 @@ public class AssignmentResponse {
     public void setLateUntil(LocalDateTime lateUntil) { this.lateUntil = lateUntil; }
     public BigDecimal getLatePenaltyPercent() { return latePenaltyPercent; }
     public void setLatePenaltyPercent(BigDecimal latePenaltyPercent) { this.latePenaltyPercent = latePenaltyPercent; }
+    public UUID getGroupSetId() { return groupSetId; }
+    public void setGroupSetId(UUID groupSetId) { this.groupSetId = groupSetId; }
 }

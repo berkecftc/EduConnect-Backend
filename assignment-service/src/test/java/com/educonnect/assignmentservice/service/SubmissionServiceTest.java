@@ -6,6 +6,8 @@ import com.educonnect.assignmentservice.model.AssignmentSubmission;
 import com.educonnect.assignmentservice.model.SubmissionVersion;
 import com.educonnect.assignmentservice.repository.AssignmentExtensionRepository;
 import com.educonnect.assignmentservice.repository.AssignmentRepository;
+import com.educonnect.assignmentservice.repository.GroupMemberRepository;
+import com.educonnect.assignmentservice.repository.MemberGradeRepository;
 import com.educonnect.assignmentservice.repository.SubmissionRepository;
 import com.educonnect.assignmentservice.repository.SubmissionVersionRepository;
 import com.educonnect.common.web.ApiException;
@@ -48,6 +50,12 @@ class SubmissionServiceTest {
     private AssignmentExtensionRepository extensionRepository;
     @Mock
     private MinioService minioService;
+    @Mock
+    private GroupMemberRepository memberRepository;
+    @Mock
+    private MemberGradeRepository memberGradeRepository;
+    @Mock
+    private StudentAssignmentCache studentCache;
 
     private SubmissionService service;
 
@@ -57,8 +65,9 @@ class SubmissionServiceTest {
 
     @BeforeEach
     void setUp() {
-        service = new SubmissionService(assignmentRepository, submissionRepository, versionRepository, extensionRepository,
-                minioService, Clock.fixed(NOW.atZone(ZONE).toInstant(), ZONE));
+        service = new SubmissionService(assignmentRepository, submissionRepository, versionRepository,
+                new GroupWork(memberRepository, submissionRepository, extensionRepository, memberGradeRepository),
+                minioService, studentCache, Clock.fixed(NOW.atZone(ZONE).toInstant(), ZONE));
         assignment = new Assignment();
         assignment.setId(assignmentId);
         lenient().when(assignmentRepository.findById(assignmentId)).thenReturn(Optional.of(assignment));
@@ -75,7 +84,7 @@ class SubmissionServiceTest {
         AssignmentSubmission graded = new AssignmentSubmission(assignmentId, studentId, "old", false);
         graded.setGrade(BigDecimal.valueOf(85));
         noExtension();
-        when(submissionRepository.findByAssignmentIdAndStudentId(assignmentId, studentId)).thenReturn(Optional.of(graded));
+        when(submissionRepository.findByAssignmentIdAndStudentIdAndGroupIdIsNull(assignmentId, studentId)).thenReturn(Optional.of(graded));
 
         assertCode(() -> service.submit(assignmentId, studentId, null, "yeni"), "SUBMISSION_GRADED");
         assertThat(graded.getGrade()).isEqualByComparingTo("85");
@@ -87,7 +96,7 @@ class SubmissionServiceTest {
         assignment.setDueDate(NOW.plusDays(1));
         AssignmentSubmission previous = new AssignmentSubmission(assignmentId, studentId, "old", false);
         noExtension();
-        when(submissionRepository.findByAssignmentIdAndStudentId(assignmentId, studentId)).thenReturn(Optional.of(previous));
+        when(submissionRepository.findByAssignmentIdAndStudentIdAndGroupIdIsNull(assignmentId, studentId)).thenReturn(Optional.of(previous));
         whenSaved();
         when(versionRepository.countBySubmissionId(any())).thenReturn(1);
 
@@ -115,12 +124,12 @@ class SubmissionServiceTest {
         assignment.setDueDate(NOW.minusHours(1));
         assignment.setLateUntil(NOW.plusDays(1));
         noExtension();
-        when(submissionRepository.findByAssignmentIdAndStudentId(assignmentId, studentId)).thenReturn(Optional.empty());
+        when(submissionRepository.findByAssignmentIdAndStudentIdAndGroupIdIsNull(assignmentId, studentId)).thenReturn(Optional.empty());
         whenSaved();
 
         assertThat(service.submit(assignmentId, studentId, null, "geç").isLate()).isTrue();
 
-        when(submissionRepository.findByAssignmentIdAndStudentId(assignmentId, studentId))
+        when(submissionRepository.findByAssignmentIdAndStudentIdAndGroupIdIsNull(assignmentId, studentId))
                 .thenReturn(Optional.of(new AssignmentSubmission(assignmentId, studentId, null, true)));
         assertCode(() -> service.submit(assignmentId, studentId, null, "tekrar"), "RESUBMISSION_CLOSED");
     }
@@ -140,7 +149,7 @@ class SubmissionServiceTest {
         AssignmentExtension extension = new AssignmentExtension(assignmentId, studentId);
         extension.grant(NOW.plusDays(2), "Rapor", UUID.randomUUID(), Instant.now());
         when(extensionRepository.findByAssignmentIdAndStudentId(assignmentId, studentId)).thenReturn(Optional.of(extension));
-        when(submissionRepository.findByAssignmentIdAndStudentId(assignmentId, studentId)).thenReturn(Optional.empty());
+        when(submissionRepository.findByAssignmentIdAndStudentIdAndGroupIdIsNull(assignmentId, studentId)).thenReturn(Optional.empty());
         whenSaved();
 
         assertThat(service.submit(assignmentId, studentId, null, "raporlu").isLate()).isFalse();
@@ -149,7 +158,7 @@ class SubmissionServiceTest {
     @Test
     void anAssignmentWithoutADueDateStaysOpen() {
         noExtension();
-        when(submissionRepository.findByAssignmentIdAndStudentId(assignmentId, studentId)).thenReturn(Optional.empty());
+        when(submissionRepository.findByAssignmentIdAndStudentIdAndGroupIdIsNull(assignmentId, studentId)).thenReturn(Optional.empty());
         whenSaved();
 
         assertThat(service.submit(assignmentId, studentId, null, "cevap").isLate()).isFalse();

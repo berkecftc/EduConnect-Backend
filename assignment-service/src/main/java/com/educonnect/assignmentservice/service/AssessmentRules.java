@@ -7,6 +7,7 @@ import com.educonnect.assignmentservice.model.AssignmentChange;
 import com.educonnect.assignmentservice.model.AssignmentSubmission;
 import com.educonnect.assignmentservice.repository.AssignmentChangeRepository;
 import com.educonnect.assignmentservice.repository.AssignmentRepository;
+import com.educonnect.assignmentservice.repository.GroupSetRepository;
 import com.educonnect.assignmentservice.repository.SubmissionRepository;
 import com.educonnect.common.web.BadRequestException;
 import com.educonnect.common.web.ConflictException;
@@ -31,14 +32,17 @@ public class AssessmentRules {
     private final AssignmentRepository assignmentRepository;
     private final SubmissionRepository submissionRepository;
     private final AssignmentChangeRepository changeRepository;
+    private final GroupSetRepository groupSetRepository;
     private final Clock clock = Clock.systemDefaultZone();
 
     public AssessmentRules(AssignmentRepository assignmentRepository,
                            SubmissionRepository submissionRepository,
-                           AssignmentChangeRepository changeRepository) {
+                           AssignmentChangeRepository changeRepository,
+                           GroupSetRepository groupSetRepository) {
         this.assignmentRepository = assignmentRepository;
         this.submissionRepository = submissionRepository;
         this.changeRepository = changeRepository;
+        this.groupSetRepository = groupSetRepository;
     }
 
     public void requireWeightFits(UUID courseId, UUID assignmentId, BigDecimal weight) {
@@ -59,6 +63,13 @@ public class AssessmentRules {
     public static void requireLateWindow(LocalDateTime dueDate, LocalDateTime lateUntil) {
         if (lateUntil != null && dueDate != null && !lateUntil.isAfter(dueDate)) {
             throw new BadRequestException("INVALID_LATE_UNTIL", "Geç teslim bitişi son teslim tarihinden sonra olmalı.");
+        }
+    }
+
+    public void requireGroupSet(UUID courseId, UUID groupSetId) {
+        if (groupSetId != null && groupSetRepository.findById(groupSetId)
+                .filter(set -> set.getCourseId().equals(courseId)).isEmpty()) {
+            throw new BadRequestException("INVALID_GROUP_SET", "Grup seti bu derse ait değil.");
         }
     }
 
@@ -117,6 +128,17 @@ public class AssessmentRules {
             changes.add(change(assignment, "latePenalty", plain(assignment.getLatePenaltyPercent()),
                     plain(request.latePenaltyPercent()), actorId, now));
             assignment.setLatePenaltyPercent(request.latePenaltyPercent());
+        }
+        UUID groupSetId = Boolean.TRUE.equals(request.clearGroupSet()) ? null
+                : request.groupSetId() != null ? request.groupSetId() : assignment.getGroupSetId();
+        if (!Objects.equals(groupSetId, assignment.getGroupSetId())) {
+            if (!submissionRepository.findByAssignmentId(assignment.getId()).isEmpty()) {
+                throw new ConflictException("ASSIGNMENT_HAS_SUBMISSIONS", "Teslim alınmış ödevin grup ayarı değiştirilemez.");
+            }
+            requireGroupSet(assignment.getCourseId(), groupSetId);
+            changes.add(change(assignment, "groupSet", Objects.toString(assignment.getGroupSetId(), null),
+                    Objects.toString(groupSetId, null), actorId, now));
+            assignment.setGroupSetId(groupSetId);
         }
         requireLateWindow(assignment.getDueDate(), assignment.getLateUntil());
         Assignment saved = assignmentRepository.save(assignment);

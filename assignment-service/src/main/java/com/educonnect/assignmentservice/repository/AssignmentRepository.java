@@ -10,4 +10,5 @@ public interface AssignmentRepository extends JpaRepository<Assignment, UUID> {
     List<Assignment> findByCourseIdIn(java.util.Collection<UUID> courseIds);
     void deleteByCourseId(UUID courseId); // Ders silinince çalışacak
     java.util.Optional<Assignment> findFirstByFileUrl(String fileUrl);
+    boolean existsByGroupSetId(UUID groupSetId);
 }

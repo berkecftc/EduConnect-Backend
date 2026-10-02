@@ -10,8 +10,7 @@ import java.time.Instant;
 import org.hibernate.annotations.UpdateTimestamp;
 
 @Entity
-@Table(name = "assignment_submissions",
-        uniqueConstraints = @UniqueConstraint(columnNames = {"assignment_id", "student_id"}))
+@Table(name = "assignment_submissions")
 public class AssignmentSubmission {
 
     @Id
@@ -35,6 +34,9 @@ public class AssignmentSubmission {
 
     @Column(name = "student_id", nullable = false)
     private UUID studentId;
+
+    @Column(name = "group_id")
+    private UUID groupId;
 
     @Column(name = "submission_file_url")
     @Convert(converter = ObjectUrlConverter.class)
@@ -76,6 +78,8 @@ public class AssignmentSubmission {
 
     public UUID getStudentId() { return studentId; }
     public void setStudentId(UUID studentId) { this.studentId = studentId; }
+    public UUID getGroupId() { return groupId; }
+    public void setGroupId(UUID groupId) { this.groupId = groupId; }
 
     public String getSubmissionFileUrl() { return submissionFileUrl; }
     public void setSubmissionFileUrl(String submissionFileUrl) { this.submissionFileUrl = submissionFileUrl; }

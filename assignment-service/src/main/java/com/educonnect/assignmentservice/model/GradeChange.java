@@ -35,6 +35,9 @@ public class GradeChange {
     @Column(name = "changed_by")
     private UUID changedBy;
 
+    @Column(name = "student_id")
+    private UUID studentId;
+
     @Column(name = "changed_at", nullable = false)
     private Instant changedAt;
 
@@ -61,5 +64,11 @@ public class GradeChange {
     public boolean isAfterPublication() { return afterPublication; }
     public String getReason() { return reason; }
     public UUID getChangedBy() { return changedBy; }
+    public UUID getStudentId() { return studentId; }
+
+    public GradeChange forMember(UUID studentId) {
+        this.studentId = studentId;
+        return this;
+    }
     public Instant getChangedAt() { return changedAt; }
 }

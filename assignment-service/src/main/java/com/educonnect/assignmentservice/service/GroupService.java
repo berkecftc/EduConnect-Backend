@@ -7,9 +7,11 @@ import com.educonnect.assignmentservice.dto.GroupSetResponse;
 import com.educonnect.assignmentservice.model.CourseGroup;
 import com.educonnect.assignmentservice.model.GroupMember;
 import com.educonnect.assignmentservice.model.GroupSet;
+import com.educonnect.assignmentservice.repository.AssignmentRepository;
 import com.educonnect.assignmentservice.repository.CourseGroupRepository;
 import com.educonnect.assignmentservice.repository.GroupMemberRepository;
 import com.educonnect.assignmentservice.repository.GroupSetRepository;
+import com.educonnect.assignmentservice.repository.SubmissionRepository;
 import com.educonnect.common.web.ConflictException;
 import com.educonnect.common.web.NotFoundException;
 import org.springframework.stereotype.Service;
@@ -32,16 +34,25 @@ public class GroupService {
     private final CourseGroupRepository groupRepository;
     private final GroupMemberRepository memberRepository;
     private final StudentDirectory studentDirectory;
+    private final AssignmentRepository assignmentRepository;
+    private final SubmissionRepository submissionRepository;
+    private final StudentAssignmentCache studentCache;
     private final Clock clock = Clock.systemDefaultZone();
 
     public GroupService(GroupSetRepository setRepository,
                         CourseGroupRepository groupRepository,
                         GroupMemberRepository memberRepository,
-                        StudentDirectory studentDirectory) {
+                        StudentDirectory studentDirectory,
+                        AssignmentRepository assignmentRepository,
+                        SubmissionRepository submissionRepository,
+                        StudentAssignmentCache studentCache) {
         this.setRepository = setRepository;
         this.groupRepository = groupRepository;
         this.memberRepository = memberRepository;
         this.studentDirectory = studentDirectory;
+        this.assignmentRepository = assignmentRepository;
+        this.submissionRepository = submissionRepository;
+        this.studentCache = studentCache;
     }
 
     @Transactional(readOnly = true)
@@ -106,6 +117,10 @@ public class GroupService {
     }
 
     public void deleteSet(GroupSet set) {
+        if (assignmentRepository.existsByGroupSetId(set.getId())) {
+            throw new ConflictException("GROUP_SET_IN_USE", "Bu grup seti bir ödevde kullanılıyor; önce ödevin grup ayarını kaldırın.");
+        }
+        studentCache.evict(memberRepository.findByGroupSetIdIn(List.of(set.getId())).stream().map(GroupMember::getStudentId).toList());
         setRepository.delete(set);
     }
 
@@ -118,6 +133,10 @@ public class GroupService {
     }
 
     public void deleteGroup(CourseGroup group) {
+        if (submissionRepository.existsByGroupId(group.getId())) {
+            throw new ConflictException("GROUP_HAS_SUBMISSIONS", "Teslim yapmış grup silinemez.");
+        }
+        studentCache.evict(memberRepository.findByGroupId(group.getId()).stream().map(GroupMember::getStudentId).toList());
         groupRepository.delete(group);
     }
 
@@ -136,6 +155,7 @@ public class GroupService {
         } else {
             memberRepository.save(new GroupMember(locked, studentId, actorId, now));
         }
+        studentCache.evict(List.of(studentId));
     }
 
     public void removeMember(CourseGroup group, UUID studentId) {
@@ -143,6 +163,7 @@ public class GroupService {
                 .filter(m -> m.getGroupId().equals(group.getId()))
                 .orElseThrow(() -> new NotFoundException("GROUP_MEMBER_NOT_FOUND", "Öğrenci bu grupta değil."));
         memberRepository.delete(member);
+        studentCache.evict(List.of(studentId));
     }
 
     public void join(CourseGroup group, UUID studentId) {
@@ -154,10 +175,14 @@ public class GroupService {
         }
         requireRoom(set, locked);
         memberRepository.save(new GroupMember(locked, studentId, studentId, Instant.now(clock)));
+        studentCache.evict(List.of(studentId));
     }
 
     public void leave(CourseGroup group, UUID studentId) {
         requireSignupOpen(set(group.getGroupSetId()));
+        if (submissionRepository.existsByGroupId(group.getId())) {
+            throw new ConflictException("GROUP_HAS_SUBMISSIONS", "Grubunuz teslim yaptığı için gruptan ayrılamazsınız; hocanıza başvurun.");
+        }
         removeMember(group, studentId);
     }
 

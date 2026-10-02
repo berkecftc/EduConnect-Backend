@@ -12,7 +12,13 @@ import java.util.UUID;
 public interface SubmissionRepository extends JpaRepository<AssignmentSubmission, UUID> {
 
     // Öğrencinin belirli bir ödeve yaptığı teslimi bul (tekrar teslim için)
-    Optional<AssignmentSubmission> findByAssignmentIdAndStudentId(UUID assignmentId, UUID studentId);
+    Optional<AssignmentSubmission> findByAssignmentIdAndStudentIdAndGroupIdIsNull(UUID assignmentId, UUID studentId);
+
+    Optional<AssignmentSubmission> findByAssignmentIdAndGroupId(UUID assignmentId, UUID groupId);
+
+    List<AssignmentSubmission> findByGroupIdIn(java.util.Collection<UUID> groupIds);
+
+    boolean existsByGroupId(UUID groupId);
 
     // Öğrencinin tüm ödev teslimlerini getir
     List<AssignmentSubmission> findByStudentId(UUID studentId);
@@ -27,4 +33,3 @@ public interface SubmissionRepository extends JpaRepository<AssignmentSubmission
 
     Optional<AssignmentSubmission> findFirstBySubmissionFileUrl(String submissionFileUrl);
 }
-
