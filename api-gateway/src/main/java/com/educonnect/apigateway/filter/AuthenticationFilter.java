@@ -32,7 +32,7 @@ public class AuthenticationFilter extends AbstractGatewayFilterFactory<Authentic
             new PublicEndpoint(HttpMethod.POST, "^/api/auth/(register|login|refresh|logout|forgot-password|reset-password"
                     + "|request/academician-account|request/student-account|resend-verification)$"),
             new PublicEndpoint(HttpMethod.GET, "^/api/auth/verify-email$"),
-            new PublicEndpoint(HttpMethod.GET, "^/api/auth/email-change/confirm$"),
+            new PublicEndpoint(HttpMethod.POST, "^/api/auth/email-change/confirm$"),
             new PublicEndpoint(HttpMethod.GET, "^/api/clubs$"),
             new PublicEndpoint(HttpMethod.GET, "^/api/clubs/" + UUID_SEGMENT + "$"),
             new PublicEndpoint(HttpMethod.GET, "^/api/events$"),

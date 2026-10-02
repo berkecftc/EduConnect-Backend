@@ -109,7 +109,7 @@ public class EmailChangeService {
                 clock.instant().plus(settings.tokenTtl())));
         outboxPublisher.publish(RabbitMQConfig.EXCHANGE_NAME, RabbitMQConfig.EMAIL_VERIFICATION_ROUTING_KEY,
                 new EmailVerificationMessage(newEmail, null,
-                        links.publicApiBaseUrl() + "/api/auth/email-change/confirm?token=" + rawToken,
+                        links.frontendBaseUrl() + "/email-change/confirm?token=" + rawToken,
                         settings.tokenTtl().toHours(), EmailVerificationMessage.EMAIL_CHANGE));
         LOGGER.info("E-posta değişikliği için doğrulama bağlantısı gönderildi. UserID: {}", user.getId());
         return Result.VERIFICATION_SENT;
@@ -135,10 +135,6 @@ public class EmailChangeService {
         }
         apply(user.get(), token.get().getNewEmail());
         return true;
-    }
-
-    public String loginRedirectUrl(boolean changed) {
-        return links.frontendBaseUrl() + "/login?emailChanged=" + changed;
     }
 
     @Scheduled(cron = "0 40 3 * * ?")

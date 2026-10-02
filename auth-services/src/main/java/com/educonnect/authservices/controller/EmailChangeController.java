@@ -1,5 +1,6 @@
 package com.educonnect.authservices.controller;
 
+import com.educonnect.authservices.dto.request.EmailChangeConfirmRequest;
 import com.educonnect.authservices.dto.request.EmailChangeRequest;
 import com.educonnect.authservices.service.EmailChangeService;
 import com.educonnect.common.web.ApiException;
@@ -8,14 +9,11 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.userdetails.UserDetails;
-import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.net.URI;
 import java.util.Map;
 
 @RestController
@@ -40,11 +38,13 @@ public class EmailChangeController {
         return ResponseEntity.status(HttpStatus.ACCEPTED).body(Map.of("status", result.name(), "message", message));
     }
 
-    @GetMapping("/confirm")
-    public ResponseEntity<Void> confirm(@RequestParam(value = "token", required = false) String token) {
-        boolean changed = emailChangeService.confirm(token);
-        return ResponseEntity.status(HttpStatus.FOUND)
-                .location(URI.create(emailChangeService.loginRedirectUrl(changed)))
-                .build();
+    @PostMapping("/confirm")
+    public ResponseEntity<Map<String, String>> confirm(@Valid @RequestBody EmailChangeConfirmRequest request) {
+        if (!emailChangeService.confirm(request.token())) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "EMAIL_CHANGE_LINK_INVALID",
+                    "Bağlantı geçersiz veya süresi dolmuş. E-posta değişikliğini yeniden başlatın.");
+        }
+        return ResponseEntity.ok(Map.of("status", "CHANGED",
+                "message", "E-posta adresiniz değiştirildi. Yeni adresinizle tekrar giriş yapın."));
     }
 }
