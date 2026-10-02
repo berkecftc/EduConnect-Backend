@@ -27,6 +27,7 @@ public record EventResponse(UUID id,
                             String imageUrl,
                             UUID clubId,
                             String clubName,
+                            String organizerName,
                             EventStatus status,
                             Instant createdAt,
                             Instant updatedAt,
@@ -39,7 +40,7 @@ public record EventResponse(UUID id,
                 event.getAudience(), event.getAdmission(), event.getCapacity(), event.getRegistrationOpensAt(),
                 event.getStartsAt() == null ? null : event.effectiveRegistrationClose(),
                 event.getStartsAt() == null ? null : event.effectiveCancelUntil(),
-                event.getLocation(), event.getImageUrl(), event.getClubId(), event.getClubName(), event.getStatus(),
+                event.getLocation(), event.getImageUrl(), event.getClubId(), event.getClubName(), event.getOrganizerName(), event.getStatus(),
                 event.getCreatedAt(), event.getUpdatedAt(), event.getRejectionReason(), event.getCancellationReason());
     }
 

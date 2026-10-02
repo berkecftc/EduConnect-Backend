@@ -52,6 +52,8 @@ public interface EventRepository extends JpaRepository<Event, UUID> {
 
     List<Event> findByStatusInAndStartsAtBefore(Collection<EventStatus> statuses, LocalDateTime moment);
 
+    List<Event> findByClubIdIsNullOrderByStartsAtDesc();
+
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select e from Event e where e.id = :id")
     Optional<Event> findByIdForUpdate(@Param("id") UUID id);

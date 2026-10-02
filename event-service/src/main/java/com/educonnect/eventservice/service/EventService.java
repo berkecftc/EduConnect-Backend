@@ -4,6 +4,7 @@ import com.educonnect.common.web.ApiException;
 import com.educonnect.common.web.BadRequestException;
 import com.educonnect.eventservice.client.ClubClient;
 import com.educonnect.eventservice.config.ApprovalChainSettings;
+import com.educonnect.eventservice.dto.request.CampusEventRequest;
 import com.educonnect.eventservice.dto.request.CreateEventRequest;
 import com.educonnect.eventservice.dto.response.ClubAccess;
 import com.educonnect.eventservice.model.AdmissionMode;
@@ -57,6 +58,47 @@ public class EventService {
         this.eventCaches = eventCaches;
         this.approvalChain = approvalChain;
         this.schedule = schedule;
+    }
+
+    public Event createCampusEvent(CampusEventRequest request, MultipartFile posterFile, UUID creatorId) {
+        boolean hasPoster = posterFile != null && !posterFile.isEmpty();
+        if (hasPoster) {
+            minioService.validateImage(posterFile);
+        }
+        LocalDateTime endsAt = schedule.endOrDefault(request.startsAt(), request.endsAt());
+        schedule.requireValidNewSchedule(request.startsAt(), endsAt);
+        schedule.requireValidRegistration(request.startsAt(), request.registrationOpensAt(), request.registrationClosesAt(),
+                request.cancelUntil());
+
+        Event event = new Event();
+        event.setTitle(request.title().strip());
+        event.setDescription(request.description());
+        event.setStartsAt(request.startsAt());
+        event.setEndsAt(endsAt);
+        event.setLocation(request.location());
+        event.setSpeakers(request.speakers() == null || request.speakers().isBlank() ? null : request.speakers().strip());
+        event.setOrganizerName(request.organizerName().strip());
+        event.setAudience(EventAudience.CAMPUS);
+        event.setAdmission(request.admission() != null ? request.admission() : AdmissionMode.AUTO_CONFIRM);
+        event.setCapacity(request.capacity());
+        event.setRegistrationOpensAt(request.registrationOpensAt());
+        event.setRegistrationClosesAt(request.registrationClosesAt());
+        event.setCancelUntil(request.cancelUntil());
+        event.setCreatedByStudentId(creatorId);
+        event.setStatus(EventStatus.ACTIVE);
+        event.setPublishedAt(LocalDateTime.now());
+        Event saved = eventRepository.save(event);
+        if (hasPoster) {
+            saved.setImageUrl(minioService.uploadFile(posterFile, "events", saved.getId().toString()));
+            saved = eventRepository.save(saved);
+        }
+        eventCaches.evictEventListings(saved);
+        log.info("Campus event published: eventId={}, by={}", saved.getId(), creatorId);
+        return saved;
+    }
+
+    public List<Event> campusEvents() {
+        return eventRepository.findByClubIdIsNullOrderByStartsAtDesc();
     }
 
     public Event createEvent(CreateEventRequest request, MultipartFile posterFile, UUID creatorId) {

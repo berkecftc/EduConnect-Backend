@@ -85,8 +85,8 @@ public class EventChangeService {
         if (resubmission && note == null) {
             throw new BadRequestException("RESUBMISSION_NOTE_REQUIRED", "Reddedilen etkinliği yeniden göndermek için düzeltme notu zorunludur.");
         }
-        if (request.audience() == EventAudience.CAMPUS) {
-            throw new BadRequestException("AUDIENCE_NOT_ALLOWED", "Kulüp etkinliği yalnız üyelere veya tüm öğrencilere açılabilir.");
+        if (request.audience() != null && (request.audience() == EventAudience.CAMPUS) != event.isCampus()) {
+            throw new BadRequestException("AUDIENCE_NOT_ALLOWED", "Kampüs etkinliği kampüse, kulüp etkinliği üyelere veya tüm öğrencilere açılır.");
         }
 
         if (request.title() != null && !request.title().isBlank()) {
@@ -132,7 +132,7 @@ public class EventChangeService {
 
         if (resubmission) {
             event.setRejectionReason(null);
-            event.setStatus(approvalChain.enabled() && !access.has(EventAuthorizationService.APPROVE_AS_PRESIDENT)
+            event.setStatus(approvalChain.enabled() && access != null && !access.has(EventAuthorizationService.APPROVE_AS_PRESIDENT)
                     ? EventStatus.PENDING_PRESIDENT
                     : EventStatus.PENDING);
         }
@@ -145,7 +145,7 @@ public class EventChangeService {
 
     public Event postpone(UUID eventId, UUID actorId, EventChangeRequest request) {
         Event event = event(eventId);
-        authorizationService.require(event.getClubId(), actorId, EventAuthorizationService.CREATE_EVENT);
+        authorizationService.requireOrganizer(event, actorId, EventAuthorizationService.CREATE_EVENT);
         requireActiveNotStarted(event);
         if (request.startsAt() == null) {
             throw new BadRequestException("NEW_START_REQUIRED", "Yeni başlangıç zamanı zorunludur.");
@@ -162,7 +162,7 @@ public class EventChangeService {
         if (event.getCancelUntil() != null && event.getCancelUntil().isAfter(request.startsAt())) {
             event.setCancelUntil(null);
         }
-        event.setStatus(EventStatus.PENDING);
+        event.setStatus(event.isCampus() ? EventStatus.ACTIVE : EventStatus.PENDING);
         Event saved = eventRepository.save(event);
         record(saved, EventChangeKind.POSTPONED, details, request.reason(), actorId);
         return saved;
@@ -170,7 +170,7 @@ public class EventChangeService {
 
     public Event relocate(UUID eventId, UUID actorId, EventChangeRequest request) {
         Event event = event(eventId);
-        authorizationService.require(event.getClubId(), actorId, EventAuthorizationService.CREATE_EVENT);
+        authorizationService.requireOrganizer(event, actorId, EventAuthorizationService.CREATE_EVENT);
         if (event.getStatus() != EventStatus.ACTIVE || !event.getEndsAt().isAfter(schedule.now())) {
             throw new ConflictException("EVENT_NOT_CHANGEABLE", "Yalnız yayımlanmış ve bitmemiş etkinliğin yeri değiştirilebilir.");
         }
@@ -186,9 +186,13 @@ public class EventChangeService {
 
     public Event cancel(UUID eventId, UUID actorId, EventChangeRequest request) {
         Event event = event(eventId);
-        ClubAccess access = authorizationService.accessOf(event.getClubId(), actorId);
-        if (!access.has(EventAuthorizationService.CREATE_EVENT) && !access.has(EventAuthorizationService.ADVISE)) {
-            throw new ForbiddenException("Etkinliği yalnız kulüp başkanı veya danışmanı iptal edebilir.");
+        if (event.isCampus()) {
+            authorizationService.requireOrganizer(event, actorId, EventAuthorizationService.CREATE_EVENT);
+        } else {
+            ClubAccess access = authorizationService.accessOf(event.getClubId(), actorId);
+            if (!access.has(EventAuthorizationService.CREATE_EVENT) && !access.has(EventAuthorizationService.ADVISE)) {
+                throw new ForbiddenException("Etkinliği yalnız kulüp başkanı veya danışmanı iptal edebilir.");
+            }
         }
         if (!CANCELLABLE.contains(event.getStatus()) || !event.getEndsAt().isAfter(schedule.now())) {
             throw new ConflictException("EVENT_NOT_CHANGEABLE", "Bu etkinlik artık iptal edilemez.");
@@ -230,6 +234,10 @@ public class EventChangeService {
     }
 
     private ClubAccess requirePreparer(Event event, UUID actorId) {
+        if (event.isCampus()) {
+            authorizationService.requireOrganizer(event, actorId, EventAuthorizationService.PREPARE_EVENT);
+            return null;
+        }
         ClubAccess access = authorizationService.accessOf(event.getClubId(), actorId);
         if (!access.has(EventAuthorizationService.PREPARE_EVENT) && !access.has(EventAuthorizationService.CREATE_EVENT)) {
             throw new ForbiddenException("Bu etkinliği düzenleme yetkiniz yok.");

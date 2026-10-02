@@ -73,11 +73,12 @@ public class Event {
     @Convert(converter = ObjectUrlConverter.class)
     private String imageUrl; // Afiş (MinIO URL)
 
-    @Column(nullable = false)
     private UUID clubId; // Hangi kulüp düzenliyor?
 
-    @Column(nullable = false)
     private String clubName; // Performans için kulüp adını da burada tutabiliriz (Denormalizasyon)
+
+    @Column(name = "organizer_name", length = 200)
+    private String organizerName;
 
     // Etkinlik durumu (ACTIVE, CANCELLED, COMPLETED)
     @Enumerated(EnumType.STRING)
@@ -121,6 +122,12 @@ public class Event {
     public void setCancellationReason(String cancellationReason) { this.cancellationReason = cancellationReason; }
     public LocalDateTime getPublishedAt() { return publishedAt; }
     public void setPublishedAt(LocalDateTime publishedAt) { this.publishedAt = publishedAt; }
+    public String getOrganizerName() { return organizerName; }
+    public void setOrganizerName(String organizerName) { this.organizerName = organizerName; }
+
+    public boolean isCampus() {
+        return clubId == null;
+    }
 
     public LocalDateTime effectiveRegistrationClose() {
         return registrationClosesAt != null ? registrationClosesAt : startsAt;
