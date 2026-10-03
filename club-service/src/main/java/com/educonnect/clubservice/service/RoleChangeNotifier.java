@@ -1,71 +1,41 @@
 package com.educonnect.clubservice.service;
 
-import com.educonnect.clubservice.config.ClubRabbitMQConfig;
-import com.educonnect.clubservice.dto.message.RoleChangeNotificationMessage;
 import com.educonnect.clubservice.model.Club;
-import com.educonnect.clubservice.model.ClubApprovalRequest;
-import com.educonnect.clubservice.model.ClubPosition;
-import com.educonnect.common.messaging.outbox.OutboxPublisher;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import com.educonnect.common.messaging.notification.NotificationCategory;
 import org.springframework.stereotype.Component;
 
+import java.util.List;
 import java.util.UUID;
 
 @Component
 class RoleChangeNotifier {
 
-    private static final Logger log = LoggerFactory.getLogger(RoleChangeNotifier.class);
+    static final String TYPE = "CLUB_ROLE_CHANGE";
 
-    private static final String ROUTING_KEY_ROLE_CHANGE_NOTIFICATION = "club.role.change.notification";
+    enum Notice {
+        REQUEST("Görev değişikliği talebi"),
+        APPROVED("Görev değişikliği onaylandı"),
+        REJECTED("Görev değişikliği reddedildi"),
+        REVOKED("Göreviniz sonlandırıldı");
 
-    private final OutboxPublisher outboxPublisher;
-    private final RoleChangeUserNames userNames;
+        private final String subject;
 
-    RoleChangeNotifier(OutboxPublisher outboxPublisher, RoleChangeUserNames userNames) {
-        this.outboxPublisher = outboxPublisher;
-        this.userNames = userNames;
+        Notice(String subject) {
+            this.subject = subject;
+        }
     }
 
-    static ClubPosition previousRoleOf(ClubApprovalRequest request) {
-        return request.getCurrentPosition() != null ? request.getCurrentPosition() : ClubPosition.MEMBER;
+    private final ClubNotificationPublisher publisher;
+
+    RoleChangeNotifier(ClubNotificationPublisher publisher) {
+        this.publisher = publisher;
     }
 
-    void notifyAdvisor(Club club, ClubApprovalRequest request, String message) {
-        String studentName = userNames.nameOf(request.getSubjectUserId());
-        send(club.getAcademicAdvisorId(), club, request.getSubjectUserId(), studentName,
-                previousRoleOf(request), request.getRequestedPosition(),
-                RoleChangeNotificationMessage.Status.PENDING, message,
-                RoleChangeNotificationMessage.Type.ROLE_CHANGE_REQUEST);
-    }
-
-    void send(UUID targetUserId, Club club, UUID affectedStudentId, String affectedStudentName,
-              ClubPosition previousRole, ClubPosition newRole, RoleChangeNotificationMessage.Status status,
-              String message, RoleChangeNotificationMessage.Type type) {
+    void send(UUID targetUserId, Club club, Notice notice, String message) {
         if (targetUserId == null) {
             return;
         }
-        try {
-            RoleChangeNotificationMessage notificationMessage = new RoleChangeNotificationMessage(
-                    targetUserId,
-                    club.getId(),
-                    club.getName(),
-                    affectedStudentId,
-                    affectedStudentName,
-                    previousRole.name(),
-                    newRole.name(),
-                    status.name(),
-                    message,
-                    type.name()
-            );
-
-            outboxPublisher.publish(
-                    ClubRabbitMQConfig.CLUB_EXCHANGE_NAME,
-                    ROUTING_KEY_ROLE_CHANGE_NOTIFICATION,
-                    notificationMessage
-            );
-        } catch (Exception e) {
-            log.error("Failed to send role change notification: {}", e.getMessage(), e);
-        }
+        publisher.notifyUsers(List.of(targetUserId), club, NotificationCategory.CLUB_MANAGEMENT, TYPE, notice.subject,
+                message);
     }
 }

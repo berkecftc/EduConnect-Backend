@@ -10,6 +10,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import com.educonnect.clubservice.service.ClubLeadershipService;
 
 import java.util.List;
 import java.util.Map;
@@ -21,10 +22,13 @@ public class InternalClubController {
 
     private final ClubQueryService clubQueryService;
     private final ClubAuthorizationService clubAuthorizationService;
+    private final ClubLeadershipService leadershipService;
 
-    public InternalClubController(ClubQueryService clubQueryService, ClubAuthorizationService clubAuthorizationService) {
+    public InternalClubController(ClubQueryService clubQueryService, ClubAuthorizationService clubAuthorizationService,
+                                  ClubLeadershipService leadershipService) {
         this.clubQueryService = clubQueryService;
         this.clubAuthorizationService = clubAuthorizationService;
+        this.leadershipService = leadershipService;
     }
 
     @GetMapping("/catalog")
@@ -45,6 +49,11 @@ public class InternalClubController {
     @GetMapping("/managers/{viewerId}/students/{studentId}")
     public ResponseEntity<Map<String, Boolean>> managesStudent(@PathVariable UUID viewerId, @PathVariable UUID studentId) {
         return ResponseEntity.ok(Map.of("related", clubQueryService.managesStudent(viewerId, studentId)));
+    }
+
+    @GetMapping("/{clubId}/leader-ids")
+    public ResponseEntity<List<UUID>> getClubLeaderIds(@PathVariable UUID clubId) {
+        return ResponseEntity.ok(leadershipService.currentLeaderOf(clubId).map(List::of).orElse(List.of()));
     }
 
     @GetMapping("/{clubId}/advisor-id")

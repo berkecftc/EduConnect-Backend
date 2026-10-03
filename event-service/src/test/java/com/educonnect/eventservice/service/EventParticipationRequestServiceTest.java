@@ -48,7 +48,8 @@ class EventParticipationRequestServiceTest {
         clubClient = mock(ClubClient.class);
         authorizationService = mock(EventAuthorizationService.class);
         service = new EventParticipationRequestService(requestRepository, eventRepository, registrationRepository,
-                authorizationService, mock(OutboxPublisher.class), clubClient, mock(EventCaches.class));
+                authorizationService, mock(OutboxPublisher.class), clubClient, mock(EventCaches.class),
+                mock(EventNotifier.class));
 
         event = new Event();
         event.setId(eventId);

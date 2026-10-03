@@ -31,19 +31,22 @@ public class EventAdvisorService {
     private final EventAuthorizationService eventAuthorizationService;
     private final EventCaches eventCaches;
     private final EventSchedule schedule;
+    private final EventNotifier notifier;
 
     public EventAdvisorService(EventRepository eventRepository,
                                OutboxPublisher outboxPublisher,
                                ClubClient clubClient,
                                EventAuthorizationService eventAuthorizationService,
                                EventCaches eventCaches,
-                               EventSchedule schedule) {
+                               EventSchedule schedule,
+                               EventNotifier notifier) {
         this.eventRepository = eventRepository;
         this.outboxPublisher = outboxPublisher;
         this.clubClient = clubClient;
         this.eventAuthorizationService = eventAuthorizationService;
         this.eventCaches = eventCaches;
         this.schedule = schedule;
+        this.notifier = notifier;
     }
 
     public List<Event> getAllEventsForAdvisor(UUID advisorId) {
@@ -83,6 +86,7 @@ public class EventAdvisorService {
         }
         Event savedEvent = eventRepository.save(event);
         eventCaches.evictEvent(savedEvent);
+        notifier.decided(savedEvent, true, null, null);
         if (!firstPublication) {
             return savedEvent;
         }
@@ -123,6 +127,7 @@ public class EventAdvisorService {
 
         Event savedEvent = eventRepository.save(event);
         eventCaches.evictEvent(savedEvent);
+        notifier.decided(savedEvent, false, "kulüp danışmanı", reason);
         return savedEvent;
     }
 

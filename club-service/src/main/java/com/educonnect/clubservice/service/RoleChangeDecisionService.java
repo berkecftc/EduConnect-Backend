@@ -1,7 +1,5 @@
 package com.educonnect.clubservice.service;
 
-import com.educonnect.clubservice.dto.message.RoleChangeNotificationMessage.Status;
-import com.educonnect.clubservice.dto.message.RoleChangeNotificationMessage.Type;
 import com.educonnect.clubservice.dto.request.RejectRoleChangeRequestDTO;
 import com.educonnect.clubservice.dto.response.RoleChangeRequestDTO;
 import com.educonnect.clubservice.model.ApprovalStatus;
@@ -124,13 +122,11 @@ public class RoleChangeDecisionService {
         log.info("President removed by advisor: clubId={}, studentId={}, advisorId={}",
                 clubId, president.getStudentId(), advisorId);
 
-        String studentName = userNames.nameOf(president.getStudentId());
         String message = "Kulüp başkanlığı göreviniz danışman kararıyla sonlandırıldı.";
         if (reason != null && !reason.isBlank()) {
             message += " Neden: " + reason;
         }
-        notifier.send(president.getStudentId(), club, president.getStudentId(), studentName,
-                ClubPosition.PRESIDENT, ClubPosition.MEMBER, Status.APPROVED, message, Type.ROLE_REVOKED);
+        notifier.send(president.getStudentId(), club, RoleChangeNotifier.Notice.REVOKED, message);
         leadershipService.handlePresidencyVacancy(clubId);
     }
 

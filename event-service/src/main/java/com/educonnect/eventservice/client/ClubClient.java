@@ -31,6 +31,9 @@ public interface ClubClient {
      * @param advisorId Danışman akademisyen ID'si
      * @return Kulüp ID listesi
      */
+    @GetMapping("/{clubId}/leader-ids")
+    List<UUID> getClubLeaderIds(@PathVariable("clubId") UUID clubId);
+
     @GetMapping("/by-advisor/{advisorId}/ids")
     List<UUID> getClubIdsByAdvisorId(@PathVariable("advisorId") UUID advisorId);
 

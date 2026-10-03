@@ -1,7 +1,5 @@
 package com.educonnect.clubservice.service;
 
-import com.educonnect.clubservice.dto.message.RoleChangeNotificationMessage.Status;
-import com.educonnect.clubservice.dto.message.RoleChangeNotificationMessage.Type;
 import com.educonnect.clubservice.model.ApprovalType;
 import com.educonnect.clubservice.model.Club;
 import com.educonnect.clubservice.model.ClubApprovalRequest;
@@ -60,9 +58,8 @@ class RoleChangeApprovalHandler implements ApprovalHandler {
         String message = request.getRequestedPosition() == ClubPosition.MEMBER
                 ? "Yeni bir görevden alma talebi onayınızı bekliyor."
                 : "Yeni görev değişikliği talebi onayınızı bekliyor.";
-        notifier.send(deciderId, club, request.getSubjectUserId(), userNames.nameOf(request.getSubjectUserId()),
-                RoleChangeNotifier.previousRoleOf(request), request.getRequestedPosition(),
-                Status.PENDING, message, Type.ROLE_CHANGE_REQUEST);
+        notifier.send(deciderId, club, RoleChangeNotifier.Notice.REQUEST,
+                userNames.nameOf(request.getSubjectUserId()) + ": " + message);
     }
 
     @Override
@@ -86,13 +83,14 @@ class RoleChangeApprovalHandler implements ApprovalHandler {
         String studentMessage = newRole == ClubPosition.MEMBER
                 ? "Kulüpteki göreviniz sonlandırıldı."
                 : "Görev değişikliği talebiniz onaylandı! Yeni göreviniz: " + newRole.displayName();
-        notifier.send(request.getSubjectUserId(), club, request.getSubjectUserId(), studentName,
-                previousRole, newRole, Status.APPROVED, studentMessage, Type.ROLE_CHANGE_APPROVED);
+        notifier.send(request.getSubjectUserId(), club,
+                newRole == ClubPosition.MEMBER ? RoleChangeNotifier.Notice.REVOKED : RoleChangeNotifier.Notice.APPROVED,
+                studentMessage);
         leadershipService.currentLeaderOf(club.getId())
                 .filter(leaderId -> !leaderId.equals(request.getSubjectUserId()))
-                .ifPresent(leaderId -> notifier.send(leaderId, club, request.getSubjectUserId(), studentName,
-                        previousRole, newRole, Status.APPROVED, studentName + " için görev değişikliği onaylandı.",
-                        Type.ROLE_CHANGE_APPROVED));
+                .ifPresent(leaderId -> notifier.send(leaderId, club, RoleChangeNotifier.Notice.APPROVED,
+                        studentName + " için görev değişikliği onaylandı: " + previousRole.displayName() + " → "
+                                + newRole.displayName()));
     }
 
     @Override
@@ -102,13 +100,10 @@ class RoleChangeApprovalHandler implements ApprovalHandler {
         if (request.getRejectionReason() != null) {
             rejectionMessage += " Neden: " + request.getRejectionReason();
         }
-        ClubPosition previousRole = RoleChangeNotifier.previousRoleOf(request);
-        notifier.send(request.getSubjectUserId(), club, request.getSubjectUserId(), studentName,
-                previousRole, request.getRequestedPosition(), Status.REJECTED, rejectionMessage, Type.ROLE_CHANGE_REJECTED);
+        notifier.send(request.getSubjectUserId(), club, RoleChangeNotifier.Notice.REJECTED, rejectionMessage);
         leadershipService.currentLeaderOf(club.getId())
-                .ifPresent(leaderId -> notifier.send(leaderId, club, request.getSubjectUserId(), studentName,
-                        previousRole, request.getRequestedPosition(), Status.REJECTED,
-                        studentName + " için görev değişikliği talebi reddedildi.", Type.ROLE_CHANGE_REJECTED));
+                .ifPresent(leaderId -> notifier.send(leaderId, club, RoleChangeNotifier.Notice.REJECTED,
+                        studentName + " için görev değişikliği talebi reddedildi."));
     }
 
     private ClubMembership validateStillValid(ClubApprovalRequest request) {

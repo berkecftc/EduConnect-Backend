@@ -1,8 +1,6 @@
 package com.educonnect.clubservice.service;
 
 import com.educonnect.clubservice.client.UserClient;
-import com.educonnect.clubservice.config.ClubRabbitMQConfig;
-import com.educonnect.clubservice.dto.message.RoleChangeNotificationMessage;
 import com.educonnect.clubservice.dto.request.CreateRoleChangeRequestDTO;
 import com.educonnect.clubservice.model.ApprovalStatus;
 import com.educonnect.clubservice.model.ApprovalType;
@@ -21,6 +19,8 @@ import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.server.ResponseStatusException;
+import com.educonnect.common.messaging.notification.NotificationCategory;
+import com.educonnect.common.messaging.notification.NotificationRequest;
 
 import java.time.Instant;
 import java.util.Collections;
@@ -67,7 +67,7 @@ class RoleChangeRequestServiceTest {
         UserClient userClient = mock(UserClient.class);
         RoleChangeUserNames userNames = new RoleChangeUserNames(userClient);
         RoleChangeRequestMapper mapper = new RoleChangeRequestMapper(userNames);
-        RoleChangeNotifier notifier = new RoleChangeNotifier(outboxPublisher, userNames);
+        RoleChangeNotifier notifier = new RoleChangeNotifier(new ClubNotificationPublisher(outboxPublisher));
         ClubPositionRules positionRules = new ClubPositionRules(membershipRepository, approvalRepository, authorizationService);
         RoleChangeApprovalHandler handler = new RoleChangeApprovalHandler(membershipRepository, positionRules,
                 mock(ClubCacheEvictor.class), managementStatusPublisher, leadershipService, notifier, userNames,
@@ -225,19 +225,18 @@ class RoleChangeRequestServiceTest {
     }
 
     @Test
-    void roleChangeNotificationsKeepWireValues() {
+    void roleChangeRequestsNotifyTheDeciderThroughTheNotificationCenter() {
         givenMembership(studentId, ClubPosition.MEMBER);
 
         service.createRoleChangeRequest(clubId, requestFor(studentId, ClubPosition.TREASURER), presidentId);
 
         ArgumentCaptor<Object> payload = ArgumentCaptor.forClass(Object.class);
-        verify(outboxPublisher).publish(eq(ClubRabbitMQConfig.CLUB_EXCHANGE_NAME),
-                eq("club.role.change.notification"), payload.capture());
-        RoleChangeNotificationMessage message = (RoleChangeNotificationMessage) payload.getValue();
-        assertThat(message.getTargetUserId()).isEqualTo(advisorId);
-        assertThat(message.getStatus()).isEqualTo("PENDING");
-        assertThat(message.getNotificationType()).isEqualTo("ROLE_CHANGE_REQUEST");
-        assertThat(message.getPreviousRole()).isEqualTo("MEMBER");
-        assertThat(message.getNewRole()).isEqualTo("TREASURER");
+        verify(outboxPublisher).publish(eq(NotificationRequest.EXCHANGE), eq(NotificationRequest.ROUTING_KEY), payload.capture());
+        NotificationRequest message = (NotificationRequest) payload.getValue();
+        assertThat(message.recipientIds()).containsExactly(advisorId);
+        assertThat(message.category()).isEqualTo(NotificationCategory.CLUB_MANAGEMENT);
+        assertThat(message.type()).isEqualTo("CLUB_ROLE_CHANGE");
+        assertThat(message.title()).endsWith("Görev değişikliği talebi");
+        assertThat(message.link()).isEqualTo("/clubs/" + clubId);
     }
 }

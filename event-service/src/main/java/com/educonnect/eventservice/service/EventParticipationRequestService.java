@@ -26,12 +26,14 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
+import com.educonnect.common.messaging.notification.NotificationCategory;
 
 import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
+import java.util.Collections;
 
 @Service
 @Transactional
@@ -47,6 +49,7 @@ public class EventParticipationRequestService {
     private final OutboxPublisher outboxPublisher;
     private final ClubClient clubClient;
     private final EventCaches eventCaches;
+    private final EventNotifier notifier;
 
     public EventParticipationRequestService(
             EventParticipationRequestRepository participationRequestRepository,
@@ -55,7 +58,8 @@ public class EventParticipationRequestService {
             EventAuthorizationService eventAuthorizationService,
             OutboxPublisher outboxPublisher,
             ClubClient clubClient,
-            EventCaches eventCaches) {
+            EventCaches eventCaches,
+            EventNotifier notifier) {
         this.participationRequestRepository = participationRequestRepository;
         this.eventRepository = eventRepository;
         this.eventRegistrationRepository = eventRegistrationRepository;
@@ -63,6 +67,7 @@ public class EventParticipationRequestService {
         this.outboxPublisher = outboxPublisher;
         this.clubClient = clubClient;
         this.eventCaches = eventCaches;
+        this.notifier = notifier;
     }
 
     public EventParticipationRequest createParticipationRequest(UUID eventId, UUID studentId, String roles, String message) {
@@ -96,7 +101,7 @@ public class EventParticipationRequestService {
                 request.setStatus(ParticipationRequestStatus.APPROVED);
                 request.setProcessedDate(LocalDateTime.now());
                 participationRequestRepository.save(request);
-                register(event, studentId);
+                register(event, studentId, EventRegistrationMessage.ORIGIN_SELF);
             } else {
                 request.setStatus(ParticipationRequestStatus.WAITLISTED);
                 participationRequestRepository.save(request);
@@ -104,6 +109,9 @@ public class EventParticipationRequestService {
         } else {
             request.setStatus(ParticipationRequestStatus.PENDING);
             participationRequestRepository.save(request);
+            notifier.notify(Collections.singletonList(event.getCreatedByStudentId()), NotificationCategory.CLUB_MANAGEMENT,
+                    "EVENT_PARTICIPATION_REQUEST", event, "Yeni katılım talebi: " + event.getTitle(),
+                    "\"" + event.getTitle() + "\" etkinliğine yeni bir katılım talebi var.");
         }
         log.info("Etkinlik katılım isteği: eventId={}, studentId={}, status={}", eventId, studentId, request.getStatus());
         return request;
@@ -136,7 +144,7 @@ public class EventParticipationRequestService {
         request.setProcessedDate(LocalDateTime.now());
         request.setProcessedBy(approverId);
         participationRequestRepository.save(request);
-        EventRegistration registration = register(event, request.getStudentId());
+        EventRegistration registration = register(event, request.getStudentId(), EventRegistrationMessage.ORIGIN_REQUEST_APPROVED);
         log.info("Katılım isteği onaylandı: requestId={}, studentId={}", requestId, request.getStudentId());
         return registration;
     }
@@ -158,6 +166,10 @@ public class EventParticipationRequestService {
         request.setProcessedBy(rejecterId);
         request.setRejectionReason(rejectionReason);
         EventParticipationRequest savedRequest = participationRequestRepository.save(request);
+        notifier.notify(Collections.singletonList(request.getStudentId()), NotificationCategory.EVENT, "EVENT_REQUEST_REJECTED", event,
+                "Katılım talebiniz reddedildi: " + event.getTitle(),
+                "\"" + event.getTitle() + "\" etkinliği için katılım talebiniz reddedildi."
+                        + (rejectionReason != null && !rejectionReason.isBlank() ? "\nGerekçe: " + rejectionReason.strip() : ""));
         log.info("Katılım isteği reddedildi: requestId={}, studentId={}", requestId, request.getStudentId());
         return savedRequest;
     }
@@ -223,12 +235,12 @@ public class EventParticipationRequestService {
             request.setStatus(ParticipationRequestStatus.APPROVED);
             request.setProcessedDate(LocalDateTime.now());
             participationRequestRepository.saveAndFlush(request);
-            register(event, request.getStudentId());
+            register(event, request.getStudentId(), EventRegistrationMessage.ORIGIN_WAITLIST_PROMOTED);
             log.info("Bekleme listesinden kayıt: eventId={}, studentId={}", event.getId(), request.getStudentId());
         }
     }
 
-    private EventRegistration register(Event event, UUID studentId) {
+    private EventRegistration register(Event event, UUID studentId, String origin) {
         EventRegistration registration = eventRegistrationRepository.findByEventIdAndStudentId(event.getId(), studentId)
                 .orElseGet(EventRegistration::new);
         registration.setEventId(event.getId());
@@ -241,7 +253,8 @@ public class EventParticipationRequestService {
         EventRegistration saved = eventRegistrationRepository.saveAndFlush(registration);
         eventCaches.evictStudentRegistrations(studentId);
         outboxPublisher.publish(EventRabbitMQConfig.CLUB_EXCHANGE_NAME, EventRabbitMQConfig.ROUTING_KEY_EVENT_REGISTERED,
-                new EventRegistrationMessage(studentId, event.getTitle(), event.getStartsAt(), event.getLocation(), saved.getQrCode()));
+                new EventRegistrationMessage(studentId, event.getTitle(), event.getStartsAt(), event.getLocation(), saved.getQrCode(),
+                        origin));
         return saved;
     }
 

@@ -43,7 +43,8 @@ class EventServiceAuthorizationTest {
         authorizationService = mock(EventAuthorizationService.class);
         service = new EventService(eventRepository, mock(MinioService.class), registrationRepository,
                 mock(ClubClient.class), authorizationService, mock(EventCaches.class), new ApprovalChainSettings(false),
-                new EventSchedule(Duration.ZERO, Duration.ofMinutes(60), Duration.ofHours(2), Clock.systemDefaultZone()));
+                new EventSchedule(Duration.ZERO, Duration.ofMinutes(60), Duration.ofHours(2), Clock.systemDefaultZone()),
+                mock(EventNotifier.class));
 
         event = new Event();
         event.setId(eventId);

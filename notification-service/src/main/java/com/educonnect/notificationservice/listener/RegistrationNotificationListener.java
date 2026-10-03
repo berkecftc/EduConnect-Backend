@@ -33,13 +33,33 @@ public class RegistrationNotificationListener {
             return;
         }
         String when = TurkishDates.format(message.getEventTime());
-        String body = "\"" + message.getEventTitle() + "\" etkinliğine kaydınız alındı.\nZaman: " + when
+        String body = "\"" + message.getEventTitle() + "\" " + lead(message.getOrigin()) + "\nZaman: " + when
                 + "\nYer: " + (message.getLocation() == null ? "-" : message.getLocation())
                 + "\nGirişte bilet QR kodunuzu görevliye gösterin.";
         NotificationRequest request = NotificationRequest.of(List.of(message.getStudentId()), NotificationCategory.EVENT,
-                "EVENT_TICKET", "Biletiniz: " + message.getEventTitle(), body, "/me/tickets",
+                "EVENT_TICKET", title(message.getOrigin()) + message.getEventTitle(), body, "/me/tickets",
                 message.getQrCode() != null ? "ticket:" + message.getQrCode() : null);
         dispatcher.dispatch(request, (notification, footer) -> ticketEmail(notification, message, when, footer));
+    }
+
+    static String title(String origin) {
+        if ("WAITLIST_PROMOTED".equals(origin)) {
+            return "Bekleme listesinden kayda geçtiniz: ";
+        }
+        if ("REQUEST_APPROVED".equals(origin)) {
+            return "Katılım talebiniz onaylandı: ";
+        }
+        return "Biletiniz: ";
+    }
+
+    static String lead(String origin) {
+        if ("WAITLIST_PROMOTED".equals(origin)) {
+            return "etkinliğinde yer açıldı; bekleme listesinden kaydınız yapıldı.";
+        }
+        if ("REQUEST_APPROVED".equals(origin)) {
+            return "etkinliği için katılım talebiniz onaylandı, kaydınız yapıldı.";
+        }
+        return "etkinliğine kaydınız alındı.";
     }
 
     private EmailContent ticketEmail(Notification notification, EventRegistrationMessage message, String when, String footer) {
@@ -48,7 +68,7 @@ public class RegistrationNotificationListener {
                 <body style="font-family: Arial, sans-serif; color: #333;">
                     <div style="background-color: #f4f4f4; padding: 20px; text-align: center;">
                         <h2 style="color: #2c3e50;">Kaydınız alındı</h2>
-                        <p><strong>%s</strong> etkinliğine kaydınız alındı.</p>
+                        <p><strong>%s</strong> %s</p>
                         <div style="background-color: white; padding: 20px; border-radius: 8px; display: inline-block; margin-top: 10px;">
                             <p style="margin: 5px 0;"><strong>Zaman:</strong> %s</p>
                             <p style="margin: 5px 0;"><strong>Yer:</strong> %s</p>
@@ -61,7 +81,7 @@ public class RegistrationNotificationListener {
                     %s
                 </body>
                 </html>
-                """.formatted(HtmlText.escape(message.getEventTitle()), HtmlText.escape(when),
+                """.formatted(HtmlText.escape(message.getEventTitle()), HtmlText.escape(lead(message.getOrigin())), HtmlText.escape(when),
                 HtmlText.escape(message.getLocation()), QR_CONTENT_ID, HtmlText.escape(message.getQrCode()), footer);
         return new EmailContent(notification.getTitle(), html,
                 new EmailContent.InlineImage(QR_CONTENT_ID, qrCodeRenderer.renderPng(message.getQrCode()), "image/png"));
