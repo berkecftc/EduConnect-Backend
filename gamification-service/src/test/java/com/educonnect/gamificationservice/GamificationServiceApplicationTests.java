@@ -37,11 +37,12 @@ class GamificationServiceApplicationTests {
     void theFirstEventOfANewUserCreatesTheirReputation() {
         UUID newUser = UUID.randomUUID();
 
-        gamificationService.processEvent(new GamificationEvent(newUser, ActionType.POST_PUBLISHED,
-                "POST:" + UUID.randomUUID(), OffsetDateTime.now()));
+        gamificationService.processEvent(new GamificationEvent(newUser, ActionType.ANSWER_ACCEPTED,
+                "COMMENT:" + UUID.randomUUID(), OffsetDateTime.now()));
 
         UserReputation reputation = userReputationRepository.findById(newUser).orElseThrow();
-        assertThat(reputation.getTotalPoints()).isPositive();
+        assertThat(reputation.getTotalPoints()).isEqualTo(15);
+        assertThat(reputation.getCurrentStreak()).isEqualTo(1);
         assertThat(reputation.getVersion()).isZero();
     }
 

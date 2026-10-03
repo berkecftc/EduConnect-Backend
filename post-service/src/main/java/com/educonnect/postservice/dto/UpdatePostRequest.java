@@ -2,7 +2,6 @@ package com.educonnect.postservice.dto;
 
 import com.educonnect.postservice.model.PostCategory;
 import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 
 public record UpdatePostRequest(
@@ -13,7 +12,9 @@ public record UpdatePostRequest(
         @NotBlank(message = "İçerik boş olamaz")
         String content,
 
-        @NotNull(message = "Kategori boş olamaz")
-        PostCategory category
-) {}
+        PostCategory category,
 
+        Boolean commentsDisabled,
+
+        Boolean sharingDeclaration
+) {}

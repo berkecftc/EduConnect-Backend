@@ -18,8 +18,8 @@ public record CommentResponse(
         UUID parentCommentId,
         String content,
         CommentStatus status,
+        String moderationNote,
         List<CommentResponse> replies,
         LocalDateTime createdAt,
         LocalDateTime updatedAt
 ) {}
-

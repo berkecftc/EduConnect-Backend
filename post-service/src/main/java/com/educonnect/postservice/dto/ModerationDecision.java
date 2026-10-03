@@ -5,7 +5,8 @@ import java.util.Optional;
 
 public enum ModerationDecision {
     ZORBA,
-    TEMIZ;
+    TEMIZ,
+    INCELEME;
 
     public static Optional<ModerationDecision> from(String value) {
         if (value == null || value.isBlank()) {
@@ -18,4 +19,3 @@ public enum ModerationDecision {
         }
     }
 }
-

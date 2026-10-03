@@ -48,6 +48,9 @@ public class PointHistory {
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
+    @Column(name = "content_id", updatable = false)
+    private UUID contentId;
+
     public PointHistory() {
     }
 
@@ -98,5 +101,12 @@ public class PointHistory {
     public void setCreatedAt(LocalDateTime createdAt) {
         this.createdAt = createdAt;
     }
-}
 
+    public UUID getContentId() {
+        return contentId;
+    }
+
+    public void setContentId(UUID contentId) {
+        this.contentId = contentId;
+    }
+}

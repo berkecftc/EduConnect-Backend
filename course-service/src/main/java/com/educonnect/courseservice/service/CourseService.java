@@ -170,7 +170,8 @@ public class CourseService {
                 .orElseThrow(() -> new CourseNotFoundException("Ders bulunamadı: " + courseId));
         CourseStaffRole role = staffAccess.roleOf(course, userId).orElse(null);
         return new CourseAccessResponse(courseId, course.getStatus(), role != null && role.teaches(),
-                enrollmentRepository.existsByCourseIdAndStudentIdAndIsActive(courseId, userId, true), role);
+                enrollmentRepository.existsByCourseIdAndStudentIdAndIsActive(courseId, userId, true), role,
+                course.getCode(), course.getTitle(), course.getSection());
     }
 
     public CourseResponse getVisibleCourse(UUID id, UUID viewerId, boolean viewerIsAdmin) {

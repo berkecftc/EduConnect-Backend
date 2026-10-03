@@ -37,35 +37,39 @@ public class PostModerationListener {
 
     @RabbitListener(queues = RabbitMQConfig.POST_MODERATION_LLM_QUEUE)
     public void handleModerationEvent(PostModerationEvent event) {
-        log.info("Moderation event received. postId={}, eventId={}", event.postId(), event.eventId());
+        log.info("Moderation event received. postId={}, commentId={}, eventId={}",
+                event.postId(), event.commentId(), event.eventId());
 
+        ModerationDecisionRequest request = decide(event);
+        log.info("Moderation decision resolved. postId={}, commentId={}, decision={}, source={}",
+                event.postId(), event.commentId(), request.decision(), request.source());
+        try {
+            if (event.comment()) {
+                postServiceClient.applyCommentModerationDecision(event.commentId().toString(), request);
+            } else {
+                postServiceClient.applyModerationDecision(event.postId().toString(), request);
+            }
+        } catch (Exception ex) {
+            log.error("Failed to notify post-service moderation result; queued for manual review. postId={}, commentId={}",
+                    event.postId(), event.commentId(), ex);
+            rabbitTemplate.convertAndSend(RabbitMQConfig.POST_MODERATION_REVIEW_QUEUE, event);
+        }
+    }
+
+    private ModerationDecisionRequest decide(PostModerationEvent event) {
+        String eventId = event.eventId() == null ? null : event.eventId().toString();
+        if (aiModerationService.blockedTermHit(event.title(), event.content())) {
+            return new ModerationDecisionRequest(ModerationDecision.ZORBA.name(), eventId, ModerationDecisionRequest.WORDLIST);
+        }
         Optional<ModerationDecision> decision = Optional.empty();
         for (int attempt = 1; attempt <= maxAttempts && decision.isEmpty(); attempt++) {
             decision = aiModerationService.classify(event.title(), event.content());
         }
-
         if (decision.isEmpty()) {
-            log.warn("Moderation undecided after {} attempts; post stays pending and is queued for manual review. postId={}",
-                    maxAttempts, event.postId());
-            sendToReview(event);
-            return;
+            log.warn("Moderation undecided after {} attempts; sending to the moderator queue. postId={}, commentId={}",
+                    maxAttempts, event.postId(), event.commentId());
+            return new ModerationDecisionRequest(ModerationDecisionRequest.UNDECIDED, eventId, ModerationDecisionRequest.LLM);
         }
-
-        log.info("Moderation decision resolved. postId={}, decision={}", event.postId(), decision.get());
-        try {
-            postServiceClient.applyModerationDecision(
-                    event.postId().toString(),
-                    new ModerationDecisionRequest(decision.get().name(),
-                            event.eventId() == null ? null : event.eventId().toString())
-            );
-        } catch (Exception ex) {
-            log.error("Failed to notify post-service moderation result; queued for manual review. postId={}",
-                    event.postId(), ex);
-            sendToReview(event);
-        }
-    }
-
-    private void sendToReview(PostModerationEvent event) {
-        rabbitTemplate.convertAndSend(RabbitMQConfig.POST_MODERATION_REVIEW_QUEUE, event);
+        return new ModerationDecisionRequest(decision.get().name(), eventId, ModerationDecisionRequest.LLM);
     }
 }

@@ -19,7 +19,12 @@ public class UserDataCleanupService {
             "DELETE FROM post_likes WHERE user_id = :userId",
             "DELETE FROM post_bookmarks WHERE user_id = :userId",
             "UPDATE comments SET author_id = NULL WHERE author_id = :userId",
-            "UPDATE posts SET author_id = NULL WHERE author_id = :userId");
+            "UPDATE posts SET author_id = NULL WHERE author_id = :userId",
+            "UPDATE content_reports SET reporter_id = NULL WHERE reporter_id = :userId",
+            "UPDATE moderation_records SET actor_id = NULL WHERE actor_id = :userId",
+            "UPDATE moderation_appeals SET appellant_id = NULL WHERE appellant_id = :userId",
+            "UPDATE moderation_appeals SET decided_by = NULL WHERE decided_by = :userId",
+            "UPDATE moderation_appeals SET original_decider_id = NULL WHERE original_decider_id = :userId");
 
     @PersistenceContext
     private EntityManager entityManager;

@@ -79,18 +79,14 @@ class GamificationAuthorizationTest {
     }
 
     @Test
-    void leaderboardIsReadableWithoutAnIdentityAndHidesUserIds() throws Exception {
-        mockMvc.perform(get("/api/gamification/leaderboard").param("limit", "5"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].rank").value(1))
-                .andExpect(jsonPath("$[0].userId").doesNotExist());
-        mockMvc.perform(as(get("/api/gamification/leaderboard").param("limit", "1"), TestTokens.student(student)))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.length()").value(1));
-        mockMvc.perform(get("/api/gamification/leaderboard").param("limit", "101"))
-                .andExpect(status().isBadRequest());
-        mockMvc.perform(get("/api/gamification/leaderboard").param("limit", "0"))
-                .andExpect(status().isBadRequest());
+    void leaderboardIsForStudentsOnly() throws Exception {
+        mockMvc.perform(get("/api/gamification/leaderboard"))
+                .andExpect(status().isUnauthorized());
+        mockMvc.perform(as(get("/api/gamification/leaderboard"), TestTokens.academician(UUID.randomUUID())))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.errorCode").value("LEADERBOARD_STUDENTS_ONLY"));
+        mockMvc.perform(as(get("/api/gamification/leaderboard"), TestTokens.user(UUID.randomUUID(), "ROLE_STAFF,PERM_MODERATOR")))
+                .andExpect(status().isForbidden());
     }
 
     @Test

@@ -32,24 +32,38 @@ public class PostModerationController {
     public ResponseEntity<Void> applyModeration(
             @PathVariable UUID postId,
             @RequestBody @Valid ModerationDecisionRequest request) {
-
         Optional<ModerationDecision> decision = ModerationDecision.from(request.decision());
         if (decision.isEmpty()) {
             log.warn("Invalid moderation decision received. postId={}, decision={}", postId, request.decision());
             return ResponseEntity.badRequest().build();
         }
-
-        UUID eventId = null;
-        if (request.eventId() != null && !request.eventId().isBlank()) {
-            try {
-                eventId = UUID.fromString(request.eventId());
-            } catch (IllegalArgumentException ex) {
-                log.warn("Invalid eventId received, ignoring. postId={}, eventId={}", postId, request.eventId());
-            }
-        }
-
-        postModerationService.applyModeration(postId, decision.get(), eventId);
+        postModerationService.applyModeration(postId, decision.get(), request.fromWordList(), eventIdOf(request, postId));
         return ResponseEntity.accepted().build();
     }
-}
 
+    @PutMapping("/internal/comments/{commentId}/moderation")
+    public ResponseEntity<Void> applyCommentModeration(
+            @PathVariable UUID commentId,
+            @RequestBody @Valid ModerationDecisionRequest request) {
+        Optional<ModerationDecision> decision = ModerationDecision.from(request.decision());
+        if (decision.isEmpty()) {
+            log.warn("Invalid moderation decision received. commentId={}, decision={}", commentId, request.decision());
+            return ResponseEntity.badRequest().build();
+        }
+        postModerationService.applyCommentModeration(commentId, decision.get(), request.fromWordList(),
+                eventIdOf(request, commentId));
+        return ResponseEntity.accepted().build();
+    }
+
+    private static UUID eventIdOf(ModerationDecisionRequest request, UUID targetId) {
+        if (request.eventId() == null || request.eventId().isBlank()) {
+            return null;
+        }
+        try {
+            return UUID.fromString(request.eventId());
+        } catch (IllegalArgumentException ex) {
+            log.warn("Invalid eventId received, ignoring. targetId={}, eventId={}", targetId, request.eventId());
+            return null;
+        }
+    }
+}

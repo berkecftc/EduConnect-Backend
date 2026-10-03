@@ -1,13 +1,19 @@
 package com.educonnect.postservice.controller;
 
 import com.educonnect.postservice.dto.CreatePostRequest;
+import com.educonnect.postservice.dto.PostFeedFilter;
 import com.educonnect.postservice.dto.PostResponse;
 import com.educonnect.postservice.dto.RecentPostDto;
+import com.educonnect.postservice.dto.ReviewRequest;
 import com.educonnect.postservice.dto.UpdatePostRequest;
+import com.educonnect.postservice.model.PostCategory;
+import com.educonnect.postservice.model.PublisherType;
 import com.educonnect.postservice.service.PostService;
+import com.educonnect.postservice.service.Viewer;
 import jakarta.validation.Valid;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -26,27 +32,16 @@ public class PostController {
         this.postService = postService;
     }
 
-    /**
-     * Yeni post oluşturur.
-     * Sadece ROLE_STUDENT ve ROLE_CLUB_OFFICIAL rolleri erişebilir.
-     */
     @PostMapping
     public ResponseEntity<PostResponse> createPost(
             @RequestBody @Valid CreatePostRequest request,
             @RequestHeader("X-Authenticated-User-Id") String authenticatedUserId,
             @RequestHeader("X-Authenticated-User-Roles") String roles
     ) {
-        postService.validatePostAccess(roles);
-        UUID authorId = UUID.fromString(authenticatedUserId);
-        PostResponse response = postService.createPost(request, authorId);
+        PostResponse response = postService.createPost(request, Viewer.reader(authenticatedUserId, roles));
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
-    /**
-     * Mevcut post'u günceller.
-     * Sadece ROLE_STUDENT ve ROLE_CLUB_OFFICIAL rolleri erişebilir.
-     * Sadece yazar güncelleyebilir — yetki kontrolü Service katmanında yapılır.
-     */
     @PutMapping("/{postId}")
     public ResponseEntity<PostResponse> updatePost(
             @PathVariable UUID postId,
@@ -54,74 +49,53 @@ public class PostController {
             @RequestHeader("X-Authenticated-User-Id") String authenticatedUserId,
             @RequestHeader("X-Authenticated-User-Roles") String roles
     ) {
-        postService.validatePostAccess(roles);
-        UUID authorId = UUID.fromString(authenticatedUserId);
-        PostResponse response = postService.updatePost(postId, request, authorId);
-        return ResponseEntity.ok(response);
+        return ResponseEntity.ok(postService.updatePost(postId, request, Viewer.reader(authenticatedUserId, roles)));
     }
 
-    /**
-     * Post'u siler.
-     * Sadece ROLE_STUDENT ve ROLE_CLUB_OFFICIAL rolleri erişebilir.
-     * Sadece yazar silebilir — yetki kontrolü Service katmanında yapılır.
-     */
     @DeleteMapping("/{postId}")
     public ResponseEntity<Void> deletePost(
             @PathVariable UUID postId,
             @RequestHeader("X-Authenticated-User-Id") String authenticatedUserId,
             @RequestHeader("X-Authenticated-User-Roles") String roles
     ) {
-        postService.validatePostAccess(roles);
-        UUID authorId = UUID.fromString(authenticatedUserId);
-        postService.deletePost(postId, authorId);
+        postService.deletePost(postId, Viewer.reader(authenticatedUserId, roles).id());
         return ResponseEntity.noContent().build();
     }
 
-    /**
-     * Yayınlanmış postları sayfalayarak listeler.
-     * Sadece ROLE_STUDENT ve ROLE_CLUB_OFFICIAL rolleri erişebilir.
-     */
     @GetMapping
     public ResponseEntity<Page<PostResponse>> getPublishedPosts(
             @RequestHeader("X-Authenticated-User-Id") String authenticatedUserId,
             @RequestHeader("X-Authenticated-User-Roles") String roles,
-            @PageableDefault(size = 10, sort = "createdAt", direction = org.springframework.data.domain.Sort.Direction.DESC)
+            @RequestParam(required = false) PostCategory category,
+            @RequestParam(required = false) PublisherType publisherType,
+            @RequestParam(required = false) UUID clubId,
+            @RequestParam(required = false) UUID courseId,
+            @RequestParam(required = false) Boolean official,
+            @PageableDefault(size = 10, sort = "createdAt", direction = Sort.Direction.DESC)
             Pageable pageable
     ) {
-        postService.validatePostAccess(roles);
-        UUID currentUserId = UUID.fromString(authenticatedUserId);
-        return ResponseEntity.ok(postService.getPublishedPosts(pageable, currentUserId));
+        PostFeedFilter filter = new PostFeedFilter(category, publisherType, clubId, courseId, official);
+        return ResponseEntity.ok(postService.getPublishedPosts(filter, pageable, Viewer.reader(authenticatedUserId, roles)));
     }
 
-    /**
-     * Kullanıcının kaydettiği (bookmark) postları sayfalayarak listeler.
-     * Sadece ROLE_STUDENT ve ROLE_CLUB_OFFICIAL rolleri erişebilir.
-     */
     @GetMapping("/saved")
     public ResponseEntity<Page<PostResponse>> getSavedPosts(
             @RequestHeader("X-Authenticated-User-Id") String authenticatedUserId,
             @RequestHeader("X-Authenticated-User-Roles") String roles,
-            @PageableDefault(size = 10, sort = "createdAt", direction = org.springframework.data.domain.Sort.Direction.DESC)
+            @PageableDefault(size = 10, sort = "createdAt", direction = Sort.Direction.DESC)
             Pageable pageable
     ) {
-        postService.validatePostAccess(roles);
-        UUID currentUserId = UUID.fromString(authenticatedUserId);
-        return ResponseEntity.ok(postService.getSavedPosts(currentUserId, pageable));
+        return ResponseEntity.ok(postService.getSavedPosts(Viewer.reader(authenticatedUserId, roles), pageable));
     }
 
-    /**
-     * Tek bir post'u ID'siyle getirir.
-     * Sadece ROLE_STUDENT ve ROLE_CLUB_OFFICIAL rolleri erişebilir.
-     */
     @GetMapping("/me")
     public ResponseEntity<Page<PostResponse>> getMyPosts(
             @RequestHeader("X-Authenticated-User-Id") String authenticatedUserId,
             @RequestHeader("X-Authenticated-User-Roles") String roles,
-            @PageableDefault(size = 10, sort = "createdAt", direction = org.springframework.data.domain.Sort.Direction.DESC)
+            @PageableDefault(size = 10, sort = "createdAt", direction = Sort.Direction.DESC)
             Pageable pageable
     ) {
-        postService.validatePostAccess(roles);
-        return ResponseEntity.ok(postService.getMyPosts(UUID.fromString(authenticatedUserId), pageable));
+        return ResponseEntity.ok(postService.getMyPosts(Viewer.reader(authenticatedUserId, roles).id(), pageable));
     }
 
     @GetMapping("/{postId}")
@@ -130,9 +104,38 @@ public class PostController {
             @RequestHeader("X-Authenticated-User-Id") String authenticatedUserId,
             @RequestHeader("X-Authenticated-User-Roles") String roles
     ) {
-        postService.validatePostAccess(roles);
-        UUID currentUserId = UUID.fromString(authenticatedUserId);
-        return ResponseEntity.ok(postService.getPostById(postId, currentUserId));
+        return ResponseEntity.ok(postService.getPostById(postId, Viewer.reader(authenticatedUserId, roles)));
+    }
+
+    @GetMapping("/club/{clubId}/awaiting-approval")
+    public ResponseEntity<Page<PostResponse>> getAwaitingClubApproval(
+            @PathVariable UUID clubId,
+            @RequestHeader("X-Authenticated-User-Id") String authenticatedUserId,
+            @RequestHeader("X-Authenticated-User-Roles") String roles,
+            @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.ASC)
+            Pageable pageable
+    ) {
+        return ResponseEntity.ok(postService.getAwaitingClubApproval(clubId, Viewer.reader(authenticatedUserId, roles), pageable));
+    }
+
+    @PostMapping("/{postId}/approve")
+    public ResponseEntity<PostResponse> approveClubAnnouncement(
+            @PathVariable UUID postId,
+            @RequestHeader("X-Authenticated-User-Id") String authenticatedUserId,
+            @RequestHeader("X-Authenticated-User-Roles") String roles
+    ) {
+        return ResponseEntity.ok(postService.approveClubAnnouncement(postId, Viewer.reader(authenticatedUserId, roles)));
+    }
+
+    @PostMapping("/{postId}/reject")
+    public ResponseEntity<PostResponse> rejectClubAnnouncement(
+            @PathVariable UUID postId,
+            @RequestBody @Valid ReviewRequest request,
+            @RequestHeader("X-Authenticated-User-Id") String authenticatedUserId,
+            @RequestHeader("X-Authenticated-User-Roles") String roles
+    ) {
+        return ResponseEntity.ok(postService.rejectClubAnnouncement(postId, request.note(),
+                Viewer.reader(authenticatedUserId, roles)));
     }
 
     @GetMapping("/internal/users/{userId}/recent")
@@ -140,4 +143,3 @@ public class PostController {
         return ResponseEntity.ok(postService.getRecentPostsByUser(userId));
     }
 }
-

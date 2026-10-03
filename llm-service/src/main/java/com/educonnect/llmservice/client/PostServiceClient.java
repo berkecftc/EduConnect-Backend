@@ -15,5 +15,10 @@ public interface PostServiceClient {
             @PathVariable("postId") String postId,
             @RequestBody ModerationDecisionRequest request
     );
-}
 
+    @PutMapping("/internal/comments/{commentId}/moderation")
+    void applyCommentModerationDecision(
+            @PathVariable("commentId") String commentId,
+            @RequestBody ModerationDecisionRequest request
+    );
+}

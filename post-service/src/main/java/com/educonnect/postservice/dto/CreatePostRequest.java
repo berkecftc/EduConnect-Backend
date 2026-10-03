@@ -1,9 +1,11 @@
 package com.educonnect.postservice.dto;
 
 import com.educonnect.postservice.model.PostCategory;
+import com.educonnect.postservice.model.PublisherType;
 import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
+
+import java.util.UUID;
 
 public record CreatePostRequest(
         @NotBlank(message = "Başlık boş olamaz")
@@ -13,7 +15,23 @@ public record CreatePostRequest(
         @NotBlank(message = "İçerik boş olamaz")
         String content,
 
-        @NotNull(message = "Kategori boş olamaz")
-        PostCategory category
-) {}
+        PostCategory category,
 
+        PublisherType publisherType,
+
+        UUID clubId,
+
+        UUID courseId,
+
+        @Size(max = 255, message = "Yayımlayan birim adı en fazla 255 karakter olabilir")
+        String publisherName,
+
+        Boolean commentsDisabled,
+
+        Boolean sharingDeclaration
+) {
+
+    public PostCategory categoryOrDefault() {
+        return category != null ? category : PostCategory.SORU;
+    }
+}

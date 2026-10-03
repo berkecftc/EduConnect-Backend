@@ -24,54 +24,56 @@ class RequestValidationTest {
 
     @Test
     void createPostRequestAcceptsValidSample() {
-        assertThat(validator.validate(new CreatePostRequest("Başlık", "İçerik", CATEGORY))).isEmpty();
+        assertThat(validator.validate(new CreatePostRequest("Başlık", "İçerik", CATEGORY, null, null, null, null, null, null))).isEmpty();
     }
 
     @Test
     void createPostRequestRejectsBlankTitle() {
-        assertThat(paths(validator.validate(new CreatePostRequest(" ", "İçerik", CATEGORY)))).containsExactly("title");
+        assertThat(paths(validator.validate(new CreatePostRequest(" ", "İçerik", CATEGORY, null, null, null, null, null, null)))).containsExactly("title");
     }
 
     @Test
     void createPostRequestRejectsTooLongTitle() {
-        assertThat(paths(validator.validate(new CreatePostRequest("a".repeat(256), "İçerik", CATEGORY))))
+        assertThat(paths(validator.validate(new CreatePostRequest("a".repeat(256), "İçerik", CATEGORY, null, null, null, null, null, null))))
                 .containsExactly("title");
     }
 
     @Test
     void createPostRequestRejectsBlankContent() {
-        assertThat(paths(validator.validate(new CreatePostRequest("Başlık", "", CATEGORY)))).containsExactly("content");
+        assertThat(paths(validator.validate(new CreatePostRequest("Başlık", "", CATEGORY, null, null, null, null, null, null)))).containsExactly("content");
     }
 
     @Test
-    void createPostRequestRejectsMissingCategory() {
-        assertThat(paths(validator.validate(new CreatePostRequest("Başlık", "İçerik", null)))).containsExactly("category");
+    void createPostRequestDefaultsMissingCategoryToQuestion() {
+        CreatePostRequest request = new CreatePostRequest("Başlık", "İçerik", null, null, null, null, null, null, null);
+        assertThat(validator.validate(request)).isEmpty();
+        assertThat(request.categoryOrDefault()).isEqualTo(PostCategory.SORU);
     }
 
     @Test
     void updatePostRequestAcceptsValidSample() {
-        assertThat(validator.validate(new UpdatePostRequest("Başlık", "İçerik", CATEGORY))).isEmpty();
+        assertThat(validator.validate(new UpdatePostRequest("Başlık", "İçerik", CATEGORY, null, null))).isEmpty();
     }
 
     @Test
     void updatePostRequestRejectsBlankTitle() {
-        assertThat(paths(validator.validate(new UpdatePostRequest(null, "İçerik", CATEGORY)))).containsExactly("title");
+        assertThat(paths(validator.validate(new UpdatePostRequest(null, "İçerik", CATEGORY, null, null)))).containsExactly("title");
     }
 
     @Test
     void updatePostRequestRejectsTooLongTitle() {
-        assertThat(paths(validator.validate(new UpdatePostRequest("a".repeat(256), "İçerik", CATEGORY))))
+        assertThat(paths(validator.validate(new UpdatePostRequest("a".repeat(256), "İçerik", CATEGORY, null, null))))
                 .containsExactly("title");
     }
 
     @Test
     void updatePostRequestRejectsBlankContent() {
-        assertThat(paths(validator.validate(new UpdatePostRequest("Başlık", " ", CATEGORY)))).containsExactly("content");
+        assertThat(paths(validator.validate(new UpdatePostRequest("Başlık", " ", CATEGORY, null, null)))).containsExactly("content");
     }
 
     @Test
-    void updatePostRequestRejectsMissingCategory() {
-        assertThat(paths(validator.validate(new UpdatePostRequest("Başlık", "İçerik", null)))).containsExactly("category");
+    void updatePostRequestKeepsCategoryWhenMissing() {
+        assertThat(validator.validate(new UpdatePostRequest("Başlık", "İçerik", null, null, null))).isEmpty();
     }
 
     @Test
@@ -92,13 +94,13 @@ class RequestValidationTest {
 
     @Test
     void moderationDecisionRequestAcceptsValidSample() {
-        assertThat(validator.validate(new ModerationDecisionRequest("TEMIZ", UUID.randomUUID().toString()))).isEmpty();
-        assertThat(validator.validate(new ModerationDecisionRequest("ZORBA", null))).isEmpty();
+        assertThat(validator.validate(new ModerationDecisionRequest("TEMIZ", UUID.randomUUID().toString(), "LLM"))).isEmpty();
+        assertThat(validator.validate(new ModerationDecisionRequest("ZORBA", null, null))).isEmpty();
     }
 
     @Test
     void moderationDecisionRequestRejectsBlankDecision() {
-        assertThat(paths(validator.validate(new ModerationDecisionRequest(" ", null)))).containsExactly("decision");
+        assertThat(paths(validator.validate(new ModerationDecisionRequest(" ", null, null)))).containsExactly("decision");
     }
 
     private static List<String> paths(Set<? extends ConstraintViolation<?>> violations) {

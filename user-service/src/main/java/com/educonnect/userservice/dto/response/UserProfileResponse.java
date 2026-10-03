@@ -9,6 +9,7 @@ public class UserProfileResponse implements Serializable{
     private String programName;
     private String programLevel;
     private String facultyName;
+    private UUID facultyId;
     private UUID departmentId;
     private Integer entryYear;
     private Integer classYear;
@@ -72,6 +73,7 @@ public class UserProfileResponse implements Serializable{
         copy.setProgramName(programName);
         copy.setProgramLevel(programLevel);
         copy.setFacultyName(facultyName);
+        copy.setFacultyId(facultyId);
         copy.setDepartmentId(departmentId);
         copy.setEntryYear(entryYear);
         copy.setClassYear(classYear);
@@ -95,6 +97,9 @@ public class UserProfileResponse implements Serializable{
 
     public String getFacultyName() { return facultyName; }
     public void setFacultyName(String facultyName) { this.facultyName = facultyName; }
+
+    public UUID getFacultyId() { return facultyId; }
+    public void setFacultyId(UUID facultyId) { this.facultyId = facultyId; }
 
     public UUID getDepartmentId() { return departmentId; }
     public void setDepartmentId(UUID departmentId) { this.departmentId = departmentId; }

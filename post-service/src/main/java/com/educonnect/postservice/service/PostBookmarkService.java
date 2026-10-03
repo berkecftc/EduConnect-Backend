@@ -1,11 +1,9 @@
 package com.educonnect.postservice.service;
 
 import com.educonnect.postservice.dto.BookmarkResponse;
-import com.educonnect.postservice.exception.PostNotFoundException;
+import com.educonnect.postservice.model.Post;
 import com.educonnect.postservice.model.PostBookmark;
-import com.educonnect.postservice.model.PostStatus;
 import com.educonnect.postservice.repository.PostBookmarkRepository;
-import com.educonnect.postservice.repository.PostRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -24,24 +22,23 @@ public class PostBookmarkService {
     private static final Logger log = LoggerFactory.getLogger(PostBookmarkService.class);
 
     private final PostBookmarkRepository postBookmarkRepository;
-    private final PostRepository postRepository;
+    private final PostVisibility postVisibility;
+    private final ContributionEvents contributionEvents;
 
-    public PostBookmarkService(PostBookmarkRepository postBookmarkRepository, PostRepository postRepository) {
+    public PostBookmarkService(PostBookmarkRepository postBookmarkRepository, PostVisibility postVisibility,
+                               ContributionEvents contributionEvents) {
         this.postBookmarkRepository = postBookmarkRepository;
-        this.postRepository = postRepository;
+        this.postVisibility = postVisibility;
+        this.contributionEvents = contributionEvents;
     }
 
     /**
      * Toggle bookmark: Kaydedilmişse geri al, kaydedilmemişse kaydet.
      */
     @Transactional
-    public BookmarkResponse toggleBookmark(UUID postId, UUID userId) {
-        boolean visible = postRepository.findById(postId)
-                .map(post -> post.getStatus() == PostStatus.PUBLISHED || post.getAuthorId().equals(userId))
-                .orElse(false);
-        if (!visible) {
-            throw new PostNotFoundException("Post bulunamadı: " + postId);
-        }
+    public BookmarkResponse toggleBookmark(UUID postId, Viewer viewer) {
+        Post post = postVisibility.requireVisible(postId, viewer);
+        UUID userId = viewer.id();
 
         Optional<PostBookmark> existingBookmark = postBookmarkRepository.findByPostIdAndUserId(postId, userId);
 
@@ -56,6 +53,7 @@ public class PostBookmarkService {
             bookmark.setPostId(postId);
             bookmark.setUserId(userId);
             postBookmarkRepository.save(bookmark);
+            contributionEvents.noteSaved(post, userId);
             log.info("Post kaydedildi — postId: {}, userId: {}", postId, userId);
             return new BookmarkResponse(true);
         }
@@ -68,4 +66,3 @@ public class PostBookmarkService {
         return postBookmarkRepository.existsByPostIdAndUserId(postId, userId);
     }
 }
-

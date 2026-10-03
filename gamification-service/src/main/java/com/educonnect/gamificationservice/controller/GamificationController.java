@@ -1,7 +1,14 @@
 package com.educonnect.gamificationservice.controller;
 
 import com.educonnect.gamificationservice.dto.response.GamificationSummaryResponse;
-import com.educonnect.gamificationservice.dto.response.LeaderboardEntryResponse;
+import com.educonnect.gamificationservice.dto.request.LeaderboardPreferenceRequest;
+import com.educonnect.gamificationservice.dto.response.LeaderboardPreferenceResponse;
+import com.educonnect.gamificationservice.dto.response.LeaderboardResponse;
+import com.educonnect.gamificationservice.service.LeaderboardPeriod;
+import com.educonnect.gamificationservice.service.LeaderboardService;
+import jakarta.validation.Valid;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import com.educonnect.gamificationservice.model.BadgeType;
 import com.educonnect.gamificationservice.service.GamificationService;
 import com.educonnect.gamificationservice.util.BadgeSvgProvider;
@@ -16,7 +23,6 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
 
-import java.util.List;
 import java.util.Locale;
 import java.util.UUID;
 
@@ -25,9 +31,11 @@ import java.util.UUID;
 public class GamificationController {
 
     private final GamificationService gamificationService;
+    private final LeaderboardService leaderboardService;
 
-    public GamificationController(GamificationService gamificationService) {
+    public GamificationController(GamificationService gamificationService, LeaderboardService leaderboardService) {
         this.gamificationService = gamificationService;
+        this.leaderboardService = leaderboardService;
     }
 
     @GetMapping("/users/me/summary")
@@ -46,10 +54,36 @@ public class GamificationController {
     }
 
     @GetMapping("/leaderboard")
-    public ResponseEntity<List<LeaderboardEntryResponse>> getLeaderboard(
+    public ResponseEntity<LeaderboardResponse> getLeaderboard(
+            @RequestHeader(value = "X-Authenticated-User-Id", required = false) String userId,
+            @RequestHeader(value = "X-Authenticated-User-Roles", required = false) String roles,
+            @RequestParam(defaultValue = "TERM") LeaderboardPeriod period,
+            @RequestParam(required = false) UUID facultyId,
             @RequestParam(defaultValue = "20") int limit
     ) {
-        return ResponseEntity.ok(gamificationService.getLeaderboard(limit));
+        return ResponseEntity.ok(leaderboardService.leaderboard(requireUser(userId), roles, period, facultyId, limit));
+    }
+
+    @GetMapping("/users/me/leaderboard-preference")
+    public ResponseEntity<LeaderboardPreferenceResponse> getLeaderboardPreference(
+            @RequestHeader(value = "X-Authenticated-User-Id", required = false) String userId
+    ) {
+        return ResponseEntity.ok(leaderboardService.preference(requireUser(userId)));
+    }
+
+    @PutMapping("/users/me/leaderboard-preference")
+    public ResponseEntity<LeaderboardPreferenceResponse> updateLeaderboardPreference(
+            @RequestHeader(value = "X-Authenticated-User-Id", required = false) String userId,
+            @RequestBody @Valid LeaderboardPreferenceRequest request
+    ) {
+        return ResponseEntity.ok(leaderboardService.updatePreference(requireUser(userId), request.visible(), request.displayMode()));
+    }
+
+    private static UUID requireUser(String userId) {
+        if (userId == null || userId.isBlank()) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Kimlik dogrulanamadi");
+        }
+        return UUID.fromString(userId);
     }
 
     @GetMapping(value = "/badges/{badgeType}/image", produces = "image/svg+xml")
@@ -66,4 +100,3 @@ public class GamificationController {
                 .body(BadgeSvgProvider.getSvg(type));
     }
 }
-

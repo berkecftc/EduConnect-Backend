@@ -26,8 +26,8 @@ public class UserReputation {
     @Column(name = "highest_streak", nullable = false)
     private Integer highestStreak;
 
-    @Column(name = "last_login_date")
-    private LocalDate lastLoginDate;
+    @Column(name = "last_contribution_week")
+    private LocalDate lastContributionWeek;
 
     @Version
     @Column(name = "version", nullable = false)
@@ -77,12 +77,12 @@ public class UserReputation {
         this.highestStreak = highestStreak;
     }
 
-    public LocalDate getLastLoginDate() {
-        return lastLoginDate;
+    public LocalDate getLastContributionWeek() {
+        return lastContributionWeek;
     }
 
-    public void setLastLoginDate(LocalDate lastLoginDate) {
-        this.lastLoginDate = lastLoginDate;
+    public void setLastContributionWeek(LocalDate lastContributionWeek) {
+        this.lastContributionWeek = lastContributionWeek;
     }
 
     public Long getVersion() {
@@ -93,4 +93,3 @@ public class UserReputation {
         this.version = version;
     }
 }
-

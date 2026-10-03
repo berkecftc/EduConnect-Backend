@@ -54,12 +54,15 @@ public class PostModerationConsumer {
     @RabbitListener(queues = RabbitMQConfig.POST_MODERATION_QUEUE)
     @Transactional
     public void handleModerationEvent(PostModerationEvent event) {
-        log.info("Moderation event received (mock). postId={}, eventId={}", event.getPostId(), event.getEventId());
+        log.info("Moderation event received (mock). postId={}, commentId={}, eventId={}",
+                event.getPostId(), event.getCommentId(), event.getEventId());
 
-        String combinedText = event.getTitle() + " " + event.getContent();
-        boolean containsBadWord = blacklistProvider.containsBadWord(combinedText);
-
-        ModerationDecision decision = containsBadWord ? ModerationDecision.ZORBA : ModerationDecision.TEMIZ;
-        postModerationService.applyModeration(event.getPostId(), decision, event.getEventId());
+        String text = event.getTitle() == null ? event.getContent() : event.getTitle() + " " + event.getContent();
+        ModerationDecision decision = blacklistProvider.containsBadWord(text) ? ModerationDecision.ZORBA : ModerationDecision.TEMIZ;
+        if (event.comment()) {
+            postModerationService.applyCommentModeration(event.getCommentId(), decision, true, event.getEventId());
+        } else {
+            postModerationService.applyModeration(event.getPostId(), decision, true, event.getEventId());
+        }
     }
 }
