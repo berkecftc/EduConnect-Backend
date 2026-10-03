@@ -1,5 +1,6 @@
 package com.educonnect.authservices.service;
 
+import com.educonnect.authservices.dto.response.UserContact;
 import com.educonnect.authservices.config.RabbitMQConfig;
 import com.educonnect.authservices.dto.message.UserDeletedMessage;
 import com.educonnect.authservices.dto.response.UserSummaryDto;
@@ -19,6 +20,7 @@ import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.UUID;
@@ -64,6 +66,13 @@ public class UserAdministrationService {
 
     public List<String> getEmailsByUserIds(List<UUID> userIds) {
         return userRepository.findEmailsByIds(userIds);
+    }
+
+    public List<UserContact> getContacts(List<UUID> userIds) {
+        if (userIds.isEmpty()) {
+            return List.of();
+        }
+        return userRepository.findContactsByIds(new LinkedHashSet<>(userIds));
     }
 
     @Transactional

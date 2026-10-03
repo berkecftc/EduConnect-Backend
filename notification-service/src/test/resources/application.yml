@@ -3,6 +3,16 @@ spring:
     name: notification-service
   config:
     import: "classpath:educonnect-integration.yml"
+  datasource:
+    hikari:
+      schema: notification_db
+  jpa:
+    properties:
+      hibernate:
+        default_schema: notification_db
+  flyway:
+    schemas: notification_db
+    default-schema: notification_db
   mail:
     host: localhost
     port: 9
@@ -16,3 +26,7 @@ management:
 app:
   mail:
     from: noreply@educonnect.test
+
+educonnect:
+  notification:
+    unsubscribe-secret: integration-unsubscribe-secret-0123456789

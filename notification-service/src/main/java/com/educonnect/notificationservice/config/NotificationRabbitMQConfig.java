@@ -1,5 +1,7 @@
 package com.educonnect.notificationservice.config;
 
+import com.educonnect.common.messaging.notification.NotificationRequest;
+
 import org.springframework.amqp.core.*;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.annotation.Bean;
@@ -49,6 +51,24 @@ public class NotificationRabbitMQConfig {
     public static final String ROUTING_KEY_CLUB_ROLE_CHANGE = "club.role.change.notification";
     public static final String CLUB_GENERAL_NOTIFICATION_QUEUE = "notification-club-general-queue";
     public static final String ROUTING_KEY_CLUB_NOTIFICATION = "club.notification";
+
+    public static final String NOTIFICATION_REQUEST_QUEUE = "notification-request-queue";
+
+    @Bean
+    public TopicExchange notificationExchange() {
+        return new TopicExchange(NotificationRequest.EXCHANGE);
+    }
+
+    @Bean
+    public Queue notificationRequestQueue() {
+        return new Queue(NOTIFICATION_REQUEST_QUEUE);
+    }
+
+    @Bean
+    public Binding bindingNotificationRequest(@Qualifier("notificationRequestQueue") Queue queue,
+                                              @Qualifier("notificationExchange") TopicExchange exchange) {
+        return BindingBuilder.bind(queue).to(exchange).with(NotificationRequest.ROUTING_KEY);
+    }
 
     @Bean
     public Queue clubMembershipNotificationQueue() {

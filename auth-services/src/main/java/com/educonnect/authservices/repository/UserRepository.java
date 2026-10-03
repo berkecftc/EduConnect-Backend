@@ -1,5 +1,6 @@
 package com.educonnect.authservices.repository;
 
+import com.educonnect.authservices.dto.response.UserContact;
 import com.educonnect.authservices.models.Role;
 import com.educonnect.authservices.models.User;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -9,6 +10,7 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.time.Instant;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -33,6 +35,11 @@ public interface UserRepository extends JpaRepository<User, UUID> {
     // ...
     @Query("SELECT u.email FROM User u WHERE u.id IN :ids")
     List<String> findEmailsByIds(@Param("ids") List<UUID> ids);
+
+    @Query("SELECT new com.educonnect.authservices.dto.response.UserContact(u.id, u.email, "
+            + "CASE WHEN u.status = com.educonnect.authservices.models.AccountStatus.ACTIVE THEN true ELSE false END) "
+            + "FROM User u WHERE u.id IN :ids")
+    List<UserContact> findContactsByIds(@Param("ids") Collection<UUID> ids);
 
     boolean existsByRolesContaining(Role role);
 

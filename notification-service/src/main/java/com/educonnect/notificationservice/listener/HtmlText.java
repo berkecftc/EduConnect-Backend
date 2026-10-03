@@ -1,11 +1,11 @@
 package com.educonnect.notificationservice.listener;
 
-final class HtmlText {
+public final class HtmlText {
 
     private HtmlText() {
     }
 
-    static String escape(String value) {
+    public static String escape(String value) {
         if (value == null) {
             return "";
         }
