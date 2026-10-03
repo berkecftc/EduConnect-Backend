@@ -4,6 +4,7 @@ import com.educonnect.common.web.NotFoundException;
 import com.educonnect.userservice.client.ClubRelationClient;
 import com.educonnect.userservice.client.CourseRelationClient;
 import com.educonnect.userservice.dto.response.UserProfileResponse;
+import com.educonnect.userservice.dto.response.GamificationSummaryDTO;
 import com.educonnect.userservice.dto.response.UserProfileResponseDTO;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -147,6 +148,28 @@ class ProfileViewServiceTest {
         UserProfileResponseDTO result = profileViewService.getAggregatedProfile(ownerId, UUID.randomUUID(), "ROLE_ACADEMICIAN");
 
         assertThat(result.getEmail()).isNull();
+    }
+
+    @Test
+    void getAggregatedProfile_showsTheContributionStreakOnlyToItsOwner() {
+        when(profileService.getUserProfile(ownerId)).thenReturn(cachedProfile);
+        when(profileAggregationService.getAggregatedUserProfile(ownerId)).thenAnswer(invocation -> {
+            UserProfileResponseDTO aggregated = new UserProfileResponseDTO();
+            GamificationSummaryDTO gamification = new GamificationSummaryDTO();
+            gamification.setTotalPoints(40);
+            gamification.setCurrentStreak(3);
+            gamification.setHighestStreak(5);
+            aggregated.setGamification(gamification);
+            return aggregated;
+        });
+
+        UserProfileResponseDTO forOthers = profileViewService.getAggregatedProfile(ownerId, UUID.randomUUID(), "ROLE_STUDENT");
+        UserProfileResponseDTO forOwner = profileViewService.getAggregatedProfile(ownerId, ownerId, "ROLE_STUDENT");
+
+        assertThat(forOthers.getGamification().getTotalPoints()).isEqualTo(40);
+        assertThat(forOthers.getGamification().getCurrentStreak()).isNull();
+        assertThat(forOthers.getGamification().getHighestStreak()).isNull();
+        assertThat(forOwner.getGamification().getCurrentStreak()).isEqualTo(3);
     }
 
     @Test

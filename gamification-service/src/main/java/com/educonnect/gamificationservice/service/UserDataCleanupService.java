@@ -18,7 +18,8 @@ public class UserDataCleanupService {
     private static final List<String> STATEMENTS = List.of(
             "DELETE FROM user_badges WHERE user_id = :userId",
             "DELETE FROM point_history WHERE user_id = :userId",
-            "DELETE FROM user_reputation WHERE user_id = :userId");
+            "DELETE FROM user_reputation WHERE user_id = :userId",
+            "DELETE FROM leaderboard_preferences WHERE user_id = :userId");
 
     @PersistenceContext
     private EntityManager entityManager;

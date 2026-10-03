@@ -5,8 +5,8 @@ import java.util.List;
 
 public class GamificationSummaryDTO {
     private int totalPoints;
-    private int currentStreak;
-    private int highestStreak;
+    private Integer currentStreak;
+    private Integer highestStreak;
     private List<BadgeInfoDTO> badges = new ArrayList<>();
 
     public GamificationSummaryDTO() {
@@ -29,19 +29,19 @@ public class GamificationSummaryDTO {
         this.totalPoints = totalPoints;
     }
 
-    public int getCurrentStreak() {
+    public Integer getCurrentStreak() {
         return currentStreak;
     }
 
-    public void setCurrentStreak(int currentStreak) {
+    public void setCurrentStreak(Integer currentStreak) {
         this.currentStreak = currentStreak;
     }
 
-    public int getHighestStreak() {
+    public Integer getHighestStreak() {
         return highestStreak;
     }
 
-    public void setHighestStreak(int highestStreak) {
+    public void setHighestStreak(Integer highestStreak) {
         this.highestStreak = highestStreak;
     }
 
@@ -53,4 +53,3 @@ public class GamificationSummaryDTO {
         this.badges = badges == null ? List.of() : badges;
     }
 }
-

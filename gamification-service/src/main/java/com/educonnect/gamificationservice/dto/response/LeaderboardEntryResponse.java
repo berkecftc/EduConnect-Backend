@@ -1,11 +1,12 @@
 package com.educonnect.gamificationservice.dto.response;
 
+import java.util.List;
+
 public record LeaderboardEntryResponse(
         int rank,
-        String fullName,
-        int totalPoints,
-        int currentStreak
+        String displayName,
+        long points,
+        List<String> badges,
+        boolean me
 ) {
 }
-
-

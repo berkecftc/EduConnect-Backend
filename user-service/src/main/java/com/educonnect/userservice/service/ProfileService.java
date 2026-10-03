@@ -45,7 +45,7 @@ import java.util.stream.Collectors;
 public class ProfileService {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(ProfileService.class);
-    private static final String USER_PROFILE_CACHE = "userProfileV3";
+    private static final String USER_PROFILE_CACHE = "userProfileV4";
     public static final String STUDENT_AFFILIATION = "STUDENT";
     public static final String ACADEMICIAN_AFFILIATION = "ACADEMICIAN";
     private static final String USER_PROFILE_BY_STUDENT_NUMBER_CACHE = "userProfileByStudentNumberV2";
@@ -327,6 +327,9 @@ public class ProfileService {
             dto.setProgramName(placement.programName());
             dto.setProgramLevel(placement.programLevel().name());
             dto.setFacultyName(Optional.ofNullable(dto.getFacultyName()).orElse(placement.facultyName()));
+            if (dto.getFacultyId() == null) {
+                dto.setFacultyId(placement.facultyId());
+            }
             if (dto.getDepartmentId() == null) {
                 dto.setDepartmentId(placement.departmentId());
             }
@@ -374,6 +377,7 @@ public class ProfileService {
         if (academician.getDepartmentId() != null) {
             AcademicPlacement placement = catalogService.department(academician.getDepartmentId());
             dto.setDepartmentId(placement.departmentId());
+            dto.setFacultyId(placement.facultyId());
             dto.setFacultyName(placement.facultyName());
         }
         return dto;

@@ -68,6 +68,10 @@ public class ProfileViewService {
         if (!visibility.studentNumber()) {
             profile.setStudentNumber(null);
         }
+        if (!userId.equals(viewerId) && profile.getGamification() != null) {
+            profile.getGamification().setCurrentStreak(null);
+            profile.getGamification().setHighestStreak(null);
+        }
         return profile;
     }
 

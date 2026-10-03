@@ -1,8 +1,10 @@
 package com.educonnect.courseservice.controller;
 
 import com.educonnect.courseservice.dto.CourseAccessResponse;
+import com.educonnect.courseservice.dto.TermResponse;
 import com.educonnect.courseservice.service.CourseService;
 import com.educonnect.courseservice.service.StudentRelationService;
+import com.educonnect.courseservice.service.TermService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -19,10 +21,18 @@ public class InternalCourseController {
 
     private final CourseService courseService;
     private final StudentRelationService studentRelationService;
+    private final TermService termService;
 
-    public InternalCourseController(CourseService courseService, StudentRelationService studentRelationService) {
+    public InternalCourseController(CourseService courseService, StudentRelationService studentRelationService,
+                                    TermService termService) {
         this.courseService = courseService;
         this.studentRelationService = studentRelationService;
+        this.termService = termService;
+    }
+
+    @GetMapping("/terms/current")
+    public ResponseEntity<TermResponse> currentTerm() {
+        return ResponseEntity.ok(termService.currentTerm());
     }
 
     @GetMapping("/{courseId}/enrolled-students/ids")
