@@ -17,6 +17,8 @@ public class SubmissionSummaryDTO {
     private UUID groupId;
     private String groupName;
     private boolean isLate;
+    private Boolean aiUsed;
+    private String aiNote;
 
     public SubmissionSummaryDTO() {}
 
@@ -52,4 +54,8 @@ public class SubmissionSummaryDTO {
 
     public boolean isLate() { return isLate; }
     public void setLate(boolean late) { isLate = late; }
+    public Boolean getAiUsed() { return aiUsed; }
+    public void setAiUsed(Boolean aiUsed) { this.aiUsed = aiUsed; }
+    public String getAiNote() { return aiNote; }
+    public void setAiNote(String aiNote) { this.aiNote = aiNote; }
 }

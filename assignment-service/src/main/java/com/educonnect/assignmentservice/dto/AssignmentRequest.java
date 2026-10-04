@@ -6,6 +6,7 @@ import jakarta.validation.constraints.Digits;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
+import com.educonnect.assignmentservice.model.AiPolicy;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -35,6 +36,7 @@ public class AssignmentRequest {
     @Digits(integer = 3, fraction = 2, message = "Kesinti en fazla iki ondalık basamaklı olabilir")
     private BigDecimal latePenaltyPercent;
     private UUID groupSetId;
+    private AiPolicy aiPolicy;
 
     // Getter & Setter
     public String getTitle() { return title; }
@@ -45,6 +47,8 @@ public class AssignmentRequest {
     public void setDueDate(LocalDateTime dueDate) { this.dueDate = dueDate; }
     public UUID getCourseId() { return courseId; }
     public void setCourseId(UUID courseId) { this.courseId = courseId; }
+    public AiPolicy getAiPolicy() { return aiPolicy; }
+    public void setAiPolicy(AiPolicy aiPolicy) { this.aiPolicy = aiPolicy; }
     public AssessmentType getType() { return type; }
     public void setType(AssessmentType type) { this.type = type; }
     public BigDecimal getWeight() { return weight; }

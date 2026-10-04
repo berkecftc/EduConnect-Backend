@@ -75,7 +75,7 @@ class SubmissionServiceTest {
 
     @Test
     void anEmptySubmissionIsRejected() {
-        assertCode(() -> service.submit(assignmentId, studentId, null, "  "), "SUBMISSION_EMPTY");
+        assertCode(() -> service.submit(assignmentId, studentId, null, "  ", null, null), "SUBMISSION_EMPTY");
     }
 
     @Test
@@ -86,7 +86,7 @@ class SubmissionServiceTest {
         noExtension();
         when(submissionRepository.findByAssignmentIdAndStudentIdAndGroupIdIsNull(assignmentId, studentId)).thenReturn(Optional.of(graded));
 
-        assertCode(() -> service.submit(assignmentId, studentId, null, "yeni"), "SUBMISSION_GRADED");
+        assertCode(() -> service.submit(assignmentId, studentId, null, "yeni", null, null), "SUBMISSION_GRADED");
         assertThat(graded.getGrade()).isEqualByComparingTo("85");
         verify(minioService, never()).uploadFile(any());
     }
@@ -100,7 +100,7 @@ class SubmissionServiceTest {
         whenSaved();
         when(versionRepository.countBySubmissionId(any())).thenReturn(1);
 
-        AssignmentSubmission result = service.submit(assignmentId, studentId, null, " Cevabım ");
+        AssignmentSubmission result = service.submit(assignmentId, studentId, null, " Cevabım ", null, null);
 
         assertThat(result.getTextContent()).isEqualTo("Cevabım");
         assertThat(result.getSubmissionFileUrl()).isNull();
@@ -116,7 +116,7 @@ class SubmissionServiceTest {
         assignment.setDueDate(NOW.minusHours(1));
         noExtension();
 
-        assertCode(() -> service.submit(assignmentId, studentId, null, "geç"), "SUBMISSION_CLOSED");
+        assertCode(() -> service.submit(assignmentId, studentId, null, "geç", null, null), "SUBMISSION_CLOSED");
     }
 
     @Test
@@ -127,11 +127,11 @@ class SubmissionServiceTest {
         when(submissionRepository.findByAssignmentIdAndStudentIdAndGroupIdIsNull(assignmentId, studentId)).thenReturn(Optional.empty());
         whenSaved();
 
-        assertThat(service.submit(assignmentId, studentId, null, "geç").isLate()).isTrue();
+        assertThat(service.submit(assignmentId, studentId, null, "geç", null, null).isLate()).isTrue();
 
         when(submissionRepository.findByAssignmentIdAndStudentIdAndGroupIdIsNull(assignmentId, studentId))
                 .thenReturn(Optional.of(new AssignmentSubmission(assignmentId, studentId, null, true)));
-        assertCode(() -> service.submit(assignmentId, studentId, null, "tekrar"), "RESUBMISSION_CLOSED");
+        assertCode(() -> service.submit(assignmentId, studentId, null, "tekrar", null, null), "RESUBMISSION_CLOSED");
     }
 
     @Test
@@ -140,7 +140,7 @@ class SubmissionServiceTest {
         assignment.setLateUntil(NOW.minusDays(1));
         noExtension();
 
-        assertCode(() -> service.submit(assignmentId, studentId, null, "çok geç"), "SUBMISSION_CLOSED");
+        assertCode(() -> service.submit(assignmentId, studentId, null, "çok geç", null, null), "SUBMISSION_CLOSED");
     }
 
     @Test
@@ -152,7 +152,7 @@ class SubmissionServiceTest {
         when(submissionRepository.findByAssignmentIdAndStudentIdAndGroupIdIsNull(assignmentId, studentId)).thenReturn(Optional.empty());
         whenSaved();
 
-        assertThat(service.submit(assignmentId, studentId, null, "raporlu").isLate()).isFalse();
+        assertThat(service.submit(assignmentId, studentId, null, "raporlu", null, null).isLate()).isFalse();
     }
 
     @Test
@@ -161,7 +161,7 @@ class SubmissionServiceTest {
         when(submissionRepository.findByAssignmentIdAndStudentIdAndGroupIdIsNull(assignmentId, studentId)).thenReturn(Optional.empty());
         whenSaved();
 
-        assertThat(service.submit(assignmentId, studentId, null, "cevap").isLate()).isFalse();
+        assertThat(service.submit(assignmentId, studentId, null, "cevap", null, null).isLate()).isFalse();
     }
 
     @Test

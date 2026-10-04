@@ -1,6 +1,7 @@
 package com.educonnect.assignmentservice.dto;
 
 import com.educonnect.assignmentservice.model.AssessmentType;
+import com.educonnect.assignmentservice.model.AiPolicy;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -14,6 +15,7 @@ public class MyAssignmentDTO {
     private UUID courseId;
     private String fileUrl;
     private AssessmentType type;
+    private AiPolicy aiPolicy;
     private BigDecimal weight;
     private BigDecimal maxPoints;
     private boolean gradesPublished;
@@ -50,6 +52,8 @@ public class MyAssignmentDTO {
 
     public MySubmissionDTO getSubmission() { return submission; }
     public void setSubmission(MySubmissionDTO submission) { this.submission = submission; }
+    public AiPolicy getAiPolicy() { return aiPolicy; }
+    public void setAiPolicy(AiPolicy aiPolicy) { this.aiPolicy = aiPolicy; }
     public AssessmentType getType() { return type; }
     public void setType(AssessmentType type) { this.type = type; }
     public BigDecimal getWeight() { return weight; }

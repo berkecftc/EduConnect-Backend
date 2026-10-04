@@ -136,6 +136,10 @@ public class AssessmentRules {
                     plain(request.latePenaltyPercent()), actorId, now));
             assignment.setLatePenaltyPercent(request.latePenaltyPercent());
         }
+        if (request.aiPolicy() != null && request.aiPolicy() != assignment.getAiPolicy()) {
+            changes.add(change(assignment, "aiPolicy", assignment.getAiPolicy().name(), request.aiPolicy().name(), actorId, now));
+            assignment.setAiPolicy(request.aiPolicy());
+        }
         UUID groupSetId = Boolean.TRUE.equals(request.clearGroupSet()) ? null
                 : request.groupSetId() != null ? request.groupSetId() : assignment.getGroupSetId();
         if (!Objects.equals(groupSetId, assignment.getGroupSetId())) {

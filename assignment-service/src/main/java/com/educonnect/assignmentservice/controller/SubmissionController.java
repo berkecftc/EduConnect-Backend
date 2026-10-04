@@ -42,11 +42,13 @@ public class SubmissionController {
     public ResponseEntity<SubmissionResponse> submit(@PathVariable UUID assignmentId,
                                                      @RequestPart(value = "file", required = false) MultipartFile file,
                                                      @RequestParam(value = "text", required = false) String text,
+                                                     @RequestParam(value = "aiUsed", required = false) Boolean aiUsed,
+                                                     @RequestParam(value = "aiNote", required = false) String aiNote,
                                                      @RequestHeader(USER_ID_HEADER) String studentIdHeader) {
         UUID studentId = parseUserId(studentIdHeader);
         Assignment assignment = accessGuard.getAssignment(assignmentId);
         accessGuard.requireEnrolledStudent(assignment.getCourseId(), studentId);
-        AssignmentSubmission submission = submissionService.submit(assignmentId, studentId, file, text);
+        AssignmentSubmission submission = submissionService.submit(assignmentId, studentId, file, text, aiUsed, aiNote);
         return ResponseEntity.status(HttpStatus.CREATED).body(SubmissionResponse.from(submission));
     }
 

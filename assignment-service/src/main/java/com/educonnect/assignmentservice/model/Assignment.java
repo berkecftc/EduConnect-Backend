@@ -65,6 +65,10 @@ public class Assignment {
     @Column(name = "group_set_id")
     private UUID groupSetId;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "ai_policy", nullable = false, length = 30)
+    private AiPolicy aiPolicy = AiPolicy.GUIDANCE;
+
     @Convert(converter = ObjectUrlConverter.class)
     private String fileUrl; // Hoca ek dosya yüklediyse (MinIO)
 
@@ -96,6 +100,8 @@ public class Assignment {
     public void setLateUntil(LocalDateTime lateUntil) { this.lateUntil = lateUntil; }
     public BigDecimal getLatePenaltyPercent() { return latePenaltyPercent; }
     public void setLatePenaltyPercent(BigDecimal latePenaltyPercent) { this.latePenaltyPercent = latePenaltyPercent; }
+    public AiPolicy getAiPolicy() { return aiPolicy; }
+    public void setAiPolicy(AiPolicy aiPolicy) { this.aiPolicy = aiPolicy; }
     public UUID getGroupSetId() { return groupSetId; }
     public void setGroupSetId(UUID groupSetId) { this.groupSetId = groupSetId; }
     public boolean isGroupWork() { return groupSetId != null; }

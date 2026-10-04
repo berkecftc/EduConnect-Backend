@@ -30,6 +30,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.server.ResponseStatusException;
+import com.educonnect.assignmentservice.model.AiPolicy;
 
 import java.io.InputStream;
 import java.math.BigDecimal;
@@ -123,6 +124,7 @@ public class AssignmentService {
         assignment.setLateUntil(request.getLateUntil());
         assignment.setGroupSetId(request.getGroupSetId());
         assignment.setLatePenaltyPercent(request.getLatePenaltyPercent() != null ? request.getLatePenaltyPercent() : BigDecimal.ZERO);
+        assignment.setAiPolicy(request.getAiPolicy() != null ? request.getAiPolicy() : AiPolicy.GUIDANCE);
 
         Assignment saved = assignmentRepository.save(assignment);
 
@@ -252,6 +254,7 @@ public class AssignmentService {
             dto.setCourseId(assignment.getCourseId());
             dto.setFileUrl(assignment.getFileUrl());
             dto.setType(assignment.getType());
+            dto.setAiPolicy(assignment.getAiPolicy());
             dto.setWeight(assignment.getWeight());
             dto.setMaxPoints(assignment.getMaxPoints());
             dto.setGradesPublished(assignment.gradesPublished());
@@ -287,6 +290,8 @@ public class AssignmentService {
                             subDto.setFinalGrade(DeadlinePolicy.finalGrade(assignment, grade, submission.isLate()));
                         }
                         subDto.setLate(submission.isLate());
+                        subDto.setAiUsed(submission.getAiUsed());
+                        subDto.setAiNote(submission.getAiNote());
                         subDto.setTextContent(submission.getTextContent());
                         dto.setSubmission(subDto);
                     });
@@ -310,6 +315,7 @@ public class AssignmentService {
         res.setCourseId(a.getCourseId());
         res.setFileUrl(a.getFileUrl());
         res.setType(a.getType());
+        res.setAiPolicy(a.getAiPolicy());
         res.setWeight(a.getWeight());
         res.setMaxPoints(a.getMaxPoints());
         res.setGradesPublishedAt(a.getGradesPublishedAt());
@@ -350,6 +356,8 @@ public class AssignmentService {
         dto.setSubmittedAt(submission.getSubmittedAt());
         dto.setGrade(submission.getGrade());
         dto.setLate(submission.isLate());
+        dto.setAiUsed(submission.getAiUsed());
+        dto.setAiNote(submission.getAiNote());
         dto.setTextContent(submission.getTextContent());
         if (assignment != null) {
             dto.setFinalGrade(DeadlinePolicy.finalGrade(assignment, submission.getGrade(), submission.isLate()));

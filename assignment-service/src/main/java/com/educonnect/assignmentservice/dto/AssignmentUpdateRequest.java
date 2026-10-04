@@ -5,6 +5,7 @@ import jakarta.validation.constraints.DecimalMax;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.Digits;
 import jakarta.validation.constraints.Size;
+import com.educonnect.assignmentservice.model.AiPolicy;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -27,5 +28,6 @@ public record AssignmentUpdateRequest(
         @DecimalMax(value = "100", message = "Kesinti en fazla 100 olabilir")
         @Digits(integer = 3, fraction = 2, message = "Kesinti en fazla iki ondalık basamaklı olabilir") BigDecimal latePenaltyPercent,
         UUID groupSetId,
-        Boolean clearGroupSet) {
+        Boolean clearGroupSet,
+        AiPolicy aiPolicy) {
 }

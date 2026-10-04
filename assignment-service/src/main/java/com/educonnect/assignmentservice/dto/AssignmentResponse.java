@@ -1,5 +1,6 @@
 package com.educonnect.assignmentservice.dto;
 import com.educonnect.assignmentservice.model.AssessmentType;
+import com.educonnect.assignmentservice.model.AiPolicy;
 
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -14,6 +15,7 @@ public class AssignmentResponse {
     private UUID courseId;
     private String fileUrl;
     private AssessmentType type;
+    private AiPolicy aiPolicy;
     private BigDecimal weight;
     private BigDecimal maxPoints;
     private Instant gradesPublishedAt;
@@ -34,6 +36,8 @@ public class AssignmentResponse {
     public void setCourseId(UUID courseId) { this.courseId = courseId; }
     public String getFileUrl() { return fileUrl; }
     public void setFileUrl(String fileUrl) { this.fileUrl = fileUrl; }
+    public AiPolicy getAiPolicy() { return aiPolicy; }
+    public void setAiPolicy(AiPolicy aiPolicy) { this.aiPolicy = aiPolicy; }
     public AssessmentType getType() { return type; }
     public void setType(AssessmentType type) { this.type = type; }
     public BigDecimal getWeight() { return weight; }

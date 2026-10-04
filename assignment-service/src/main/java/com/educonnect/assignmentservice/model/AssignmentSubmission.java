@@ -57,6 +57,12 @@ public class AssignmentSubmission {
     @Column(name = "is_late", nullable = false)
     private boolean isLate = false; // Geç teslim mi?
 
+    @Column(name = "ai_used")
+    private Boolean aiUsed;
+
+    @Column(name = "ai_note", length = 1000)
+    private String aiNote;
+
     // No-args constructor
     public AssignmentSubmission() {}
 
@@ -97,6 +103,10 @@ public class AssignmentSubmission {
 
     public boolean isLate() { return isLate; }
     public void setLate(boolean late) { isLate = late; }
+    public Boolean getAiUsed() { return aiUsed; }
+    public void setAiUsed(Boolean aiUsed) { this.aiUsed = aiUsed; }
+    public String getAiNote() { return aiNote; }
+    public void setAiNote(String aiNote) { this.aiNote = aiNote; }
 
     public Instant getCreatedAt() { return createdAt; }
     public Instant getUpdatedAt() { return updatedAt; }
