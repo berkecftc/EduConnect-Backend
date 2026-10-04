@@ -57,6 +57,7 @@ public class AffiliationLifecycleService {
     private final UserAdministrationService userAdministrationService;
     private final AcademicianAssignmentGuard assignmentGuard;
     private final RefreshTokenService refreshTokenService;
+    private final JobLock jobLock;
     private final int closureGraceDays;
     private final Clock clock;
 
@@ -67,9 +68,10 @@ public class AffiliationLifecycleService {
                                        UserAdministrationService userAdministrationService,
                                        AcademicianAssignmentGuard assignmentGuard,
                                        RefreshTokenService refreshTokenService,
+                                       JobLock jobLock,
                                        @Value("${educonnect.auth.lifecycle.closure-grace-days:0}") int closureGraceDays) {
         this(userRepository, changeRepository, outboxPublisher, userAdministrationService, assignmentGuard,
-                refreshTokenService, closureGraceDays, Clock.systemDefaultZone());
+                refreshTokenService, jobLock, closureGraceDays, Clock.systemDefaultZone());
     }
 
     AffiliationLifecycleService(UserRepository userRepository,
@@ -78,6 +80,7 @@ public class AffiliationLifecycleService {
                                 UserAdministrationService userAdministrationService,
                                 AcademicianAssignmentGuard assignmentGuard,
                                 RefreshTokenService refreshTokenService,
+                                JobLock jobLock,
                                 int closureGraceDays,
                                 Clock clock) {
         this.userRepository = userRepository;
@@ -86,6 +89,7 @@ public class AffiliationLifecycleService {
         this.userAdministrationService = userAdministrationService;
         this.assignmentGuard = assignmentGuard;
         this.refreshTokenService = refreshTokenService;
+        this.jobLock = jobLock;
         this.closureGraceDays = closureGraceDays;
         this.clock = clock;
     }
@@ -137,6 +141,10 @@ public class AffiliationLifecycleService {
     @Scheduled(cron = "0 15 4 * * ?")
     @Transactional
     public void closeDueAccounts() {
+        if (!jobLock.tryAcquire("auth.close-due-accounts")) {
+            LOGGER.info("Account closure job is already running on another instance; skipping.");
+            return;
+        }
         for (User user : userRepository.findByClosureDueAtBefore(clock.instant())) {
             if (AccountType.of(user.getRoles()) == AccountType.UNKNOWN) {
                 userAdministrationService.deleteUser(user.getId(), "Hesap kapanış süresi doldu");

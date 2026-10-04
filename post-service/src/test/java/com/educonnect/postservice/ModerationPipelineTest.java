@@ -15,6 +15,7 @@ import com.educonnect.postservice.model.PostStatus;
 import com.educonnect.postservice.repository.CommentRepository;
 import com.educonnect.postservice.repository.ModerationRecordRepository;
 import com.educonnect.postservice.repository.PostRepository;
+import com.educonnect.postservice.service.JobLock;
 import com.educonnect.postservice.service.PostModerationService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -22,11 +23,14 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
+import org.springframework.transaction.support.TransactionTemplate;
 import tools.jackson.databind.ObjectMapper;
 
 import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.groups.Tuple.tuple;
@@ -60,6 +64,12 @@ class ModerationPipelineTest {
 
     @Autowired
     private PostModerationService moderationService;
+
+    @Autowired
+    private JobLock jobLock;
+
+    @Autowired
+    private TransactionTemplate transactionTemplate;
 
     @Autowired
     private ModerationReviewListener reviewListener;
@@ -202,6 +212,34 @@ class ModerationPipelineTest {
         assertThat(postRepository.findById(stale).orElseThrow().getStatus()).isEqualTo(PostStatus.IN_REVIEW);
         assertThat(commentRepository.findById(staleComment).orElseThrow().getStatus()).isEqualTo(CommentStatus.IN_REVIEW);
         assertThat(postRepository.findById(undecided).orElseThrow().getStatus()).isEqualTo(PostStatus.IN_REVIEW);
+    }
+
+    @Test
+    void aSecondInstanceSkipsTheTimeoutRunWhileAnotherHoldsTheLock() throws Exception {
+        UUID stale = pendingPost();
+        CountDownLatch held = new CountDownLatch(1);
+        CountDownLatch release = new CountDownLatch(1);
+        Thread otherInstance = new Thread(() -> transactionTemplate.executeWithoutResult(status -> {
+            jobLock.tryAcquire("post.moderation-timeout");
+            held.countDown();
+            try {
+                release.await(10, TimeUnit.SECONDS);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+        }));
+        otherInstance.start();
+        try {
+            assertThat(held.await(10, TimeUnit.SECONDS)).isTrue();
+            assertThat(moderationService.escalateStale(Instant.now().plusSeconds(60))).isZero();
+            assertThat(postRepository.findById(stale).orElseThrow().getStatus()).isEqualTo(PostStatus.PENDING);
+        } finally {
+            release.countDown();
+            otherInstance.join();
+        }
+
+        assertThat(moderationService.escalateStale(Instant.now().plusSeconds(60))).isPositive();
+        assertThat(postRepository.findById(stale).orElseThrow().getStatus()).isEqualTo(PostStatus.IN_REVIEW);
     }
 
     private void decide(String path, UUID id, String body) throws Exception {
