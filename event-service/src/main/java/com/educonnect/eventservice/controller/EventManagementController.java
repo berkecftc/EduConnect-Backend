@@ -7,7 +7,6 @@ import com.educonnect.eventservice.dto.response.EventResponse;
 import com.educonnect.eventservice.model.Event;
 import com.educonnect.eventservice.service.EventQueryService;
 import com.educonnect.eventservice.service.EventService;
-import com.educonnect.common.web.ApiException;
 import com.educonnect.common.web.BadRequestException;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
@@ -53,26 +52,6 @@ public class EventManagementController {
 
         Event createdEvent = eventService.createEvent(request, poster, creatorId);
         return ResponseEntity.status(HttpStatus.CREATED).body(EventResponse.from(createdEvent));
-    }
-
-    @GetMapping("/pending")
-    public ResponseEntity<String> getPendingEvents() {
-        throw advisorFlowOnly();
-    }
-
-    @PostMapping("/{eventId}/approve")
-    public ResponseEntity<String> approveEvent(@PathVariable UUID eventId) {
-        throw advisorFlowOnly();
-    }
-
-    @PostMapping("/{eventId}/reject")
-    public ResponseEntity<String> rejectEvent(@PathVariable UUID eventId) {
-        throw advisorFlowOnly();
-    }
-
-    private static ApiException advisorFlowOnly() {
-        return new ApiException(HttpStatus.GONE, "ENDPOINT_GONE",
-                "Bu uç kapatıldı. Etkinlik onayı için /api/events/advisor/pending, /api/events/advisor/{eventId}/approve ve /reject kullanın.");
     }
 
     /**

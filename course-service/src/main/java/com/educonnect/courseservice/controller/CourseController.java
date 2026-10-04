@@ -1,7 +1,6 @@
 package com.educonnect.courseservice.controller;
 
 import com.educonnect.common.storage.SafeFileNames;
-import com.educonnect.common.web.ApiException;
 import com.educonnect.common.web.ForbiddenException;
 import com.educonnect.courseservice.dto.*;
 import com.educonnect.courseservice.exception.UnauthorizedCourseAccessException;
@@ -99,14 +98,6 @@ public class CourseController {
         return rolesHeader != null && java.util.Arrays.stream(rolesHeader.split(","))
                 .map(String::trim)
                 .anyMatch(role::equals);
-    }
-
-    // ===================== ÖĞRENCİ KAYIT (DOĞRUDAN - Akademisyen) =====================
-
-    @PostMapping("/{courseId}/enroll-student")
-    public ResponseEntity<String> enrollStudent(@PathVariable UUID courseId) {
-        throw new ApiException(HttpStatus.GONE, "ENDPOINT_GONE",
-                "Derse doğrudan öğrenci ekleme kapatıldı. Öğrenci POST /api/courses/{courseId}/apply ile başvurur, hoca onaylar.");
     }
 
     // ÖĞRENCİNİN KAYITLI OLDUĞU KURSLARI GETİR

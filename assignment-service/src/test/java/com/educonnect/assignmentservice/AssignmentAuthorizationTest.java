@@ -20,11 +20,13 @@ import java.time.LocalDateTime;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.hamcrest.Matchers.startsWith;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -220,6 +222,18 @@ class AssignmentAuthorizationTest {
                 .andExpect(content().string("cevap"));
         mockMvc.perform(as(get("/api/assignments/files/download").param("url", fileUrl), TestTokens.academician(instructor)))
                 .andExpect(status().isOk());
+
+        String submissionId = JsonPath.read(response, "$.id");
+        mockMvc.perform(as(get("/api/assignments/submissions/{id}/file", submissionId), TestTokens.student(classmate)))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(as(get("/api/assignments/submissions/{id}/file", submissionId), TestTokens.academician(otherInstructor)))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(as(get("/api/assignments/submissions/{id}/file", submissionId), TestTokens.student(student)))
+                .andExpect(status().isOk())
+                .andExpect(header().string(HttpHeaders.CONTENT_DISPOSITION, startsWith("attachment")))
+                .andExpect(content().string("cevap"));
+        mockMvc.perform(as(get("/api/assignments/submissions/{id}/file", submissionId), TestTokens.academician(instructor)))
+                .andExpect(status().isOk());
     }
 
     @Test
@@ -239,12 +253,22 @@ class AssignmentAuthorizationTest {
         mockMvc.perform(as(get("/api/assignments/files/download").param("url", fileUrl), TestTokens.student(classmate)))
                 .andExpect(status().isOk())
                 .andExpect(content().string("soru"));
+
+        String createdId = JsonPath.read(response, "$.id");
+        mockMvc.perform(as(get("/api/assignments/{id}/file", createdId), TestTokens.student(outsider)))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(as(get("/api/assignments/{id}/file", createdId), TestTokens.student(classmate)))
+                .andExpect(status().isOk())
+                .andExpect(content().string("soru"));
     }
 
     @Test
     void downloadingAnUnknownFileIsNotFound() throws Exception {
         mockMvc.perform(as(get("/api/assignments/files/download").param("url", "baska-bir-dosya.pdf"), TestTokens.student(student)))
                 .andExpect(status().isNotFound());
+        mockMvc.perform(as(get("/api/assignments/{id}/file", assignmentId), TestTokens.student(student)))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.errorCode").value("FILE_NOT_FOUND"));
     }
 
     @Test

@@ -205,11 +205,9 @@ class UserAuthorizationTest {
     }
 
     @Test
-    void academicianSearchIsPublicAndClosedLookupsAreGone() throws Exception {
+    void academicianSearchIsPublic() throws Exception {
         mockMvc.perform(get("/api/users/search/academicians").param("query", "Zeynep"))
                 .andExpect(status().isOk());
-        mockMvc.perform(as(get("/api/users/by-student-number/{no}", "S-1"), TestTokens.admin(admin)))
-                .andExpect(status().isGone());
     }
 
     private static <B extends AbstractMockHttpServletRequestBuilder<B>> B as(B request, String token) {

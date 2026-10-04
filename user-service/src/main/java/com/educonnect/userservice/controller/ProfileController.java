@@ -8,7 +8,6 @@ import com.educonnect.userservice.dto.response.UserProfileResponseDTO;
 import tools.jackson.core.JacksonException;
 import tools.jackson.databind.ObjectMapper;
 import com.educonnect.common.security.IdentityHeaders;
-import com.educonnect.common.web.ApiException;
 import com.educonnect.common.web.BadRequestException;
 import com.educonnect.common.web.ForbiddenException;
 import com.educonnect.userservice.service.ProfileService;
@@ -17,7 +16,6 @@ import jakarta.validation.ConstraintViolation;
 import jakarta.validation.ConstraintViolationException;
 import jakarta.validation.Valid;
 import jakarta.validation.Validator;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -152,11 +150,6 @@ public class ProfileController {
         return ResponseEntity.ok(profileViewService.getAggregatedProfile(userId, viewerId, viewerRoles));
     }
 
-    @GetMapping("/by-student-number/{studentNumber}")
-    public ResponseEntity<String> getProfileByStudentNumber(@PathVariable String studentNumber) {
-        throw new ApiException(HttpStatus.GONE, "ENDPOINT_GONE", "Öğrenci numarasıyla profil sorgulama kapatıldı.");
-    }
-
     // --- YENİ ENDPOINT: Profil Resmi Yükleme ---
     // Bu endpoint, giriş yapmış kullanıcının KENDİ resmini yüklemesi içindir.
     @PostMapping(value = "/me/profile-picture", consumes = "multipart/form-data", produces = MediaType.TEXT_PLAIN_VALUE)
@@ -175,12 +168,6 @@ public class ProfileController {
         String fileUrl = profileService.uploadProfilePicture(userId, file);
 
         return ResponseEntity.ok(fileUrl); // Yeni resmin yolunu (objectName) döndür
-    }
-
-    @DeleteMapping({"/students/{userId}", "/academicians/{userId}"})
-    public ResponseEntity<String> deleteProfile(@PathVariable UUID userId) {
-        throw new ApiException(HttpStatus.GONE, "ENDPOINT_GONE",
-                "Profil silme bu uçtan kapatıldı. Kullanıcıyı DELETE /api/auth/admin/users/{userId} ile silin; profil tüm servislerle birlikte temizlenir.");
     }
 
     /**

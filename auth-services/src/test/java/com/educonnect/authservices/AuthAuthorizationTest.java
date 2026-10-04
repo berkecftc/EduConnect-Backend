@@ -166,14 +166,6 @@ class AuthAuthorizationTest {
     }
 
     @Test
-    void closedAdminEndpointsStayBehindTheAdminRole() throws Exception {
-        mockMvc.perform(as(post("/api/auth/admin/promote/{id}", student.getId()), student))
-                .andExpect(status().isForbidden());
-        mockMvc.perform(as(post("/api/auth/admin/promote/{id}", student.getId()), admin))
-                .andExpect(status().isGone());
-    }
-
-    @Test
     void changePasswordRequiresAValidTokenAndTheCurrentPassword() throws Exception {
         User owner = saveWithPassword(Role.ROLE_STUDENT);
         String wrongCurrent = "{\"currentPassword\":\"yanlis-parola-1\",\"newPassword\":\"Yeni-Parola-2026\",\"confirmationPassword\":\"Yeni-Parola-2026\"}";

@@ -57,14 +57,8 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/api/events/official/pending-requests").authenticated()
 
                         .requestMatchers(HttpMethod.POST, "/api/events/manage").authenticated()
-                        .requestMatchers(HttpMethod.GET, "/api/events/manage/pending").hasRole("ACADEMICIAN")
-                        .requestMatchers(HttpMethod.POST, "/api/events/manage/*/approve").hasRole("ACADEMICIAN")
-                        .requestMatchers(HttpMethod.POST, "/api/events/manage/*/reject").hasRole("ACADEMICIAN")
                         .requestMatchers("/api/events/manage/**").authenticated()
                         .requestMatchers("/api/events/admin/**").hasRole("ADMIN")
-
-                        // Event registration requires authentication
-                        .requestMatchers("/api/events/*/register").authenticated()
 
                         // Public GET endpoints (etkinlik listeleme/detay)
                         .requestMatchers(HttpMethod.GET, "/api/events").permitAll()

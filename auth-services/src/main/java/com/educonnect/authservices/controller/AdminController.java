@@ -8,9 +8,7 @@ import com.educonnect.authservices.service.AdminAuditService;
 import com.educonnect.authservices.dto.response.AdminAuditPage;
 import com.educonnect.authservices.service.RegistrationApprovalService;
 import com.educonnect.authservices.service.UserAdministrationService;
-import com.educonnect.common.web.ApiException;
 import jakarta.validation.Valid;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
@@ -41,21 +39,6 @@ public class AdminController {
         this.accountStatusService = accountStatusService;
         this.adminAuditService = adminAuditService;
         this.academicianAssignmentGuard = academicianAssignmentGuard;
-    }
-
-    @PreAuthorize("hasRole('ADMIN')")
-    @PostMapping({"/promote/{userId}", "/revoke/{userId}"})
-    public ResponseEntity<String> changeAdminRole(@PathVariable UUID userId) {
-        throw new ApiException(HttpStatus.GONE, "ENDPOINT_GONE",
-                "Admin rolü mevcut hesaplara verilip alınamaz. Admin hesapları ayrı platform hesaplarıdır ve yalnız ilk kurulumda (educonnect.auth.bootstrap-admin) açılır.");
-    }
-
-    @PreAuthorize("hasRole('ADMIN')")
-    @RequestMapping(value = {"/pending/club-official", "/approve/club-official/{userId}", "/reject/club-official/{userId}"},
-            method = {RequestMethod.GET, RequestMethod.POST})
-    public ResponseEntity<String> clubOfficialRequests() {
-        throw new ApiException(HttpStatus.GONE, "ENDPOINT_GONE",
-                "Genel kulüp yetkilisi başvurusu kapatıldı. Kulüp görevleri kulüp kuruluş başvurusu ve danışman onaylı görev atamasıyla verilir.");
     }
 
     // --- AKADEMİSYEN İŞLEMLERİ ---

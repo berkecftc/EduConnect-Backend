@@ -15,7 +15,6 @@ import com.educonnect.clubservice.service.ClubLifecycleService;
 import com.educonnect.clubservice.service.ClubPositionHistoryService;
 import com.educonnect.clubservice.service.ClubQueryService;
 import com.educonnect.common.security.AuditLog;
-import com.educonnect.common.web.ApiException;
 import com.educonnect.common.web.BadRequestException;
 import jakarta.validation.Valid;
 import org.slf4j.Logger;
@@ -141,22 +140,6 @@ public class ClubAdminController {
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<List<MemberDTO>> getBoardMembers(@PathVariable UUID clubId) {
         return ResponseEntity.ok(clubQueryService.getClubBoardMembers(clubId));
-    }
-
-    /**
-     * Başkanı Değiştir
-     * @deprecated Bu endpoint artık kullanılmamalıdır. Başkan değişiklikleri danışman onayına tabidir.
-     *             Önce mevcut başkanı görevden almak için DELETE /api/clubs/{clubId}/members/{studentId}/role,
-     *             ardından yeni başkan atamak için POST /api/clubs/{clubId}/role-change-requests kullanın.
-     */
-    @Deprecated
-    @PutMapping("/{clubId}/change-president")
-    @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<String> changePresident(@PathVariable UUID clubId, @RequestParam UUID newPresidentId) {
-        throw new ApiException(HttpStatus.GONE, "ENDPOINT_GONE",
-                "Bu endpoint artık kullanılmamaktadır. Başkan değişiklikleri danışman onayına tabidir. " +
-                        "Önce mevcut başkanı görevden almak için DELETE /api/clubs/{clubId}/members/{studentId}/role, " +
-                        "ardından yeni başkan atamak için POST /api/clubs/{clubId}/role-change-requests kullanın.");
     }
 
     // Geçmiş Başkanları Görüntüle
