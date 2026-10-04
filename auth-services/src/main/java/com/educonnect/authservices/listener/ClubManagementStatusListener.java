@@ -52,7 +52,6 @@ public class ClubManagementStatusListener {
         Set<Role> roles = user.getRoles() != null ? new HashSet<>(user.getRoles()) : new HashSet<>();
         if (event.managesClub()) {
             roles.add(Role.ROLE_CLUB_OFFICIAL);
-            roles.remove(Role.ROLE_PENDING_CLUB_OFFICIAL);
         } else {
             roles.remove(Role.ROLE_CLUB_OFFICIAL);
         }

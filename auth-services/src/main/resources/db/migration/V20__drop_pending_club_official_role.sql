@@ -1,0 +1,6 @@
+DELETE FROM auth_db.user_roles WHERE role = 'ROLE_PENDING_CLUB_OFFICIAL';
+
+ALTER TABLE auth_db.user_roles DROP CONSTRAINT user_roles_role_check;
+ALTER TABLE auth_db.user_roles ADD CONSTRAINT user_roles_role_check CHECK (role IN (
+    'ROLE_STUDENT', 'ROLE_PENDING_STUDENT', 'ROLE_ACADEMICIAN', 'ROLE_PENDING_ACADEMICIAN',
+    'ROLE_CLUB_OFFICIAL', 'ROLE_ADMIN', 'ROLE_STAFF'));

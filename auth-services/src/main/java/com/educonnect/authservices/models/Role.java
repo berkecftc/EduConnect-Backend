@@ -10,7 +10,6 @@ public enum Role {
     ROLE_ACADEMICIAN,
     ROLE_PENDING_ACADEMICIAN,// Akademisyen (onay bekleyen)
     ROLE_CLUB_OFFICIAL, // Kulüp Yetkilisi
-    ROLE_PENDING_CLUB_OFFICIAL, // Kulüp Yetkilisi (onay bekleyen)
     ROLE_ADMIN,       // Admin
     ROLE_STAFF
 }
