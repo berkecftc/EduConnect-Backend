@@ -49,6 +49,9 @@ class CourseApplicationServiceTest {
 
     @Mock
     private CourseApplicationRepository applicationRepository;
+
+    @Mock
+    private CourseNotifier notifier;
     @Mock
     private CourseRepository courseRepository;
     @Mock
@@ -72,7 +75,7 @@ class CourseApplicationServiceTest {
     void setUp() {
         service = new CourseApplicationService(applicationRepository, courseRepository, enrollmentRepository,
                 userClient, courseCaches, new CourseStaffAccess(staffRepository), termService,
-                new EnrollmentLedger(enrollmentRepository, eventRepository));
+                new EnrollmentLedger(enrollmentRepository, eventRepository), notifier);
         course = new Course();
         course.setId(courseId);
         course.setTermId(termId);

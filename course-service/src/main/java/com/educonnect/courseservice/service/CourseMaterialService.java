@@ -42,17 +42,20 @@ public class CourseMaterialService {
     private final EnrollmentRepository enrollmentRepository;
     private final CourseStaffAccess staffAccess;
     private final MinioService minioService;
+    private final CourseNotifier notifier;
 
     public CourseMaterialService(CourseRepository courseRepository,
                                  CourseMaterialRepository materialRepository,
                                  EnrollmentRepository enrollmentRepository,
                                  CourseStaffAccess staffAccess,
-                                 MinioService minioService) {
+                                 MinioService minioService,
+                                 CourseNotifier notifier) {
         this.courseRepository = courseRepository;
         this.materialRepository = materialRepository;
         this.enrollmentRepository = enrollmentRepository;
         this.staffAccess = staffAccess;
         this.minioService = minioService;
+        this.notifier = notifier;
     }
 
     @Transactional(readOnly = true)
@@ -85,12 +88,17 @@ public class CourseMaterialService {
         } else {
             material.setLinkUrl(validLink(request.linkUrl()));
         }
-        return response(materialRepository.save(material));
+        CourseMaterial saved = materialRepository.save(material);
+        if (saved.isVisible()) {
+            announce(course, saved);
+        }
+        return response(saved);
     }
 
     public MaterialResponse update(UUID courseId, UUID materialId, UUID actorId, MaterialUpdateRequest request) {
-        editable(courseId, actorId);
+        Course course = editable(courseId, actorId);
         CourseMaterial material = material(courseId, materialId);
+        boolean wasVisible = material.isVisible();
         if (request.title() != null) {
             material.setTitle(request.title().strip());
         }
@@ -112,7 +120,11 @@ public class CourseMaterialService {
             }
             material.setLinkUrl(validLink(request.linkUrl()));
         }
-        return response(materialRepository.save(material));
+        CourseMaterial saved = materialRepository.save(material);
+        if (!wasVisible && saved.isVisible()) {
+            announce(course, saved);
+        }
+        return response(saved);
     }
 
     public void delete(UUID courseId, UUID materialId, UUID actorId) {
@@ -194,5 +206,11 @@ public class CourseMaterialService {
 
     private static String blankToNull(String value) {
         return value == null || value.isBlank() ? null : value.strip();
+    }
+
+    private void announce(Course course, CourseMaterial material) {
+        notifier.notifyStudents(course, "COURSE_MATERIAL", "Yeni ders materyali: " + material.getTitle(),
+                course.getTitle() + " dersine yeni materyal eklendi: " + material.getTitle()
+                        + (material.getSection() != null ? " (" + material.getSection() + ")" : ""));
     }
 }

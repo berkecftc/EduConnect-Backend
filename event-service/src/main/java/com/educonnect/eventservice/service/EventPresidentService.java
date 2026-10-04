@@ -24,15 +24,18 @@ public class EventPresidentService {
     private final EventAuthorizationService eventAuthorizationService;
     private final EventCaches eventCaches;
     private final EventSchedule schedule;
+    private final EventNotifier notifier;
 
     public EventPresidentService(EventRepository eventRepository,
                                  EventAuthorizationService eventAuthorizationService,
                                  EventCaches eventCaches,
-                                 EventSchedule schedule) {
+                                 EventSchedule schedule,
+                                 EventNotifier notifier) {
         this.eventRepository = eventRepository;
         this.eventAuthorizationService = eventAuthorizationService;
         this.eventCaches = eventCaches;
         this.schedule = schedule;
+        this.notifier = notifier;
     }
 
     @Transactional(readOnly = true)
@@ -53,6 +56,7 @@ public class EventPresidentService {
         event.setStatus(EventStatus.PENDING);
         Event saved = eventRepository.save(event);
         eventCaches.evictEvent(saved);
+        notifier.awaitingApproval(saved, userId);
         log.info("Event approved by president and sent to advisor: eventId={}", eventId);
         return saved;
     }
@@ -63,6 +67,7 @@ public class EventPresidentService {
         event.setRejectionReason(reason);
         Event saved = eventRepository.save(event);
         eventCaches.evictEvent(saved);
+        notifier.decided(saved, false, "kulüp başkanı", reason);
         log.info("Event rejected by president: eventId={}", eventId);
         return saved;
     }

@@ -40,19 +40,22 @@ public class CourseStaffService {
     private final CourseCaches courseCaches;
     private final UserClient userClient;
     private final StaffEligibility staffEligibility;
+    private final CourseNotifier notifier;
 
     public CourseStaffService(CourseRepository courseRepository,
                               CourseStaffRepository staffRepository,
                               CourseStaffAccess staffAccess,
                               CourseCaches courseCaches,
                               UserClient userClient,
-                              StaffEligibility staffEligibility) {
+                              StaffEligibility staffEligibility,
+                              CourseNotifier notifier) {
         this.courseRepository = courseRepository;
         this.staffRepository = staffRepository;
         this.staffAccess = staffAccess;
         this.courseCaches = courseCaches;
         this.userClient = userClient;
         this.staffEligibility = staffEligibility;
+        this.notifier = notifier;
     }
 
     @Transactional(readOnly = true)
@@ -76,6 +79,8 @@ public class CourseStaffService {
         staffRepository.save(new CourseStaff(courseId, request.userId(), request.role(), actorId));
         courseCaches.evictInstructorCourses(request.userId());
         log.info("Course staff added: course={}, user={}, role={}", courseId, request.userId(), request.role());
+        notifier.notify(List.of(request.userId()), "COURSE_STAFF", course, "Ders kadrosuna eklendiniz",
+                course.getTitle() + " dersine " + CourseNotifier.roleName(request.role()) + " olarak eklendiniz.");
         return responses(course);
     }
 
@@ -88,6 +93,8 @@ public class CourseStaffService {
         member.changeRole(role);
         staffRepository.save(member);
         courseCaches.evictInstructorCourses(userId);
+        notifier.notify(List.of(userId), "COURSE_STAFF", course, "Ders kadrosundaki göreviniz değişti",
+                course.getTitle() + " dersindeki göreviniz " + CourseNotifier.roleName(role) + " olarak değiştirildi.");
         return responses(course);
     }
 
@@ -101,6 +108,10 @@ public class CourseStaffService {
         staffRepository.delete(member);
         courseCaches.evictInstructorCourses(userId);
         log.info("Course staff removed: course={}, user={}, by={}", courseId, userId, actorId);
+        if (!userId.equals(actorId)) {
+            notifier.notify(List.of(userId), "COURSE_STAFF", course, "Ders kadrosundan çıkarıldınız",
+                    course.getTitle() + " dersinin kadrosundan çıkarıldınız.");
+        }
     }
 
     public List<CourseStaffResponse> transferCoordinator(UUID courseId, UUID adminId, CoordinatorTransferRequest request) {
@@ -126,6 +137,13 @@ public class CourseStaffService {
         courseCaches.evictInstructorCourses(previous);
         courseCaches.evictStaffCourses(course);
         log.info("Course coordinator transferred: course={}, from={}, to={}, by={}", courseId, previous, next, adminId);
+        notifier.notify(List.of(next), "COURSE_STAFF", course, "Ders koordinatörlüğü",
+                course.getTitle() + " dersinin koordinatörü olarak atandınız.");
+        notifier.notify(List.of(previous), "COURSE_STAFF", course, "Ders koordinatörlüğü",
+                course.getTitle() + " dersinin koordinatörlüğü devredildi"
+                        + (request.previousCoordinatorRole() != null
+                        ? "; kadroda " + CourseNotifier.roleName(request.previousCoordinatorRole()) + " olarak kalıyorsunuz."
+                        : "."));
         return responses(course);
     }
 

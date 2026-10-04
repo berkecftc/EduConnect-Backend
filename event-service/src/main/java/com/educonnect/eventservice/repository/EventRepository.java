@@ -50,6 +50,8 @@ public interface EventRepository extends JpaRepository<Event, UUID> {
 
     List<Event> findByStatusAndEndsAtBefore(EventStatus status, LocalDateTime moment);
 
+    List<Event> findByStatusAndStartsAtAfterAndStartsAtLessThanEqual(EventStatus status, LocalDateTime from, LocalDateTime to);
+
     List<Event> findByStatusInAndStartsAtBefore(Collection<EventStatus> statuses, LocalDateTime moment);
 
     List<Event> findByClubIdIsNullOrderByStartsAtDesc();

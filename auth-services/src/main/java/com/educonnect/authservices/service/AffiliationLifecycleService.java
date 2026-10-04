@@ -23,17 +23,33 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import com.educonnect.common.messaging.notification.NotificationCategory;
+import com.educonnect.common.messaging.notification.NotificationRequest;
+import com.educonnect.common.messaging.notification.TurkishDates;
 
 import java.time.Clock;
 import java.time.Duration;
 import java.time.LocalDate;
 import java.util.Locale;
 import java.util.UUID;
+import java.util.List;
+import java.util.Map;
 
 @Service
 public class AffiliationLifecycleService {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(AffiliationLifecycleService.class);
+
+    private static final Map<String, String> STATUS_LABELS = Map.of(
+            "ACTIVE", "aktif",
+            "ON_LEAVE", "kayıt dondurma / izinli",
+            "GRADUATED", "mezun",
+            "WITHDRAWN", "kaydı silindi",
+            "EXPELLED", "ilişiği kesildi",
+            "TRANSFERRED_OUT", "yatay geçişle ayrıldı",
+            "RETIRED", "emekli",
+            "RESIGNED", "istifa etti",
+            "TERMINATED", "görevi sona erdi");
 
     private final UserRepository userRepository;
     private final AffiliationStatusChangeRepository changeRepository;
@@ -143,6 +159,9 @@ public class AffiliationLifecycleService {
                 new AffiliationStatusChangedMessage(user.getId(), affiliation, status, ended, closing, effectiveDate, reason));
         LOGGER.info("Affiliation status changed. UserID: {}, {} {} -> {}", user.getId(), affiliation, previous, status);
         AffiliationStatusView view = view(user.getId());
+        if (!closing) {
+            notifyStatus(user, affiliation, status, effectiveDate, reason);
+        }
         if (closing) {
             if (closureGraceDays <= 0) {
                 userAdministrationService.deleteUser(user.getId(), "Hesap kapandı: " + status);
@@ -154,6 +173,15 @@ public class AffiliationLifecycleService {
             }
         }
         return view;
+    }
+
+    private void notifyStatus(User user, String affiliation, String status, LocalDate effectiveDate, String reason) {
+        String subject = AffiliationStatusChangedMessage.STUDENT.equals(affiliation) ? "Öğrencilik" : "Personel";
+        String body = subject + " durumunuz " + TurkishDates.format(effectiveDate) + " itibarıyla \"" + STATUS_LABELS.getOrDefault(status, status)
+                + "\" olarak güncellendi." + (reason != null ? "\nAçıklama: " + reason : "");
+        outboxPublisher.publish(NotificationRequest.EXCHANGE, NotificationRequest.ROUTING_KEY,
+                NotificationRequest.of(List.of(user.getId()), NotificationCategory.ACCOUNT, "AFFILIATION_STATUS",
+                        subject + " durumunuz güncellendi", body, "/profile", null));
     }
 
     private User user(UUID userId) {

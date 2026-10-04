@@ -11,6 +11,7 @@ public class EventRegistrationMessage implements Serializable {
     private LocalDateTime eventTime;
     private String location;
     private String qrCode;
+    private String origin;
 
     public EventRegistrationMessage() {}
 
@@ -29,4 +30,7 @@ public class EventRegistrationMessage implements Serializable {
 
     public String getQrCode() { return qrCode; }
     public void setQrCode(String qrCode) { this.qrCode = qrCode; }
+
+    public String getOrigin() { return origin; }
+    public void setOrigin(String origin) { this.origin = origin; }
 }

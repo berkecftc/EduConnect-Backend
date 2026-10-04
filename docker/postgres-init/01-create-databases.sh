@@ -1,7 +1,7 @@
 #!/bin/bash
 set -eo pipefail
 
-services="auth user club event course assignment post gamification"
+services="auth user club event course assignment post gamification notification"
 
 for svc in $services; do
     password_var="$(echo "$svc" | tr '[:lower:]' '[:upper:]')_DB_PASSWORD"

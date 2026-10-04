@@ -1,111 +1,89 @@
 package com.educonnect.notificationservice.listener;
 
-import com.educonnect.common.web.LogValues;
-import com.educonnect.common.security.LogMasking;
+import com.educonnect.common.messaging.notification.NotificationCategory;
+import com.educonnect.common.messaging.notification.NotificationRequest;
+import com.educonnect.common.messaging.notification.TurkishDates;
 import com.educonnect.notificationservice.config.NotificationRabbitMQConfig;
 import com.educonnect.notificationservice.dto.message.EventRegistrationMessage;
-import com.educonnect.notificationservice.service.EmailService;
+import com.educonnect.notificationservice.model.Notification;
+import com.educonnect.notificationservice.service.EmailContent;
+import com.educonnect.notificationservice.service.NotificationDispatcher;
 import com.educonnect.notificationservice.service.QrCodeRenderer;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
-import org.springframework.core.ParameterizedTypeReference;
-import org.springframework.http.HttpEntity;
-import org.springframework.http.HttpMethod;
-import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Component;
-import org.springframework.web.client.RestTemplate;
 
 import java.util.List;
-import java.util.UUID;
 
 @Component
 public class RegistrationNotificationListener {
 
-    // 1. Manuel Logger Tanımı (Lombok @Slf4j yerine)
-    private static final Logger log = LoggerFactory.getLogger(RegistrationNotificationListener.class);
-
-    private final EmailService emailService;
-    private final RestTemplate restTemplate;
-    private final QrCodeRenderer qrCodeRenderer;
-
-    // 2. Manuel Constructor (Lombok @RequiredArgsConstructor yerine)
     static final String QR_CONTENT_ID = "ticket-qr";
 
-    public RegistrationNotificationListener(EmailService emailService, RestTemplate restTemplate,
-                                            QrCodeRenderer qrCodeRenderer) {
+    private final NotificationDispatcher dispatcher;
+    private final QrCodeRenderer qrCodeRenderer;
+
+    public RegistrationNotificationListener(NotificationDispatcher dispatcher, QrCodeRenderer qrCodeRenderer) {
+        this.dispatcher = dispatcher;
         this.qrCodeRenderer = qrCodeRenderer;
-        this.emailService = emailService;
-        this.restTemplate = restTemplate;
     }
 
-    /**
-     * RabbitMQ'dan gelen kayıt mesajını dinler.
-     * Kuyruk adı: NotificationRabbitMQConfig.NOTIFICATION_REGISTRATION_QUEUE
-     */
     @RabbitListener(queues = NotificationRabbitMQConfig.NOTIFICATION_REGISTRATION_QUEUE)
     public void handleRegistration(EventRegistrationMessage message) {
+        if (message.getStudentId() == null) {
+            return;
+        }
+        String when = TurkishDates.format(message.getEventTime());
+        String body = "\"" + message.getEventTitle() + "\" " + lead(message.getOrigin()) + "\nZaman: " + when
+                + "\nYer: " + (message.getLocation() == null ? "-" : message.getLocation())
+                + "\nGirişte bilet QR kodunuzu görevliye gösterin.";
+        NotificationRequest request = NotificationRequest.of(List.of(message.getStudentId()), NotificationCategory.EVENT,
+                "EVENT_TICKET", title(message.getOrigin()) + message.getEventTitle(), body, "/me/tickets",
+                message.getQrCode() != null ? "ticket:" + message.getQrCode() : null);
+        dispatcher.dispatch(request, (notification, footer) -> ticketEmail(notification, message, when, footer));
+    }
 
-        // DTO'dan verileri alıyoruz (Tip dönüşüm hatası olmaz)
-        UUID studentId = message.getStudentId();
-        String eventTitle = message.getEventTitle();
-        String eventTime = message.getEventTime().toString(); // LocalDateTime'ı String'e çeviriyoruz
-        String location = message.getLocation();
-        String qrCode = message.getQrCode();
+    static String title(String origin) {
+        if ("WAITLIST_PROMOTED".equals(origin)) {
+            return "Bekleme listesinden kayda geçtiniz: ";
+        }
+        if ("REQUEST_APPROVED".equals(origin)) {
+            return "Katılım talebiniz onaylandı: ";
+        }
+        return "Biletiniz: ";
+    }
 
-        log.info("Processing registration email for event: {}", eventTitle);
+    static String lead(String origin) {
+        if ("WAITLIST_PROMOTED".equals(origin)) {
+            return "etkinliğinde yer açıldı; bekleme listesinden kaydınız yapıldı.";
+        }
+        if ("REQUEST_APPROVED".equals(origin)) {
+            return "etkinliği için katılım talebiniz onaylandı, kaydınız yapıldı.";
+        }
+        return "etkinliğine kaydınız alındı.";
+    }
 
-        // auth-services'ten öğrencinin e-posta adresini bulmak için URL
-        // (Not: Servis adını büyük harfle AUTH-SERVICES olarak kullanıyoruz, LoadBalanced RestTemplate bunu çözer)
-        String authServiceUrl = "http://AUTH-SERVICES/api/auth/internal/users/emails";
-
-        // İstek gövdesi olarak ID listesi hazırlıyoruz
-        List<UUID> ids = List.of(studentId);
-
-        // RestTemplate ile POST isteği atıyoruz.
-        // ParameterizedTypeReference kullanarak dönen cevabın List<String> olduğunu garanti ediyoruz.
-        ResponseEntity<List<String>> response = restTemplate.exchange(
-                authServiceUrl,
-                HttpMethod.POST,
-                new HttpEntity<>(ids),
-                new ParameterizedTypeReference<List<String>>() {}
-        );
-
-        List<String> emails = response.getBody();
-
-        // E-posta bulunduysa işlemi yap
-        if (emails != null && !emails.isEmpty()) {
-            String studentEmail = emails.get(0);
-            String qrImageUrl = "cid:" + QR_CONTENT_ID;
-
-            // HTML Mail İçeriğini Hazırlama
-            String htmlBody = String.format("""
+    private EmailContent ticketEmail(Notification notification, EventRegistrationMessage message, String when, String footer) {
+        String html = """
                 <html>
                 <body style="font-family: Arial, sans-serif; color: #333;">
                     <div style="background-color: #f4f4f4; padding: 20px; text-align: center;">
-                        <h2 style="color: #2c3e50;">Tebrikler! Kaydınız Alındı.</h2>
-                        <p><strong>%s</strong> etkinliğine başarıyla kaydoldunuz.</p>
-                        
+                        <h2 style="color: #2c3e50;">Kaydınız alındı</h2>
+                        <p><strong>%s</strong> %s</p>
                         <div style="background-color: white; padding: 20px; border-radius: 8px; display: inline-block; margin-top: 10px;">
-                            <p style="margin: 5px 0;">📅 <strong>Zaman:</strong> %s</p>
-                            <p style="margin: 5px 0;">📍 <strong>Konum:</strong> %s</p>
+                            <p style="margin: 5px 0;"><strong>Zaman:</strong> %s</p>
+                            <p style="margin: 5px 0;"><strong>Yer:</strong> %s</p>
                             <hr style="border: 0; border-top: 1px solid #eee; margin: 15px 0;">
-                            <p>Giriş için aşağıdaki QR kodu görevliye gösteriniz:</p>
-                            <img src="%s" alt="Bilet QR Kodu" style="border: 2px solid #333; padding: 5px; border-radius: 4px;"/>
-                            <p style="font-size: 12px; color: #777; margin-top: 10px;">Bilet Kodu: %s</p>
+                            <p>Giriş için aşağıdaki QR kodu görevliye gösterin:</p>
+                            <img src="cid:%s" alt="Bilet QR Kodu" style="border: 2px solid #333; padding: 5px; border-radius: 4px;"/>
+                            <p style="font-size: 12px; color: #777; margin-top: 10px;">Bilet kodu: %s</p>
                         </div>
                     </div>
+                    %s
                 </body>
                 </html>
-                """, HtmlText.escape(eventTitle), HtmlText.escape(eventTime), HtmlText.escape(location), qrImageUrl, HtmlText.escape(qrCode));
-
-            // Maili Gönder
-            emailService.sendHtmlEmailWithInlineImage(studentEmail, "Biletiniz: " + eventTitle, htmlBody,
-                    QR_CONTENT_ID, qrCodeRenderer.renderPng(qrCode), "image/png");
-
-            log.info("Registration email sent to: {}", LogValues.safe(LogMasking.email(studentEmail)));
-        } else {
-            log.warn("No email found for student ID: {}", studentId);
-        }
+                """.formatted(HtmlText.escape(message.getEventTitle()), HtmlText.escape(lead(message.getOrigin())), HtmlText.escape(when),
+                HtmlText.escape(message.getLocation()), QR_CONTENT_ID, HtmlText.escape(message.getQrCode()), footer);
+        return new EmailContent(notification.getTitle(), html,
+                new EmailContent.InlineImage(QR_CONTENT_ID, qrCodeRenderer.renderPng(message.getQrCode()), "image/png"));
     }
 }

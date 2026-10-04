@@ -14,9 +14,11 @@ import org.slf4j.LoggerFactory;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import com.educonnect.common.messaging.notification.NotificationCategory;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Collections;
 
 @Service
 public class EventLifecycleService {
@@ -29,17 +31,20 @@ public class EventLifecycleService {
     private final EventRegistrationRepository registrationRepository;
     private final EventCaches eventCaches;
     private final EventSchedule schedule;
+    private final EventNotifier notifier;
 
     public EventLifecycleService(EventRepository eventRepository,
                                  EventParticipationRequestRepository requestRepository,
                                  EventRegistrationRepository registrationRepository,
                                  EventCaches eventCaches,
-                                 EventSchedule schedule) {
+                                 EventSchedule schedule,
+                                 EventNotifier notifier) {
         this.eventRepository = eventRepository;
         this.requestRepository = requestRepository;
         this.registrationRepository = registrationRepository;
         this.eventCaches = eventCaches;
         this.schedule = schedule;
+        this.notifier = notifier;
     }
 
     @Scheduled(cron = "${educonnect.event.lifecycle-cron:0 */10 * * * *}")
@@ -69,6 +74,9 @@ public class EventLifecycleService {
         for (Event event : missed) {
             event.setStatus(EventStatus.REJECTED);
             event.setRejectionReason("Etkinlik saati onaylanmadan geçti.");
+            notifier.notify(Collections.singletonList(event.getCreatedByStudentId()), NotificationCategory.CLUB_MANAGEMENT, "EVENT_EXPIRED", event,
+                    event.getClubName() + ": Etkinlik onaylanmadan süresi geçti",
+                    "\"" + event.getTitle() + "\" etkinliği başlangıç saatine kadar onaylanmadığı için yayımlanmadı.");
         }
         eventRepository.saveAll(finished);
         eventRepository.saveAll(missed);

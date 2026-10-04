@@ -8,7 +8,7 @@ backup_root="${BACKUP_DIR:-$root_dir/backups}"
 retention_days="${BACKUP_RETENTION_DAYS:-14}"
 postgres="${POSTGRES_CONTAINER:-educonnect-postgres}"
 rabbitmq="${RABBITMQ_CONTAINER:-educonnect-rabbitmq}"
-databases="auth_db user_db club_db event_db course_db assignment_db post_db gamification_db"
+databases="auth_db user_db club_db event_db course_db assignment_db post_db gamification_db notification_db"
 volumes="minio-data llm-data"
 
 project="$(docker inspect "$postgres" --format '{{index .Config.Labels "com.docker.compose.project"}}')"

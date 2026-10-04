@@ -7,6 +7,8 @@ import java.util.UUID;
 public interface AssignmentRepository extends JpaRepository<Assignment, UUID> {
     List<Assignment> findByCourseId(UUID courseId);
 
+    List<Assignment> findByDueDateAfterAndDueDateLessThanEqual(java.time.LocalDateTime from, java.time.LocalDateTime to);
+
     List<Assignment> findByCourseIdIn(java.util.Collection<UUID> courseIds);
     void deleteByCourseId(UUID courseId); // Ders silinince çalışacak
     java.util.Optional<Assignment> findFirstByFileUrl(String fileUrl);

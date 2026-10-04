@@ -9,9 +9,11 @@ import com.educonnect.clubservice.repository.ClubAnnouncementRepository;
 import com.educonnect.clubservice.repository.ClubMembershipRepository;
 import com.educonnect.clubservice.security.ClubAccess;
 import org.springframework.stereotype.Component;
+import com.educonnect.common.messaging.notification.NotificationCategory;
 
 import java.time.Clock;
 import java.util.UUID;
+import java.util.List;
 
 @Component
 class AnnouncementApprovalHandler implements ApprovalHandler {
@@ -60,11 +62,12 @@ class AnnouncementApprovalHandler implements ApprovalHandler {
         ClubAnnouncement announcement = announcementOf(request);
         announcement.publish(clock.instant());
         announcementRepository.save(announcement);
-        membershipRepository.findByClubId(club.getId()).stream()
+        List<UUID> members = membershipRepository.findByClubId(club.getId()).stream()
                 .filter(ClubMembership::isActive)
                 .map(ClubMembership::getStudentId)
-                .forEach(memberId -> notificationPublisher.notifyUser(memberId, club, SUBJECT,
-                        "\"" + club.getName() + "\" kulübünden yeni duyuru: " + announcement.getTitle()));
+                .toList();
+        notificationPublisher.notifyUsers(members, club, NotificationCategory.CLUB_NEWS, "CLUB_ANNOUNCEMENT", SUBJECT,
+                "\"" + club.getName() + "\" kulübünden yeni duyuru: " + announcement.getTitle());
     }
 
     @Override

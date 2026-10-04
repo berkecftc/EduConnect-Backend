@@ -1,5 +1,7 @@
 package com.educonnect.notificationservice.config;
 
+import com.educonnect.common.messaging.notification.NotificationRequest;
+
 import org.springframework.amqp.core.*;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.annotation.Bean;
@@ -43,47 +45,22 @@ public class NotificationRabbitMQConfig {
     public static final String NOTIFICATION_EVENT_CHANGED_QUEUE = "notification-event-changed-queue";
     public static final String ROUTING_KEY_EVENT_CHANGED = "event.changed";
 
-    public static final String CLUB_MEMBERSHIP_NOTIFICATION_QUEUE = "notification-club-membership-queue";
-    public static final String ROUTING_KEY_CLUB_MEMBERSHIP = "club.membership.notification";
-    public static final String CLUB_ROLE_CHANGE_NOTIFICATION_QUEUE = "notification-club-role-change-queue";
-    public static final String ROUTING_KEY_CLUB_ROLE_CHANGE = "club.role.change.notification";
-    public static final String CLUB_GENERAL_NOTIFICATION_QUEUE = "notification-club-general-queue";
-    public static final String ROUTING_KEY_CLUB_NOTIFICATION = "club.notification";
+    public static final String NOTIFICATION_REQUEST_QUEUE = "notification-request-queue";
 
     @Bean
-    public Queue clubMembershipNotificationQueue() {
-        return new Queue(CLUB_MEMBERSHIP_NOTIFICATION_QUEUE);
+    public TopicExchange notificationExchange() {
+        return new TopicExchange(NotificationRequest.EXCHANGE);
     }
 
     @Bean
-    public Binding bindingClubMembershipNotification(
-            @Qualifier("clubMembershipNotificationQueue") Queue queue,
-            @Qualifier("clubExchange") DirectExchange clubExchange) {
-        return BindingBuilder.bind(queue).to(clubExchange).with(ROUTING_KEY_CLUB_MEMBERSHIP);
+    public Queue notificationRequestQueue() {
+        return new Queue(NOTIFICATION_REQUEST_QUEUE);
     }
 
     @Bean
-    public Queue clubRoleChangeNotificationQueue() {
-        return new Queue(CLUB_ROLE_CHANGE_NOTIFICATION_QUEUE);
-    }
-
-    @Bean
-    public Binding bindingClubRoleChangeNotification(
-            @Qualifier("clubRoleChangeNotificationQueue") Queue queue,
-            @Qualifier("clubExchange") DirectExchange clubExchange) {
-        return BindingBuilder.bind(queue).to(clubExchange).with(ROUTING_KEY_CLUB_ROLE_CHANGE);
-    }
-
-    @Bean
-    public Queue clubGeneralNotificationQueue() {
-        return new Queue(CLUB_GENERAL_NOTIFICATION_QUEUE);
-    }
-
-    @Bean
-    public Binding bindingClubGeneralNotification(
-            @Qualifier("clubGeneralNotificationQueue") Queue queue,
-            @Qualifier("clubExchange") DirectExchange clubExchange) {
-        return BindingBuilder.bind(queue).to(clubExchange).with(ROUTING_KEY_CLUB_NOTIFICATION);
+    public Binding bindingNotificationRequest(@Qualifier("notificationRequestQueue") Queue queue,
+                                              @Qualifier("notificationExchange") TopicExchange exchange) {
+        return BindingBuilder.bind(queue).to(exchange).with(NotificationRequest.ROUTING_KEY);
     }
 
     @Bean

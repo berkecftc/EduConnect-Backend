@@ -16,8 +16,10 @@ import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import com.educonnect.common.messaging.notification.NotificationCategory;
 
 import java.util.UUID;
+import java.util.Collections;
 
 @Service
 public class AnswerService {
@@ -27,12 +29,15 @@ public class AnswerService {
     private final PostRepository postRepository;
     private final CommentRepository commentRepository;
     private final ContributionEvents contributionEvents;
+    private final PostNotifier notifier;
 
     public AnswerService(PostRepository postRepository, CommentRepository commentRepository,
-                         ContributionEvents contributionEvents) {
+                         ContributionEvents contributionEvents,
+                         PostNotifier notifier) {
         this.postRepository = postRepository;
         this.commentRepository = commentRepository;
         this.contributionEvents = contributionEvents;
+        this.notifier = notifier;
     }
 
     @Transactional
@@ -55,6 +60,9 @@ public class AnswerService {
         post.setAcceptedCommentId(commentId);
         postRepository.save(post);
         contributionEvents.answerAccepted(comment.getAuthorId(), commentId);
+        notifier.notify(Collections.singletonList(comment.getAuthorId()), NotificationCategory.COMMUNITY, "ANSWER_ACCEPTED", postId,
+                "Cevabınız kabul edildi", "\"" + post.getTitle() + "\" sorusunda yazdığınız cevap, soru sahibi tarafından kabul edildi.",
+                "answer:" + commentId);
         log.info("Answer accepted. postId={}, commentId={}", postId, commentId);
     }
 

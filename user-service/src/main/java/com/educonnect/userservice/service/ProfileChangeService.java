@@ -20,6 +20,9 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
+import com.educonnect.common.messaging.notification.NotificationCategory;
+import com.educonnect.common.messaging.notification.NotificationRequest;
+import com.educonnect.common.messaging.outbox.OutboxPublisher;
 
 import java.util.List;
 import java.util.Objects;
@@ -43,19 +46,22 @@ public class ProfileChangeService {
     private final AcademicCatalogService catalogService;
     private final ProfileService profileService;
     private final AuthStaffClient authStaffClient;
+    private final OutboxPublisher outboxPublisher;
 
     public ProfileChangeService(ProfileChangeRequestRepository requestRepository,
                                 StudentRepository studentRepository,
                                 AcademicianRepository academicianRepository,
                                 AcademicCatalogService catalogService,
                                 ProfileService profileService,
-                                AuthStaffClient authStaffClient) {
+                                AuthStaffClient authStaffClient,
+                                OutboxPublisher outboxPublisher) {
         this.requestRepository = requestRepository;
         this.studentRepository = studentRepository;
         this.academicianRepository = academicianRepository;
         this.catalogService = catalogService;
         this.profileService = profileService;
         this.authStaffClient = authStaffClient;
+        this.outboxPublisher = outboxPublisher;
     }
 
     public ProfileChangeResponse submit(UUID userId, ProfileChangeRequestDto dto) {
@@ -142,13 +148,23 @@ public class ProfileChangeService {
         ProfileChangeRequest request = pending(requestId);
         profileService.applyOfficialChange(request);
         request.review(ProfileChangeRequest.Status.APPROVED, reviewerId, null);
+        notifyRequester(request, "PROFILE_CHANGE_APPROVED", "Profil değişikliği talebiniz onaylandı",
+                "Resmî profil bilgilerinizdeki değişiklik onaylandı ve profilinize işlendi.");
         return ProfileChangeResponse.of(requestRepository.save(request), currentName(request.getUserId()));
     }
 
     public ProfileChangeResponse reject(UUID requestId, UUID reviewerId, String note) {
         ProfileChangeRequest request = pending(requestId);
         request.review(ProfileChangeRequest.Status.REJECTED, reviewerId, note == null || note.isBlank() ? null : note.strip());
+        notifyRequester(request, "PROFILE_CHANGE_REJECTED", "Profil değişikliği talebiniz reddedildi",
+                "Resmî profil bilgilerinizdeki değişiklik talebi reddedildi."
+                        + (note == null || note.isBlank() ? "" : "\nGerekçe: " + note.strip()));
         return ProfileChangeResponse.of(requestRepository.save(request), currentName(request.getUserId()));
+    }
+
+    private void notifyRequester(ProfileChangeRequest request, String type, String title, String body) {
+        outboxPublisher.publish(NotificationRequest.EXCHANGE, NotificationRequest.ROUTING_KEY,
+                NotificationRequest.of(List.of(request.getUserId()), NotificationCategory.ACCOUNT, type, title, body, "/profile", null));
     }
 
     private void requireInScope(ProfileChangeRequest request, UUID verifierId) {

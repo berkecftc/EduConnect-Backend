@@ -96,6 +96,10 @@ public class ClubFoundingService {
         membershipRepository.save(presidentMembership);
         cacheEvictor.evictUser(request.getClubPresidentId());
         managementStatusPublisher.publishCurrentStatus(request.getClubPresidentId());
+        notificationPublisher.notifyUser(request.getClubPresidentId(), savedClub, "Kulüp başkanlığı",
+                "\"" + savedClub.getName() + "\" kulübü kuruldu ve kulüp başkanı olarak atandınız.");
+        notificationPublisher.notifyAdvisor(savedClub, "Kulüp danışmanlığı",
+                "\"" + savedClub.getName() + "\" kulübü kuruldu ve akademik danışman olarak atandınız.");
 
         return savedClub;
     }
@@ -181,6 +185,9 @@ public class ClubFoundingService {
         request.setStatus(ClubCreationRequestStatus.REJECTED);
         request.setProcessedAt(LocalDateTime.now());
         requestRepository.save(request);
+        notificationPublisher.notifyUserAboutClubName(request.getRequestingStudentId(), request.getClubName(),
+                "Kulüp kuruluş başvurusu",
+                "\"" + request.getClubName() + "\" kulübü için kuruluş başvurunuz reddedildi.");
     }
 
     private ClubCreationRequest findCreationRequestForAdvisor(UUID requestId, UUID advisorId) {

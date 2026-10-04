@@ -8,3 +8,8 @@ spring:
       fail-fast: true
       username: ${CONFIG_SERVER_USER:educonnect}
       password: ${CONFIG_SERVER_PASSWORD}
+
+educonnect:
+  notification:
+    frontend-base-url: ${EDUCONNECT_FRONTEND_URL:http://localhost:5173}
+    api-base-url: ${EDUCONNECT_API_URL:http://localhost:8080}

@@ -62,6 +62,30 @@ public class EmailService {
         }
     }
 
+    public boolean sendNotification(String to, EmailContent content, String oneClickUnsubscribeUrl) {
+        try {
+            MimeMessage message = mailSender.createMimeMessage();
+            MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
+            helper.setFrom(fromAddress);
+            helper.setTo(to);
+            helper.setSubject(content.subject());
+            helper.setText(content.html(), true);
+            if (content.inlineImage() != null) {
+                helper.addInline(content.inlineImage().contentId(), new ByteArrayResource(content.inlineImage().data()),
+                        content.inlineImage().contentType());
+            }
+            if (oneClickUnsubscribeUrl != null) {
+                message.setHeader("List-Unsubscribe", "<" + oneClickUnsubscribeUrl + ">");
+                message.setHeader("List-Unsubscribe-Post", "List-Unsubscribe=One-Click");
+            }
+            mailSender.send(message);
+            return true;
+        } catch (MessagingException | RuntimeException e) {
+            log.error("Error sending notification email to {}: {}", LogValues.safe(LogMasking.email(to)), LogValues.safe(e.getMessage()));
+            return false;
+        }
+    }
+
     public void sendHtmlEmailWithInlineImage(String to, String subject, String htmlBody,
                                              String contentId, byte[] image, String imageContentType) {
         try {

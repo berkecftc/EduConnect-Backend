@@ -8,6 +8,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.amqp.AmqpRejectAndDontRequeueException;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
 import org.springframework.stereotype.Component;
+import com.educonnect.eventservice.service.EventChangeService;
 
 @Component
 public class ClubEventListener {
@@ -15,9 +16,11 @@ public class ClubEventListener {
     private static final Logger log = LoggerFactory.getLogger(ClubEventListener.class);
 
     private final EventService eventService;
+    private final EventChangeService changeService;
 
-    public ClubEventListener(EventService eventService) {
+    public ClubEventListener(EventService eventService, EventChangeService changeService) {
         this.eventService = eventService;
+        this.changeService = changeService;
     }
 
     @RabbitListener(queues = EventRabbitMQConfig.DELETE_EVENTS_QUEUE)
@@ -26,7 +29,8 @@ public class ClubEventListener {
             throw new AmqpRejectAndDontRequeueException("Club delete message without club id");
         }
         log.info("Received club delete event for club {}", message.getClubId());
-        eventService.deleteEventsByClubId(message.getClubId());
+        int cancelled = changeService.cancelForClosedClub(message.getClubId());
+        log.info("Cancelled {} events of closed club {}", cancelled, message.getClubId());
     }
 
     @RabbitListener(queues = EventRabbitMQConfig.UPDATE_CLUB_QUEUE)

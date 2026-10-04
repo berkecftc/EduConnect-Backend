@@ -33,6 +33,10 @@ public class AdditionalRoutesConfig {
                         .path("/api/gamification/**")
                         .filters(f -> f.filter(authenticationFilter.apply(new AuthenticationFilter.Config())))
                         .uri("lb://gamification-service"))
+                .route("notification-routes", r -> r
+                        .path("/api/notifications/**")
+                        .filters(f -> f.filter(authenticationFilter.apply(new AuthenticationFilter.Config())))
+                        .uri("lb://notification-service"))
                 // LLM / AI endpoint'leri -> llm-service
                 .route("llm-routes", r -> r
                         // expose under /api/llm/** (rewritten to /api/ai/**) and /api/ai/** for backward compatibility
@@ -47,4 +51,3 @@ public class AdditionalRoutesConfig {
                 .build();
     }
 }
-

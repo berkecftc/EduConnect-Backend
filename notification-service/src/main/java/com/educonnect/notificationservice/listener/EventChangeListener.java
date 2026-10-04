@@ -1,35 +1,22 @@
 package com.educonnect.notificationservice.listener;
 
+import com.educonnect.common.messaging.notification.NotificationCategory;
+import com.educonnect.common.messaging.notification.NotificationRequest;
+import com.educonnect.common.messaging.notification.TurkishDates;
 import com.educonnect.notificationservice.config.NotificationRabbitMQConfig;
 import com.educonnect.notificationservice.dto.message.EventChangedMessage;
-import com.educonnect.notificationservice.service.EmailService;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import com.educonnect.notificationservice.service.NotificationDispatcher;
 import org.springframework.amqp.AmqpRejectAndDontRequeueException;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
-import org.springframework.core.ParameterizedTypeReference;
-import org.springframework.http.HttpEntity;
-import org.springframework.http.HttpMethod;
 import org.springframework.stereotype.Component;
-import org.springframework.web.client.RestTemplate;
-
-import java.time.format.DateTimeFormatter;
-import java.util.List;
-import java.util.Locale;
 
 @Component
 public class EventChangeListener {
 
-    private static final Logger log = LoggerFactory.getLogger(EventChangeListener.class);
-    private static final DateTimeFormatter TIME = DateTimeFormatter.ofPattern("d MMMM yyyy HH:mm", Locale.forLanguageTag("tr"));
-    private static final String EMAILS = "http://AUTH-SERVICES/api/auth/internal/users/emails";
+    private final NotificationDispatcher dispatcher;
 
-    private final EmailService emailService;
-    private final RestTemplate restTemplate;
-
-    public EventChangeListener(EmailService emailService, RestTemplate restTemplate) {
-        this.emailService = emailService;
-        this.restTemplate = restTemplate;
+    public EventChangeListener(NotificationDispatcher dispatcher) {
+        this.dispatcher = dispatcher;
     }
 
     @RabbitListener(queues = NotificationRabbitMQConfig.NOTIFICATION_EVENT_CHANGED_QUEUE)
@@ -40,25 +27,9 @@ public class EventChangeListener {
         if (message.recipientIds().isEmpty()) {
             return;
         }
-        List<String> emails = restTemplate.exchange(EMAILS, HttpMethod.POST, new HttpEntity<>(message.recipientIds()),
-                new ParameterizedTypeReference<List<String>>() {
-                }).getBody();
-        if (emails == null || emails.isEmpty()) {
-            log.warn("No emails found for event change recipients");
-            return;
-        }
-        String subject = subject(message);
-        String body = body(message);
-        int failed = 0;
-        for (String email : emails) {
-            try {
-                emailService.sendSimpleEmail(email, subject, body);
-            } catch (RuntimeException e) {
-                failed++;
-                log.warn("Event change notification could not be sent: {}", e.getMessage());
-            }
-        }
-        log.info("Event change ({}) notified {} of {} participants", message.kind(), emails.size() - failed, emails.size());
+        dispatcher.dispatch(NotificationRequest.of(message.recipientIds(), NotificationCategory.EVENT,
+                "EVENT_" + message.kind(), subject(message), body(message),
+                message.eventId() != null ? "/events/" + message.eventId() : null, null));
     }
 
     static String subject(EventChangedMessage message) {
@@ -71,18 +42,19 @@ public class EventChangeListener {
     }
 
     static String body(EventChangedMessage message) {
-        StringBuilder text = new StringBuilder("Merhaba,\n\nKayıtlı olduğunuz \"").append(message.title()).append("\" etkinliğinde değişiklik var.\n\n");
+        StringBuilder text = new StringBuilder("Kayıtlı olduğunuz \"").append(message.title()).append("\" etkinliğinde değişiklik var.\n");
         switch (message.kind()) {
-            case "POSTPONED" -> text.append("Yeni tarih: ").append(TIME.format(message.startsAt())).append(" – ")
-                    .append(TIME.format(message.endsAt())).append("\nKaydınız geçerlidir; katılamayacaksanız kaydınızı iptal edebilirsiniz.\n");
-            case "RELOCATED" -> text.append("Yeni yer: ").append(message.location()).append('\n');
-            case "CANCELLED" -> text.append("Etkinlik iptal edildi.\n");
+            case "POSTPONED" -> text.append("Yeni tarih: ").append(TurkishDates.format(message.startsAt())).append(" – ")
+                    .append(TurkishDates.format(message.endsAt()))
+                    .append("\nKaydınız geçerlidir; katılamayacaksanız kaydınızı iptal edebilirsiniz.");
+            case "RELOCATED" -> text.append("Yeni yer: ").append(message.location());
+            case "CANCELLED" -> text.append("Etkinlik iptal edildi.");
             default -> {
             }
         }
         if (message.reason() != null && !message.reason().isBlank()) {
-            text.append("Gerekçe: ").append(message.reason()).append('\n');
+            text.append("\nGerekçe: ").append(message.reason());
         }
-        return text.append("\nEduConnect").toString();
+        return text.toString();
     }
 }

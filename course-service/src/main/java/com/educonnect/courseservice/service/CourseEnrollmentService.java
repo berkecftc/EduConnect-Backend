@@ -41,6 +41,7 @@ public class CourseEnrollmentService {
     private final CourseStaffAccess staffAccess;
     private final CourseCaches courseCaches;
     private final UserClient userClient;
+    private final CourseNotifier notifier;
 
     public CourseEnrollmentService(CourseRepository courseRepository,
                                    EnrollmentRepository enrollmentRepository,
@@ -49,7 +50,8 @@ public class CourseEnrollmentService {
                                    EnrollmentLedger enrollmentLedger,
                                    CourseStaffAccess staffAccess,
                                    CourseCaches courseCaches,
-                                   UserClient userClient) {
+                                   UserClient userClient,
+                                   CourseNotifier notifier) {
         this.courseRepository = courseRepository;
         this.enrollmentRepository = enrollmentRepository;
         this.eventRepository = eventRepository;
@@ -58,6 +60,7 @@ public class CourseEnrollmentService {
         this.staffAccess = staffAccess;
         this.courseCaches = courseCaches;
         this.userClient = userClient;
+        this.notifier = notifier;
     }
 
     public EnrollmentEventResponse withdraw(UUID courseId, UUID studentId, String reason) {
@@ -78,6 +81,9 @@ public class CourseEnrollmentService {
         CourseEnrollmentEvent event = enrollmentLedger.end(enrollment, EnrollmentEventType.REMOVED, actorId, normalize(reason));
         evict(course, studentId);
         log.info("Student removed: course={}, student={}, by={}", courseId, studentId, actorId);
+        notifier.notify(List.of(studentId), "COURSE_REMOVED", course, "Dersten çıkarıldınız",
+                CourseNotifier.withReason(course.getTitle() + " dersindeki kaydınız ders kadrosu tarafından sonlandırıldı.",
+                        normalize(reason)));
         return responses(List.of(event), Map.of(course.getId(), course)).getFirst();
     }
 

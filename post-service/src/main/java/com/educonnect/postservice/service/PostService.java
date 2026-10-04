@@ -31,6 +31,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import com.educonnect.common.messaging.notification.NotificationCategory;
 
 import java.time.Instant;
 import java.util.HashMap;
@@ -40,6 +41,7 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+import java.util.Collections;
 
 @Service
 public class PostService {
@@ -57,6 +59,7 @@ public class PostService {
     private final ScopeAccessService scopeAccess;
     private final AttachmentService attachmentService;
     private final ContributionEvents contributionEvents;
+    private final PostNotifier notifier;
 
     public PostService(PostRepository postRepository,
                        PostEventPublisher eventPublisher,
@@ -68,7 +71,8 @@ public class PostService {
                        PostVisibility postVisibility,
                        ScopeAccessService scopeAccess,
                        AttachmentService attachmentService,
-                       ContributionEvents contributionEvents) {
+                       ContributionEvents contributionEvents,
+                       PostNotifier notifier) {
         this.postRepository = postRepository;
         this.eventPublisher = eventPublisher;
         this.userClient = userClient;
@@ -80,6 +84,7 @@ public class PostService {
         this.scopeAccess = scopeAccess;
         this.attachmentService = attachmentService;
         this.contributionEvents = contributionEvents;
+        this.notifier = notifier;
     }
 
     @Transactional
@@ -233,6 +238,9 @@ public class PostService {
         post.setStatus(PostStatus.PENDING);
         Post saved = postRepository.save(post);
         log.info("Kulüp duyurusu başkan tarafından onaylandı — postId: {}, approver: {}", postId, viewer.id());
+        notifier.notify(Collections.singletonList(saved.getAuthorId()), NotificationCategory.CLUB_MANAGEMENT, "CLUB_ANNOUNCEMENT_APPROVED",
+                saved.getId(), "Duyurunuz onaylandı", "\"" + saved.getTitle() + "\" kulüp duyurusu başkan tarafından onaylandı ve yayına gönderildi.",
+                null);
         submitForModeration(saved);
         return mapToResponseWithUser(saved, fetchUserSafely(saved.getAuthorId()), viewer.id());
     }
@@ -244,6 +252,9 @@ public class PostService {
         post.setReviewNote(note.strip());
         Post saved = postRepository.save(post);
         log.info("Kulüp duyurusu başkan tarafından reddedildi — postId: {}, reviewer: {}", postId, viewer.id());
+        notifier.notify(Collections.singletonList(saved.getAuthorId()), NotificationCategory.CLUB_MANAGEMENT, "CLUB_ANNOUNCEMENT_REJECTED",
+                saved.getId(), "Duyurunuz reddedildi", "\"" + saved.getTitle() + "\" kulüp duyurusu başkan tarafından reddedildi.\nGerekçe: "
+                        + note.strip(), null);
         return mapToResponseWithUser(saved, fetchUserSafely(saved.getAuthorId()), viewer.id());
     }
 

@@ -28,6 +28,8 @@ import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.util.Set;
 import java.util.UUID;
+import java.util.ArrayList;
+import java.util.List;
 
 @Service
 public class ContentControlService {
@@ -48,6 +50,7 @@ public class ContentControlService {
     private final ModerationLog moderationLog;
     private final OutboxPublisher outboxPublisher;
     private final ContributionEvents contributionEvents;
+    private final PostNotifier notifier;
 
     public ContentControlService(PostRepository postRepository,
                                  CommentRepository commentRepository,
@@ -55,7 +58,8 @@ public class ContentControlService {
                                  PublisherPolicy publisherPolicy,
                                  ModerationLog moderationLog,
                                  OutboxPublisher outboxPublisher,
-                                 ContributionEvents contributionEvents) {
+                                 ContributionEvents contributionEvents,
+                                 PostNotifier notifier) {
         this.postRepository = postRepository;
         this.commentRepository = commentRepository;
         this.reportRepository = reportRepository;
@@ -63,6 +67,7 @@ public class ContentControlService {
         this.moderationLog = moderationLog;
         this.outboxPublisher = outboxPublisher;
         this.contributionEvents = contributionEvents;
+        this.notifier = notifier;
     }
 
     @Transactional
@@ -209,9 +214,13 @@ public class ContentControlService {
 
     private void upholdReports(ModerationTarget target, UUID targetId, UUID moderatorId, String note) {
         Instant now = Instant.now();
+        List<UUID> reporters = new ArrayList<>();
+        UUID postId = null;
         for (ContentReport report : reportRepository.findByTargetTypeAndTargetIdAndStatus(target, targetId, ContentReport.Status.OPEN)) {
             report.resolve(ContentReport.Status.UPHELD, moderatorId, note, now);
             reportRepository.save(report);
+            reporters.add(report.getReporterId());
+            postId = report.getPostId();
             if (report.getReporterId() != null) {
                 outboxPublisher.publish(RabbitMQConfig.GAMIFICATION_EXCHANGE,
                         RabbitMQConfig.ROUTING_KEY_GAMIFICATION_REPORT_RESOLVED,
@@ -219,13 +228,23 @@ public class ContentControlService {
                                 report.getId().toString(), OffsetDateTime.now()));
             }
         }
+        if (postId != null) {
+            notifier.reportsResolved(reporters, target, postId, true, note);
+        }
     }
 
     void dismissReports(ModerationTarget target, UUID targetId, UUID moderatorId, String note) {
         Instant now = Instant.now();
+        List<UUID> reporters = new ArrayList<>();
+        UUID postId = null;
         for (ContentReport report : reportRepository.findByTargetTypeAndTargetIdAndStatus(target, targetId, ContentReport.Status.OPEN)) {
             report.resolve(ContentReport.Status.DISMISSED, moderatorId, note, now);
             reportRepository.save(report);
+            reporters.add(report.getReporterId());
+            postId = report.getPostId();
+        }
+        if (postId != null) {
+            notifier.reportsResolved(reporters, target, postId, false, note);
         }
     }
 

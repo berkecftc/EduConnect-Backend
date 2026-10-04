@@ -1,17 +1,14 @@
 package com.educonnect.notificationservice.listener;
 
+import com.educonnect.common.messaging.notification.NotificationCategory;
+import com.educonnect.common.messaging.notification.NotificationRequest;
 import com.educonnect.notificationservice.config.NotificationRabbitMQConfig;
 import com.educonnect.notificationservice.dto.message.CourseNotificationMessage;
-import com.educonnect.notificationservice.service.EmailService;
+import com.educonnect.notificationservice.service.NotificationDispatcher;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
-import org.springframework.core.ParameterizedTypeReference;
-import org.springframework.http.HttpEntity;
-import org.springframework.http.HttpMethod;
-import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Component;
-import org.springframework.web.client.RestTemplate;
 
 import java.util.List;
 import java.util.UUID;
@@ -21,107 +18,38 @@ public class CourseNotificationListener {
 
     private static final Logger log = LoggerFactory.getLogger(CourseNotificationListener.class);
 
-    private final EmailService emailService;
-    private final RestTemplate restTemplate;
+    private final NotificationDispatcher dispatcher;
 
-    public CourseNotificationListener(EmailService emailService, RestTemplate restTemplate) {
-        this.emailService = emailService;
-        this.restTemplate = restTemplate;
+    public CourseNotificationListener(NotificationDispatcher dispatcher) {
+        this.dispatcher = dispatcher;
     }
 
-    /**
-     * Ders duyurusu oluşturulduğunda tetiklenir.
-     * Kayıtlı öğrencilere toplu e-posta gönderir.
-     */
     @RabbitListener(queues = NotificationRabbitMQConfig.COURSE_ANNOUNCEMENT_QUEUE)
     public void handleAnnouncementCreated(CourseNotificationMessage message) {
-        log.info("Ders duyurusu bildirimi alındı: {} -> Ders: {} ({})",
-                message.getContentTitle(), message.getCourseTitle(), message.getCourseCode());
-
-        sendBulkEmail(message, "Yeni Duyuru");
+        log.info("Course announcement notification received: course={}", message.getCourseCode());
+        notify(message, "COURSE_ANNOUNCEMENT", "Yeni Duyuru", "duyuru");
     }
 
-    /**
-     * Ödev oluşturulduğunda tetiklenir.
-     * Kayıtlı öğrencilere toplu e-posta gönderir.
-     */
     @RabbitListener(queues = NotificationRabbitMQConfig.COURSE_ASSIGNMENT_QUEUE)
     public void handleAssignmentCreated(CourseNotificationMessage message) {
-        log.info("Ödev bildirimi alındı: {} -> Ders: {} ({})",
-                message.getContentTitle(), message.getCourseTitle(), message.getCourseCode());
-
-        sendBulkEmail(message, "Yeni Ödev");
+        log.info("Course assignment notification received: course={}", message.getCourseCode());
+        notify(message, "COURSE_ASSIGNMENT", "Yeni Ödev", "ödev");
     }
 
-    /**
-     * Kayıtlı öğrencilere toplu e-posta gönderir.
-     * 1. Mesajdaki enrolledStudentIds listesini kullanarak auth-services'ten e-postaları çeker
-     * 2. Her öğrenciye e-posta gönderir
-     */
-    private void sendBulkEmail(CourseNotificationMessage message, String typeLabel) {
-        List<UUID> studentIds = message.getEnrolledStudentIds();
-
-        if (studentIds == null || studentIds.isEmpty()) {
-            log.warn("Kayıtlı öğrenci listesi boş. E-posta gönderilmedi.");
+    private void notify(CourseNotificationMessage message, String type, String label, String noun) {
+        List<UUID> students = message.getEnrolledStudentIds();
+        if (students == null || students.isEmpty()) {
+            log.warn("Course notification has no enrolled students: course={}", message.getCourseCode());
             return;
         }
-
-        // auth-services'ten öğrenci e-postalarını çek
-        String authServiceUrl = "http://AUTH-SERVICES/api/auth/internal/users/emails";
-        log.info("{} öğrenci için e-posta adresleri çekiliyor...", studentIds.size());
-
-        HttpEntity<List<UUID>> request = new HttpEntity<>(studentIds);
-        ResponseEntity<List<String>> emailsResponse = restTemplate.exchange(
-                authServiceUrl,
-                HttpMethod.POST,
-                request,
-                new ParameterizedTypeReference<List<String>>() {}
-        );
-        List<String> emails = emailsResponse.getBody();
-
-        log.info("{} e-posta adresi alındı.", emails != null ? emails.size() : 0);
-
-        if (emails != null && !emails.isEmpty()) {
-            String subject = String.format("[%s] %s: %s",
-                    message.getCourseCode(), typeLabel, message.getContentTitle());
-
-            String body = buildEmailBody(message, typeLabel);
-
-            int failed = 0;
-            for (String email : emails) {
-                try {
-                    emailService.sendSimpleEmail(email, subject, body);
-                } catch (RuntimeException e) {
-                    failed++;
-                    log.warn("Course notification could not be sent to one student: {}", e.getMessage());
-                }
-            }
-
-            log.info("{}/{} öğrenciye '{}' e-postası gönderildi. Ders: {} ({})",
-                    emails.size() - failed, emails.size(), typeLabel, message.getCourseTitle(), message.getCourseCode());
-        } else {
-            log.warn("Öğrenci e-postaları bulunamadı.");
+        StringBuilder body = new StringBuilder()
+                .append(message.getCourseTitle()).append(" (").append(message.getCourseCode()).append(") dersinde yeni bir ")
+                .append(noun).append(" paylaşıldı: ").append(message.getContentTitle());
+        if (message.getContentDescription() != null && !message.getContentDescription().isBlank()) {
+            body.append("\n\n").append(message.getContentDescription());
         }
-    }
-
-    /**
-     * E-posta içeriğini oluşturur.
-     */
-    private String buildEmailBody(CourseNotificationMessage message, String typeLabel) {
-        StringBuilder sb = new StringBuilder();
-        sb.append("Merhaba,\n\n");
-        sb.append(String.format("%s dersinde (%s) yeni bir %s paylaşıldı.\n\n",
-                message.getCourseTitle(), message.getCourseCode(),
-                typeLabel.toLowerCase()));
-        sb.append("Başlık: ").append(message.getContentTitle()).append("\n");
-
-        if (message.getContentDescription() != null && !message.getContentDescription().isEmpty()) {
-            sb.append("\nİçerik:\n").append(message.getContentDescription()).append("\n");
-        }
-
-        sb.append("\nDetaylar için EduConnect platformunu ziyaret ediniz.\n");
-        sb.append("\nİyi çalışmalar,\nEduConnect Ekibi");
-        return sb.toString();
+        String title = "[" + message.getCourseCode() + "] " + label + ": " + message.getContentTitle();
+        String link = message.getCourseId() != null ? "/courses/" + message.getCourseId() : null;
+        dispatcher.dispatch(NotificationRequest.of(students, NotificationCategory.COURSE, type, title, body.toString(), link, null));
     }
 }
-

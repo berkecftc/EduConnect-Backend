@@ -35,12 +35,15 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
+import java.util.ArrayList;
+import java.util.stream.Stream;
 
 @Service
 @Transactional
 public class EventChangeService {
 
     private static final Set<EventStatus> DRAFTS = Set.of(EventStatus.PENDING_PRESIDENT, EventStatus.PENDING, EventStatus.REJECTED);
+    static final String CLUB_CLOSED_REASON = "Kulüp kapatıldı.";
     private static final Set<EventStatus> CANCELLABLE = Set.of(EventStatus.PENDING_PRESIDENT, EventStatus.PENDING, EventStatus.ACTIVE);
 
     private final EventRepository eventRepository;
@@ -52,6 +55,7 @@ public class EventChangeService {
     private final ApprovalChainSettings approvalChain;
     private final EventCaches eventCaches;
     private final OutboxPublisher outboxPublisher;
+    private final EventNotifier notifier;
 
     public EventChangeService(EventRepository eventRepository,
                               EventRegistrationRepository registrationRepository,
@@ -61,7 +65,8 @@ public class EventChangeService {
                               EventSchedule schedule,
                               ApprovalChainSettings approvalChain,
                               EventCaches eventCaches,
-                              OutboxPublisher outboxPublisher) {
+                              OutboxPublisher outboxPublisher,
+                              EventNotifier notifier) {
         this.eventRepository = eventRepository;
         this.registrationRepository = registrationRepository;
         this.requestRepository = requestRepository;
@@ -71,6 +76,7 @@ public class EventChangeService {
         this.approvalChain = approvalChain;
         this.eventCaches = eventCaches;
         this.outboxPublisher = outboxPublisher;
+        this.notifier = notifier;
     }
 
     public Event update(UUID eventId, UUID actorId, UpdateEventRequest request) {
@@ -140,6 +146,9 @@ public class EventChangeService {
         changeRepository.save(new EventChange(eventId, resubmission ? EventChangeKind.RESUBMITTED : EventChangeKind.EDITED,
                 null, note, actorId));
         eventCaches.evictEvent(saved);
+        if (resubmission) {
+            notifier.awaitingApproval(saved, actorId);
+        }
         return saved;
     }
 
@@ -164,7 +173,8 @@ public class EventChangeService {
         }
         event.setStatus(event.isCampus() ? EventStatus.ACTIVE : EventStatus.PENDING);
         Event saved = eventRepository.save(event);
-        record(saved, EventChangeKind.POSTPONED, details, request.reason(), actorId);
+        record(saved, EventChangeKind.POSTPONED, details, request.reason(), actorId, List.of());
+        notifier.awaitingApproval(saved, actorId);
         return saved;
     }
 
@@ -180,7 +190,7 @@ public class EventChangeService {
         String details = event.getLocation() + " → " + request.location().strip();
         event.setLocation(request.location().strip());
         Event saved = eventRepository.save(event);
-        record(saved, EventChangeKind.RELOCATED, details, request.reason(), actorId);
+        record(saved, EventChangeKind.RELOCATED, details, request.reason(), actorId, List.of());
         return saved;
     }
 
@@ -197,17 +207,32 @@ public class EventChangeService {
         if (!CANCELLABLE.contains(event.getStatus()) || !event.getEndsAt().isAfter(schedule.now())) {
             throw new ConflictException("EVENT_NOT_CHANGEABLE", "Bu etkinlik artık iptal edilemez.");
         }
+        return cancelEvent(event, request.reason().strip(), actorId);
+    }
+
+    public int cancelForClosedClub(UUID clubId) {
+        LocalDateTime now = schedule.now();
+        List<Event> open = eventRepository.findByClubId(clubId).stream()
+                .filter(event -> CANCELLABLE.contains(event.getStatus()) && event.getEndsAt().isAfter(now))
+                .toList();
+        open.forEach(event -> cancelEvent(event, CLUB_CLOSED_REASON, null));
+        return open.size();
+    }
+
+    private Event cancelEvent(Event event, String reason, UUID actorId) {
         event.setStatus(EventStatus.CANCELLED);
-        event.setCancellationReason(request.reason().strip());
+        event.setCancellationReason(reason);
         Event saved = eventRepository.save(event);
+        List<UUID> requesters = new ArrayList<>();
         for (ParticipationRequestStatus open : List.of(ParticipationRequestStatus.PENDING, ParticipationRequestStatus.WAITLISTED)) {
-            for (EventParticipationRequest pending : requestRepository.findByEventIdAndStatus(eventId, open)) {
+            for (EventParticipationRequest pending : requestRepository.findByEventIdAndStatus(event.getId(), open)) {
                 pending.setStatus(ParticipationRequestStatus.CLOSED);
                 pending.setProcessedDate(LocalDateTime.now());
                 requestRepository.save(pending);
+                requesters.add(pending.getStudentId());
             }
         }
-        record(saved, EventChangeKind.CANCELLED, null, request.reason(), actorId);
+        record(saved, EventChangeKind.CANCELLED, null, reason, actorId, requesters);
         return saved;
     }
 
@@ -218,13 +243,15 @@ public class EventChangeService {
         return changeRepository.findByEventIdOrderByCreatedAtDesc(eventId).stream().map(EventChangeResponse::of).toList();
     }
 
-    private void record(Event event, EventChangeKind kind, String details, String reason, UUID actorId) {
+    private void record(Event event, EventChangeKind kind, String details, String reason, UUID actorId,
+                        List<UUID> otherRecipients) {
         changeRepository.save(new EventChange(event.getId(), kind, details, reason == null ? null : reason.strip(), actorId));
-        List<UUID> recipients = registrationRepository.findByEventId(event.getId()).stream()
+        List<UUID> registered = registrationRepository.findByEventId(event.getId()).stream()
                 .filter(registration -> registration.getStatus() == RegistrationStatus.REGISTERED)
                 .map(EventRegistration::getStudentId)
                 .toList();
-        recipients.forEach(eventCaches::evictStudentRegistrations);
+        registered.forEach(eventCaches::evictStudentRegistrations);
+        List<UUID> recipients = Stream.concat(registered.stream(), otherRecipients.stream()).distinct().toList();
         eventCaches.evictEvent(event);
         if (!recipients.isEmpty()) {
             outboxPublisher.publish(EventRabbitMQConfig.CLUB_EXCHANGE_NAME, EventRabbitMQConfig.ROUTING_KEY_EVENT_CHANGED,

@@ -19,6 +19,7 @@ import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilde
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
 import java.util.Map;
+import java.time.Instant;
 import java.util.Set;
 import java.util.UUID;
 
@@ -226,6 +227,19 @@ class AuthAuthorizationTest {
                         .contentType(MediaType.APPLICATION_JSON).content(body))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0]").value(student.getEmail()));
+
+        academician.suspend("Test", Instant.now());
+        userRepository.save(academician);
+        String pair = "[\"" + student.getId() + "\",\"" + academician.getId() + "\"]";
+        mockMvc.perform(post("/api/auth/internal/users/contacts").contentType(MediaType.APPLICATION_JSON).content(pair))
+                .andExpect(status().isUnauthorized());
+        mockMvc.perform(post("/api/auth/internal/users/contacts")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + jwtService.generateServiceToken("notification-service"))
+                        .contentType(MediaType.APPLICATION_JSON).content(pair))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[?(@.id == '" + student.getId() + "')].email").value(student.getEmail()))
+                .andExpect(jsonPath("$[?(@.id == '" + student.getId() + "')].active").value(true))
+                .andExpect(jsonPath("$[?(@.id == '" + academician.getId() + "')].active").value(false));
     }
 
     @Test

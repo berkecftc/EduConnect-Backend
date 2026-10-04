@@ -26,10 +26,12 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.server.ResponseStatusException;
+import com.educonnect.common.messaging.notification.NotificationCategory;
 
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
+import java.util.ArrayList;
 
 @Service
 @Transactional
@@ -51,6 +53,9 @@ public class ClubLifecycleService {
     private final ClubDecisionLog decisionLog;
     private final ApprovalChainSettings approvalChainSettings;
     private final AdvisorDirectory advisorDirectory;
+    private final ClubNotificationPublisher notificationPublisher;
+    private final ClubLeadershipService leadershipService;
+    private final RoleChangeUserNames userNames;
 
     public ClubLifecycleService(ClubRepository clubRepository,
                                 ClubMembershipRepository membershipRepository,
@@ -62,7 +67,10 @@ public class ClubLifecycleService {
                                 ClubManagementStatusPublisher managementStatusPublisher,
                                 ClubDecisionLog decisionLog,
                                 ApprovalChainSettings approvalChainSettings,
-                                AdvisorDirectory advisorDirectory) {
+                                AdvisorDirectory advisorDirectory,
+                                ClubNotificationPublisher notificationPublisher,
+                                ClubLeadershipService leadershipService,
+                                RoleChangeUserNames userNames) {
         this.clubRepository = clubRepository;
         this.membershipRepository = membershipRepository;
         this.archivedClubRepository = archivedClubRepository;
@@ -74,6 +82,9 @@ public class ClubLifecycleService {
         this.decisionLog = decisionLog;
         this.approvalChainSettings = approvalChainSettings;
         this.advisorDirectory = advisorDirectory;
+        this.notificationPublisher = notificationPublisher;
+        this.leadershipService = leadershipService;
+        this.userNames = userNames;
     }
 
     public Club updateClub(UUID clubId, UpdateClubRequest request) {
@@ -82,12 +93,21 @@ public class ClubLifecycleService {
 
         if (request.getName() != null) club.setName(request.getName());
         if (request.getAbout() != null) club.setAbout(request.getAbout());
-        if (request.getAcademicAdvisorId() != null && !request.getAcademicAdvisorId().equals(club.getAcademicAdvisorId())) {
+        UUID previousAdvisorId = club.getAcademicAdvisorId();
+        boolean advisorChanged = request.getAcademicAdvisorId() != null
+                && !request.getAcademicAdvisorId().equals(previousAdvisorId);
+        if (advisorChanged) {
             advisorDirectory.requireAcademician(request.getAcademicAdvisorId());
             club.setAcademicAdvisorId(request.getAcademicAdvisorId());
         }
 
         Club updatedClub = clubRepository.save(club);
+        if (advisorChanged) {
+            notificationPublisher.notifyAdvisor(updatedClub, "Kulüp danışmanlığı",
+                    "\"" + updatedClub.getName() + "\" kulübüne akademik danışman olarak atandınız.");
+            notificationPublisher.notifyUser(previousAdvisorId, updatedClub, "Kulüp danışmanlığı",
+                    "\"" + updatedClub.getName() + "\" kulübündeki danışmanlığınız sona erdi.");
+        }
 
         if (request.getName() != null) {
             ClubUpdateMessage message = new ClubUpdateMessage(
@@ -162,6 +182,11 @@ public class ClubLifecycleService {
         log.info("Club archived successfully: {}", club.getName());
 
         List<ClubMembership> members = membershipRepository.findByClubId(clubId);
+        List<UUID> recipients = new ArrayList<>(members.stream()
+                .filter(ClubMembership::isActive)
+                .map(ClubMembership::getStudentId)
+                .toList());
+        recipients.add(club.getAcademicAdvisorId());
         membershipRepository.deleteAll(members);
         membershipRepository.flush();
         members.forEach(member -> {
@@ -174,6 +199,10 @@ public class ClubLifecycleService {
 
         clubRepository.delete(club);
         log.info("Club removed from active table: {}", club.getName());
+        notificationPublisher.publish(recipients, null, NotificationCategory.CLUB_MANAGEMENT,
+                ClubNotificationPublisher.TYPE_NOTICE, club.getName() + ": Kulüp kapatıldı",
+                "\"" + club.getName() + "\" kulübü yönetim kararıyla kapatıldı; kulübün gelecekteki etkinlikleri iptal edildi."
+                        + (reason != null && !reason.isBlank() ? " Neden: " + reason : ""));
 
         try {
             ClubUpdateMessage message = new ClubUpdateMessage(clubId, club.getName(), null);
@@ -208,5 +237,8 @@ public class ClubLifecycleService {
         if (wasManagement) {
             managementStatusPublisher.publishCurrentStatus(studentId);
         }
+        leadershipService.currentLeaderOf(clubId)
+                .ifPresent(leaderId -> notificationPublisher.notifyUser(leaderId, club, "Üye ayrıldı",
+                        userNames.nameOf(studentId) + " kulüpten ayrıldı."));
     }
 }

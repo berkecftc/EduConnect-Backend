@@ -23,11 +23,13 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import com.educonnect.common.messaging.notification.NotificationCategory;
 
 import java.time.Clock;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
+import java.util.ArrayList;
 
 @Service
 @Transactional
@@ -90,7 +92,7 @@ public class ClubClosureService {
         UUID clubId = club.getId();
         club.close(closedBy, reason, clock.instant());
         clubRepository.save(club);
-        closePendingRequests(clubId, closedBy, closingRequestId);
+        closePendingRequests(club, closedBy, closingRequestId);
         positionHistory.closeAll(clubId, LocalDateTime.now(), PositionEndReason.CLUB_CLOSED);
         decisionLog.record(clubId, DecisionAction.CLUB_CLOSED, closedBy, null, reason);
 
@@ -102,24 +104,31 @@ public class ClubClosureService {
             if (membership.getClubRole().isManagement()) {
                 managementStatusPublisher.publishCurrentStatus(membership.getStudentId());
             }
-            notificationPublisher.notifyUser(membership.getStudentId(), club, "Kulüp kapatıldı",
-                    "\"" + club.getName() + "\" kulübü danışman kararıyla kapatıldı. "
-                            + "Üyelik ve görev geçmişiniz korunuyor; kulübün gelecekteki etkinlikleri iptal edildi. Neden: " + reason);
         }
+        notificationPublisher.notifyUsers(activeMembers.stream().map(ClubMembership::getStudentId).toList(), club,
+                NotificationCategory.CLUB_MANAGEMENT, ClubNotificationPublisher.TYPE_NOTICE, "Kulüp kapatıldı",
+                "\"" + club.getName() + "\" kulübü danışman kararıyla kapatıldı. "
+                        + "Üyelik ve görev geçmişiniz korunuyor; kulübün gelecekteki etkinlikleri iptal edildi. Neden: " + reason);
         outboxPublisher.publish(ClubRabbitMQConfig.CLUB_EXCHANGE_NAME, ROUTING_KEY_CLUB_DELETED,
                 new ClubUpdateMessage(clubId, club.getName(), null));
         log.info("Club closed: clubId={}, members={}", clubId, activeMembers.size());
     }
 
-    private void closePendingRequests(UUID clubId, UUID closedBy, UUID closingRequestId) {
+    private void closePendingRequests(Club club, UUID closedBy, UUID closingRequestId) {
+        UUID clubId = club.getId();
         LocalDateTime now = LocalDateTime.now(clock);
+        List<UUID> applicants = new ArrayList<>();
         for (ClubMembershipRequest request : membershipRequestRepository.findByClubIdAndStatus(clubId, MembershipRequestStatus.PENDING)) {
             request.setStatus(MembershipRequestStatus.REJECTED);
             request.setRejectionReason(CLOSED_REASON);
             request.setProcessedBy(closedBy);
             request.setProcessedDate(now);
             membershipRequestRepository.save(request);
+            applicants.add(request.getStudentId());
         }
+        notificationPublisher.notifyUsers(applicants, club, NotificationCategory.CLUB_MANAGEMENT,
+                ClubMembershipRequestService.TYPE_MEMBERSHIP, "Üyelik başvurunuz kapandı",
+                "\"" + club.getName() + "\" kulübü kapatıldığı için üyelik başvurunuz sonuçlanmadan kapandı.");
         for (ClubApprovalRequest request : approvalRequestRepository.findByClubIdAndStatusIn(clubId, ApprovalStatus.PENDING)) {
             if (request.getId().equals(closingRequestId)) {
                 continue;

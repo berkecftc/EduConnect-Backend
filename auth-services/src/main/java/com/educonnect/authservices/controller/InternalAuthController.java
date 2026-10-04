@@ -1,10 +1,12 @@
 package com.educonnect.authservices.controller;
 
 import com.educonnect.common.web.LogValues;
+import com.educonnect.authservices.dto.response.UserContact;
 import com.educonnect.authservices.service.UserAdministrationService;
 import com.educonnect.authservices.service.JWTService;
 import com.educonnect.authservices.service.ServiceClientAuthenticator;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.CacheControl;
@@ -71,6 +73,11 @@ public class InternalAuthController {
     @PostMapping("/users/emails")
     public ResponseEntity<List<String>> getEmailsByIds(@RequestBody @NotNull(message = "Kullanıcı listesi boş olamaz") List<@NotNull(message = "Kullanıcı kimliği boş olamaz") UUID> userIds) {
         return ResponseEntity.ok(userAdministrationService.getEmailsByUserIds(userIds));
+    }
+
+    @PostMapping("/users/contacts")
+    public ResponseEntity<List<UserContact>> getContacts(@RequestBody @NotNull(message = "Kullanıcı listesi boş olamaz") @Size(max = 1000, message = "En fazla 1000 kullanıcı istenebilir") List<@NotNull(message = "Kullanıcı kimliği boş olamaz") UUID> userIds) {
+        return ResponseEntity.ok(userAdministrationService.getContacts(userIds));
     }
 
     private static String[] decodeBasicCredentials(String authorization) {

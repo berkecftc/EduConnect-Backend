@@ -42,6 +42,7 @@ public class EventService {
     private final EventCaches eventCaches;
     private final ApprovalChainSettings approvalChain;
     private final EventSchedule schedule;
+    private final EventNotifier notifier;
 
     public EventService(EventRepository eventRepository,
                         MinioService minioService,
@@ -50,7 +51,8 @@ public class EventService {
                         EventAuthorizationService eventAuthorizationService,
                         EventCaches eventCaches,
                         ApprovalChainSettings approvalChain,
-                        EventSchedule schedule) {
+                        EventSchedule schedule,
+                        EventNotifier notifier) {
         this.eventRepository = eventRepository;
         this.minioService = minioService;
         this.eventRegistrationRepository = eventRegistrationRepository;
@@ -59,6 +61,7 @@ public class EventService {
         this.eventCaches = eventCaches;
         this.approvalChain = approvalChain;
         this.schedule = schedule;
+        this.notifier = notifier;
     }
 
     public Event createCampusEvent(CampusEventRequest request, MultipartFile posterFile, UUID creatorId) {
@@ -167,22 +170,9 @@ public class EventService {
             savedEvent = eventRepository.save(savedEvent);
         }
         eventCaches.evictEventListings(savedEvent);
+        notifier.awaitingApproval(savedEvent, creatorId);
 
         return savedEvent;
-    }
-
-    public void deleteEventsByClubId(UUID clubId) {
-        LocalDateTime now = LocalDateTime.now();
-        List<Event> cancelled = eventRepository.findByClubId(clubId).stream()
-                .filter(event -> event.getStatus() == EventStatus.PENDING_PRESIDENT
-                        || event.getStatus() == EventStatus.PENDING
-                        || (event.getStatus() == EventStatus.ACTIVE
-                            && event.getEndsAt().isAfter(now)))
-                .toList();
-        cancelled.forEach(event -> event.setStatus(EventStatus.CANCELLED));
-        eventRepository.saveAll(cancelled);
-        eventCaches.evictEvents(cancelled);
-        log.info("Kapanan kulübün {} gelecek etkinliği iptal edildi: clubId={}", cancelled.size(), clubId);
     }
 
     public void updateClubInfoForEvents(UUID clubId, String newClubName) {

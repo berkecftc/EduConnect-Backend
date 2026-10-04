@@ -26,6 +26,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.util.UUID;
+import java.util.Collections;
 
 @Service
 public class ContentReportService {
@@ -39,6 +40,7 @@ public class ContentReportService {
     private final ContentControlService contentControl;
     private final ModerationLog moderationLog;
     private final int hideThreshold;
+    private final PostNotifier notifier;
 
     public ContentReportService(ContentReportRepository reportRepository,
                                 PostRepository postRepository,
@@ -46,7 +48,8 @@ public class ContentReportService {
                                 PostVisibility postVisibility,
                                 ContentControlService contentControl,
                                 ModerationLog moderationLog,
-                                @Value("${educonnect.post.moderation.report-hide-threshold:3}") int hideThreshold) {
+                                @Value("${educonnect.post.moderation.report-hide-threshold:3}") int hideThreshold,
+                                PostNotifier notifier) {
         this.reportRepository = reportRepository;
         this.postRepository = postRepository;
         this.commentRepository = commentRepository;
@@ -54,6 +57,7 @@ public class ContentReportService {
         this.contentControl = contentControl;
         this.moderationLog = moderationLog;
         this.hideThreshold = hideThreshold;
+        this.notifier = notifier;
     }
 
     @Transactional
@@ -91,6 +95,8 @@ public class ContentReportService {
         reportRepository.save(report);
         moderationLog.record(report.getTargetType(), report.getTargetId(), report.getPostId(), ModerationAction.REPORT_DISMISSED,
                 ModerationActor.MODERATOR, moderator.id(), note.strip());
+        notifier.reportsResolved(Collections.singletonList(report.getReporterId()), report.getTargetType(), report.getPostId(),
+                false, note.strip());
     }
 
     private ReportResponse report(ModerationTarget target, UUID targetId, UUID postId, UUID authorId,

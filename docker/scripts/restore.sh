@@ -25,7 +25,7 @@ source_dir="$(cd "$source_dir" && pwd)"
 postgres="${POSTGRES_CONTAINER:-educonnect-postgres}"
 rabbitmq="${RABBITMQ_CONTAINER:-educonnect-rabbitmq}"
 minio="${MINIO_CONTAINER:-educonnect-minio}"
-databases="auth_db user_db club_db event_db course_db assignment_db post_db gamification_db"
+databases="auth_db user_db club_db event_db course_db assignment_db post_db gamification_db notification_db"
 app_services="api-gateway auth-services user-service club-service event-service course-service assignment-service post-service gamification-service notification-service llm-service"
 
 (cd "$source_dir" && sha256sum --quiet -c SHA256SUMS)

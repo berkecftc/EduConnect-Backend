@@ -5,8 +5,6 @@ import com.educonnect.clubservice.repository.ClubMembershipRequestRepository;
 import com.educonnect.clubservice.repository.ClubRepository;
 import com.educonnect.clubservice.client.UserClient;
 import com.educonnect.clubservice.client.UserLookup;
-import com.educonnect.clubservice.config.ClubRabbitMQConfig;
-import com.educonnect.clubservice.dto.message.MembershipRequestMessage;
 import com.educonnect.clubservice.dto.request.CreateMembershipRequestDTO;
 import com.educonnect.clubservice.dto.request.MembershipRecommendationRequest;
 import com.educonnect.clubservice.dto.request.RejectMembershipRequestDTO;
@@ -18,7 +16,7 @@ import com.educonnect.clubservice.security.ClubAuthorizationService;
 import com.educonnect.clubservice.security.ClubPermission;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import com.educonnect.common.messaging.outbox.OutboxPublisher;
+import com.educonnect.common.messaging.notification.NotificationCategory;
 import com.educonnect.common.web.ConflictException;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -26,6 +24,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -38,13 +37,13 @@ public class ClubMembershipRequestService {
 
     private static final Logger log = LoggerFactory.getLogger(ClubMembershipRequestService.class);
 
-    private static final String ROUTING_KEY_MEMBERSHIP_NOTIFICATION = "club.membership.notification";
+    static final String TYPE_MEMBERSHIP = "CLUB_MEMBERSHIP";
 
     private final ClubMembershipRequestRepository requestRepository;
     private final ClubMembershipRepository membershipRepository;
     private final ClubRepository clubRepository;
     private final UserClient userClient;
-    private final OutboxPublisher outboxPublisher;
+    private final ClubLeadershipService leadershipService;
     private final ClubAuthorizationService clubAuthorizationService;
     private final ClubNotificationPublisher notificationPublisher;
     private final ClubCacheEvictor cacheEvictor;
@@ -56,7 +55,7 @@ public class ClubMembershipRequestService {
                                          ClubMembershipRepository membershipRepository,
                                          ClubRepository clubRepository,
                                          UserClient userClient,
-                                         OutboxPublisher outboxPublisher,
+                                         ClubLeadershipService leadershipService,
                                          ClubAuthorizationService clubAuthorizationService,
                                          ClubNotificationPublisher notificationPublisher,
                                          ClubCacheEvictor cacheEvictor,
@@ -70,7 +69,7 @@ public class ClubMembershipRequestService {
         this.membershipRepository = membershipRepository;
         this.clubRepository = clubRepository;
         this.userClient = userClient;
-        this.outboxPublisher = outboxPublisher;
+        this.leadershipService = leadershipService;
         this.clubAuthorizationService = clubAuthorizationService;
         this.notificationPublisher = notificationPublisher;
         this.cacheEvictor = cacheEvictor;
@@ -110,6 +109,9 @@ public class ClubMembershipRequestService {
 
         ClubMembershipRequest savedRequest = requestRepository.save(request);
         log.info("Membership request created: studentId={}, clubId={}", studentId, clubId);
+        notificationPublisher.notifyUsers(membershipReviewers(clubId), club, NotificationCategory.CLUB_MANAGEMENT,
+                TYPE_MEMBERSHIP, "Yeni üyelik başvurusu",
+                (applicant != null ? applicant.getFullName() : "Bir öğrenci") + " kulübe üyelik başvurusu yaptı.");
 
         return mapToDTO(savedRequest, club, null);
     }
@@ -219,9 +221,7 @@ public class ClubMembershipRequestService {
 
         // Bildirim gönder
         Club club = clubRepository.findById(clubId).orElse(null);
-        sendNotification(request.getStudentId(), clubId,
-                club != null ? club.getName() : "Kulüp",
-                MembershipRequestMessage.Status.APPROVED,
+        notifyApplicant(request.getStudentId(), clubId, (club != null ? club.getName() : "Kulüp") + " üyeliğiniz onaylandı",
                 "Üyelik isteğiniz onaylandı! Artık " + (club != null ? club.getName() : "kulüp") + " üyesisiniz.");
 
         UserSummary student = fetchUserSummary(request.getStudentId());
@@ -270,9 +270,8 @@ public class ClubMembershipRequestService {
         if (dto != null && dto.getRejectionReason() != null) {
             message += " Neden: " + dto.getRejectionReason();
         }
-        sendNotification(request.getStudentId(), clubId,
-                club != null ? club.getName() : "Kulüp",
-                MembershipRequestMessage.Status.REJECTED, message);
+        notifyApplicant(request.getStudentId(), clubId,
+                (club != null ? club.getName() : "Kulüp") + " üyelik başvurunuz hakkında", message);
 
         return mapToDTO(request, club, null);
     }
@@ -300,23 +299,20 @@ public class ClubMembershipRequestService {
         }
     }
 
-    /**
-     * RabbitMQ ile bildirim gönderir.
-     */
-    private void sendNotification(UUID studentId, UUID clubId, String clubName, MembershipRequestMessage.Status status, String message) {
-        try {
-            MembershipRequestMessage notificationMessage = new MembershipRequestMessage(
-                    studentId, clubId, clubName, status.name(), message);
+    private void notifyApplicant(UUID studentId, UUID clubId, String title, String message) {
+        notificationPublisher.publish(List.of(studentId), clubId, NotificationCategory.CLUB_MANAGEMENT, TYPE_MEMBERSHIP,
+                title, message);
+    }
 
-            outboxPublisher.publish(
-                    ClubRabbitMQConfig.CLUB_EXCHANGE_NAME,
-                    ROUTING_KEY_MEMBERSHIP_NOTIFICATION,
-                    notificationMessage);
-
-            log.info("Membership notification sent: studentId={}, status={}", studentId, status);
-        } catch (Exception e) {
-            log.error("Failed to send membership notification: {}", e.getMessage(), e);
+    private List<UUID> membershipReviewers(UUID clubId) {
+        List<UUID> reviewers = new ArrayList<>();
+        leadershipService.currentLeaderOf(clubId).ifPresent(reviewers::add);
+        for (ClubPosition position : List.of(ClubPosition.GENERAL_SECRETARY, ClubPosition.MEMBERSHIP_OFFICER)) {
+            membershipRepository.findByClubIdAndClubRoleAndIsActive(clubId, position, true).stream()
+                    .map(ClubMembership::getStudentId)
+                    .forEach(reviewers::add);
         }
+        return reviewers;
     }
 
     /**

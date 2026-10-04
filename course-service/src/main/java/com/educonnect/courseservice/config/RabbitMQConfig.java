@@ -8,6 +8,7 @@ import org.springframework.amqp.core.QueueBuilder;
 import org.springframework.amqp.core.TopicExchange;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import com.educonnect.common.messaging.notification.NotificationRequest;
 
 @Configuration
 public class RabbitMQConfig {
@@ -22,6 +23,11 @@ public class RabbitMQConfig {
     @Bean
     public TopicExchange courseExchange() {
         return new TopicExchange(COURSE_EXCHANGE);
+    }
+
+    @Bean
+    public TopicExchange notificationExchange() {
+        return new TopicExchange(NotificationRequest.EXCHANGE);
     }
 
     @Bean

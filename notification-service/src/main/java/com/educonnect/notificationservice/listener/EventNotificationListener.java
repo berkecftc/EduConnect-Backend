@@ -1,16 +1,16 @@
 package com.educonnect.notificationservice.listener;
 
-import com.educonnect.common.web.LogValues;
+import com.educonnect.common.messaging.notification.NotificationCategory;
+import com.educonnect.common.messaging.notification.NotificationRequest;
+import com.educonnect.common.messaging.notification.TurkishDates;
 import com.educonnect.notificationservice.config.NotificationRabbitMQConfig;
-import com.educonnect.notificationservice.dto.message.EventCreatedMessage; // YENİ DTO
-import com.educonnect.notificationservice.service.EmailService;
+import com.educonnect.notificationservice.dto.message.EventCreatedMessage;
+import com.educonnect.notificationservice.service.NotificationDispatcher;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
-import org.springframework.core.ParameterizedTypeReference; // YENİ
-import org.springframework.http.HttpEntity;
+import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.HttpMethod;
-import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestTemplate;
 
@@ -22,77 +22,33 @@ public class EventNotificationListener {
 
     private static final Logger log = LoggerFactory.getLogger(EventNotificationListener.class);
 
-    private final EmailService emailService;
+    private final NotificationDispatcher dispatcher;
     private final RestTemplate restTemplate;
 
-    public EventNotificationListener(EmailService emailService, RestTemplate restTemplate) {
-        this.emailService = emailService;
+    public EventNotificationListener(NotificationDispatcher dispatcher, RestTemplate restTemplate) {
+        this.dispatcher = dispatcher;
         this.restTemplate = restTemplate;
     }
 
-    // DİKKAT: Parametre artık Map değil, EventCreatedMessage
     @RabbitListener(queues = NotificationRabbitMQConfig.NOTIFICATION_EVENT_QUEUE)
     public void handleEventCreated(EventCreatedMessage message) {
-
-        // Verileri güvenli bir şekilde DTO'dan alıyoruz
-        String eventTitle = message.getTitle();
-        String clubName = message.getClubName();
         UUID clubId = message.getClubId();
-        String eventTime = message.getEventTime().toString();
-
-        log.info("Handling event notification for: {} | Club: {} | ClubId: {}", eventTitle, clubName, clubId);
-
-        // 1. ADIM: club-service'ten üye ID'lerini çek
-        String clubServiceUrl = "http://CLUB-SERVICE/api/clubs/internal/" + clubId + "/members/ids";
-        log.info("Fetching member IDs from: {}", clubServiceUrl);
-
-        ResponseEntity<List<UUID>> memberIdsResponse = restTemplate.exchange(
-                clubServiceUrl,
-                HttpMethod.GET,
-                null,
-                new ParameterizedTypeReference<List<UUID>>() {}
-        );
-        List<UUID> memberIds = memberIdsResponse.getBody();
-
-        log.info("Member IDs received: {}", LogValues.safe(memberIds));
-
-        if (memberIds == null || memberIds.isEmpty()) {
-            log.warn("No members found for club '{}' (ID: {}). Skipping emails.", clubName, clubId);
+        if (clubId == null) {
+            log.info("Event {} has no club; members are not notified", message.getEventId());
             return;
         }
-
-        // 2. ADIM: auth-services'ten bu ID'lerin e-postalarını çek
-        String authServiceUrl = "http://AUTH-SERVICES/api/auth/internal/users/emails";
-        log.info("Fetching emails from auth-services for {} member(s)", memberIds.size());
-
-        HttpEntity<List<UUID>> request = new HttpEntity<>(memberIds);
-        ResponseEntity<List<String>> emailsResponse = restTemplate.exchange(
-                authServiceUrl,
-                HttpMethod.POST,
-                request,
-                new ParameterizedTypeReference<List<String>>() {}
-        );
-        List<String> emails = emailsResponse.getBody();
-
-        log.info("{} e-posta adresi alındı.", emails != null ? emails.size() : 0);
-
-        // 3. ADIM: Herkese mail gönder
-        if (emails != null && !emails.isEmpty()) {
-            int failed = 0;
-            for (String email : emails) {
-                String subject = "Yeni Etkinlik: " + eventTitle;
-                String body = String.format("Merhaba,\n\n%s kulübü '%s' etkinliğini duyurdu!\nZaman: %s\n\nKaçırma!", clubName, eventTitle, eventTime);
-
-                try {
-                    emailService.sendSimpleEmail(email, subject, body);
-                } catch (RuntimeException e) {
-                    failed++;
-                    log.warn("Event notification could not be sent to one member: {}", e.getMessage());
-                }
-            }
-            log.info("Sent notifications to {} of {} members.", emails.size() - failed, emails.size());
-        } else {
-            log.warn("No emails found for the member IDs. Check auth-services.");
+        List<UUID> memberIds = restTemplate.exchange("http://CLUB-SERVICE/api/clubs/internal/" + clubId + "/members/ids",
+                HttpMethod.GET, null, new ParameterizedTypeReference<List<UUID>>() {
+                }).getBody();
+        if (memberIds == null || memberIds.isEmpty()) {
+            log.info("Club {} has no members to notify about event {}", clubId, message.getEventId());
+            return;
         }
+        String body = message.getClubName() + " kulübü \"" + message.getTitle() + "\" etkinliğini duyurdu.\nZaman: "
+                + TurkishDates.format(message.getEventTime())
+                + (message.getLocation() != null && !message.getLocation().isBlank() ? "\nYer: " + message.getLocation() : "");
+        dispatcher.dispatch(NotificationRequest.of(memberIds, NotificationCategory.CLUB_NEWS, "EVENT_ANNOUNCED",
+                "Yeni etkinlik: " + message.getTitle(), body, "/events/" + message.getEventId(),
+                "event-announced:" + message.getEventId()));
     }
 }
