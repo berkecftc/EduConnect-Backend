@@ -12,6 +12,8 @@ public class MySubmissionDTO {
     private String textContent;
     private String feedback;
     private boolean isLate;
+    private Boolean aiUsed;
+    private String aiNote;
 
     public MySubmissionDTO() {}
 
@@ -34,4 +36,8 @@ public class MySubmissionDTO {
 
     public boolean isLate() { return isLate; }
     public void setLate(boolean late) { isLate = late; }
+    public Boolean getAiUsed() { return aiUsed; }
+    public void setAiUsed(Boolean aiUsed) { this.aiUsed = aiUsed; }
+    public String getAiNote() { return aiNote; }
+    public void setAiNote(String aiNote) { this.aiNote = aiNote; }
 }

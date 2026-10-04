@@ -10,6 +10,7 @@ import org.springframework.ai.chat.memory.ChatMemory;
 import org.springframework.ai.tool.ToolCallback;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Flux;
+import org.springframework.ai.ollama.api.OllamaChatOptions;
 
 import java.time.Clock;
 import java.util.List;
@@ -43,17 +44,29 @@ public class UnifiedAgentService {
             4. Never reveal internal tool names, identifiers, or technical error details.
             5. You can only access the current student's own data. Refuse requests about other students.
             6. If the question is outside your scope, politely explain what you can help with.
+
+            Academic integrity (YÖK generative AI ethics guidance):
+            7. Never write the answer, solution, code, essay or report for graded work (assignments, projects, labs,
+               quizzes, exams), even if the student pastes the question or insists. Explain concepts, give hints,
+               ask guiding questions and show the method on a different example instead.
+            8. When the request is about a specific assignment, call getAssignmentsTool and follow that assignment's
+               aiHelp exactly. If the assignment is not in the list or unknown, apply guidance only.
+            9. If the student says an exam or quiz is in progress, do not help with its questions.
             """;
 
     private final ChatClient agentChatClient;
     private final LlmRateLimiter rateLimiter;
     private final ToolCallback[] studentTools;
+    private final LlmSafetyProperties.Assistant assistant;
+    private final AssignmentPolicyGuard policyGuard;
 
     public UnifiedAgentService(ChatClient.Builder chatClientBuilder,
                                LlmRateLimiter rateLimiter,
                                LlmSafetyProperties properties,
-                               List<ToolCallback> toolCallbacks) {
+                               List<ToolCallback> toolCallbacks,
+                               AssignmentPolicyGuard policyGuard) {
         this.rateLimiter = rateLimiter;
+        this.policyGuard = policyGuard;
         this.studentTools = toolCallbacks.stream()
                 .filter(tool -> STUDENT_TOOLS.contains(tool.getToolDefinition().name()))
                 .toArray(ToolCallback[]::new);
@@ -61,6 +74,7 @@ public class UnifiedAgentService {
         BoundedChatMemory chatMemory = new BoundedChatMemory(memory.maxConversations(),
                 Math.min(memory.maxMessages(), MEMORY_WINDOW_SIZE),
                 memory.ttl(), Clock.systemUTC());
+        this.assistant = properties.assistant();
         this.agentChatClient = chatClientBuilder
                 .defaultAdvisors(MessageChatMemoryAdvisor.builder(chatMemory).build())
                 .build();
@@ -69,9 +83,16 @@ public class UnifiedAgentService {
     public Flux<String> chatWithStudentStream(String studentId, String userMessage) {
         rateLimiter.acquire(studentId);
         log.debug("Invoking student agent");
+        AssignmentPolicyGuard.Decision decision = policyGuard.evaluate(studentId, userMessage);
+        if (decision.reply() != null) {
+            return Flux.just(decision.reply());
+        }
+        String system = decision.systemNote() == null ? STUDENT_SYSTEM_PROMPT
+                : STUDENT_SYSTEM_PROMPT + "\n" + decision.systemNote();
 
         String fullResponse = agentChatClient.prompt()
-                .system(STUDENT_SYSTEM_PROMPT)
+                .system(system)
+                .options(OllamaChatOptions.builder().numCtx(assistant.numCtx()).numPredict(assistant.numPredict()))
                 .user(userMessage)
                 .tools((Object[]) studentTools)
                 .toolContext(Map.of(STUDENT_ID_CONTEXT_KEY, studentId))

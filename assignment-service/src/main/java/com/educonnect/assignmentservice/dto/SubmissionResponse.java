@@ -16,12 +16,15 @@ public record SubmissionResponse(UUID id,
                                  BigDecimal grade,
                                  String feedback,
                                  boolean late,
+                                 Boolean aiUsed,
+                                 String aiNote,
                                  Instant createdAt,
                                  Instant updatedAt) {
 
     public static SubmissionResponse from(AssignmentSubmission submission) {
         return new SubmissionResponse(submission.getId(), submission.getAssignmentId(), submission.getStudentId(),
                 submission.getSubmissionFileUrl(), submission.getTextContent(), submission.getSubmittedAt(), submission.getGrade(),
-                submission.getFeedback(), submission.isLate(), submission.getCreatedAt(), submission.getUpdatedAt());
+                submission.getFeedback(), submission.isLate(), submission.getAiUsed(), submission.getAiNote(),
+                submission.getCreatedAt(), submission.getUpdatedAt());
     }
 }

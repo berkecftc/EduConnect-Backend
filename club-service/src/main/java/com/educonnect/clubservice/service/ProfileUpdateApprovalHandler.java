@@ -19,13 +19,16 @@ class ProfileUpdateApprovalHandler implements ApprovalHandler {
     private final ClubRepository clubRepository;
     private final ClubProfileChangeRepository profileChangeRepository;
     private final ClubNotificationPublisher notificationPublisher;
+    private final ClubCatalogEvents catalogEvents;
 
     ProfileUpdateApprovalHandler(ClubRepository clubRepository,
                                  ClubProfileChangeRepository profileChangeRepository,
-                                 ClubNotificationPublisher notificationPublisher) {
+                                 ClubNotificationPublisher notificationPublisher,
+                                 ClubCatalogEvents catalogEvents) {
         this.clubRepository = clubRepository;
         this.profileChangeRepository = profileChangeRepository;
         this.notificationPublisher = notificationPublisher;
+        this.catalogEvents = catalogEvents;
     }
 
     @Override
@@ -53,6 +56,7 @@ class ProfileUpdateApprovalHandler implements ApprovalHandler {
         club.setAbout(change.getAbout());
         club.setProfile(change.getProfile());
         clubRepository.save(club);
+        catalogEvents.changed(club);
         notificationPublisher.notifyUser(request.getPreparedBy(), club, SUBJECT,
                 "\"" + club.getName() + "\" kulübünün bilgi değişikliği onaylandı ve yayına alındı.");
     }

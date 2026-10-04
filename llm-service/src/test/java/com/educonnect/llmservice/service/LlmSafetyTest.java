@@ -25,7 +25,7 @@ class LlmSafetyTest {
     void moderation_blockedTermShouldBeRejectedWithoutCallingLlm() {
         ChatClient chatClient = mock(ChatClient.class);
         AiModerationService service = new AiModerationService(chatClient,
-                new LlmSafetyProperties(null, null, new LlmSafetyProperties.Moderation(List.of("ezik"), 0)));
+                new LlmSafetyProperties(null, null, new LlmSafetyProperties.Moderation(List.of("ezik"), 0), null));
 
         assertThat(service.classify("Duyuru", "Sen tam bir A P T A L sın")).contains(ModerationDecision.ZORBA);
         assertThat(service.classify("Merhaba", "Ezikler buraya")).contains(ModerationDecision.ZORBA);
@@ -46,7 +46,7 @@ class LlmSafetyTest {
 
     @Test
     void rateLimiter_disabledByDefault() {
-        LlmRateLimiter limiter = new LlmRateLimiter(new LlmSafetyProperties(null, null, null));
+        LlmRateLimiter limiter = new LlmRateLimiter(new LlmSafetyProperties(null, null, null, null));
 
         for (int i = 0; i < 100; i++) {
             limiter.acquire("user");
@@ -56,7 +56,7 @@ class LlmSafetyTest {
     @Test
     void rateLimiter_enabledShouldRejectAfterLimitPerUser() {
         LlmRateLimiter limiter = new LlmRateLimiter(new LlmSafetyProperties(
-                new LlmSafetyProperties.RateLimit(true, 2), null, null),
+                new LlmSafetyProperties.RateLimit(true, 2), null, null, null),
                 Clock.fixed(Instant.parse("2026-09-24T10:00:00Z"), ZoneOffset.UTC));
 
         limiter.acquire("a");

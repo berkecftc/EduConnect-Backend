@@ -1,4 +1,4 @@
 package com.educonnect.llmservice.dto;
 
-public record ClubCatalogItem(String id, String name, String about) {
+public record ClubCatalogItem(String id, String name, String about, String category) {
 }

@@ -30,7 +30,7 @@ class SubmissionResponseTest {
         Map<String, Object> json = objectMapper.readValue(objectMapper.writeValueAsString(SubmissionResponse.from(submission)), JSON_MAP);
 
         assertThat(json.keySet()).containsExactlyInAnyOrder("id", "assignmentId", "studentId", "submissionFileUrl", "textContent",
-                "submittedAt", "grade", "feedback", "late", "createdAt", "updatedAt");
+                "submittedAt", "grade", "feedback", "late", "aiUsed", "aiNote", "createdAt", "updatedAt");
         assertThat(json.get("late")).isEqualTo(true);
     }
 }

@@ -16,6 +16,7 @@ import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
+import com.educonnect.assignmentservice.model.AiPolicy;
 
 import java.time.Clock;
 import java.time.LocalDateTime;
@@ -28,6 +29,7 @@ import java.util.UUID;
 public class SubmissionService {
 
     static final int MAX_TEXT_LENGTH = 20000;
+    static final int MAX_AI_NOTE_LENGTH = 1000;
 
     private final AssignmentRepository assignmentRepository;
     private final SubmissionRepository submissionRepository;
@@ -65,7 +67,8 @@ public class SubmissionService {
     }
 
     @CacheEvict(value = AssignmentService.STUDENT_ASSIGNMENTS, key = "#studentId")
-    public AssignmentSubmission submit(UUID assignmentId, UUID studentId, MultipartFile file, String text) {
+    public AssignmentSubmission submit(UUID assignmentId, UUID studentId, MultipartFile file, String text, Boolean aiUsed,
+                                       String aiNote) {
         Assignment assignment = assignmentRepository.findById(assignmentId)
                 .orElseThrow(() -> new NotFoundException("ASSIGNMENT_NOT_FOUND", "Ödev bulunamadı"));
         String body = text == null || text.isBlank() ? null : text.strip();
@@ -75,6 +78,14 @@ public class SubmissionService {
         }
         if (body != null && body.length() > MAX_TEXT_LENGTH) {
             throw new BadRequestException("SUBMISSION_TOO_LONG", "Metin en fazla " + MAX_TEXT_LENGTH + " karakter olabilir.");
+        }
+        if (assignment.getAiPolicy() == AiPolicy.ALLOWED_WITH_DISCLOSURE && aiUsed == null) {
+            throw new BadRequestException("AI_DECLARATION_REQUIRED",
+                    "Bu ödevde teslimle birlikte yapay zekâ kullanıp kullanmadığınızı beyan etmelisiniz.");
+        }
+        String note = aiNote == null || aiNote.isBlank() ? null : aiNote.strip();
+        if (note != null && note.length() > MAX_AI_NOTE_LENGTH) {
+            throw new BadRequestException("AI_NOTE_TOO_LONG", "Yapay zekâ beyanı en fazla " + MAX_AI_NOTE_LENGTH + " karakter olabilir.");
         }
         UUID groupId = null;
         if (assignment.isGroupWork()) {
@@ -104,6 +115,8 @@ public class SubmissionService {
         submission.setTextContent(body);
         submission.setSubmittedAt(now);
         submission.setLate(late);
+        submission.setAiUsed(aiUsed);
+        submission.setAiNote(Boolean.TRUE.equals(aiUsed) ? note : null);
         AssignmentSubmission saved = submissionRepository.save(submission);
         versionRepository.save(new SubmissionVersion(saved.getId(), versionRepository.countBySubmissionId(saved.getId()) + 1,
                 fileUrl, body, now, late, studentId));

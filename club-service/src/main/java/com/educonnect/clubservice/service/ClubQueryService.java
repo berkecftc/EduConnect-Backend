@@ -277,8 +277,9 @@ public class ClubQueryService {
 
     @Transactional(readOnly = true)
     public List<ClubCatalogEntry> getClubCatalog() {
-        return clubRepository.findByStatusNot(ClubStatus.CLOSED, Sort.by("name")).stream()
-                .map(club -> new ClubCatalogEntry(club.getId(), club.getName(), club.getAbout()))
+        return clubRepository.findByStatus(ClubStatus.ACTIVE, Sort.by("name")).stream()
+                .map(club -> new ClubCatalogEntry(club.getId(), club.getName(), club.getAbout(),
+                        club.getProfile().getCategory() != null ? club.getProfile().getCategory().name() : null))
                 .toList();
     }
 

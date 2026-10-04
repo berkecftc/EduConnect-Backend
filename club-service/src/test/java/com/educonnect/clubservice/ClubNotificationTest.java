@@ -22,6 +22,7 @@ import java.util.List;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.hamcrest.Matchers.hasSize;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -120,6 +121,24 @@ class ClubNotificationTest {
                 .andExpect(jsonPath("$[0]").value(president.toString()));
         mockMvc.perform(as(get("/api/clubs/internal/{clubId}/leader-ids", clubId), TestTokens.student(president)))
                 .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void theAssistantCatalogListsOnlyActiveClubsAndHearsAboutChanges() throws Exception {
+        String catalog = "/api/clubs/internal/catalog";
+        String service = TestTokens.bearer(TestTokens.service("llm-service"));
+        mockMvc.perform(get(catalog).header(HttpHeaders.AUTHORIZATION, service))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[?(@.id == '" + clubId + "')]").value(hasSize(1)));
+
+        mockMvc.perform(json(post("/api/academician/clubs/{clubId}/advisor/resign", clubId), TestTokens.academician(advisor),
+                        "{\"reason\":\"Emeklilik\"}"))
+                .andExpect(status().is2xxSuccessful());
+
+        mockMvc.perform(get(catalog).header(HttpHeaders.AUTHORIZATION, service))
+                .andExpect(jsonPath("$[?(@.id == '" + clubId + "')]").isEmpty());
+        assertThat(jdbcTemplate.queryForObject("select count(*) from club_db.outbox_messages where routing_key = 'club.catalog.changed' "
+                + "and convert_from(body, 'UTF8') like ?", Integer.class, "%" + clubId + "%")).isEqualTo(1);
     }
 
     private String single(String type) {
