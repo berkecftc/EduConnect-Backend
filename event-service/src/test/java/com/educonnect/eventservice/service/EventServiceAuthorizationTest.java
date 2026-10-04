@@ -56,13 +56,13 @@ class EventServiceAuthorizationTest {
     }
 
     @Test
-    void ticketCheckInRequiresEventManager() {
+    void ticketCheckInRequiresEventManagerOrAssignedStaff() {
         EventRegistration registration = new EventRegistration();
         registration.setEventId(eventId);
         registration.setQrCode("ticket");
         when(registrationRepository.findByQrCode("ticket")).thenReturn(Optional.of(registration));
         doThrow(new ResponseStatusException(HttpStatus.FORBIDDEN))
-                .when(authorizationService).requireEventManager(event, userId);
+                .when(authorizationService).requireCheckInStaff(event, userId);
 
         assertThatThrownBy(() -> service.verifyTicket("ticket", userId))
                 .isInstanceOf(ResponseStatusException.class)

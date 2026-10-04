@@ -57,7 +57,7 @@ public class AttendanceService {
 
     public void checkIn(UUID eventId, UUID studentId, UUID actorId) {
         Event event = event(eventId);
-        authorizationService.requireEventManager(event, actorId);
+        authorizationService.requireCheckInStaff(event, actorId);
         requireLive(event);
         EventRegistration registration = activeRegistration(eventId, studentId);
         if (registration.isAttended()) {
@@ -70,7 +70,7 @@ public class AttendanceService {
 
     public void undoCheckIn(UUID eventId, UUID studentId, UUID actorId) {
         Event event = event(eventId);
-        authorizationService.requireEventManager(event, actorId);
+        authorizationService.requireCheckInStaff(event, actorId);
         requireLive(event);
         EventRegistration registration = activeRegistration(eventId, studentId);
         if (!registration.isAttended()) {

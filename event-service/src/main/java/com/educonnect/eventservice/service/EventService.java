@@ -195,7 +195,7 @@ public class EventService {
                 .orElseThrow(() -> new BadRequestException("INVALID_TICKET", "Invalid ticket (QR Code not found)"));
 
         Event event = EventFinder.require(eventRepository, registration.getEventId());
-        eventAuthorizationService.requireEventManager(event, scannerId);
+        eventAuthorizationService.requireCheckInStaff(event, scannerId);
         if (event.getStatus() != EventStatus.ACTIVE) {
             throw new BadRequestException("EVENT_NOT_ACTIVE", "Event is not active.");
         }
