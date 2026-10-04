@@ -6,7 +6,7 @@ import com.educonnect.common.web.cache.CacheValueSerializers;
 import org.junit.jupiter.api.Test;
 import org.springframework.data.redis.serializer.GenericJacksonJsonRedisSerializer;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -24,7 +24,7 @@ class RedisCacheConfigTest {
         membership.setClubName("Satranç Kulübü");
         membership.setClubRole(ClubPosition.GENERAL_SECRETARY);
         membership.setActive(true);
-        membership.setTermStartDate(LocalDateTime.of(2026, 9, 1, 10, 0));
+        membership.setTermStartDate(Instant.parse("2026-09-01T07:00:00Z"));
 
         Object restored = serializer.deserialize(serializer.serialize(new ArrayList<>(List.of(membership))));
 

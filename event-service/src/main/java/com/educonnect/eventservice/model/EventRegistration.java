@@ -1,7 +1,7 @@
 package com.educonnect.eventservice.model;
 
 import jakarta.persistence.*;
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.UUID;
 
 @Entity
@@ -22,7 +22,7 @@ public class EventRegistration {
     @Column(nullable = false, unique = true)
     private String qrCode; // QR Kod içeriği (Benzersiz bir string)
 
-    private LocalDateTime registrationTime = LocalDateTime.now();
+    private Instant registrationTime = Instant.now();
 
     private boolean attended = false; // Kulüp yetkilisi okutunca true olacak
 
@@ -31,10 +31,10 @@ public class EventRegistration {
     private RegistrationStatus status = RegistrationStatus.REGISTERED;
 
     @Column(name = "cancelled_at")
-    private LocalDateTime cancelledAt;
+    private Instant cancelledAt;
 
     @Column(name = "checked_in_at")
-    private LocalDateTime checkedInAt;
+    private Instant checkedInAt;
 
     @Column(name = "checked_in_by")
     private UUID checkedInBy;
@@ -55,21 +55,21 @@ public class EventRegistration {
     public void setStudentId(UUID studentId) { this.studentId = studentId; }
     public String getQrCode() { return qrCode; }
     public void setQrCode(String qrCode) { this.qrCode = qrCode; }
-    public LocalDateTime getRegistrationTime() { return registrationTime; }
-    public void setRegistrationTime(LocalDateTime registrationTime) { this.registrationTime = registrationTime; }
+    public Instant getRegistrationTime() { return registrationTime; }
+    public void setRegistrationTime(Instant registrationTime) { this.registrationTime = registrationTime; }
     public boolean isAttended() { return attended; }
     public void setAttended(boolean attended) { this.attended = attended; }
 
     public RegistrationStatus getStatus() { return status; }
     public void setStatus(RegistrationStatus status) { this.status = status; }
-    public LocalDateTime getCancelledAt() { return cancelledAt; }
-    public void setCancelledAt(LocalDateTime cancelledAt) { this.cancelledAt = cancelledAt; }
+    public Instant getCancelledAt() { return cancelledAt; }
+    public void setCancelledAt(Instant cancelledAt) { this.cancelledAt = cancelledAt; }
 
-    public LocalDateTime getCheckedInAt() { return checkedInAt; }
+    public Instant getCheckedInAt() { return checkedInAt; }
     public UUID getCheckedInBy() { return checkedInBy; }
     public CheckInMethod getCheckInMethod() { return checkInMethod; }
 
-    public void checkIn(UUID by, CheckInMethod method, LocalDateTime at) {
+    public void checkIn(UUID by, CheckInMethod method, Instant at) {
         this.attended = true;
         this.checkedInBy = by;
         this.checkInMethod = method;

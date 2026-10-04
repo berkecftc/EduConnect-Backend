@@ -1,5 +1,6 @@
 package com.educonnect.eventservice.service;
 
+import com.educonnect.common.messaging.notification.TurkishDates;
 import com.educonnect.eventservice.model.Event;
 import com.educonnect.eventservice.model.EventParticipationRequest;
 import com.educonnect.eventservice.model.EventRegistration;
@@ -60,7 +61,7 @@ public class EventLifecycleService {
             for (ParticipationRequestStatus open : List.of(ParticipationRequestStatus.PENDING, ParticipationRequestStatus.WAITLISTED)) {
                 for (EventParticipationRequest request : requestRepository.findByEventIdAndStatus(event.getId(), open)) {
                     request.setStatus(ParticipationRequestStatus.CLOSED);
-                    request.setProcessedDate(now);
+                    request.setProcessedDate(now.atZone(TurkishDates.ZONE).toInstant());
                     requestRepository.save(request);
                 }
             }

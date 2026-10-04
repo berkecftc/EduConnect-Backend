@@ -115,12 +115,6 @@ public class AuthController {
         return ResponseEntity.ok("E-posta adresi doğrulama bekliyorsa yeni bir doğrulama bağlantısı gönderildi.");
     }
 
-    @PostMapping({"/request/club-official", "/request/club-official/{userId}"})
-    public ResponseEntity<String> requestClubOfficial() {
-        throw new ApiException(HttpStatus.GONE, "ENDPOINT_GONE",
-                "Genel kulüp yetkilisi başvurusu kapatıldı. Kulüp görevleri kulüp kuruluş başvurusu ve danışman onaylı görev atamasıyla verilir.");
-    }
-
     // --- YENİ ENDPOINT: ŞİFRE DEĞİŞTİRME ---
     /**
      * Giriş yapmış kullanıcının şifresini değiştirmesi için.

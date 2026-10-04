@@ -1,7 +1,7 @@
 package com.educonnect.clubservice.model;
 
 import jakarta.persistence.*;
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.UUID;
 
 @Entity
@@ -27,10 +27,10 @@ public class ClubMembershipRequest {
     private MembershipRequestStatus status = MembershipRequestStatus.PENDING;
 
     @Column(name = "request_date", nullable = false)
-    private LocalDateTime requestDate;
+    private Instant requestDate;
 
     @Column(name = "processed_date")
-    private LocalDateTime processedDate;
+    private Instant processedDate;
 
     @Column(name = "processed_by")
     private UUID processedBy; // İşlemi yapan yetkili (Kulüp başkanı)
@@ -52,7 +52,7 @@ public class ClubMembershipRequest {
     private UUID recommendedBy;
 
     @Column(name = "recommended_at")
-    private LocalDateTime recommendedAt;
+    private Instant recommendedAt;
 
     // JPA için no-args constructor
     public ClubMembershipRequest() {}
@@ -62,11 +62,11 @@ public class ClubMembershipRequest {
         this.clubId = clubId;
         this.studentId = studentId;
         this.status = MembershipRequestStatus.PENDING;
-        this.requestDate = LocalDateTime.now();
+        this.requestDate = Instant.now();
     }
 
     // --- Getter/Setter ---
-    public void recommend(MembershipRecommendation recommendation, String note, UUID officerId, LocalDateTime at) {
+    public void recommend(MembershipRecommendation recommendation, String note, UUID officerId, Instant at) {
         this.recommendation = recommendation;
         this.recommendationNote = note;
         this.recommendedBy = officerId;
@@ -76,7 +76,7 @@ public class ClubMembershipRequest {
     public MembershipRecommendation getRecommendation() { return recommendation; }
     public String getRecommendationNote() { return recommendationNote; }
     public UUID getRecommendedBy() { return recommendedBy; }
-    public LocalDateTime getRecommendedAt() { return recommendedAt; }
+    public Instant getRecommendedAt() { return recommendedAt; }
 
     public UUID getId() { return id; }
     public void setId(UUID id) { this.id = id; }
@@ -90,11 +90,11 @@ public class ClubMembershipRequest {
     public MembershipRequestStatus getStatus() { return status; }
     public void setStatus(MembershipRequestStatus status) { this.status = status; }
 
-    public LocalDateTime getRequestDate() { return requestDate; }
-    public void setRequestDate(LocalDateTime requestDate) { this.requestDate = requestDate; }
+    public Instant getRequestDate() { return requestDate; }
+    public void setRequestDate(Instant requestDate) { this.requestDate = requestDate; }
 
-    public LocalDateTime getProcessedDate() { return processedDate; }
-    public void setProcessedDate(LocalDateTime processedDate) { this.processedDate = processedDate; }
+    public Instant getProcessedDate() { return processedDate; }
+    public void setProcessedDate(Instant processedDate) { this.processedDate = processedDate; }
 
     public UUID getProcessedBy() { return processedBy; }
     public void setProcessedBy(UUID processedBy) { this.processedBy = processedBy; }

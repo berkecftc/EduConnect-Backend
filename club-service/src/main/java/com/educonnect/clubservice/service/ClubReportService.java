@@ -1,5 +1,6 @@
 package com.educonnect.clubservice.service;
 
+import com.educonnect.common.messaging.notification.TurkishDates;
 import com.educonnect.clubservice.client.EventClient;
 import com.educonnect.clubservice.dto.response.AcademicYears;
 import com.educonnect.clubservice.dto.response.ClubEventStatistics;
@@ -36,7 +37,6 @@ import org.springframework.web.server.ResponseStatusException;
 
 import java.time.Instant;
 import java.time.LocalDateTime;
-import java.time.ZoneId;
 import java.util.List;
 import java.util.Locale;
 import java.util.UUID;
@@ -177,16 +177,17 @@ public class ClubReportService {
     private ReportSnapshot snapshotOf(UUID clubId, int academicYear) {
         LocalDateTime from = membershipTerms.academicYearStart(academicYear).atStartOfDay();
         LocalDateTime to = membershipTerms.academicYearEnd(academicYear).plusDays(1).atStartOfDay();
-        ZoneId zone = ZoneId.systemDefault();
+        Instant fromInstant = from.atZone(TurkishDates.ZONE).toInstant();
+        Instant toInstant = to.atZone(TurkishDates.ZONE).toInstant();
         ClubBudget budget = budgetRepository
                 .findFirstByClubIdAndAcademicYearAndApprovedAtIsNotNullOrderByApprovedAtDesc(clubId, academicYear)
                 .orElse(null);
         ClubEventStatistics events = eventClient.clubStatistics(clubId, from.toString(), to.toString());
         return new ReportSnapshot(
                 membershipRepository.countByClubIdAndIsActive(clubId, true),
-                membershipRepository.countByClubIdAndEndedAtGreaterThanEqualAndEndedAtLessThan(clubId, from, to),
+                membershipRepository.countByClubIdAndEndedAtGreaterThanEqualAndEndedAtLessThan(clubId, fromInstant, toInstant),
                 announcementRepository.countByClubIdAndPublishedAtGreaterThanEqualAndPublishedAtLessThan(clubId,
-                        from.atZone(zone).toInstant(), to.atZone(zone).toInstant()),
+                        fromInstant, toInstant),
                 meetingRepository.countByClubIdAndAcademicYearAndApprovedAtIsNotNull(clubId, academicYear),
                 decisionRepository.countByClubIdAndAcademicYearAndDecisionNumberIsNotNull(clubId, academicYear),
                 budget != null ? budget.getPlannedIncome() : null,

@@ -19,7 +19,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -165,7 +165,7 @@ public class CourseApplicationService {
 
         // Başvuruyu onayla
         application.setStatus(CourseApplicationStatus.APPROVED);
-        application.setProcessedDate(LocalDateTime.now());
+        application.setProcessedDate(Instant.now());
         application.setProcessedBy(instructorId);
         applicationRepository.save(application);
 
@@ -201,7 +201,7 @@ public class CourseApplicationService {
 
         // Başvuruyu reddet
         application.setStatus(CourseApplicationStatus.REJECTED);
-        application.setProcessedDate(LocalDateTime.now());
+        application.setProcessedDate(Instant.now());
         application.setProcessedBy(instructorId);
         application.setRejectionReason(rejectionReason);
         applicationRepository.save(application);
@@ -227,7 +227,7 @@ public class CourseApplicationService {
         Course course = courseRepository.findById(application.getCourseId())
                 .orElseThrow(() -> new CourseNotFoundException("Ders bulunamadı: " + application.getCourseId()));
         application.setStatus(CourseApplicationStatus.WITHDRAWN);
-        application.setProcessedDate(LocalDateTime.now());
+        application.setProcessedDate(Instant.now());
         application.setProcessedBy(studentId);
         applicationRepository.save(application);
         courseCaches.evictStaffCourses(course);

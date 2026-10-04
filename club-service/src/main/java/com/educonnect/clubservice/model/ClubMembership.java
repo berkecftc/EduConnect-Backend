@@ -2,7 +2,6 @@ package com.educonnect.clubservice.model;
 
 import jakarta.persistence.*;
 import java.time.LocalDate;
-import java.time.LocalDateTime;
 import java.util.UUID;
 import org.hibernate.annotations.CreationTimestamp;
 import java.time.Instant;
@@ -44,16 +43,16 @@ public class ClubMembership extends AbstractAggregateRoot<ClubMembership> {
     private boolean isActive = true; // Aktif üyelik durumu
 
     @Column(name = "term_start_date")
-    private LocalDateTime termStartDate; // Göreve başlama tarihi (özellikle başkanlar için)
+    private Instant termStartDate; // Göreve başlama tarihi (özellikle başkanlar için)
 
     @Column(name = "term_end_date")
-    private LocalDateTime termEndDate; // Görev bitiş tarihi (pasif başkanlar için)
+    private Instant termEndDate; // Görev bitiş tarihi (pasif başkanlar için)
 
     @Column(name = "valid_until")
     private LocalDate validUntil;
 
     @Column(name = "ended_at")
-    private LocalDateTime endedAt;
+    private Instant endedAt;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "end_reason", length = 20)
@@ -69,7 +68,7 @@ public class ClubMembership extends AbstractAggregateRoot<ClubMembership> {
         this.clubRole = clubRole;
         this.isActive = true; // Varsayılan olarak aktif
         if (clubRole != null && clubRole.isManagement()) {
-            registerEvent(new PositionChanged(clubId, studentId, null, clubRole, LocalDateTime.now(), null));
+            registerEvent(new PositionChanged(clubId, studentId, null, clubRole, Instant.now(), null));
         }
     }
 
@@ -83,16 +82,16 @@ public class ClubMembership extends AbstractAggregateRoot<ClubMembership> {
     public ClubPosition getClubRole() { return clubRole; }
     public boolean isActive() { return isActive; }
     public void setActive(boolean active) { isActive = active; }
-    public LocalDateTime getTermStartDate() { return termStartDate; }
-    public void setTermStartDate(LocalDateTime termStartDate) { this.termStartDate = termStartDate; }
-    public LocalDateTime getTermEndDate() { return termEndDate; }
-    public void setTermEndDate(LocalDateTime termEndDate) { this.termEndDate = termEndDate; }
+    public Instant getTermStartDate() { return termStartDate; }
+    public void setTermStartDate(Instant termStartDate) { this.termStartDate = termStartDate; }
+    public Instant getTermEndDate() { return termEndDate; }
+    public void setTermEndDate(Instant termEndDate) { this.termEndDate = termEndDate; }
     public LocalDate getValidUntil() { return validUntil; }
     public void setValidUntil(LocalDate validUntil) { this.validUntil = validUntil; }
-    public LocalDateTime getEndedAt() { return endedAt; }
+    public Instant getEndedAt() { return endedAt; }
     public MembershipEndReason getEndReason() { return endReason; }
 
-    public void end(MembershipEndReason reason, LocalDateTime at) {
+    public void end(MembershipEndReason reason, Instant at) {
         if (clubRole != null && clubRole.isManagement()) {
             registerEvent(new PositionChanged(clubId, studentId, clubRole, ClubPosition.MEMBER, at,
                     positionEndReason(reason)));
@@ -113,7 +112,7 @@ public class ClubMembership extends AbstractAggregateRoot<ClubMembership> {
         };
     }
 
-    public void assignPosition(ClubPosition position, LocalDateTime at, PositionEndReason reason) {
+    public void assignPosition(ClubPosition position, Instant at, PositionEndReason reason) {
         ClubPosition previous = this.clubRole;
         if (previous == position) {
             return;
@@ -128,7 +127,7 @@ public class ClubMembership extends AbstractAggregateRoot<ClubMembership> {
         registerEvent(new PositionChanged(clubId, studentId, previous, position, at, reason));
     }
 
-    public void reactivate(LocalDate validUntil, LocalDateTime at) {
+    public void reactivate(LocalDate validUntil, Instant at) {
         this.clubRole = ClubPosition.MEMBER;
         this.isActive = true;
         this.endReason = null;

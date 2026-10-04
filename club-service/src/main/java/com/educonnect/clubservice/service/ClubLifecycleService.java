@@ -28,7 +28,7 @@ import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.server.ResponseStatusException;
 import com.educonnect.common.messaging.notification.NotificationCategory;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 import java.util.ArrayList;
@@ -178,7 +178,7 @@ public class ClubLifecycleService {
             club.getAbout(),
             club.getLogoUrl(),
             club.getAcademicAdvisorId(),
-            LocalDateTime.now(),
+            Instant.now(),
             reason != null ? reason : "Admin tarafından kapatıldı",
             adminId
         );
@@ -234,7 +234,7 @@ public class ClubLifecycleService {
         }
 
         boolean wasManagement = membership.getClubRole().isManagement();
-        membership.end(MembershipEndReason.LEFT, LocalDateTime.now());
+        membership.end(MembershipEndReason.LEFT, Instant.now());
         membershipRepository.save(membership);
         decisionLog.record(clubId, DecisionAction.MEMBER_LEFT, studentId, studentId, null);
         cacheEvictor.evictUser(studentId);

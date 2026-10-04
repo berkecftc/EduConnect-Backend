@@ -2,7 +2,6 @@ package com.educonnect.clubservice.controller;
 
 import com.educonnect.clubservice.repository.ClubRepository;
 import com.educonnect.clubservice.dto.request.SubmitClubRequest;
-import com.educonnect.clubservice.dto.request.UpdateMemberRoleRequest;
 import com.educonnect.clubservice.dto.response.ClubDetailsDTO;
 import com.educonnect.clubservice.dto.response.ClubSummaryDTO;
 import com.educonnect.clubservice.dto.response.MemberDTO;
@@ -15,11 +14,9 @@ import com.educonnect.clubservice.model.ClubStatus;
 import com.educonnect.clubservice.service.ClubFoundingService;
 import com.educonnect.clubservice.service.ClubLifecycleService;
 import com.educonnect.clubservice.service.ClubQueryService;
-import com.educonnect.common.web.ApiException;
 import com.educonnect.common.web.BadRequestException;
 import com.educonnect.common.web.NotFoundException;
 import jakarta.validation.Valid;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -70,39 +67,6 @@ public class ClubController {
     ) {
         UUID viewerId = userIdHeader != null ? UUID.fromString(userIdHeader) : null;
         return ResponseEntity.ok(clubQueryService.getClubDetails(clubId, viewerId));
-    }
-
-    @PostMapping("/{clubId}/join")
-    public ResponseEntity<String> joinClub(@PathVariable UUID clubId) {
-        throw new ApiException(HttpStatus.GONE, "ENDPOINT_GONE",
-                "Kulübe doğrudan katılım kapatıldı. Üyelik için POST /api/clubs/{clubId}/membership-requests kullanın.");
-    }
-
-    @PostMapping("/{clubId}/members")
-    public ResponseEntity<String> addMember(@PathVariable UUID clubId) {
-        throw new ApiException(HttpStatus.GONE, "ENDPOINT_GONE",
-                "Doğrudan üye ekleme kapatıldı. Üyelik başvurusu ve görev değişikliği talebi akışlarını kullanın.");
-    }
-
-    /**
-     * Kulüp Yetkilisi: Mevcut üyenin rolünü günceller.
-     * (UpdateMemberRoleRequest DTO'sunu kullanır)
-     *
-     * @deprecated Bu endpoint artık kullanılmamalıdır. Görev değişiklikleri danışman onayına tabidir.
-     *             Görev atamak için POST /api/clubs/{clubId}/role-change-requests,
-     *             Görevden almak için DELETE /api/clubs/{clubId}/members/{studentId}/role kullanın.
-     */
-    @Deprecated
-    @PutMapping("/{clubId}/members/{studentId}")
-    public ResponseEntity<String> updateMemberRole(
-            @PathVariable UUID clubId,
-            @PathVariable UUID studentId,
-            @Valid @RequestBody UpdateMemberRoleRequest request
-    ) {
-        throw new ApiException(HttpStatus.GONE, "ENDPOINT_GONE",
-                "Bu endpoint artık kullanılmamaktadır. Görev değişiklikleri danışman onayına tabidir. " +
-                        "Görev atamak için POST /api/clubs/{clubId}/role-change-requests, " +
-                        "Görevden almak için DELETE /api/clubs/{clubId}/members/{studentId}/role kullanın.");
     }
 
     // --- Öğrencinin kulüpten ayrılması ---

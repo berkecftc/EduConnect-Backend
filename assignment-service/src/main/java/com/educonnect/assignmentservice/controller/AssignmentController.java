@@ -2,10 +2,12 @@ package com.educonnect.assignmentservice.controller;
 
 import com.educonnect.assignmentservice.dto.*;
 import com.educonnect.assignmentservice.model.Assignment;
+import com.educonnect.assignmentservice.model.AssignmentSubmission;
 import com.educonnect.assignmentservice.service.AssignmentAccessGuard;
 import com.educonnect.assignmentservice.service.AssignmentService;
 import com.educonnect.assignmentservice.service.MinioService;
 import com.educonnect.common.storage.SafeFileNames;
+import com.educonnect.common.web.NotFoundException;
 import jakarta.validation.Valid;
 import org.springframework.core.io.Resource;
 import org.springframework.http.HttpHeaders;
@@ -125,6 +127,28 @@ public class AssignmentController {
         return ResponseEntity.ok(assignmentService.getStudentAssignments(parseUserId(studentIdHeader)));
     }
 
+    @GetMapping("/{assignmentId}/file")
+    public ResponseEntity<Resource> downloadAssignmentFile(
+            @PathVariable UUID assignmentId,
+            @RequestHeader(USER_ID_HEADER) String userIdHeader,
+            @RequestHeader(value = ROLES_HEADER, required = false) String roles
+    ) {
+        Assignment assignment = accessGuard.getAssignment(assignmentId);
+        accessGuard.requireCourseMember(assignment.getCourseId(), parseUserId(userIdHeader), roles);
+        return fileResponse(assignment.getFileUrl());
+    }
+
+    @GetMapping("/submissions/{submissionId}/file")
+    public ResponseEntity<Resource> downloadSubmissionFile(
+            @PathVariable UUID submissionId,
+            @RequestHeader(USER_ID_HEADER) String userIdHeader,
+            @RequestHeader(value = ROLES_HEADER, required = false) String roles
+    ) {
+        AssignmentSubmission submission = accessGuard.getSubmission(submissionId);
+        accessGuard.requireSubmissionViewer(submission, parseUserId(userIdHeader), roles);
+        return fileResponse(submission.getSubmissionFileUrl());
+    }
+
     // DOSYA İNDİRME (Ödev dökümanı veya teslim dosyası)
     @GetMapping("/files/download")
     public ResponseEntity<Resource> downloadFile(
@@ -134,6 +158,14 @@ public class AssignmentController {
     ) {
         String normalizedUrl = minioService.normalizeToFullUrl(fileUrl);
         accessGuard.requireFileAccess(normalizedUrl, parseUserId(userIdHeader), roles);
+        return fileResponse(normalizedUrl);
+    }
+
+    private ResponseEntity<Resource> fileResponse(String fileUrl) {
+        if (fileUrl == null || fileUrl.isBlank()) {
+            throw new NotFoundException("FILE_NOT_FOUND", "Dosya bulunamadı.");
+        }
+        String normalizedUrl = minioService.normalizeToFullUrl(fileUrl);
         Resource resource = assignmentService.downloadFile(normalizedUrl);
         String fileName = assignmentService.getOriginalFileName(normalizedUrl);
 

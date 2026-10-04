@@ -16,7 +16,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -116,7 +116,7 @@ public class ClubLeadershipService {
     }
 
     private void promote(ClubMembership membership) {
-        membership.assignPosition(ClubPosition.PRESIDENT, LocalDateTime.now(), PositionEndReason.CHANGED);
+        membership.assignPosition(ClubPosition.PRESIDENT, Instant.now(), PositionEndReason.CHANGED);
         membershipRepository.save(membership);
         cacheEvictor.evictUser(membership.getStudentId());
     }

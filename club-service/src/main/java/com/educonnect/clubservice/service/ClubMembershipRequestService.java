@@ -23,7 +23,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -174,7 +174,7 @@ public class ClubMembershipRequestService {
         if (request.getStatus() != MembershipRequestStatus.PENDING) {
             throw new ConflictException("REQUEST_DECIDED", "Bu istek zaten işlenmiş.");
         }
-        request.recommend(dto.recommendation(), dto.note(), officerId, LocalDateTime.now());
+        request.recommend(dto.recommendation(), dto.note(), officerId, Instant.now());
         requestRepository.save(request);
         decisionLog.record(clubId, DecisionAction.MEMBERSHIP_REVIEWED, officerId, request.getStudentId(),
                 dto.recommendation().name() + (dto.note() != null ? ": " + dto.note() : ""));
@@ -204,7 +204,7 @@ public class ClubMembershipRequestService {
 
         // İsteği onayla
         request.setStatus(MembershipRequestStatus.APPROVED);
-        request.setProcessedDate(LocalDateTime.now());
+        request.setProcessedDate(Instant.now());
         request.setProcessedBy(officialId);
         requestRepository.save(request);
         decisionLog.record(clubId, DecisionAction.MEMBERSHIP_APPROVED, officialId, request.getStudentId(), null);
@@ -212,7 +212,7 @@ public class ClubMembershipRequestService {
         // Kulüp üyeliği oluştur
         ClubMembership membership = membershipRepository.findByClubIdAndStudentId(clubId, request.getStudentId())
                 .orElseGet(() -> new ClubMembership(clubId, request.getStudentId(), ClubPosition.MEMBER));
-        membership.reactivate(membershipTerms.currentValidUntil(), LocalDateTime.now());
+        membership.reactivate(membershipTerms.currentValidUntil(), Instant.now());
         membershipRepository.save(membership);
         cacheEvictor.evictUser(request.getStudentId());
 
@@ -252,7 +252,7 @@ public class ClubMembershipRequestService {
 
         // İsteği reddet
         request.setStatus(MembershipRequestStatus.REJECTED);
-        request.setProcessedDate(LocalDateTime.now());
+        request.setProcessedDate(Instant.now());
         request.setProcessedBy(officialId);
         if (dto != null && dto.getRejectionReason() != null) {
             request.setRejectionReason(dto.getRejectionReason());

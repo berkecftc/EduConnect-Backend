@@ -25,6 +25,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
 import org.springframework.test.web.servlet.request.AbstractMockHttpServletRequestBuilder;
 
+import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Set;
@@ -200,7 +201,7 @@ class EventNotificationTest {
         event.setCapacity(capacity);
         event.setStatus(status);
         if (status == EventStatus.ACTIVE) {
-            event.setPublishedAt(LocalDateTime.now());
+            event.setPublishedAt(Instant.now());
         }
         return eventRepository.save(event);
     }

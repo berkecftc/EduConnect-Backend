@@ -19,6 +19,7 @@ import java.util.Set;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
@@ -33,11 +34,12 @@ class AffiliationLifecycleServiceTest {
     private final UserRepository userRepository = mock(UserRepository.class);
     private final UserAdministrationService administration = mock(UserAdministrationService.class);
     private final RefreshTokenService refreshTokenService = mock(RefreshTokenService.class);
+    private final JobLock jobLock = mock(JobLock.class);
 
     private AffiliationLifecycleService service(int graceDays) {
         return new AffiliationLifecycleService(userRepository, mock(AffiliationStatusChangeRepository.class),
                 mock(OutboxPublisher.class), administration, mock(AcademicianAssignmentGuard.class), refreshTokenService,
-                graceDays, Clock.fixed(NOW, ZoneOffset.UTC));
+                jobLock, graceDays, Clock.fixed(NOW, ZoneOffset.UTC));
     }
 
     @Test
@@ -62,11 +64,22 @@ class AffiliationLifecycleServiceTest {
         rejoined.setId(UUID.randomUUID());
         rejoined.setClosureDueAt(NOW.minusSeconds(60));
         when(userRepository.findByClosureDueAtBefore(NOW)).thenReturn(List.of(closing, rejoined));
+        when(jobLock.tryAcquire(anyString())).thenReturn(true);
 
         service(30).closeDueAccounts();
 
         verify(administration).deleteUser(closing.getId(), "Hesap kapanış süresi doldu");
         verify(administration, never()).deleteUser(eq(rejoined.getId()), anyString());
         assertThat(rejoined.getClosureDueAt()).isNull();
+    }
+
+    @Test
+    void anotherInstanceHoldingTheLockSkipsTheClosureRun() {
+        when(jobLock.tryAcquire(anyString())).thenReturn(false);
+
+        service(30).closeDueAccounts();
+
+        verify(userRepository, never()).findByClosureDueAtBefore(any());
+        verify(administration, never()).deleteUser(any(), anyString());
     }
 }

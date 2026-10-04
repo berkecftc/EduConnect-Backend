@@ -18,7 +18,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.AbstractMockHttpServletRequestBuilder;
 import org.springframework.test.web.servlet.request.MockMultipartHttpServletRequestBuilder;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -107,7 +107,7 @@ class UserAuthorizationTest {
     @Test
     void archivedListsAreAdminOnly() throws Exception {
         archivedStudentRepository.save(new ArchivedStudent(UUID.randomUUID(), "Eski", "Öğrenci", "S-" + UUID.randomUUID(),
-                "Bilgisayar", null, LocalDateTime.now(), "test"));
+                "Bilgisayar", null, Instant.now(), "test"));
 
         for (String path : new String[]{"/api/users/students/archived", "/api/users/academicians/archived"}) {
             mockMvc.perform(as(get(path), TestTokens.student(owner)))
@@ -205,11 +205,9 @@ class UserAuthorizationTest {
     }
 
     @Test
-    void academicianSearchIsPublicAndClosedLookupsAreGone() throws Exception {
+    void academicianSearchIsPublic() throws Exception {
         mockMvc.perform(get("/api/users/search/academicians").param("query", "Zeynep"))
                 .andExpect(status().isOk());
-        mockMvc.perform(as(get("/api/users/by-student-number/{no}", "S-1"), TestTokens.admin(admin)))
-                .andExpect(status().isGone());
     }
 
     private static <B extends AbstractMockHttpServletRequestBuilder<B>> B as(B request, String token) {

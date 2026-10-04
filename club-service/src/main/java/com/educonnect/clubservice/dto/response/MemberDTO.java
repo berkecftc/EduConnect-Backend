@@ -2,7 +2,7 @@ package com.educonnect.clubservice.dto.response;
 
 import com.educonnect.clubservice.model.ClubPosition;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.UUID;
 
 public class MemberDTO {
@@ -14,8 +14,8 @@ public class MemberDTO {
     // Böylece frontend 'member.role' dediğinde bunu bulabilecek.
     private String role;
     private boolean isActive; // Aktif/pasif durumu
-    private LocalDateTime termStartDate; // Göreve başlama tarihi
-    private LocalDateTime termEndDate; // Görev bitiş tarihi
+    private Instant termStartDate; // Göreve başlama tarihi
+    private Instant termEndDate; // Görev bitiş tarihi
 
     // Boş Constructor
     public MemberDTO(UUID studentId, ClubPosition clubRole) {
@@ -34,7 +34,7 @@ public class MemberDTO {
 
     // Tarihli Constructor (Geçmiş başkanlar için)
     public MemberDTO(UUID studentId, String firstName, String lastName, String role,
-                     boolean isActive, LocalDateTime termStartDate, LocalDateTime termEndDate) {
+                     boolean isActive, Instant termStartDate, Instant termEndDate) {
         this.studentId = studentId;
         this.firstName = firstName;
         this.lastName = lastName;
@@ -63,9 +63,9 @@ public class MemberDTO {
     public boolean isActive() { return isActive; }
     public void setActive(boolean active) { isActive = active; }
 
-    public LocalDateTime getTermStartDate() { return termStartDate; }
-    public void setTermStartDate(LocalDateTime termStartDate) { this.termStartDate = termStartDate; }
+    public Instant getTermStartDate() { return termStartDate; }
+    public void setTermStartDate(Instant termStartDate) { this.termStartDate = termStartDate; }
 
-    public LocalDateTime getTermEndDate() { return termEndDate; }
-    public void setTermEndDate(LocalDateTime termEndDate) { this.termEndDate = termEndDate; }
+    public Instant getTermEndDate() { return termEndDate; }
+    public void setTermEndDate(Instant termEndDate) { this.termEndDate = termEndDate; }
 }

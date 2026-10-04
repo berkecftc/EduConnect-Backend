@@ -23,7 +23,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
@@ -96,7 +96,7 @@ public class ClubFoundingService {
                 ClubPosition.PRESIDENT
         );
         presidentMembership.setActive(true);
-        presidentMembership.setTermStartDate(LocalDateTime.now());
+        presidentMembership.setTermStartDate(Instant.now());
         membershipRepository.save(presidentMembership);
         cacheEvictor.evictUser(request.getClubPresidentId());
         managementStatusPublisher.publishCurrentStatus(request.getClubPresidentId());
@@ -165,7 +165,7 @@ public class ClubFoundingService {
         ClubCreationRequest request = findCreationRequestForAdvisor(requestId, advisorId);
         request.setStatus(ClubCreationRequestStatus.REJECTED);
         request.setRejectionReason(reason);
-        request.setProcessedAt(LocalDateTime.now());
+        request.setProcessedAt(Instant.now());
         request.setProcessedBy(advisorId);
         ClubCreationRequest saved = requestRepository.save(request);
 
@@ -187,7 +187,7 @@ public class ClubFoundingService {
                 .orElseThrow(() -> new NotFoundException("REQUEST_NOT_FOUND", "İstek bulunamadı"));
 
         request.setStatus(ClubCreationRequestStatus.REJECTED);
-        request.setProcessedAt(LocalDateTime.now());
+        request.setProcessedAt(Instant.now());
         requestRepository.save(request);
         notificationPublisher.notifyUserAboutClubName(request.getRequestingStudentId(), request.getClubName(),
                 "Kulüp kuruluş başvurusu",
@@ -220,7 +220,7 @@ public class ClubFoundingService {
         Club newClub = createClub(createDto);
 
         request.setStatus(ClubCreationRequestStatus.APPROVED);
-        request.setProcessedAt(LocalDateTime.now());
+        request.setProcessedAt(Instant.now());
         request.setProcessedBy(approverId);
         request.setClubId(newClub.getId());
         requestRepository.save(request);

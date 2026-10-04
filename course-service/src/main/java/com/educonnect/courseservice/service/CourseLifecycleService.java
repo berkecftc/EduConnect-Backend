@@ -21,7 +21,6 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
-import java.time.LocalDateTime;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.Map;
@@ -162,7 +161,7 @@ public class CourseLifecycleService {
                 course.complete(now);
                 completed++;
                 closedApplications += applicationRepository.closePending(course.getId(), CourseApplicationStatus.PENDING,
-                        CourseApplicationStatus.CLOSED, LocalDateTime.now(clock));
+                        CourseApplicationStatus.CLOSED, Instant.now(clock));
             } else if (before == CourseStatus.OPEN && !today.isBefore(term.getStartsOn())) {
                 course.setStatus(CourseStatus.ACTIVE);
                 started++;

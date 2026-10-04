@@ -184,7 +184,7 @@ public class CourseService {
     }
 
     // 7. ÖĞRENCİNİN KAYITLI OLDUĞU KURSLARI GETİR (Cache'li)
-    @Cacheable(value = "studentCourses", key = "#studentId")
+    @Cacheable(value = CourseCaches.STUDENT_COURSES, key = "#studentId")
     public List<EnrolledCourseDTO> getStudentCourses(UUID studentId) {
         List<StudentCourseEnrollment> enrollments = enrollmentRepository.findByStudentIdAndIsActive(studentId, true);
         List<UUID> courseIds = enrollments.stream().map(StudentCourseEnrollment::getCourseId).distinct().toList();

@@ -22,7 +22,7 @@ import com.educonnect.common.web.NotFoundException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.Collection;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -90,7 +90,7 @@ public class ClubFounderService {
     }
 
     public void registerFounders(ClubCreationRequest request, Set<UUID> invited) {
-        founderRepository.save(ClubFounder.requester(request.getId(), request.getRequestingStudentId(), LocalDateTime.now()));
+        founderRepository.save(ClubFounder.requester(request.getId(), request.getRequestingStudentId(), Instant.now()));
         invited.forEach(studentId -> {
             founderRepository.save(ClubFounder.invited(request.getId(), studentId));
             notificationPublisher.notifyUserAboutClubName(studentId, request.getClubName(), SUBJECT,
@@ -112,14 +112,14 @@ public class ClubFounderService {
         if (request.getStatus() != ClubCreationRequestStatus.PENDING_FOUNDERS || founder.getStatus() != FounderStatus.INVITED) {
             throw new ConflictException("FOUNDER_RESPONDED", "Bu davet için yanıt verilemez.");
         }
-        founder.respond(confirmed, LocalDateTime.now());
+        founder.respond(confirmed, Instant.now());
         founderRepository.save(founder);
         List<ClubFounder> founders = founderRepository.findByRequestId(requestId);
         long remaining = founders.stream().filter(found -> found.getStatus() != FounderStatus.DECLINED).count();
         if (remaining < foundingSettings.minMembers()) {
             request.setStatus(ClubCreationRequestStatus.REJECTED);
             request.setRejectionReason("Kurucu üye sayısı asgari sayının altına düştü.");
-            request.setProcessedAt(LocalDateTime.now());
+            request.setProcessedAt(Instant.now());
             requestRepository.save(request);
             notificationPublisher.notifyUserAboutClubName(request.getRequestingStudentId(), request.getClubName(), SUBJECT,
                     "\"" + request.getClubName() + "\" kuruluş başvurusu, kurucu üye sayısı asgari sayının altına düştüğü için kapandı.");
@@ -130,7 +130,7 @@ public class ClubFounderService {
     }
 
     public void enrollFounders(ClubCreationRequest request, Club club) {
-        LocalDateTime now = LocalDateTime.now();
+        Instant now = Instant.now();
         founderRepository.findByRequestId(request.getId()).stream()
                 .filter(founder -> founder.getStatus() == FounderStatus.CONFIRMED)
                 .filter(founder -> !founder.getStudentId().equals(request.getRequestingStudentId()))

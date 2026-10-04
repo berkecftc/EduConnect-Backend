@@ -222,7 +222,7 @@ public class ClubQueryService {
                 .collect(Collectors.toList());
     }
 
-    @Cacheable(value = "studentClubMemberships", key = "#studentId")
+    @Cacheable(value = "studentClubMembershipsV2", key = "#studentId")
     public List<MyClubMembershipDTO> getStudentClubMemberships(UUID studentId) {
         return toMembershipDtos(membershipRepository.findByStudentId(studentId).stream()
                 .filter(ClubMembership::isActive)

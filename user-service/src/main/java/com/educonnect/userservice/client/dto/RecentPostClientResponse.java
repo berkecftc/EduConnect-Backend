@@ -1,13 +1,13 @@
 package com.educonnect.userservice.client.dto;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.UUID;
 
 public class RecentPostClientResponse {
     private UUID id;
     private String title;
     private String content;
-    private LocalDateTime createdAt;
+    private Instant createdAt;
 
     public RecentPostClientResponse() {
     }
@@ -36,12 +36,11 @@ public class RecentPostClientResponse {
         this.content = content;
     }
 
-    public LocalDateTime getCreatedAt() {
+    public Instant getCreatedAt() {
         return createdAt;
     }
 
-    public void setCreatedAt(LocalDateTime createdAt) {
+    public void setCreatedAt(Instant createdAt) {
         this.createdAt = createdAt;
     }
 }
-

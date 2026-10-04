@@ -4,7 +4,6 @@ import com.educonnect.assignmentservice.model.AssignmentSubmission;
 
 import java.math.BigDecimal;
 import java.time.Instant;
-import java.time.LocalDateTime;
 import java.util.UUID;
 
 public record SubmissionResponse(UUID id,
@@ -12,7 +11,7 @@ public record SubmissionResponse(UUID id,
                                  UUID studentId,
                                  String submissionFileUrl,
                                  String textContent,
-                                 LocalDateTime submittedAt,
+                                 Instant submittedAt,
                                  BigDecimal grade,
                                  String feedback,
                                  boolean late,

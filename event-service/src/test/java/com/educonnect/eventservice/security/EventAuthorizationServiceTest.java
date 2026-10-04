@@ -8,6 +8,7 @@ import feign.Request;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.web.server.ResponseStatusException;
+import com.educonnect.eventservice.repository.EventStaffRepository;
 
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
@@ -31,7 +32,7 @@ class EventAuthorizationServiceTest {
     @BeforeEach
     void setUp() {
         clubClient = mock(ClubClient.class);
-        service = new EventAuthorizationService(clubClient);
+        service = new EventAuthorizationService(clubClient, mock(EventStaffRepository.class));
         event = new Event();
         event.setClubId(clubId);
     }

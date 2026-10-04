@@ -5,8 +5,6 @@ import com.educonnect.eventservice.dto.response.EventResponse;
 import com.educonnect.eventservice.dto.response.PageResponse;
 import com.educonnect.eventservice.model.Event;
 import com.educonnect.eventservice.service.EventQueryService;
-import com.educonnect.common.web.ApiException;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
@@ -56,12 +54,6 @@ public class EventController {
     ) {
         UUID viewerId = userIdHeader != null ? UUID.fromString(userIdHeader) : null;
         return ResponseEntity.ok(EventResponse.from(eventQueryService.getEventDetailsForViewer(eventId, viewerId)));
-    }
-
-    @PostMapping("/{eventId}/register")
-    public ResponseEntity<String> registerForEvent(@PathVariable UUID eventId) {
-        throw new ApiException(HttpStatus.GONE, "ENDPOINT_GONE",
-                "Etkinliğe doğrudan kayıt kapatıldı. Katılım için POST /api/events/{eventId}/participation-request kullanın.");
     }
 
     /**

@@ -4,7 +4,7 @@ import com.educonnect.postservice.model.PostCategory;
 import com.educonnect.postservice.model.PostStatus;
 import com.educonnect.postservice.model.PublisherType;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.UUID;
 
 public record PostResponse(
@@ -30,6 +30,6 @@ public record PostResponse(
         long commentCount,
         boolean liked,
         boolean bookmarked,
-        LocalDateTime createdAt,
-        LocalDateTime updatedAt
+        Instant createdAt,
+        Instant updatedAt
 ) {}

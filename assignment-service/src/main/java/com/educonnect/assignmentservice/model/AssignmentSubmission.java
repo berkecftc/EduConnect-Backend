@@ -3,7 +3,6 @@ package com.educonnect.assignmentservice.model;
 import jakarta.persistence.*;
 import com.educonnect.common.storage.ObjectUrlConverter;
 import java.math.BigDecimal;
-import java.time.LocalDateTime;
 import java.util.UUID;
 import org.hibernate.annotations.CreationTimestamp;
 import java.time.Instant;
@@ -46,7 +45,7 @@ public class AssignmentSubmission {
     private String textContent;
 
     @Column(name = "submitted_at", nullable = false)
-    private LocalDateTime submittedAt = LocalDateTime.now();
+    private Instant submittedAt = Instant.now();
 
     @Column(name = "grade", precision = 6, scale = 2)
     private BigDecimal grade;
@@ -71,7 +70,7 @@ public class AssignmentSubmission {
         this.assignmentId = assignmentId;
         this.studentId = studentId;
         this.submissionFileUrl = submissionFileUrl;
-        this.submittedAt = LocalDateTime.now();
+        this.submittedAt = Instant.now();
         this.isLate = isLate;
     }
 
@@ -92,8 +91,8 @@ public class AssignmentSubmission {
     public String getTextContent() { return textContent; }
     public void setTextContent(String textContent) { this.textContent = textContent; }
 
-    public LocalDateTime getSubmittedAt() { return submittedAt; }
-    public void setSubmittedAt(LocalDateTime submittedAt) { this.submittedAt = submittedAt; }
+    public Instant getSubmittedAt() { return submittedAt; }
+    public void setSubmittedAt(Instant submittedAt) { this.submittedAt = submittedAt; }
 
     public BigDecimal getGrade() { return grade; }
     public void setGrade(BigDecimal grade) { this.grade = grade; }

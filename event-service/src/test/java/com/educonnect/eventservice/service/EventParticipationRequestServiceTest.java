@@ -15,6 +15,8 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.time.Duration;
+import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.Optional;
 import java.util.UUID;
@@ -131,7 +133,7 @@ class EventParticipationRequestServiceTest {
         EventParticipationRequest rejected = new EventParticipationRequest(eventId, studentId);
         rejected.setStatus(ParticipationRequestStatus.REJECTED);
         rejected.setProcessedBy(UUID.randomUUID());
-        rejected.setProcessedDate(LocalDateTime.now().minusDays(1));
+        rejected.setProcessedDate(Instant.now().minus(Duration.ofDays(1)));
         rejected.setRejectionReason("Kontenjan");
         when(requestRepository.findByEventIdAndStudentId(eventId, studentId)).thenReturn(Optional.of(rejected));
 

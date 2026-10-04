@@ -16,6 +16,7 @@ import com.educonnect.common.messaging.notification.TurkishDates;
 
 import java.time.Clock;
 import java.time.Instant;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -83,7 +84,7 @@ public class ExtensionService {
             DeadlinePolicy.Window window = submission.getGroupId() != null
                     ? groupWork.groupWindow(assignment, submission.getGroupId())
                     : groupWork.window(assignment, studentId);
-            boolean late = window.isLate(submission.getSubmittedAt());
+            boolean late = window.isLate(LocalDateTime.ofInstant(submission.getSubmittedAt(), TurkishDates.ZONE));
             if (late != submission.isLate()) {
                 submission.setLate(late);
                 submissionRepository.save(submission);

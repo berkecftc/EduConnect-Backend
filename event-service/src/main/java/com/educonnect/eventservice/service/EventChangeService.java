@@ -30,6 +30,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.time.Instant;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -227,7 +228,7 @@ public class EventChangeService {
         for (ParticipationRequestStatus open : List.of(ParticipationRequestStatus.PENDING, ParticipationRequestStatus.WAITLISTED)) {
             for (EventParticipationRequest pending : requestRepository.findByEventIdAndStatus(event.getId(), open)) {
                 pending.setStatus(ParticipationRequestStatus.CLOSED);
-                pending.setProcessedDate(LocalDateTime.now());
+                pending.setProcessedDate(Instant.now());
                 requestRepository.save(pending);
                 requesters.add(pending.getStudentId());
             }

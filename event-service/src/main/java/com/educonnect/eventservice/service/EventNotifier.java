@@ -82,6 +82,10 @@ public class EventNotifier {
                 approved ? "EVENT_APPROVED" : "EVENT_REJECTED", event, title, body);
     }
 
+    public void notifyLeaders(Event event, String type, String title, String body) {
+        notify(leadersOf(event.getClubId()), NotificationCategory.CLUB_MANAGEMENT, type, event, title, body);
+    }
+
     private List<UUID> leadersOf(UUID clubId) {
         try {
             List<UUID> leaders = clubClient.getClubLeaderIds(clubId);

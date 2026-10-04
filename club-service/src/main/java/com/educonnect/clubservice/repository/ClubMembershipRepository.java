@@ -8,7 +8,7 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.time.LocalDate;
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
@@ -57,7 +57,7 @@ public interface ClubMembershipRepository extends JpaRepository<ClubMembership, 
     // Bir kulübün aktif üye sayısını getir
     long countByClubIdAndIsActive(UUID clubId, boolean isActive);
 
-    long countByClubIdAndEndedAtGreaterThanEqualAndEndedAtLessThan(UUID clubId, LocalDateTime from, LocalDateTime to);
+    long countByClubIdAndEndedAtGreaterThanEqualAndEndedAtLessThan(UUID clubId, Instant from, Instant to);
 
     List<ClubMembership> findByIsActiveAndClubRoleAndValidUntilBefore(boolean isActive, ClubPosition role, LocalDate date);
 

@@ -12,6 +12,8 @@ import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
+import com.educonnect.eventservice.model.EventStaff;
+import com.educonnect.eventservice.repository.EventStaffRepository;
 
 import java.util.List;
 import java.util.UUID;
@@ -30,9 +32,11 @@ public class EventAuthorizationService {
     private static final Logger log = LoggerFactory.getLogger(EventAuthorizationService.class);
 
     private final ClubClient clubClient;
+    private final EventStaffRepository staffRepository;
 
-    public EventAuthorizationService(ClubClient clubClient) {
+    public EventAuthorizationService(ClubClient clubClient, EventStaffRepository staffRepository) {
         this.clubClient = clubClient;
+        this.staffRepository = staffRepository;
     }
 
     public ClubAccess accessOf(UUID clubId, UUID userId) {
@@ -104,6 +108,14 @@ public class EventAuthorizationService {
     public void requireEventManager(Event event, UUID userId) {
         if (!canManageEvent(event, userId)) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Bu etkinliği yönetme yetkiniz yok.");
+        }
+    }
+
+    public void requireCheckInStaff(Event event, UUID userId) {
+        boolean assigned = userId != null && !event.isCampus()
+                && staffRepository.existsByEventIdAndUserIdAndStatus(event.getId(), userId, EventStaff.Status.APPROVED);
+        if (!assigned && !canManageEvent(event, userId)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Bu etkinlikte giriş yapma yetkiniz yok.");
         }
     }
 

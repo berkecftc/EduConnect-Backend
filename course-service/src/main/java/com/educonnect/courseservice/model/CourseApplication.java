@@ -1,7 +1,7 @@
 package com.educonnect.courseservice.model;
 
 import jakarta.persistence.*;
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.UUID;
 
 @Entity
@@ -27,10 +27,10 @@ public class CourseApplication {
     private CourseApplicationStatus status = CourseApplicationStatus.PENDING;
 
     @Column(name = "application_date", nullable = false)
-    private LocalDateTime applicationDate = LocalDateTime.now();
+    private Instant applicationDate = Instant.now();
 
     @Column(name = "processed_date")
-    private LocalDateTime processedDate;
+    private Instant processedDate;
 
     @Column(name = "processed_by")
     private UUID processedBy;
@@ -44,7 +44,7 @@ public class CourseApplication {
         this.courseId = courseId;
         this.studentId = studentId;
         this.status = CourseApplicationStatus.PENDING;
-        this.applicationDate = LocalDateTime.now();
+        this.applicationDate = Instant.now();
     }
 
     // Getters and Setters
@@ -60,11 +60,11 @@ public class CourseApplication {
     public CourseApplicationStatus getStatus() { return status; }
     public void setStatus(CourseApplicationStatus status) { this.status = status; }
 
-    public LocalDateTime getApplicationDate() { return applicationDate; }
-    public void setApplicationDate(LocalDateTime applicationDate) { this.applicationDate = applicationDate; }
+    public Instant getApplicationDate() { return applicationDate; }
+    public void setApplicationDate(Instant applicationDate) { this.applicationDate = applicationDate; }
 
-    public LocalDateTime getProcessedDate() { return processedDate; }
-    public void setProcessedDate(LocalDateTime processedDate) { this.processedDate = processedDate; }
+    public Instant getProcessedDate() { return processedDate; }
+    public void setProcessedDate(Instant processedDate) { this.processedDate = processedDate; }
 
     public UUID getProcessedBy() { return processedBy; }
     public void setProcessedBy(UUID processedBy) { this.processedBy = processedBy; }

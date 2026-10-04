@@ -9,7 +9,7 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.UUID;
 
 @Entity
@@ -31,19 +31,19 @@ public class ClubFounder {
     private FounderStatus status;
 
     @Column(name = "responded_at")
-    private LocalDateTime respondedAt;
+    private Instant respondedAt;
 
     protected ClubFounder() {
     }
 
-    private ClubFounder(UUID requestId, UUID studentId, FounderStatus status, LocalDateTime respondedAt) {
+    private ClubFounder(UUID requestId, UUID studentId, FounderStatus status, Instant respondedAt) {
         this.requestId = requestId;
         this.studentId = studentId;
         this.status = status;
         this.respondedAt = respondedAt;
     }
 
-    public static ClubFounder requester(UUID requestId, UUID studentId, LocalDateTime at) {
+    public static ClubFounder requester(UUID requestId, UUID studentId, Instant at) {
         return new ClubFounder(requestId, studentId, FounderStatus.CONFIRMED, at);
     }
 
@@ -51,7 +51,7 @@ public class ClubFounder {
         return new ClubFounder(requestId, studentId, FounderStatus.INVITED, null);
     }
 
-    public void respond(boolean confirmed, LocalDateTime at) {
+    public void respond(boolean confirmed, Instant at) {
         this.status = confirmed ? FounderStatus.CONFIRMED : FounderStatus.DECLINED;
         this.respondedAt = at;
     }
@@ -60,5 +60,5 @@ public class ClubFounder {
     public UUID getRequestId() { return requestId; }
     public UUID getStudentId() { return studentId; }
     public FounderStatus getStatus() { return status; }
-    public LocalDateTime getRespondedAt() { return respondedAt; }
+    public Instant getRespondedAt() { return respondedAt; }
 }

@@ -11,11 +11,11 @@ class RolePresentationTest {
 
     @Test
     void pendingRolesGoLastSoStudentStaysPrimary() {
-        Set<Role> roles = Set.of(Role.ROLE_STUDENT, Role.ROLE_PENDING_CLUB_OFFICIAL);
+        Set<Role> roles = Set.of(Role.ROLE_STUDENT, Role.ROLE_PENDING_ACADEMICIAN);
 
-        assertThat(RolePresentation.orderedRoles(roles)).containsExactly("ROLE_STUDENT", "ROLE_PENDING_CLUB_OFFICIAL");
+        assertThat(RolePresentation.orderedRoles(roles)).containsExactly("ROLE_STUDENT", "ROLE_PENDING_ACADEMICIAN");
         assertThat(RolePresentation.primaryRole(roles)).isEqualTo("ROLE_STUDENT");
-        assertThat(RolePresentation.pendingRequests(roles)).containsExactly("CLUB_OFFICIAL");
+        assertThat(RolePresentation.pendingRequests(roles)).containsExactly("ACADEMICIAN");
     }
 
     @Test

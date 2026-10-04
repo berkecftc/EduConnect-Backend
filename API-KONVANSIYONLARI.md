@@ -123,8 +123,7 @@ Tüm hatalar `application/problem+json` (RFC 9457):
 | Eylem adları alt kaynak | `/api/auth/admin/approve-academician/{id}`, `approve-student/{id}`, `reject-…` | `/api/admin/academician-requests/{id}/approve` vb. |
 | "Benim" listeleri `me` altında | `/api/clubs/my-memberships`, `my-managed-clubs`, `my-membership-requests`; `/api/courses/my-courses`, `my-applications`, `instructor/me/courses`; `/api/events/my-registrations`, `my-participation-requests`, `manage/my-events`; `/api/assignments/my-assignments` | `/api/<kaynak>/me/…` |
 | Rol adına göre yol yok | `/api/academician/…` (kulüp danışman işlemleri, club-service) | `/api/clubs/…` altında kaynak yolu |
-| Kapatılmış uçlar kaldırılır | `410` dönen: kulüp yetkilisi başvurusu, `/api/events/{id}/register`, `/api/courses/{id}/enroll-student`, `/api/events/manage/pending\|approve\|reject`, profil `by-student-number`, admin promote/revoke | Frontend geçince silinir |
-| Dosya indirme ID ile | `GET /api/assignments/files/download?url=…` (yetki kontrollü ama URL alıyor), `GET /api/courses/files/download?url=…` (yalnız derse bağlı dosya; yerine `/api/courses/{courseId}/file`) | `GET /api/assignments/{id}/file`, `GET /api/assignments/submissions/{id}/file` |
+| Dosya indirme ID ile | Ödev ve teslim için ID'li uçlar açıldı (8D): `GET /api/assignments/{id}/file`, `GET /api/assignments/submissions/{id}/file`. URL alan eski uçlar (`GET /api/assignments/files/download?url=…`, `GET /api/courses/files/download?url=…`) yetki kontrollü olarak geçiş süresince çalışır | Frontend ID'li uçlara geçince URL'li uçlar kapanır |
 | Tek yol | `/api/llm/**` ve `/api/ai/**` aynı uçlar | `/api/ai/**` |
 | Liste sayfalı | kulüp üyeleri, başvurular, kayıtlar gibi dizi dönen listeler | `PageResponse` |
 

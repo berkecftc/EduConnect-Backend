@@ -1,6 +1,6 @@
 package com.educonnect.clubservice.dto.response;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.UUID;
 
 public class ArchivedClubDTO {
@@ -11,7 +11,7 @@ public class ArchivedClubDTO {
     private String about;
     private String logoUrl;
     private UUID academicAdvisorId;
-    private LocalDateTime deletedAt;
+    private Instant deletedAt;
     private String deletionReason;
     private UUID deletedByAdminId;
 
@@ -19,7 +19,7 @@ public class ArchivedClubDTO {
     }
 
     public ArchivedClubDTO(UUID archiveId, UUID originalId, String name, String about,
-                          String logoUrl, UUID academicAdvisorId, LocalDateTime deletedAt,
+                          String logoUrl, UUID academicAdvisorId, Instant deletedAt,
                           String deletionReason, UUID deletedByAdminId) {
         this.archiveId = archiveId;
         this.originalId = originalId;
@@ -81,11 +81,11 @@ public class ArchivedClubDTO {
         this.academicAdvisorId = academicAdvisorId;
     }
 
-    public LocalDateTime getDeletedAt() {
+    public Instant getDeletedAt() {
         return deletedAt;
     }
 
-    public void setDeletedAt(LocalDateTime deletedAt) {
+    public void setDeletedAt(Instant deletedAt) {
         this.deletedAt = deletedAt;
     }
 
@@ -105,4 +105,3 @@ public class ArchivedClubDTO {
         this.deletedByAdminId = deletedByAdminId;
     }
 }
-

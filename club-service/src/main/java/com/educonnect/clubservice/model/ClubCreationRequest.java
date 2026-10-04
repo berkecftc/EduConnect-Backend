@@ -1,7 +1,7 @@
 package com.educonnect.clubservice.model;
 
 import jakarta.persistence.*;
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.UUID;
 
 @Entity
@@ -31,13 +31,13 @@ public class ClubCreationRequest {
     @Column(nullable = false)
     private ClubCreationRequestStatus status = ClubCreationRequestStatus.PENDING;
 
-    private LocalDateTime requestDate = LocalDateTime.now();
+    private Instant requestDate = Instant.now();
 
     @Column(name = "rejection_reason", columnDefinition = "TEXT")
     private String rejectionReason;
 
     @Column(name = "processed_at")
-    private LocalDateTime processedAt;
+    private Instant processedAt;
 
     @Column(name = "processed_by")
     private UUID processedBy;
@@ -60,9 +60,9 @@ public class ClubCreationRequest {
     public void setStatus(ClubCreationRequestStatus status) { this.status = status; }
     public String getRejectionReason() { return rejectionReason; }
     public void setRejectionReason(String rejectionReason) { this.rejectionReason = rejectionReason; }
-    public LocalDateTime getProcessedAt() { return processedAt; }
-    public void setProcessedAt(LocalDateTime processedAt) { this.processedAt = processedAt; }
-    public LocalDateTime getRequestDate() { return requestDate; }
+    public Instant getProcessedAt() { return processedAt; }
+    public void setProcessedAt(Instant processedAt) { this.processedAt = processedAt; }
+    public Instant getRequestDate() { return requestDate; }
     public UUID getProcessedBy() { return processedBy; }
     public void setProcessedBy(UUID processedBy) { this.processedBy = processedBy; }
     public UUID getClubId() { return clubId; }

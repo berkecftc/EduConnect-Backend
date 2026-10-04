@@ -18,7 +18,7 @@ import com.educonnect.common.web.ConflictException;
 import org.springframework.stereotype.Component;
 
 import java.time.Clock;
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
@@ -92,7 +92,7 @@ class ElectionApprovalHandler implements ApprovalHandler {
                                 "Seçilen adaylardan biri başka bir kulüpte yönetim görevi aldı; devir yapılamaz.");
                     });
         }
-        LocalDateTime now = LocalDateTime.now(clock);
+        Instant now = Instant.now(clock);
         Set<UUID> affected = new LinkedHashSet<>();
         for (ClubMembership membership : membershipRepository.findByClubId(club.getId())) {
             if (membership.isActive() && membership.getClubRole().isManagement()) {

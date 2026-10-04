@@ -13,7 +13,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -61,7 +61,7 @@ public class ClubAffiliationService {
     @Transactional
     public void studentEnded(UUID studentId) {
         endMemberships(studentId, MembershipEndReason.AFFILIATION_ENDED, DecisionAction.MEMBERSHIP_ENDED_BY_STATUS);
-        LocalDateTime now = LocalDateTime.now();
+        Instant now = Instant.now();
         for (ClubMembership frozen : membershipRepository.findByStudentId(studentId)) {
             if (!frozen.isActive() && frozen.getEndReason() == MembershipEndReason.FROZEN) {
                 frozen.end(MembershipEndReason.AFFILIATION_ENDED, now);
@@ -72,7 +72,7 @@ public class ClubAffiliationService {
 
     @Transactional
     public void studentResumed(UUID studentId) {
-        LocalDateTime now = LocalDateTime.now();
+        Instant now = Instant.now();
         int resumed = 0;
         for (ClubMembership membership : membershipRepository.findByStudentId(studentId)) {
             if (membership.isActive() || membership.getEndReason() != MembershipEndReason.FROZEN) {
@@ -109,7 +109,7 @@ public class ClubAffiliationService {
     }
 
     private void endMemberships(UUID studentId, MembershipEndReason reason, DecisionAction action) {
-        LocalDateTime now = LocalDateTime.now();
+        Instant now = Instant.now();
         List<UUID> presided = new ArrayList<>();
         boolean management = false;
         for (ClubMembership membership : membershipRepository.findByStudentId(studentId)) {

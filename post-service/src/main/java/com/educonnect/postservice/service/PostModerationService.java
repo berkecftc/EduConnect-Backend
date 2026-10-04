@@ -46,17 +46,20 @@ public class PostModerationService {
     private final ModerationLog moderationLog;
     private final OutboxPublisher outboxPublisher;
     private final PostNotifier notifier;
+    private final JobLock jobLock;
 
     public PostModerationService(PostRepository postRepository,
                                  CommentRepository commentRepository,
                                  ModerationLog moderationLog,
                                  OutboxPublisher outboxPublisher,
-                                 PostNotifier notifier) {
+                                 PostNotifier notifier,
+                                 JobLock jobLock) {
         this.postRepository = postRepository;
         this.commentRepository = commentRepository;
         this.moderationLog = moderationLog;
         this.outboxPublisher = outboxPublisher;
         this.notifier = notifier;
+        this.jobLock = jobLock;
     }
 
     @Transactional
@@ -122,6 +125,9 @@ public class PostModerationService {
 
     @Transactional
     public int escalateStale(Instant cutoff) {
+        if (!jobLock.tryAcquire("post.moderation-timeout")) {
+            return 0;
+        }
         int escalated = 0;
         for (Post post : postRepository.findByStatusAndSubmittedAtBefore(PostStatus.PENDING, cutoff)) {
             sendToReview(post, FLAG_TIMEOUT);

@@ -11,7 +11,7 @@ import com.educonnect.clubservice.security.ClubAccess;
 import com.educonnect.common.web.ConflictException;
 import org.springframework.stereotype.Component;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.UUID;
 
 @Component
@@ -66,7 +66,7 @@ class ResignationApprovalHandler implements ApprovalHandler {
                 .orElseThrow(() -> new ConflictException("POSITION_CHANGED",
                         "Görevlinin görevi talep oluşturulduktan sonra değişmiş. Talep geçersiz."));
         boolean wasPresident = membership.getClubRole() == ClubPosition.PRESIDENT;
-        membership.assignPosition(ClubPosition.MEMBER, LocalDateTime.now(), PositionEndReason.RESIGNED);
+        membership.assignPosition(ClubPosition.MEMBER, Instant.now(), PositionEndReason.RESIGNED);
         membership.setValidUntil(membershipTerms.currentValidUntil());
         membershipRepository.save(membership);
         cacheEvictor.evictUser(request.getSubjectUserId());

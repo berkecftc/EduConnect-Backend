@@ -4,7 +4,7 @@ import com.educonnect.clubservice.model.ClubPosition;
 import com.educonnect.clubservice.model.ClubPositionTerm;
 import com.educonnect.clubservice.model.PositionEndReason;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.UUID;
 
 public record PositionTermResponse(UUID clubId,
@@ -14,8 +14,8 @@ public record PositionTermResponse(UUID clubId,
                                    String lastName,
                                    String position,
                                    String positionName,
-                                   LocalDateTime startedAt,
-                                   LocalDateTime endedAt,
+                                   Instant startedAt,
+                                   Instant endedAt,
                                    PositionEndReason endReason) {
 
     public static PositionTermResponse of(ClubPositionTerm term, String clubName, UserSummary user) {

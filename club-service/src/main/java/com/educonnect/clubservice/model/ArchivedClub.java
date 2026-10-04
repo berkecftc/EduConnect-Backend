@@ -2,7 +2,7 @@ package com.educonnect.clubservice.model;
 
 import jakarta.persistence.*;
 import com.educonnect.common.storage.ObjectUrlConverter;
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.UUID;
 
 @Entity
@@ -30,7 +30,7 @@ public class ArchivedClub {
     private UUID academicAdvisorId;
 
     @Column(nullable = false)
-    private LocalDateTime deletedAt;
+    private Instant deletedAt;
 
     @Column(length = 1000)
     private String deletionReason;
@@ -42,7 +42,7 @@ public class ArchivedClub {
     }
 
     public ArchivedClub(UUID originalId, String name, String about, String logoUrl,
-                       UUID academicAdvisorId, LocalDateTime deletedAt,
+                       UUID academicAdvisorId, Instant deletedAt,
                        String deletionReason, UUID deletedByAdminId) {
         this.originalId = originalId;
         this.name = name;
@@ -102,11 +102,11 @@ public class ArchivedClub {
         this.academicAdvisorId = academicAdvisorId;
     }
 
-    public LocalDateTime getDeletedAt() {
+    public Instant getDeletedAt() {
         return deletedAt;
     }
 
-    public void setDeletedAt(LocalDateTime deletedAt) {
+    public void setDeletedAt(Instant deletedAt) {
         this.deletedAt = deletedAt;
     }
 
@@ -126,4 +126,3 @@ public class ArchivedClub {
         this.deletedByAdminId = deletedByAdminId;
     }
 }
-

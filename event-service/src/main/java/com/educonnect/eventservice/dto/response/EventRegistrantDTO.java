@@ -1,6 +1,6 @@
 package com.educonnect.eventservice.dto.response;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.UUID;
 
 /**
@@ -13,7 +13,7 @@ public class EventRegistrantDTO {
     private String lastName;
     private String email;
     private String department;
-    private LocalDateTime registrationTime;
+    private Instant registrationTime;
     private boolean attended;
     private String qrCode;
     private String status;
@@ -21,7 +21,7 @@ public class EventRegistrantDTO {
     public EventRegistrantDTO() {}
 
     public EventRegistrantDTO(UUID studentId, String firstName, String lastName, String email,
-                              String department, LocalDateTime registrationTime, boolean attended, String qrCode) {
+                              String department, Instant registrationTime, boolean attended, String qrCode) {
         this.studentId = studentId;
         this.firstName = firstName;
         this.lastName = lastName;
@@ -48,8 +48,8 @@ public class EventRegistrantDTO {
     public String getDepartment() { return department; }
     public void setDepartment(String department) { this.department = department; }
 
-    public LocalDateTime getRegistrationTime() { return registrationTime; }
-    public void setRegistrationTime(LocalDateTime registrationTime) { this.registrationTime = registrationTime; }
+    public Instant getRegistrationTime() { return registrationTime; }
+    public void setRegistrationTime(Instant registrationTime) { this.registrationTime = registrationTime; }
 
     public boolean isAttended() { return attended; }
     public void setAttended(boolean attended) { this.attended = attended; }

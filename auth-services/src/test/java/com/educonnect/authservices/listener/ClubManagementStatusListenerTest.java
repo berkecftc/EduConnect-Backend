@@ -42,7 +42,7 @@ class ClubManagementStatusListenerTest {
 
         user = new User();
         user.setId(userId);
-        user.setRoles(new HashSet<>(Set.of(Role.ROLE_STUDENT, Role.ROLE_PENDING_CLUB_OFFICIAL)));
+        user.setRoles(new HashSet<>(Set.of(Role.ROLE_STUDENT)));
         when(userRepository.findById(userId)).thenReturn(Optional.of(user));
         when(syncRepository.findById(userId)).thenReturn(Optional.empty());
     }
@@ -53,7 +53,7 @@ class ClubManagementStatusListenerTest {
     }
 
     @Test
-    void grantsClubOfficialAndClearsPendingRequest() {
+    void grantsClubOfficialWhenTheStudentStartsManagingAClub() {
         listener.handle(event(true, now));
 
         assertThat(user.getRoles()).containsExactlyInAnyOrder(Role.ROLE_STUDENT, Role.ROLE_CLUB_OFFICIAL);

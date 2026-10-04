@@ -2,7 +2,7 @@ package com.educonnect.eventservice.dto.response;
 
 import com.educonnect.eventservice.model.ParticipationRequestStatus;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.UUID;
 
 /**
@@ -17,8 +17,8 @@ public class EventParticipationRequestDTO {
     private String studentName;
     private String studentEmail;
     private ParticipationRequestStatus status;
-    private LocalDateTime requestDate;
-    private LocalDateTime processedDate;
+    private Instant requestDate;
+    private Instant processedDate;
     private String message;
     private String rejectionReason;
 
@@ -46,11 +46,11 @@ public class EventParticipationRequestDTO {
     public ParticipationRequestStatus getStatus() { return status; }
     public void setStatus(ParticipationRequestStatus status) { this.status = status; }
 
-    public LocalDateTime getRequestDate() { return requestDate; }
-    public void setRequestDate(LocalDateTime requestDate) { this.requestDate = requestDate; }
+    public Instant getRequestDate() { return requestDate; }
+    public void setRequestDate(Instant requestDate) { this.requestDate = requestDate; }
 
-    public LocalDateTime getProcessedDate() { return processedDate; }
-    public void setProcessedDate(LocalDateTime processedDate) { this.processedDate = processedDate; }
+    public Instant getProcessedDate() { return processedDate; }
+    public void setProcessedDate(Instant processedDate) { this.processedDate = processedDate; }
 
     public String getMessage() { return message; }
     public void setMessage(String message) { this.message = message; }
@@ -58,4 +58,3 @@ public class EventParticipationRequestDTO {
     public String getRejectionReason() { return rejectionReason; }
     public void setRejectionReason(String rejectionReason) { this.rejectionReason = rejectionReason; }
 }
-

@@ -90,7 +90,7 @@ class GatewayAuthorizationTest {
                 new Call(HttpMethod.GET, "/api/users/me"),
                 new Call(HttpMethod.GET, "/api/users/academic/catalog/all"),
                 new Call(HttpMethod.POST, "/api/users/academic/faculties"),
-                new Call(HttpMethod.POST, "/api/auth/request/club-official"),
+                new Call(HttpMethod.POST, "/api/auth/change-password"),
                 new Call(HttpMethod.POST, "/api/auth/email-change"),
                 new Call(HttpMethod.GET, "/api/auth/login"),
                 new Call(HttpMethod.GET, "/api/gamification/leaderboard"),

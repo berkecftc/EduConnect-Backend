@@ -20,12 +20,12 @@ public class ClubCacheEvictor {
             return;
         }
         evict("managedClubs", userId);
-        evict("studentClubMemberships", userId);
+        evict("studentClubMembershipsV2", userId);
     }
 
     public void evictAllMemberships() {
         clear("managedClubs");
-        clear("studentClubMemberships");
+        clear("studentClubMembershipsV2");
     }
 
     private void clear(String cacheName) {

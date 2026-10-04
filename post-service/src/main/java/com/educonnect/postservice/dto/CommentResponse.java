@@ -2,7 +2,7 @@ package com.educonnect.postservice.dto;
 
 import com.educonnect.postservice.model.CommentStatus;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 
@@ -20,6 +20,6 @@ public record CommentResponse(
         CommentStatus status,
         String moderationNote,
         List<CommentResponse> replies,
-        LocalDateTime createdAt,
-        LocalDateTime updatedAt
+        Instant createdAt,
+        Instant updatedAt
 ) {}

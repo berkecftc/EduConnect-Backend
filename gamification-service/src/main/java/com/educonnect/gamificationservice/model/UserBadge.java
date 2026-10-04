@@ -11,8 +11,8 @@ import jakarta.persistence.Index;
 import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
 
-import java.time.LocalDateTime;
 import java.util.UUID;
+import java.time.Instant;
 
 @Entity
 @Table(name = "user_badges",
@@ -36,7 +36,7 @@ public class UserBadge {
     private BadgeType badgeType;
 
     @Column(name = "earned_at", nullable = false, updatable = false)
-    private LocalDateTime earnedAt;
+    private Instant earnedAt;
 
     public UserBadge() {
     }
@@ -65,12 +65,11 @@ public class UserBadge {
         this.badgeType = badgeType;
     }
 
-    public LocalDateTime getEarnedAt() {
+    public Instant getEarnedAt() {
         return earnedAt;
     }
 
-    public void setEarnedAt(LocalDateTime earnedAt) {
+    public void setEarnedAt(Instant earnedAt) {
         this.earnedAt = earnedAt;
     }
 }
-

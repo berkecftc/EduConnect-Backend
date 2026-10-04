@@ -1,5 +1,6 @@
 package com.educonnect.eventservice.service;
 
+import com.educonnect.common.messaging.notification.TurkishDates;
 import com.educonnect.common.web.ConflictException;
 import com.educonnect.common.web.NotFoundException;
 import com.educonnect.eventservice.client.UserClient;
@@ -20,6 +21,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Comparator;
@@ -32,7 +34,7 @@ import java.util.UUID;
 public class AttendanceService {
 
     private static final char BOM = (char) 0xFEFF;
-    private static final DateTimeFormatter CSV_TIME = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
+    private static final DateTimeFormatter CSV_TIME = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm").withZone(TurkishDates.ZONE);
 
     private final EventRepository eventRepository;
     private final EventRegistrationRepository registrationRepository;
@@ -57,20 +59,20 @@ public class AttendanceService {
 
     public void checkIn(UUID eventId, UUID studentId, UUID actorId) {
         Event event = event(eventId);
-        authorizationService.requireEventManager(event, actorId);
+        authorizationService.requireCheckInStaff(event, actorId);
         requireLive(event);
         EventRegistration registration = activeRegistration(eventId, studentId);
         if (registration.isAttended()) {
             throw new ConflictException("ALREADY_CHECKED_IN", "Katılımcının girişi zaten yapılmış.");
         }
-        registration.checkIn(actorId, CheckInMethod.MANUAL, schedule.now());
+        registration.checkIn(actorId, CheckInMethod.MANUAL, Instant.now());
         registrationRepository.save(registration);
         eventCaches.evictStudentRegistrations(studentId);
     }
 
     public void undoCheckIn(UUID eventId, UUID studentId, UUID actorId) {
         Event event = event(eventId);
-        authorizationService.requireEventManager(event, actorId);
+        authorizationService.requireCheckInStaff(event, actorId);
         requireLive(event);
         EventRegistration registration = activeRegistration(eventId, studentId);
         if (!registration.isAttended()) {

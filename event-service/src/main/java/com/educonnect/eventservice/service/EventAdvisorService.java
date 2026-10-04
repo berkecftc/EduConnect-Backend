@@ -15,7 +15,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 
@@ -82,7 +82,7 @@ public class EventAdvisorService {
         boolean firstPublication = event.getPublishedAt() == null;
         event.setStatus(EventStatus.ACTIVE);
         if (firstPublication) {
-            event.setPublishedAt(LocalDateTime.now());
+            event.setPublishedAt(Instant.now());
         }
         Event savedEvent = eventRepository.save(event);
         eventCaches.evictEvent(savedEvent);

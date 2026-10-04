@@ -10,7 +10,7 @@ import com.educonnect.clubservice.repository.ClubMembershipRepository;
 import com.educonnect.common.web.ConflictException;
 import org.springframework.stereotype.Component;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.UUID;
 
 @Component
@@ -61,7 +61,7 @@ class MemberExpulsionApprovalHandler implements ApprovalHandler {
             throw new ConflictException("PRESIDENT_EXPULSION", "Kulüp başkanı bu yolla çıkarılamaz.");
         }
         boolean wasManagement = membership.getClubRole().isManagement();
-        membership.end(MembershipEndReason.EXPELLED, LocalDateTime.now());
+        membership.end(MembershipEndReason.EXPELLED, Instant.now());
         membershipRepository.save(membership);
         cacheEvictor.evictUser(request.getSubjectUserId());
         if (wasManagement) {

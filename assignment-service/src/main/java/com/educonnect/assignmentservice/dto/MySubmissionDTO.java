@@ -1,12 +1,12 @@
 package com.educonnect.assignmentservice.dto;
 
 import java.math.BigDecimal;
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.UUID;
 
 public class MySubmissionDTO {
     private UUID submissionId;
-    private LocalDateTime submittedAt;
+    private Instant submittedAt;
     private BigDecimal grade;
     private BigDecimal finalGrade;
     private String textContent;
@@ -21,8 +21,8 @@ public class MySubmissionDTO {
     public UUID getSubmissionId() { return submissionId; }
     public void setSubmissionId(UUID submissionId) { this.submissionId = submissionId; }
 
-    public LocalDateTime getSubmittedAt() { return submittedAt; }
-    public void setSubmittedAt(LocalDateTime submittedAt) { this.submittedAt = submittedAt; }
+    public Instant getSubmittedAt() { return submittedAt; }
+    public void setSubmittedAt(Instant submittedAt) { this.submittedAt = submittedAt; }
 
     public BigDecimal getGrade() { return grade; }
     public void setGrade(BigDecimal grade) { this.grade = grade; }

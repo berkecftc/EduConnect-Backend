@@ -5,8 +5,6 @@ import com.educonnect.clubservice.model.Club;
 import com.educonnect.clubservice.model.ClubApprovalRequest;
 import org.springframework.stereotype.Component;
 
-import java.time.LocalDateTime;
-import java.time.ZoneOffset;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -50,8 +48,8 @@ class RoleChangeRequestMapper {
         dto.setRequesterName(names.getOrDefault(request.getPreparedBy(), RoleChangeUserNames.UNKNOWN_USER_NAME));
         dto.setStatus(request.getStatus().toLegacy());
         dto.setRejectionReason(request.getRejectionReason());
-        dto.setCreatedAt(LocalDateTime.ofInstant(request.getCreatedAt(), ZoneOffset.UTC));
-        dto.setProcessedAt(request.getDecidedAt() != null ? LocalDateTime.ofInstant(request.getDecidedAt(), ZoneOffset.UTC) : null);
+        dto.setCreatedAt(request.getCreatedAt());
+        dto.setProcessedAt(request.getDecidedAt());
         return dto;
     }
 }

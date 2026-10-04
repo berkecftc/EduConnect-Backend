@@ -21,6 +21,7 @@ import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
+import com.educonnect.common.messaging.notification.TurkishDates;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -28,6 +29,7 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.time.Instant;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doThrow;
@@ -183,7 +185,7 @@ class LeaderboardTest {
         row.setActionType(ActionType.NOTE_SAVED);
         row.setReferenceId(UUID.randomUUID().toString());
         row.setPointsEarned(points);
-        row.setCreatedAt(at);
+        row.setCreatedAt(at.atZone(TurkishDates.ZONE).toInstant());
         historyRepository.save(row);
     }
 
@@ -191,7 +193,7 @@ class LeaderboardTest {
         UserBadge badge = new UserBadge();
         badge.setUserId(userId);
         badge.setBadgeType(type);
-        badge.setEarnedAt(LocalDateTime.now());
+        badge.setEarnedAt(Instant.now());
         badgeRepository.save(badge);
     }
 
