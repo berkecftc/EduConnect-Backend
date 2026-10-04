@@ -14,6 +14,7 @@ import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.TransactionDefinition;
 import org.springframework.transaction.TransactionStatus;
 import org.springframework.transaction.support.SimpleTransactionStatus;
+import com.educonnect.common.messaging.outbox.OutboxPublisher;
 
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
@@ -47,7 +48,8 @@ class GamificationServiceTest {
                 userReputationRepository,
                 pointHistoryRepository,
                 new NoOpTransactionManager(),
-                userBadgeRepository
+                userBadgeRepository,
+                mock(OutboxPublisher.class)
         );
     }
 

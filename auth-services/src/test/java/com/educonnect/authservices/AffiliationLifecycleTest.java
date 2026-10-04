@@ -77,6 +77,10 @@ class AffiliationLifecycleTest {
         assertThat(reloaded.getRoles()).contains(Role.ROLE_STUDENT);
         assertThat(reloaded.getStudentStatus()).isEqualTo(StudentStatus.ACTIVE);
         assertThat(published(student)).isEqualTo(2);
+        assertThat(jdbcTemplate.queryForList("select convert_from(body, 'UTF8') from auth_db.outbox_messages "
+                + "where routing_key = 'notification.request' and convert_from(body, 'UTF8') like ?", String.class, "%" + student.getId() + "%"))
+                .hasSize(2)
+                .anySatisfy(body -> assertThat(body).contains("AFFILIATION_STATUS", "1 Ekim 2026", "kayıt dondurma", "Sağlık"));
         mockMvc.perform(get("/api/auth/admin/users/{id}/affiliations", student.getId())
                         .header(HttpHeaders.AUTHORIZATION, bearer(admin)))
                 .andExpect(jsonPath("$.history.length()").value(2));

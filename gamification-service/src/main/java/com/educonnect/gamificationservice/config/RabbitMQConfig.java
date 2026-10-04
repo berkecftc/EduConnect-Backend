@@ -7,6 +7,7 @@ import org.springframework.amqp.core.Queue;
 import org.springframework.amqp.core.TopicExchange;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import com.educonnect.common.messaging.notification.NotificationRequest;
 
 @Configuration
 public class RabbitMQConfig {
@@ -18,6 +19,11 @@ public class RabbitMQConfig {
     public static final String USER_EXCHANGE = "user-exchange";
     public static final String USER_DELETED_QUEUE = "gamification-service.user.deleted";
     public static final String USER_DELETED_ROUTING_KEY = "user.delete";
+
+    @Bean
+    public TopicExchange notificationExchange() {
+        return new TopicExchange(NotificationRequest.EXCHANGE);
+    }
 
     @Bean
     public TopicExchange gamificationExchange() {

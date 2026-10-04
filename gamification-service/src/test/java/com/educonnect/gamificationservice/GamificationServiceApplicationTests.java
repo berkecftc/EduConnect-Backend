@@ -9,6 +9,7 @@ import org.flywaydb.core.Flyway;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.jdbc.core.JdbcTemplate;
 
 import java.time.OffsetDateTime;
 import java.util.UUID;
@@ -33,6 +34,9 @@ class GamificationServiceApplicationTests {
     @Autowired
     private UserReputationRepository userReputationRepository;
 
+    @Autowired
+    private JdbcTemplate jdbcTemplate;
+
     @Test
     void theFirstEventOfANewUserCreatesTheirReputation() {
         UUID newUser = UUID.randomUUID();
@@ -44,6 +48,11 @@ class GamificationServiceApplicationTests {
         assertThat(reputation.getTotalPoints()).isEqualTo(15);
         assertThat(reputation.getCurrentStreak()).isEqualTo(1);
         assertThat(reputation.getVersion()).isZero();
+        assertThat(jdbcTemplate.queryForList("select convert_from(body, 'UTF8') from outbox_messages "
+                + "where routing_key = 'notification.request' and convert_from(body, 'UTF8') like ?", String.class, "%" + newUser + "%"))
+                .isNotEmpty()
+                .allSatisfy(body -> assertThat(body).contains("\"category\":\"ACHIEVEMENT\"", "\"type\":\"BADGE_EARNED\"", "Yeni rozet: "))
+                .anySatisfy(body -> assertThat(body).contains("\"dedupKey\":\"badge:FIRST_STEP\""));
     }
 
     @Test

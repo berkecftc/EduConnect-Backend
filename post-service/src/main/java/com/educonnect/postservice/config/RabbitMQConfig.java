@@ -8,6 +8,7 @@ import org.springframework.amqp.core.TopicExchange;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import com.educonnect.common.messaging.notification.NotificationRequest;
 
 /**
  * Post moderasyonu için RabbitMQ altyapı konfigürasyonu.
@@ -41,6 +42,11 @@ public class RabbitMQConfig {
     @Bean
     public TopicExchange postModerationExchange() {
         return new TopicExchange(POST_MODERATION_EXCHANGE);
+    }
+
+    @Bean
+    public TopicExchange notificationExchange() {
+        return new TopicExchange(NotificationRequest.EXCHANGE);
     }
 
     @Bean

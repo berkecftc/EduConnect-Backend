@@ -17,6 +17,7 @@ import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
 import org.springframework.test.web.servlet.request.AbstractMockHttpServletRequestBuilder;
+import org.springframework.jdbc.core.JdbcTemplate;
 
 import java.util.UUID;
 
@@ -45,6 +46,9 @@ class ProfileChangeTest {
 
     @Autowired
     private EmailChangeListener emailChangeListener;
+
+    @Autowired
+    private JdbcTemplate jdbcTemplate;
 
     @BeforeEach
     void createProfiles() {
@@ -122,6 +126,10 @@ class ProfileChangeTest {
                 .andExpect(jsonPath("$.status").value("REJECTED"))
                 .andExpect(jsonPath("$.reviewNote").value("Atama belgesi yok"));
         assertThat(academicianRepository.findById(teacher).orElseThrow().getAcademicTitle()).isEqualTo(AcademicTitle.ASSISTANT_PROFESSOR);
+        assertThat(jdbcTemplate.queryForList("select convert_from(body, 'UTF8') from user_db.outbox_messages "
+                + "where routing_key = 'notification.request' and convert_from(body, 'UTF8') like ?", String.class, "%" + teacher + "%"))
+                .singleElement().asString()
+                .contains("\"category\":\"ACCOUNT\"", "PROFILE_CHANGE_REJECTED", "Atama belgesi yok");
 
         String approved = JsonPath.read(submit(TestTokens.academician(teacher), "{\"title\":\"Doç. Dr.\",\"reason\":\"Belge eklendi\"}")
                 .andReturn().getResponse().getContentAsString(), "$.id");

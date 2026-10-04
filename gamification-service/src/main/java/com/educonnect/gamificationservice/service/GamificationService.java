@@ -18,6 +18,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
+import com.educonnect.common.messaging.notification.NotificationCategory;
+import com.educonnect.common.messaging.notification.NotificationRequest;
+import com.educonnect.common.messaging.outbox.OutboxPublisher;
 
 import java.time.DayOfWeek;
 import java.time.LocalDate;
@@ -64,15 +67,18 @@ public class GamificationService {
     private final PointHistoryRepository pointHistoryRepository;
     private final TransactionTemplate transactionTemplate;
     private final UserBadgeRepository userBadgeRepository;
+    private final OutboxPublisher outboxPublisher;
 
     public GamificationService(UserReputationRepository userReputationRepository,
                                PointHistoryRepository pointHistoryRepository,
                                PlatformTransactionManager transactionManager,
-                               UserBadgeRepository userBadgeRepository) {
+                               UserBadgeRepository userBadgeRepository,
+                               OutboxPublisher outboxPublisher) {
         this.userReputationRepository = userReputationRepository;
         this.pointHistoryRepository = pointHistoryRepository;
         this.transactionTemplate = new TransactionTemplate(transactionManager);
         this.userBadgeRepository = userBadgeRepository;
+        this.outboxPublisher = outboxPublisher;
     }
 
     public void processEvent(GamificationEvent event) {
@@ -252,7 +258,15 @@ public class GamificationService {
 
         if (!toSave.isEmpty()) {
             userBadgeRepository.saveAll(toSave);
+            toSave.forEach(badge -> announceBadge(userId, badge.getBadgeType()));
         }
+    }
+
+    private void announceBadge(UUID userId, BadgeType badgeType) {
+        outboxPublisher.publish(NotificationRequest.EXCHANGE, NotificationRequest.ROUTING_KEY,
+                NotificationRequest.of(List.of(userId), NotificationCategory.ACHIEVEMENT, "BADGE_EARNED",
+                        "Yeni rozet: " + badgeType.getDisplayName(), badgeType.getDescription(), "/profile",
+                        "badge:" + badgeType.name()));
     }
 
     private List<BadgeType> resolveBadges(int totalPoints, int highestStreak, ActionType actionType) {

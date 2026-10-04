@@ -6,6 +6,8 @@ import org.springframework.amqp.core.DirectExchange;
 import org.springframework.amqp.core.Queue;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import com.educonnect.common.messaging.notification.NotificationRequest;
+import org.springframework.amqp.core.TopicExchange;
 
 @Configuration
 public class RabbitMQConfig {
@@ -40,6 +42,11 @@ public class RabbitMQConfig {
     @Bean
     public DirectExchange userExchange() {
         return new DirectExchange(EXCHANGE_NAME);
+    }
+
+    @Bean
+    public TopicExchange notificationExchange() {
+        return new TopicExchange(NotificationRequest.EXCHANGE);
     }
 
     @Bean

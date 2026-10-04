@@ -45,15 +45,18 @@ public class PostModerationService {
     private final CommentRepository commentRepository;
     private final ModerationLog moderationLog;
     private final OutboxPublisher outboxPublisher;
+    private final PostNotifier notifier;
 
     public PostModerationService(PostRepository postRepository,
                                  CommentRepository commentRepository,
                                  ModerationLog moderationLog,
-                                 OutboxPublisher outboxPublisher) {
+                                 OutboxPublisher outboxPublisher,
+                                 PostNotifier notifier) {
         this.postRepository = postRepository;
         this.commentRepository = commentRepository;
         this.moderationLog = moderationLog;
         this.outboxPublisher = outboxPublisher;
+        this.notifier = notifier;
     }
 
     @Transactional
@@ -200,6 +203,7 @@ public class PostModerationService {
         comment.setModerationNote(null);
         commentRepository.save(comment);
         record(ModerationTarget.COMMENT, comment.getId(), comment.getPostId(), ModerationAction.PUBLISHED, actor, actorId, reason);
+        notifier.commentPublished(comment);
     }
 
     private void reject(Comment comment, ModerationActor actor, UUID actorId, String reason) {
