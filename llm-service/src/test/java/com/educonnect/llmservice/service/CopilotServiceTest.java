@@ -41,7 +41,7 @@ class CopilotServiceTest {
     @BeforeEach
     void setUp() {
         clock = new MutableClock(Instant.parse("2026-09-24T10:00:00Z"));
-        LlmRateLimiter rateLimiter = new LlmRateLimiter(new LlmSafetyProperties(null, null, null));
+        LlmRateLimiter rateLimiter = new LlmRateLimiter(new LlmSafetyProperties(null, null, null, null));
         service = new CopilotService(courseServiceClient, rateLimiter, clock);
     }
 

@@ -47,7 +47,7 @@ class PostModerationListenerTest {
     @BeforeEach
     void setUp() {
         listener = new PostModerationListener(moderationService, postServiceClient, rabbitTemplate,
-                new LlmSafetyProperties(null, null, new LlmSafetyProperties.Moderation(null, 2)));
+                new LlmSafetyProperties(null, null, new LlmSafetyProperties.Moderation(null, 2), null));
     }
 
     @Test

@@ -6,12 +6,21 @@ import java.time.Duration;
 import java.util.List;
 
 @ConfigurationProperties(prefix = "educonnect.llm")
-public record LlmSafetyProperties(RateLimit rateLimit, Memory memory, Moderation moderation) {
+public record LlmSafetyProperties(RateLimit rateLimit, Memory memory, Moderation moderation, Assistant assistant) {
 
     public LlmSafetyProperties {
         rateLimit = rateLimit != null ? rateLimit : new RateLimit(false, 0);
         memory = memory != null ? memory : new Memory(0, 0, null);
         moderation = moderation != null ? moderation : new Moderation(null, 0);
+        assistant = assistant != null ? assistant : new Assistant(0, 0);
+    }
+
+    public record Assistant(int numCtx, int numPredict) {
+
+        public Assistant {
+            numCtx = numCtx > 0 ? numCtx : 4096;
+            numPredict = numPredict > 0 ? numPredict : 512;
+        }
     }
 
     public record RateLimit(boolean enabled, int requestsPerMinute) {

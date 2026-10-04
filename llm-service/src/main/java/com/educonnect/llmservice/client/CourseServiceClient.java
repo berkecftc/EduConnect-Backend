@@ -25,6 +25,11 @@ public interface CourseServiceClient {
             @RequestBody AnnouncementRequest request
     );
 
+    record EnrolledCourse(String id, String title, String code) {}
+
+    @GetMapping("/my-courses")
+    List<EnrolledCourse> getMyCourses(@RequestHeader("X-Authenticated-User-Id") String studentId);
+
     @GetMapping("/instructor/me/courses")
     List<InstructorCourseSummary> getMyInstructorCourses(
             @RequestHeader("X-Authenticated-User-Id") String instructorId

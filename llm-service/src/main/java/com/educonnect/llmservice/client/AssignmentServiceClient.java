@@ -9,7 +9,6 @@ import java.util.List;
 @FeignClient(name = "assignment-service", path = "/api/assignments")
 public interface AssignmentServiceClient {
 
-    // Temiz kod prensibi gereği record kullanıyoruz.
     record AssignmentResponse(
             String id,
             String title,
@@ -17,6 +16,11 @@ public interface AssignmentServiceClient {
             String dueDate,
             String courseId,
             String fileUrl,
+            String type,
+            String aiPolicy,
+            BigDecimal latePenaltyPercent,
+            String effectiveDueDate,
+            String effectiveLateUntil,
             SubmissionResponse submission
     ) {}
 
@@ -25,7 +29,7 @@ public interface AssignmentServiceClient {
             String submittedAt,
             BigDecimal grade,
             String feedback,
-            boolean isLate
+            boolean late
     ) {}
 
     @GetMapping("/my-assignments")
