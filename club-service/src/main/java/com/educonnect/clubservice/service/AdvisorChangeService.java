@@ -42,6 +42,7 @@ public class AdvisorChangeService {
     private final ClubNotificationPublisher notificationPublisher;
     private final ClubApprovalEngine approvalEngine;
     private final ClubDecisionLog decisionLog;
+    private final ClubCatalogEvents catalogEvents;
 
     public AdvisorChangeService(ClubApprovalRequestRepository requestRepository,
                                 ClubRepository clubRepository,
@@ -50,7 +51,8 @@ public class AdvisorChangeService {
                                 ClubLeadershipService leadershipService,
                                 ClubNotificationPublisher notificationPublisher,
                                 ClubApprovalEngine approvalEngine,
-                                ClubDecisionLog decisionLog) {
+                                ClubDecisionLog decisionLog,
+                                ClubCatalogEvents catalogEvents) {
         this.requestRepository = requestRepository;
         this.clubRepository = clubRepository;
         this.clubAuthorizationService = clubAuthorizationService;
@@ -59,6 +61,7 @@ public class AdvisorChangeService {
         this.notificationPublisher = notificationPublisher;
         this.approvalEngine = approvalEngine;
         this.decisionLog = decisionLog;
+        this.catalogEvents = catalogEvents;
     }
 
     public AdvisorChangeRequestResponse propose(UUID clubId, UUID requesterId, AdvisorChangeProposal proposal) {
@@ -124,6 +127,7 @@ public class AdvisorChangeService {
         club.setAcademicAdvisorId(null);
         club.setStatus(ClubStatus.AWAITING_ADVISOR);
         clubRepository.save(club);
+        catalogEvents.changed(club);
         decisionLog.record(clubId, DecisionAction.ADVISOR_RESIGNED, advisorId, advisorId, reason);
         log.info("Advisor resigned: clubId={}", clubId);
         String message = "\"" + club.getName() + "\" kulübünün danışmanı görevini bıraktı. "

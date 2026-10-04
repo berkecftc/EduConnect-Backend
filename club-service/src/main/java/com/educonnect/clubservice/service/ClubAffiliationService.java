@@ -31,6 +31,7 @@ public class ClubAffiliationService {
     private final ClubCacheEvictor cacheEvictor;
     private final ClubManagementStatusPublisher managementStatusPublisher;
     private final MembershipTerms membershipTerms;
+    private final ClubCatalogEvents catalogEvents;
 
     public ClubAffiliationService(ClubMembershipRepository membershipRepository,
                                   ClubRepository clubRepository,
@@ -39,7 +40,8 @@ public class ClubAffiliationService {
                                   ClubDecisionLog decisionLog,
                                   ClubCacheEvictor cacheEvictor,
                                   ClubManagementStatusPublisher managementStatusPublisher,
-                                  MembershipTerms membershipTerms) {
+                                  MembershipTerms membershipTerms,
+                                  ClubCatalogEvents catalogEvents) {
         this.membershipRepository = membershipRepository;
         this.clubRepository = clubRepository;
         this.leadershipService = leadershipService;
@@ -48,6 +50,7 @@ public class ClubAffiliationService {
         this.cacheEvictor = cacheEvictor;
         this.managementStatusPublisher = managementStatusPublisher;
         this.membershipTerms = membershipTerms;
+        this.catalogEvents = catalogEvents;
     }
 
     @Transactional
@@ -98,6 +101,7 @@ public class ClubAffiliationService {
             club.setAcademicAdvisorId(null);
             club.setStatus(ClubStatus.AWAITING_ADVISOR);
             clubRepository.save(club);
+            catalogEvents.changed(club);
             advised.add(club.getId());
         }
         advisorChangeService.advisorLeft(advised);

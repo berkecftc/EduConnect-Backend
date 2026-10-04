@@ -28,6 +28,8 @@ public interface ClubRepository extends JpaRepository<Club, UUID> {
 
     List<Club> findByStatusNot(ClubStatus status, Sort sort);
 
+    List<Club> findByStatus(ClubStatus status, Sort sort);
+
     Page<Club> findByStatusNot(ClubStatus status, Pageable pageable);
 
     List<Club> findByStatusNotAndProfileCategory(ClubStatus status, ClubCategory category);

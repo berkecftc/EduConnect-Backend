@@ -3,18 +3,13 @@ package com.educonnect.llmservice.config;
 import com.educonnect.llmservice.service.PendingAssignments;
 import com.educonnect.llmservice.service.UnifiedAgentService;
 import org.springframework.ai.chat.model.ToolContext;
-import org.springframework.ai.document.Document;
 import org.springframework.ai.tool.ToolCallback;
 import org.springframework.ai.tool.function.FunctionToolCallback;
-import org.springframework.ai.vectorstore.SearchRequest;
-import org.springframework.ai.vectorstore.VectorStore;
-import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import com.educonnect.llmservice.service.ClubCatalogIndex;
 
-import java.util.Arrays;
 import java.util.List;
-import java.util.Objects;
 import java.util.function.BiFunction;
 import java.util.function.Function;
 
@@ -22,20 +17,17 @@ import java.util.function.Function;
 public class AiToolsConfig {
 
     private final PendingAssignments pendingAssignments;
-    private final VectorStore clubVectorStore;
+    private final ClubCatalogIndex clubCatalog;
 
-    public AiToolsConfig(
-            PendingAssignments pendingAssignments,
-            @Qualifier("clubVectorStore") VectorStore clubVectorStore) {
+    public AiToolsConfig(PendingAssignments pendingAssignments, ClubCatalogIndex clubCatalog) {
         this.pendingAssignments = pendingAssignments;
-        this.clubVectorStore = clubVectorStore;
+        this.clubCatalog = clubCatalog;
     }
 
     public record GetAssignmentsRequest() {}
 
     public record ClubSearchRequest(String query) {}
 
-    public record ClubInfo(String clubName, String description) {}
 
     public static final String ASSIGNMENTS_TOOL = "getAssignmentsTool";
 
@@ -69,7 +61,8 @@ public class AiToolsConfig {
             and pass it as the 'query' parameter (e.g. "yazılım", "müzik", "yapay zeka", "spor").
 
             RESPONSE GUIDANCE:
-            - Present up to 3 relevant clubs with their name and a brief description.
+            - Present up to 3 relevant clubs with their name, category and a brief description.
+            - Only active clubs that accept members are in the catalog.
             - If no clubs match, suggest the student check the platform's club directory.
             - Never fabricate club names or descriptions.
             """;
@@ -104,38 +97,14 @@ public class AiToolsConfig {
         };
     }
 
-    Function<ClubSearchRequest, List<ClubInfo>> clubsFunction() {
+    Function<ClubSearchRequest, List<ClubCatalogIndex.ClubInfo>> clubsFunction() {
         return request -> {
             try {
-                return clubVectorStore
-                        .similaritySearch(SearchRequest.builder()
-                                .query(request.query())
-                                .topK(5)
-                                .similarityThreshold(0.50)
-                                .build())
-                        .stream()
-                        .map(this::toClubInfo)
-                        .toList();
+                return clubCatalog.search(request.query());
             } catch (Exception ex) {
                 return List.of();
             }
         };
     }
 
-    private ClubInfo toClubInfo(Document document) {
-        String content = Objects.requireNonNullElse(document.getText(), "");
-        String name = parseField(content, "Kulüp Adı:");
-        String description = parseField(content, "Açıklama:");
-        return new ClubInfo(
-                name.isBlank() ? "İsimsiz Kulüp" : name,
-                description.isBlank() ? "Açıklama mevcut değil." : description);
-    }
-
-    private String parseField(String content, String fieldLabel) {
-        return Arrays.stream(content.split("\\n"))
-                .filter(line -> line.trim().startsWith(fieldLabel))
-                .map(line -> line.substring(line.indexOf(':') + 1).trim())
-                .findFirst()
-                .orElse("");
-    }
 }

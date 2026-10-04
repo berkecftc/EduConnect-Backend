@@ -56,6 +56,7 @@ public class ClubLifecycleService {
     private final ClubNotificationPublisher notificationPublisher;
     private final ClubLeadershipService leadershipService;
     private final RoleChangeUserNames userNames;
+    private final ClubCatalogEvents catalogEvents;
 
     public ClubLifecycleService(ClubRepository clubRepository,
                                 ClubMembershipRepository membershipRepository,
@@ -70,7 +71,8 @@ public class ClubLifecycleService {
                                 AdvisorDirectory advisorDirectory,
                                 ClubNotificationPublisher notificationPublisher,
                                 ClubLeadershipService leadershipService,
-                                RoleChangeUserNames userNames) {
+                                RoleChangeUserNames userNames,
+                                ClubCatalogEvents catalogEvents) {
         this.clubRepository = clubRepository;
         this.membershipRepository = membershipRepository;
         this.archivedClubRepository = archivedClubRepository;
@@ -85,6 +87,7 @@ public class ClubLifecycleService {
         this.notificationPublisher = notificationPublisher;
         this.leadershipService = leadershipService;
         this.userNames = userNames;
+        this.catalogEvents = catalogEvents;
     }
 
     public Club updateClub(UUID clubId, UpdateClubRequest request) {
@@ -102,6 +105,7 @@ public class ClubLifecycleService {
         }
 
         Club updatedClub = clubRepository.save(club);
+        catalogEvents.changed(updatedClub);
         if (advisorChanged) {
             notificationPublisher.notifyAdvisor(updatedClub, "Kulüp danışmanlığı",
                     "\"" + updatedClub.getName() + "\" kulübüne akademik danışman olarak atandınız.");

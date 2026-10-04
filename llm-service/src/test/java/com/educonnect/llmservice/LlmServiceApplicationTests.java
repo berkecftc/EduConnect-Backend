@@ -1,10 +1,9 @@
 package com.educonnect.llmservice;
 
 import org.junit.jupiter.api.Test;
-import org.springframework.ai.vectorstore.VectorStore;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.test.web.servlet.MockMvc;
+import com.educonnect.llmservice.service.ClubCatalogIndex;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -15,15 +14,14 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 class LlmServiceApplicationTests {
 
     @Autowired
-    @Qualifier("clubVectorStore")
-    private VectorStore clubVectorStore;
+    private ClubCatalogIndex clubCatalog;
 
     @Autowired
     private MockMvc mockMvc;
 
     @Test
     void startsWithRealBrokerAndHealthIsUp() throws Exception {
-        assertThat(clubVectorStore).isNotNull();
+        assertThat(clubCatalog).isNotNull();
 
         mockMvc.perform(get("/actuator/health"))
                 .andExpect(status().isOk())

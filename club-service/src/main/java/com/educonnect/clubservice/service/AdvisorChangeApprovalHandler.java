@@ -15,13 +15,16 @@ class AdvisorChangeApprovalHandler implements ApprovalHandler {
     private final ClubRepository clubRepository;
     private final ClubLeadershipService leadershipService;
     private final ClubNotificationPublisher notificationPublisher;
+    private final ClubCatalogEvents catalogEvents;
 
     AdvisorChangeApprovalHandler(ClubRepository clubRepository,
                                  ClubLeadershipService leadershipService,
-                                 ClubNotificationPublisher notificationPublisher) {
+                                 ClubNotificationPublisher notificationPublisher,
+                                 ClubCatalogEvents catalogEvents) {
         this.clubRepository = clubRepository;
         this.leadershipService = leadershipService;
         this.notificationPublisher = notificationPublisher;
+        this.catalogEvents = catalogEvents;
     }
 
     @Override
@@ -47,6 +50,7 @@ class AdvisorChangeApprovalHandler implements ApprovalHandler {
         club.setAcademicAdvisorId(approverId);
         club.setStatus(ClubStatus.ACTIVE);
         clubRepository.save(club);
+        catalogEvents.changed(club);
         if (previousAdvisorId != null && !previousAdvisorId.equals(approverId)) {
             notificationPublisher.notifyUser(previousAdvisorId, club, "Kulüp danışmanlığı",
                     "\"" + club.getName() + "\" kulübünün danışmanlığı yeni danışmana devredildi. Danışmanlık göreviniz sona erdi.");

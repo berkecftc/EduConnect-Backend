@@ -47,6 +47,7 @@ public class ClubFoundingService {
     private final ClubNotificationPublisher notificationPublisher;
     private final ClubDecisionLog decisionLog;
     private final ClubFounderService founderService;
+    private final ClubCatalogEvents catalogEvents;
 
     public ClubFoundingService(ClubRepository clubRepository,
                                ClubMembershipRepository membershipRepository,
@@ -57,7 +58,8 @@ public class ClubFoundingService {
                                ClubManagementStatusPublisher managementStatusPublisher,
                                ClubNotificationPublisher notificationPublisher,
                                ClubDecisionLog decisionLog,
-                               ClubFounderService founderService) {
+                               ClubFounderService founderService,
+                               ClubCatalogEvents catalogEvents) {
         this.clubRepository = clubRepository;
         this.membershipRepository = membershipRepository;
         this.requestRepository = requestRepository;
@@ -68,6 +70,7 @@ public class ClubFoundingService {
         this.notificationPublisher = notificationPublisher;
         this.decisionLog = decisionLog;
         this.founderService = founderService;
+        this.catalogEvents = catalogEvents;
     }
 
     public Club createClub(CreateClubRequest request) {
@@ -85,6 +88,7 @@ public class ClubFoundingService {
         newClub.setAbout(request.getAbout());
         newClub.setAcademicAdvisorId(request.getAcademicAdvisorId());
         Club savedClub = clubRepository.save(newClub);
+        catalogEvents.changed(savedClub);
 
         ClubMembership presidentMembership = new ClubMembership(
                 savedClub.getId(),
