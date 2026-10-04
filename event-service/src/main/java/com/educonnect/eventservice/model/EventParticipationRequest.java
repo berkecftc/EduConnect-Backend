@@ -1,7 +1,7 @@
 package com.educonnect.eventservice.model;
 
 import jakarta.persistence.*;
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.UUID;
 
 /**
@@ -33,10 +33,10 @@ public class EventParticipationRequest {
     private ParticipationRequestStatus status = ParticipationRequestStatus.PENDING;
 
     @Column(name = "request_date", nullable = false)
-    private LocalDateTime requestDate;
+    private Instant requestDate;
 
     @Column(name = "processed_date")
-    private LocalDateTime processedDate;
+    private Instant processedDate;
 
     @Column(name = "processed_by")
     private UUID processedBy; // İşlemi yapan kulüp yetkilisi
@@ -55,7 +55,7 @@ public class EventParticipationRequest {
         this.eventId = eventId;
         this.studentId = studentId;
         this.status = ParticipationRequestStatus.PENDING;
-        this.requestDate = LocalDateTime.now();
+        this.requestDate = Instant.now();
     }
 
     // --- Getter/Setter ---
@@ -71,11 +71,11 @@ public class EventParticipationRequest {
     public ParticipationRequestStatus getStatus() { return status; }
     public void setStatus(ParticipationRequestStatus status) { this.status = status; }
 
-    public LocalDateTime getRequestDate() { return requestDate; }
-    public void setRequestDate(LocalDateTime requestDate) { this.requestDate = requestDate; }
+    public Instant getRequestDate() { return requestDate; }
+    public void setRequestDate(Instant requestDate) { this.requestDate = requestDate; }
 
-    public LocalDateTime getProcessedDate() { return processedDate; }
-    public void setProcessedDate(LocalDateTime processedDate) { this.processedDate = processedDate; }
+    public Instant getProcessedDate() { return processedDate; }
+    public void setProcessedDate(Instant processedDate) { this.processedDate = processedDate; }
 
     public UUID getProcessedBy() { return processedBy; }
     public void setProcessedBy(UUID processedBy) { this.processedBy = processedBy; }
@@ -86,4 +86,3 @@ public class EventParticipationRequest {
     public String getRejectionReason() { return rejectionReason; }
     public void setRejectionReason(String rejectionReason) { this.rejectionReason = rejectionReason; }
 }
-

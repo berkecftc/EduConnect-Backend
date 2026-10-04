@@ -8,7 +8,7 @@ import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.UUID;
 
 @Component
@@ -33,7 +33,7 @@ public class PositionHistoryRecorder {
         }
     }
 
-    public void closeAll(UUID clubId, LocalDateTime at, PositionEndReason reason) {
+    public void closeAll(UUID clubId, Instant at, PositionEndReason reason) {
         termRepository.findByClubIdAndEndedAtIsNull(clubId).forEach(term -> term.end(at, reason));
     }
 }

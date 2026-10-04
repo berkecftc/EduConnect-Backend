@@ -3,6 +3,7 @@ package com.educonnect.assignmentservice.dto;
 import com.educonnect.assignmentservice.model.AssessmentType;
 
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
@@ -18,7 +19,7 @@ public record GradebookResponse(UUID courseId, BigDecimal totalWeight, List<Colu
     }
 
     public record Cell(UUID assignmentId, UUID submissionId, Status status, BigDecimal grade, BigDecimal finalGrade, boolean late,
-                       LocalDateTime submittedAt) {
+                       Instant submittedAt) {
     }
 
     public enum Status {

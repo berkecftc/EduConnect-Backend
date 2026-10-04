@@ -1,7 +1,7 @@
 package com.educonnect.assignmentservice.dto;
 
 import java.math.BigDecimal;
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.UUID;
 
 public class SubmissionSummaryDTO {
@@ -10,7 +10,7 @@ public class SubmissionSummaryDTO {
     private String studentName;
     private String studentNumber;
     private String submissionFileUrl;
-    private LocalDateTime submittedAt;
+    private Instant submittedAt;
     private BigDecimal grade;
     private BigDecimal finalGrade;
     private String textContent;
@@ -38,8 +38,8 @@ public class SubmissionSummaryDTO {
     public String getSubmissionFileUrl() { return submissionFileUrl; }
     public void setSubmissionFileUrl(String submissionFileUrl) { this.submissionFileUrl = submissionFileUrl; }
 
-    public LocalDateTime getSubmittedAt() { return submittedAt; }
-    public void setSubmittedAt(LocalDateTime submittedAt) { this.submittedAt = submittedAt; }
+    public Instant getSubmittedAt() { return submittedAt; }
+    public void setSubmittedAt(Instant submittedAt) { this.submittedAt = submittedAt; }
 
     public BigDecimal getGrade() { return grade; }
     public void setGrade(BigDecimal grade) { this.grade = grade; }

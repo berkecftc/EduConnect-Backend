@@ -1,6 +1,6 @@
 package com.educonnect.courseservice.dto;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.UUID;
 
 public class EnrolledStudentDTO {
@@ -10,7 +10,7 @@ public class EnrolledStudentDTO {
     private String studentNumber;
     private String email;
     private String department;
-    private LocalDateTime enrollmentDate;
+    private Instant enrollmentDate;
 
     public EnrolledStudentDTO() {}
 
@@ -33,7 +33,6 @@ public class EnrolledStudentDTO {
     public String getDepartment() { return department; }
     public void setDepartment(String department) { this.department = department; }
 
-    public LocalDateTime getEnrollmentDate() { return enrollmentDate; }
-    public void setEnrollmentDate(LocalDateTime enrollmentDate) { this.enrollmentDate = enrollmentDate; }
+    public Instant getEnrollmentDate() { return enrollmentDate; }
+    public void setEnrollmentDate(Instant enrollmentDate) { this.enrollmentDate = enrollmentDate; }
 }
-

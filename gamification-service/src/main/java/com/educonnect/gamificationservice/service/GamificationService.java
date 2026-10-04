@@ -21,12 +21,10 @@ import org.springframework.transaction.support.TransactionTemplate;
 import com.educonnect.common.messaging.notification.NotificationCategory;
 import com.educonnect.common.messaging.notification.NotificationRequest;
 import com.educonnect.common.messaging.outbox.OutboxPublisher;
+import com.educonnect.common.messaging.notification.TurkishDates;
 
 import java.time.DayOfWeek;
 import java.time.LocalDate;
-import java.time.LocalDateTime;
-import java.time.OffsetDateTime;
-import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
@@ -34,6 +32,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
+import java.time.Instant;
 
 @Service
 public class GamificationService {
@@ -103,7 +102,8 @@ public class GamificationService {
             return;
         }
 
-        LocalDateTime eventOccurredAt = resolveOccurredAt(event.getOccurredAt());
+        Instant eventOccurredAt = event.getOccurredAt() != null ? event.getOccurredAt().toInstant() : Instant.now();
+        LocalDate eventDate = eventOccurredAt.atZone(TurkishDates.ZONE).toLocalDate();
 
         if (pointHistoryRepository.existsByUserIdAndActionTypeAndReferenceId(
                 event.getUserId(), event.getActionType(), event.getReferenceId())) {
@@ -118,7 +118,7 @@ public class GamificationService {
         int earnedPoints;
         if (REVISIONS.contains(event.getActionType())) {
             earnedPoints = revision(event);
-        } else if (isDailyPointsLimitReached(event.getUserId(), event.getActionType(), eventOccurredAt.toLocalDate())) {
+        } else if (isDailyPointsLimitReached(event.getUserId(), event.getActionType(), eventDate)) {
             earnedPoints = 0;
             log.info("Daily points limit reached. userId={}, actionType={}, limit={}",
                     event.getUserId(), event.getActionType(), DAILY_LIMITS.get(event.getActionType()));
@@ -126,7 +126,7 @@ public class GamificationService {
             earnedPoints = POINTS.getOrDefault(event.getActionType(), 0);
         }
         if (CONTRIBUTIONS.contains(event.getActionType())) {
-            applyWeeklyStreak(reputation, eventOccurredAt.toLocalDate());
+            applyWeeklyStreak(reputation, eventDate);
         }
 
         reputation.setTotalPoints(Math.max(0, reputation.getTotalPoints() + earnedPoints));
@@ -179,8 +179,8 @@ public class GamificationService {
     }
 
     private boolean isDailyPointsLimitReached(UUID userId, ActionType actionType, LocalDate eventDate) {
-        LocalDateTime dayStart = eventDate.atStartOfDay();
-        LocalDateTime dayEnd = eventDate.plusDays(1).atStartOfDay().minusNanos(1);
+        Instant dayStart = eventDate.atStartOfDay(TurkishDates.ZONE).toInstant();
+        Instant dayEnd = eventDate.plusDays(1).atStartOfDay(TurkishDates.ZONE).toInstant().minusNanos(1);
         long earnedCount = pointHistoryRepository.countByUserIdAndActionTypeAndCreatedAtBetweenAndPointsEarnedGreaterThan(
                 userId,
                 actionType,
@@ -219,13 +219,6 @@ public class GamificationService {
         );
     }
 
-    private LocalDateTime resolveOccurredAt(OffsetDateTime occurredAt) {
-        if (occurredAt != null) {
-            return occurredAt.atZoneSameInstant(ZoneId.of("Europe/Istanbul")).toLocalDateTime();
-        }
-        return OffsetDateTime.now(ZoneId.of("Europe/Istanbul")).toLocalDateTime();
-    }
-
     private void validateEvent(GamificationEvent event) {
         if (event == null || event.getUserId() == null || event.getActionType() == null ||
                 event.getReferenceId() == null || event.getReferenceId().isBlank()) {
@@ -233,7 +226,7 @@ public class GamificationService {
         }
     }
 
-    private void awardNewBadges(UUID userId, LocalDateTime earnedAt, UserReputation reputation, ActionType actionType) {
+    private void awardNewBadges(UUID userId, Instant earnedAt, UserReputation reputation, ActionType actionType) {
         List<BadgeType> eligibleBadges = resolveBadges(reputation.getTotalPoints(), reputation.getHighestStreak(), actionType);
         if (eligibleBadges.isEmpty()) {
             return;

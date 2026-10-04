@@ -14,7 +14,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Clock;
 import java.time.Duration;
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -52,7 +52,7 @@ public class ArchiveRetentionService {
     @Scheduled(cron = "${educonnect.user.archive.purge-cron:0 15 3 * * *}")
     @Transactional
     public int purgeExpired() {
-        LocalDateTime cutoff = LocalDateTime.now(clock).minus(retention);
+        Instant cutoff = Instant.now(clock).minus(retention);
         List<ArchivedStudent> students = archivedStudentRepository.findByDeletedAtBefore(cutoff);
         List<ArchivedAcademician> academicians = archivedAcademicianRepository.findByDeletedAtBefore(cutoff);
         if (students.isEmpty() && academicians.isEmpty()) {

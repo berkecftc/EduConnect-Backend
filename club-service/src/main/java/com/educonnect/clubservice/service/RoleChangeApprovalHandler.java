@@ -13,7 +13,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Component;
 import org.springframework.web.server.ResponseStatusException;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.UUID;
 
 @Component
@@ -67,7 +67,7 @@ class RoleChangeApprovalHandler implements ApprovalHandler {
         ClubMembership membership = validateStillValid(request);
         ClubPosition previousRole = membership.getClubRole();
         ClubPosition newRole = request.getRequestedPosition();
-        membership.assignPosition(newRole, LocalDateTime.now(),
+        membership.assignPosition(newRole, Instant.now(),
                 newRole == ClubPosition.MEMBER ? PositionEndReason.REMOVED : PositionEndReason.CHANGED);
         membership.setActive(true);
         if (newRole == ClubPosition.MEMBER) {

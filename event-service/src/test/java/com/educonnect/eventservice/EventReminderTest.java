@@ -11,6 +11,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
 
+import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
@@ -91,7 +92,7 @@ class EventReminderTest {
         event.setClubId(UUID.randomUUID());
         event.setClubName("Kulüp");
         event.setStatus(EventStatus.ACTIVE);
-        event.setPublishedAt(LocalDateTime.now());
+        event.setPublishedAt(Instant.now());
         return eventRepository.save(event);
     }
 }

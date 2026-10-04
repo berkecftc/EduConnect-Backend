@@ -2,7 +2,7 @@ package com.educonnect.courseservice.dto;
 
 import com.educonnect.courseservice.model.CourseStatus;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.UUID;
 
 public class EnrolledCourseDTO implements OfferingView {
@@ -21,7 +21,7 @@ public class EnrolledCourseDTO implements OfferingView {
     private String imageUrl;
     private UUID instructorId;
     private String instructorName;
-    private LocalDateTime enrollmentDate;
+    private Instant enrollmentDate;
 
     public EnrolledCourseDTO() {}
 
@@ -65,6 +65,6 @@ public class EnrolledCourseDTO implements OfferingView {
     public String getInstructorName() { return instructorName; }
     public void setInstructorName(String instructorName) { this.instructorName = instructorName; }
 
-    public LocalDateTime getEnrollmentDate() { return enrollmentDate; }
-    public void setEnrollmentDate(LocalDateTime enrollmentDate) { this.enrollmentDate = enrollmentDate; }
+    public Instant getEnrollmentDate() { return enrollmentDate; }
+    public void setEnrollmentDate(Instant enrollmentDate) { this.enrollmentDate = enrollmentDate; }
 }

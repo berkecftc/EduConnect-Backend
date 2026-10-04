@@ -78,7 +78,7 @@ public class EventQueryService {
         return eventRepository.findAll();
     }
 
-    @Cacheable(value = "studentEventRegistrations", key = "#studentId")
+    @Cacheable(value = EventCaches.STUDENT_EVENT_REGISTRATIONS, key = "#studentId")
     public List<MyEventRegistrationDTO> getStudentEventRegistrations(UUID studentId) {
         List<EventRegistration> registrations = eventRegistrationRepository.findByStudentId(studentId);
         List<UUID> eventIds = registrations.stream().map(EventRegistration::getEventId).distinct().toList();
@@ -147,7 +147,7 @@ public class EventQueryService {
         }).collect(Collectors.toList());
     }
 
-    @Cacheable(value = "clubEvents", key = "#clubId")
+    @Cacheable(value = EventCaches.CLUB_EVENTS, key = "#clubId")
     public List<Event> getEventsByClubId(UUID clubId) {
         return eventRepository.findByClubId(clubId);
     }

@@ -8,7 +8,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
@@ -31,7 +31,7 @@ public interface CourseApplicationRepository extends JpaRepository<CourseApplica
     @Query("UPDATE CourseApplication a SET a.status = :closed, a.processedDate = :at, a.version = a.version + 1 "
             + "WHERE a.courseId = :courseId AND a.status = :pending")
     int closePending(@Param("courseId") UUID courseId, @Param("pending") CourseApplicationStatus pending,
-                     @Param("closed") CourseApplicationStatus closed, @Param("at") LocalDateTime at);
+                     @Param("closed") CourseApplicationStatus closed, @Param("at") Instant at);
 
     // Öğrencinin tüm başvurularını getir
     List<CourseApplication> findByStudentIdOrderByApplicationDateDesc(UUID studentId);

@@ -1,5 +1,6 @@
 package com.educonnect.eventservice.dto;
 
+import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
@@ -10,7 +11,7 @@ public class MyEventRegistrationDTO {
     private LocalDateTime eventDate;
     private String eventLocation;
     private String qrCode;
-    private LocalDateTime registrationTime;
+    private Instant registrationTime;
     private boolean attended;
     private String registrationStatus;
     private String eventStatus;
@@ -36,8 +37,8 @@ public class MyEventRegistrationDTO {
     public String getQrCode() { return qrCode; }
     public void setQrCode(String qrCode) { this.qrCode = qrCode; }
 
-    public LocalDateTime getRegistrationTime() { return registrationTime; }
-    public void setRegistrationTime(LocalDateTime registrationTime) { this.registrationTime = registrationTime; }
+    public Instant getRegistrationTime() { return registrationTime; }
+    public void setRegistrationTime(Instant registrationTime) { this.registrationTime = registrationTime; }
 
     public boolean isAttended() { return attended; }
     public void setAttended(boolean attended) { this.attended = attended; }

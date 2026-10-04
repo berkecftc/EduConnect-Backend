@@ -4,7 +4,7 @@ import com.educonnect.userservice.models.ArchivedAcademician;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -18,7 +18,7 @@ public interface ArchivedAcademicianRepository extends JpaRepository<ArchivedAca
     // Tüm arşivlenmiş akademisyenleri silme tarihine göre sırala
     List<ArchivedAcademician> findAllByOrderByDeletedAtDesc();
 
-    List<ArchivedAcademician> findByDeletedAtBefore(LocalDateTime cutoff);
+    List<ArchivedAcademician> findByDeletedAtBefore(Instant cutoff);
 
     // Bölüme göre arşivlenmiş akademisyenleri bul
     List<ArchivedAcademician> findByDepartment(String department);

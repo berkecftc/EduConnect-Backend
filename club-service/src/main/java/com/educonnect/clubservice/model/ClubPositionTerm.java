@@ -9,7 +9,7 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.UUID;
 
 @Entity
@@ -31,10 +31,10 @@ public class ClubPositionTerm {
     private ClubPosition position;
 
     @Column(name = "started_at", nullable = false)
-    private LocalDateTime startedAt;
+    private Instant startedAt;
 
     @Column(name = "ended_at")
-    private LocalDateTime endedAt;
+    private Instant endedAt;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "end_reason", length = 20)
@@ -43,14 +43,14 @@ public class ClubPositionTerm {
     protected ClubPositionTerm() {
     }
 
-    public ClubPositionTerm(UUID clubId, UUID studentId, ClubPosition position, LocalDateTime startedAt) {
+    public ClubPositionTerm(UUID clubId, UUID studentId, ClubPosition position, Instant startedAt) {
         this.clubId = clubId;
         this.studentId = studentId;
         this.position = position;
         this.startedAt = startedAt;
     }
 
-    public void end(LocalDateTime at, PositionEndReason reason) {
+    public void end(Instant at, PositionEndReason reason) {
         this.endedAt = at;
         this.endReason = reason;
     }
@@ -59,7 +59,7 @@ public class ClubPositionTerm {
     public UUID getClubId() { return clubId; }
     public UUID getStudentId() { return studentId; }
     public ClubPosition getPosition() { return position; }
-    public LocalDateTime getStartedAt() { return startedAt; }
-    public LocalDateTime getEndedAt() { return endedAt; }
+    public Instant getStartedAt() { return startedAt; }
+    public Instant getEndedAt() { return endedAt; }
     public PositionEndReason getEndReason() { return endReason; }
 }

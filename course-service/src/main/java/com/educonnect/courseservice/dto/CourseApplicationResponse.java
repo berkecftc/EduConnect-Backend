@@ -2,7 +2,7 @@ package com.educonnect.courseservice.dto;
 
 import com.educonnect.courseservice.model.CourseApplicationStatus;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.UUID;
 
 public class CourseApplicationResponse {
@@ -15,8 +15,8 @@ public class CourseApplicationResponse {
     private String studentNumber;
     private String studentEmail;
     private CourseApplicationStatus status;
-    private LocalDateTime applicationDate;
-    private LocalDateTime processedDate;
+    private Instant applicationDate;
+    private Instant processedDate;
     private String rejectionReason;
 
     public CourseApplicationResponse() {}
@@ -49,13 +49,12 @@ public class CourseApplicationResponse {
     public CourseApplicationStatus getStatus() { return status; }
     public void setStatus(CourseApplicationStatus status) { this.status = status; }
 
-    public LocalDateTime getApplicationDate() { return applicationDate; }
-    public void setApplicationDate(LocalDateTime applicationDate) { this.applicationDate = applicationDate; }
+    public Instant getApplicationDate() { return applicationDate; }
+    public void setApplicationDate(Instant applicationDate) { this.applicationDate = applicationDate; }
 
-    public LocalDateTime getProcessedDate() { return processedDate; }
-    public void setProcessedDate(LocalDateTime processedDate) { this.processedDate = processedDate; }
+    public Instant getProcessedDate() { return processedDate; }
+    public void setProcessedDate(Instant processedDate) { this.processedDate = processedDate; }
 
     public String getRejectionReason() { return rejectionReason; }
     public void setRejectionReason(String rejectionReason) { this.rejectionReason = rejectionReason; }
 }
-

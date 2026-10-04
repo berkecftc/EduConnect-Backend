@@ -3,7 +3,7 @@ package com.educonnect.clubservice.dto.response;
 import com.educonnect.clubservice.model.ClubCreationRequest;
 import com.educonnect.clubservice.model.ClubCreationRequestStatus;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 
@@ -13,9 +13,9 @@ public record ClubCreationRequestResponse(UUID id,
                                           UUID requestingStudentId,
                                           UUID suggestedAdvisorId,
                                           ClubCreationRequestStatus status,
-                                          LocalDateTime requestDate,
+                                          Instant requestDate,
                                           String rejectionReason,
-                                          LocalDateTime processedAt,
+                                          Instant processedAt,
                                           UUID processedBy,
                                           UUID clubId,
                                           List<FounderResponse> founders) {

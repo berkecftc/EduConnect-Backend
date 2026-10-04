@@ -18,6 +18,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
 import org.springframework.test.web.servlet.request.AbstractMockHttpServletRequestBuilder;
 
+import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Set;
@@ -163,7 +164,7 @@ class EventStaffTest {
         event.setClubId(clubId);
         event.setClubName("Kulüp");
         event.setStatus(EventStatus.ACTIVE);
-        event.setPublishedAt(LocalDateTime.now());
+        event.setPublishedAt(Instant.now());
         return eventRepository.save(event);
     }
 

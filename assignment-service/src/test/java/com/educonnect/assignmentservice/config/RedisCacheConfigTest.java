@@ -7,6 +7,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.data.redis.serializer.GenericJacksonJsonRedisSerializer;
 
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -22,7 +23,7 @@ class RedisCacheConfigTest {
     void cachedAssignmentsKeepTheirSubmission() {
         MySubmissionDTO submission = new MySubmissionDTO();
         submission.setSubmissionId(UUID.randomUUID());
-        submission.setSubmittedAt(LocalDateTime.of(2026, 10, 2, 23, 50));
+        submission.setSubmittedAt(Instant.parse("2026-10-02T20:50:00Z"));
         submission.setGrade(new BigDecimal("85.5"));
         submission.setLate(true);
         MyAssignmentDTO assignment = new MyAssignmentDTO();

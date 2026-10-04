@@ -23,6 +23,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import com.educonnect.common.messaging.notification.TurkishDates;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -142,7 +143,8 @@ public class LeaderboardService {
             }
             return points;
         }
-        historyRepository.totalsBetween(term.startsOn().atStartOfDay(), term.endsOn().plusDays(1).atStartOfDay(),
+        historyRepository.totalsBetween(term.startsOn().atStartOfDay(TurkishDates.ZONE).toInstant(),
+                term.endsOn().plusDays(1).atStartOfDay(TurkishDates.ZONE).toInstant(),
                         PageRequest.of(0, CANDIDATE_POOL))
                 .forEach(row -> points.put(row.getUserId(), row.getPoints()));
         return points;

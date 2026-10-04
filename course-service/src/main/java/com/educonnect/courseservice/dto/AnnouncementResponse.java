@@ -1,6 +1,6 @@
 package com.educonnect.courseservice.dto;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.UUID;
 
 public class AnnouncementResponse {
@@ -9,7 +9,7 @@ public class AnnouncementResponse {
     private String courseTitle;
     private String title;
     private String content;
-    private LocalDateTime createdAt;
+    private Instant createdAt;
     private UUID createdBy;
     private String createdByName;
 
@@ -31,8 +31,8 @@ public class AnnouncementResponse {
     public String getContent() { return content; }
     public void setContent(String content) { this.content = content; }
 
-    public LocalDateTime getCreatedAt() { return createdAt; }
-    public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
+    public Instant getCreatedAt() { return createdAt; }
+    public void setCreatedAt(Instant createdAt) { this.createdAt = createdAt; }
 
     public UUID getCreatedBy() { return createdBy; }
     public void setCreatedBy(UUID createdBy) { this.createdBy = createdBy; }
@@ -40,4 +40,3 @@ public class AnnouncementResponse {
     public String getCreatedByName() { return createdByName; }
     public void setCreatedByName(String createdByName) { this.createdByName = createdByName; }
 }
-

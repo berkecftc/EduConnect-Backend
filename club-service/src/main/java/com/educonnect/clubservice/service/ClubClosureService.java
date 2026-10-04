@@ -26,7 +26,7 @@ import org.springframework.transaction.annotation.Transactional;
 import com.educonnect.common.messaging.notification.NotificationCategory;
 
 import java.time.Clock;
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 import java.util.ArrayList;
@@ -93,7 +93,7 @@ public class ClubClosureService {
         club.close(closedBy, reason, clock.instant());
         clubRepository.save(club);
         closePendingRequests(club, closedBy, closingRequestId);
-        positionHistory.closeAll(clubId, LocalDateTime.now(), PositionEndReason.CLUB_CLOSED);
+        positionHistory.closeAll(clubId, Instant.now(), PositionEndReason.CLUB_CLOSED);
         decisionLog.record(clubId, DecisionAction.CLUB_CLOSED, closedBy, null, reason);
 
         List<ClubMembership> activeMembers = membershipRepository.findByClubId(clubId).stream()
@@ -116,7 +116,7 @@ public class ClubClosureService {
 
     private void closePendingRequests(Club club, UUID closedBy, UUID closingRequestId) {
         UUID clubId = club.getId();
-        LocalDateTime now = LocalDateTime.now(clock);
+        Instant now = Instant.now(clock);
         List<UUID> applicants = new ArrayList<>();
         for (ClubMembershipRequest request : membershipRequestRepository.findByClubIdAndStatus(clubId, MembershipRequestStatus.PENDING)) {
             request.setStatus(MembershipRequestStatus.REJECTED);

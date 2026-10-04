@@ -2,7 +2,7 @@ package com.educonnect.userservice.models;
 
 import jakarta.persistence.*;
 import com.educonnect.common.storage.ObjectUrlConverter;
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.UUID;
 
 @Entity
@@ -32,7 +32,7 @@ public class ArchivedAcademician {
     private String profileImageUrl;
 
     @Column(nullable = false)
-    private LocalDateTime deletedAt;
+    private Instant deletedAt;
 
     @Column(length = 1000)
     private String deletionReason;
@@ -42,7 +42,7 @@ public class ArchivedAcademician {
 
     public ArchivedAcademician(UUID originalId, String firstName, String lastName, String title,
                               String department, String officeNumber, String profileImageUrl,
-                              LocalDateTime deletedAt, String deletionReason) {
+                              Instant deletedAt, String deletionReason) {
         this.originalId = originalId;
         this.firstName = firstName;
         this.lastName = lastName;
@@ -119,11 +119,11 @@ public class ArchivedAcademician {
         this.profileImageUrl = profileImageUrl;
     }
 
-    public LocalDateTime getDeletedAt() {
+    public Instant getDeletedAt() {
         return deletedAt;
     }
 
-    public void setDeletedAt(LocalDateTime deletedAt) {
+    public void setDeletedAt(Instant deletedAt) {
         this.deletedAt = deletedAt;
     }
 
@@ -135,4 +135,3 @@ public class ArchivedAcademician {
         this.deletionReason = deletionReason;
     }
 }
-

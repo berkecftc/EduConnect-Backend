@@ -19,6 +19,7 @@ import org.springframework.web.multipart.MultipartFile;
 import com.educonnect.assignmentservice.model.AiPolicy;
 
 import java.time.Clock;
+import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
@@ -98,6 +99,7 @@ public class SubmissionService {
             throw new ConflictException("SUBMISSION_CLOSED", "Teslim süresi doldu.");
         }
         boolean late = window.isLate(now);
+        Instant at = clock.instant();
         Optional<AssignmentSubmission> existing = groupWork.submissionOf(assignment, studentId);
         existing.ifPresent(previous -> {
             if (previous.getGrade() != null) {
@@ -113,13 +115,13 @@ public class SubmissionService {
         submission.setGroupId(groupId);
         submission.setSubmissionFileUrl(fileUrl);
         submission.setTextContent(body);
-        submission.setSubmittedAt(now);
+        submission.setSubmittedAt(at);
         submission.setLate(late);
         submission.setAiUsed(aiUsed);
         submission.setAiNote(Boolean.TRUE.equals(aiUsed) ? note : null);
         AssignmentSubmission saved = submissionRepository.save(submission);
         versionRepository.save(new SubmissionVersion(saved.getId(), versionRepository.countBySubmissionId(saved.getId()) + 1,
-                fileUrl, body, now, late, studentId));
+                fileUrl, body, at, late, studentId));
         if (groupId != null) {
             studentCache.evict(groupWork.membersByGroup(List.of(groupId)).getOrDefault(groupId, List.of()));
         }

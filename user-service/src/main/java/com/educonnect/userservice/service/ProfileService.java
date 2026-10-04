@@ -27,7 +27,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.LinkedHashMap;
@@ -45,7 +45,7 @@ import java.util.stream.Collectors;
 public class ProfileService {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(ProfileService.class);
-    private static final String USER_PROFILE_CACHE = "userProfileV4";
+    private static final String USER_PROFILE_CACHE = "userProfileV5";
     public static final String STUDENT_AFFILIATION = "STUDENT";
     public static final String ACADEMICIAN_AFFILIATION = "ACADEMICIAN";
     private static final String USER_PROFILE_BY_STUDENT_NUMBER_CACHE = "userProfileByStudentNumberV2";
@@ -194,7 +194,7 @@ public class ProfileService {
             student.getStudentNumber(),
             student.getDepartment(),
             student.getProfileImageUrl(),
-            LocalDateTime.now(),
+            Instant.now(),
             reason
         );
 
@@ -229,7 +229,7 @@ public class ProfileService {
             academician.getDepartment(),
             academician.getOfficeNumber(),
             academician.getProfileImageUrl(),
-            LocalDateTime.now(),
+            Instant.now(),
             reason
         );
 

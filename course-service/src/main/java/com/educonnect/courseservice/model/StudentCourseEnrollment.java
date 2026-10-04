@@ -2,7 +2,6 @@ package com.educonnect.courseservice.model;
 
 import jakarta.persistence.*;
 import java.time.Instant;
-import java.time.LocalDateTime;
 import java.util.UUID;
 
 @Entity
@@ -21,7 +20,7 @@ public class StudentCourseEnrollment {
     private UUID studentId;
 
     @Column(name = "enrollment_date", nullable = false)
-    private LocalDateTime enrollmentDate = LocalDateTime.now();
+    private Instant enrollmentDate = Instant.now();
 
     @Column(name = "is_active", nullable = false)
     private boolean isActive = true;
@@ -42,7 +41,7 @@ public class StudentCourseEnrollment {
     public StudentCourseEnrollment(UUID courseId, UUID studentId) {
         this.courseId = courseId;
         this.studentId = studentId;
-        this.enrollmentDate = LocalDateTime.now();
+        this.enrollmentDate = Instant.now();
         this.isActive = true;
     }
 
@@ -56,8 +55,8 @@ public class StudentCourseEnrollment {
     public UUID getStudentId() { return studentId; }
     public void setStudentId(UUID studentId) { this.studentId = studentId; }
 
-    public LocalDateTime getEnrollmentDate() { return enrollmentDate; }
-    public void setEnrollmentDate(LocalDateTime enrollmentDate) { this.enrollmentDate = enrollmentDate; }
+    public Instant getEnrollmentDate() { return enrollmentDate; }
+    public void setEnrollmentDate(Instant enrollmentDate) { this.enrollmentDate = enrollmentDate; }
 
     public boolean isActive() { return isActive; }
     public void setActive(boolean active) { isActive = active; }
@@ -72,7 +71,7 @@ public class StudentCourseEnrollment {
         this.withdrawalReason = reason;
     }
 
-    public void reactivate(LocalDateTime at) {
+    public void reactivate(Instant at) {
         this.isActive = true;
         this.enrollmentDate = at;
         this.withdrawnAt = null;

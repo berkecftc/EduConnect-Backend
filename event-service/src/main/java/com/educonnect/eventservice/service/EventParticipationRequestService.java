@@ -28,6 +28,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 import com.educonnect.common.messaging.notification.NotificationCategory;
 
+import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.Optional;
@@ -89,7 +90,7 @@ public class EventParticipationRequestService {
         if (request == null) {
             request = new EventParticipationRequest(eventId, studentId);
         } else {
-            request.setRequestDate(LocalDateTime.now());
+            request.setRequestDate(Instant.now());
             request.setProcessedDate(null);
             request.setProcessedBy(null);
             request.setRejectionReason(null);
@@ -99,7 +100,7 @@ public class EventParticipationRequestService {
         if (event.getAdmission() == AdmissionMode.AUTO_CONFIRM) {
             if (hasSpace(event)) {
                 request.setStatus(ParticipationRequestStatus.APPROVED);
-                request.setProcessedDate(LocalDateTime.now());
+                request.setProcessedDate(Instant.now());
                 participationRequestRepository.save(request);
                 register(event, studentId, EventRegistrationMessage.ORIGIN_SELF);
             } else {
@@ -141,7 +142,7 @@ public class EventParticipationRequestService {
         }
 
         request.setStatus(ParticipationRequestStatus.APPROVED);
-        request.setProcessedDate(LocalDateTime.now());
+        request.setProcessedDate(Instant.now());
         request.setProcessedBy(approverId);
         participationRequestRepository.save(request);
         EventRegistration registration = register(event, request.getStudentId(), EventRegistrationMessage.ORIGIN_REQUEST_APPROVED);
@@ -162,7 +163,7 @@ public class EventParticipationRequestService {
         }
 
         request.setStatus(ParticipationRequestStatus.REJECTED);
-        request.setProcessedDate(LocalDateTime.now());
+        request.setProcessedDate(Instant.now());
         request.setProcessedBy(rejecterId);
         request.setRejectionReason(rejectionReason);
         EventParticipationRequest savedRequest = participationRequestRepository.save(request);
@@ -184,7 +185,7 @@ public class EventParticipationRequestService {
             throw new ConflictException("CANCELLATION_CLOSED", "Kayıt iptal süresi geçti.");
         }
         registration.setStatus(RegistrationStatus.CANCELLED);
-        registration.setCancelledAt(now);
+        registration.setCancelledAt(Instant.now());
         eventRegistrationRepository.save(registration);
         participationRequestRepository.findByEventIdAndStudentId(eventId, studentId)
                 .filter(request -> request.getStatus() == ParticipationRequestStatus.APPROVED)
@@ -202,7 +203,7 @@ public class EventParticipationRequestService {
                 .filter(candidate -> OPEN.contains(candidate.getStatus()))
                 .orElseThrow(() -> new NotFoundException("REQUEST_NOT_FOUND", "Bekleyen bir katılım isteğiniz yok."));
         request.setStatus(ParticipationRequestStatus.WITHDRAWN);
-        request.setProcessedDate(LocalDateTime.now());
+        request.setProcessedDate(Instant.now());
         participationRequestRepository.save(request);
     }
 
@@ -233,7 +234,7 @@ public class EventParticipationRequestService {
             }
             EventParticipationRequest request = next.get();
             request.setStatus(ParticipationRequestStatus.APPROVED);
-            request.setProcessedDate(LocalDateTime.now());
+            request.setProcessedDate(Instant.now());
             participationRequestRepository.saveAndFlush(request);
             register(event, request.getStudentId(), EventRegistrationMessage.ORIGIN_WAITLIST_PROMOTED);
             log.info("Bekleme listesinden kayıt: eventId={}, studentId={}", event.getId(), request.getStudentId());
@@ -246,7 +247,7 @@ public class EventParticipationRequestService {
         registration.setEventId(event.getId());
         registration.setStudentId(studentId);
         registration.setQrCode(UUID.randomUUID().toString());
-        registration.setRegistrationTime(LocalDateTime.now());
+        registration.setRegistrationTime(Instant.now());
         registration.setAttended(false);
         registration.setStatus(RegistrationStatus.REGISTERED);
         registration.setCancelledAt(null);

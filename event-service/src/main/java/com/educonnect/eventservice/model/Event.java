@@ -66,7 +66,7 @@ public class Event {
     private String cancellationReason;
 
     @Column(name = "published_at")
-    private LocalDateTime publishedAt;
+    private Instant publishedAt;
 
     private String location; // Yer
 
@@ -120,8 +120,8 @@ public class Event {
     public void setCancelUntil(LocalDateTime cancelUntil) { this.cancelUntil = cancelUntil; }
     public String getCancellationReason() { return cancellationReason; }
     public void setCancellationReason(String cancellationReason) { this.cancellationReason = cancellationReason; }
-    public LocalDateTime getPublishedAt() { return publishedAt; }
-    public void setPublishedAt(LocalDateTime publishedAt) { this.publishedAt = publishedAt; }
+    public Instant getPublishedAt() { return publishedAt; }
+    public void setPublishedAt(Instant publishedAt) { this.publishedAt = publishedAt; }
     public String getOrganizerName() { return organizerName; }
     public void setOrganizerName(String organizerName) { this.organizerName = organizerName; }
 

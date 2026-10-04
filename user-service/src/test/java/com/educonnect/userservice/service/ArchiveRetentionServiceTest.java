@@ -9,7 +9,6 @@ import org.junit.jupiter.api.Test;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
-import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.List;
 import java.util.UUID;
@@ -24,7 +23,7 @@ import static org.mockito.Mockito.when;
 class ArchiveRetentionServiceTest {
 
     private final Clock clock = Clock.fixed(Instant.parse("2027-10-01T00:00:00Z"), ZoneId.of("UTC"));
-    private final LocalDateTime cutoff = LocalDateTime.of(2026, 10, 1, 0, 0);
+    private final Instant cutoff = Instant.parse("2026-10-01T00:00:00Z");
 
     private ArchivedStudentRepository studentRepository;
     private ArchivedAcademicianRepository academicianRepository;
@@ -43,7 +42,7 @@ class ArchiveRetentionServiceTest {
     @Test
     void expiredArchivesAreDeletedWithTheirProfilePhotos() {
         ArchivedStudent expired = new ArchivedStudent(UUID.randomUUID(), "Ada", "Yılmaz", "2020001", "Bilgisayar",
-                "http://localhost:9000/educonnect/profile/a.png", cutoff.minusDays(1), "test");
+                "http://localhost:9000/educonnect/profile/a.png", cutoff.minus(Duration.ofDays(1)), "test");
         when(studentRepository.findByDeletedAtBefore(cutoff)).thenReturn(List.of(expired));
         when(academicianRepository.findByDeletedAtBefore(cutoff)).thenReturn(List.of());
 

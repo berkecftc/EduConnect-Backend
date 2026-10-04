@@ -24,6 +24,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
@@ -90,7 +91,7 @@ public class EventService {
         event.setCancelUntil(request.cancelUntil());
         event.setCreatedByStudentId(creatorId);
         event.setStatus(EventStatus.ACTIVE);
-        event.setPublishedAt(LocalDateTime.now());
+        event.setPublishedAt(Instant.now());
         Event saved = eventRepository.save(event);
         if (hasPoster) {
             saved.setImageUrl(minioService.uploadFile(posterFile, "events", saved.getId().toString()));
@@ -208,7 +209,7 @@ public class EventService {
             throw new BadRequestException("TICKET_ALREADY_USED", "Ticket already used/scanned.");
         }
 
-        registration.checkIn(scannerId, CheckInMethod.QR, LocalDateTime.now());
+        registration.checkIn(scannerId, CheckInMethod.QR, Instant.now());
         eventRegistrationRepository.save(registration);
         eventCaches.evictStudentRegistrations(registration.getStudentId());
 

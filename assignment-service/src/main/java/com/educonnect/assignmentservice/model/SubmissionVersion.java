@@ -3,7 +3,7 @@ package com.educonnect.assignmentservice.model;
 import com.educonnect.common.storage.ObjectUrlConverter;
 import jakarta.persistence.*;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.UUID;
 
 @Entity
@@ -29,7 +29,7 @@ public class SubmissionVersion {
     private String textContent;
 
     @Column(name = "submitted_at", nullable = false)
-    private LocalDateTime submittedAt;
+    private Instant submittedAt;
 
     @Column(nullable = false)
     private boolean late;
@@ -41,7 +41,7 @@ public class SubmissionVersion {
     }
 
     public SubmissionVersion(UUID submissionId, int versionNo, String fileUrl, String textContent,
-                             LocalDateTime submittedAt, boolean late, UUID submittedBy) {
+                             Instant submittedAt, boolean late, UUID submittedBy) {
         this.submissionId = submissionId;
         this.versionNo = versionNo;
         this.fileUrl = fileUrl;
@@ -56,7 +56,7 @@ public class SubmissionVersion {
     public int getVersionNo() { return versionNo; }
     public String getFileUrl() { return fileUrl; }
     public String getTextContent() { return textContent; }
-    public LocalDateTime getSubmittedAt() { return submittedAt; }
+    public Instant getSubmittedAt() { return submittedAt; }
     public boolean isLate() { return late; }
     public UUID getSubmittedBy() { return submittedBy; }
 }

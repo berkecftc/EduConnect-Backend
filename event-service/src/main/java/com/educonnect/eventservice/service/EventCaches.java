@@ -15,8 +15,8 @@ import java.util.UUID;
 @Component
 public class EventCaches {
 
-    public static final String STUDENT_EVENT_REGISTRATIONS = "studentEventRegistrations";
-    public static final String CLUB_EVENTS = "clubEvents";
+    public static final String STUDENT_EVENT_REGISTRATIONS = "studentEventRegistrationsV2";
+    public static final String CLUB_EVENTS = "clubEventsV2";
 
     private static final Logger log = LoggerFactory.getLogger(EventCaches.class);
 

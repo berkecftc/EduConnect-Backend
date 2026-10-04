@@ -22,7 +22,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -112,7 +112,7 @@ public class RoleChangeDecisionService {
                 .findFirst()
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Kulübün aktif başkanı yok."));
 
-        president.assignPosition(ClubPosition.MEMBER, LocalDateTime.now(), PositionEndReason.REMOVED);
+        president.assignPosition(ClubPosition.MEMBER, Instant.now(), PositionEndReason.REMOVED);
         president.setValidUntil(membershipTerms.currentValidUntil());
         membershipRepository.save(president);
         cacheEvictor.evictUser(president.getStudentId());

@@ -3,7 +3,7 @@ package com.educonnect.clubservice.dto.response;
 import com.educonnect.clubservice.model.ClubPosition;
 import com.educonnect.clubservice.model.RoleChangeRequestStatus;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.UUID;
 
 /**
@@ -22,8 +22,8 @@ public class RoleChangeRequestDTO {
     private String requesterName; // Talebi oluşturan kişinin adı
     private RoleChangeRequestStatus status;
     private String rejectionReason;
-    private LocalDateTime createdAt;
-    private LocalDateTime processedAt;
+    private Instant createdAt;
+    private Instant processedAt;
 
     public RoleChangeRequestDTO() {}
 
@@ -61,10 +61,9 @@ public class RoleChangeRequestDTO {
     public String getRejectionReason() { return rejectionReason; }
     public void setRejectionReason(String rejectionReason) { this.rejectionReason = rejectionReason; }
 
-    public LocalDateTime getCreatedAt() { return createdAt; }
-    public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
+    public Instant getCreatedAt() { return createdAt; }
+    public void setCreatedAt(Instant createdAt) { this.createdAt = createdAt; }
 
-    public LocalDateTime getProcessedAt() { return processedAt; }
-    public void setProcessedAt(LocalDateTime processedAt) { this.processedAt = processedAt; }
+    public Instant getProcessedAt() { return processedAt; }
+    public void setProcessedAt(Instant processedAt) { this.processedAt = processedAt; }
 }
-

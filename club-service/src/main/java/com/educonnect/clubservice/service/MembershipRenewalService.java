@@ -15,7 +15,7 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -63,7 +63,7 @@ public class MembershipRenewalService {
             }
             membership.setValidUntil(membershipTerms.validUntilFor(membership.getValidUntil().plusDays(1)));
         } else if (membership.getEndReason() == MembershipEndReason.EXPIRED) {
-            membership.reactivate(membershipTerms.currentValidUntil(), LocalDateTime.now());
+            membership.reactivate(membershipTerms.currentValidUntil(), Instant.now());
         } else {
             throw new ConflictException("MEMBERSHIP_ENDED", "Bu kulübe yeniden katılmak için üyelik başvurusu yapın.");
         }
@@ -92,7 +92,7 @@ public class MembershipRenewalService {
                 .stream()
                 .collect(Collectors.toMap(Club::getId, Function.identity()));
         int expired = 0;
-        LocalDateTime now = LocalDateTime.now();
+        Instant now = Instant.now();
         for (ClubMembership membership : due) {
             Club club = clubs.get(membership.getClubId());
             if (club == null || club.isClosed()) {

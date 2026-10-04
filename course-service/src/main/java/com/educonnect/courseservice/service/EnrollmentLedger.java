@@ -11,7 +11,6 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Clock;
 import java.time.Instant;
-import java.time.LocalDateTime;
 import java.util.UUID;
 
 @Component
@@ -35,7 +34,7 @@ public class EnrollmentLedger {
         } else if (enrollment.isActive()) {
             throw new AlreadyEnrolledException("Öğrenci bu derse zaten kayıtlı.");
         } else {
-            enrollment.reactivate(LocalDateTime.now(clock));
+            enrollment.reactivate(Instant.now(clock));
         }
         StudentCourseEnrollment saved = enrollmentRepository.save(enrollment);
         record(courseId, studentId, EnrollmentEventType.ENROLLED, actorId, null);

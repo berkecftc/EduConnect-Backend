@@ -48,7 +48,7 @@ public class AssignmentService {
 
     private static final Logger log = LoggerFactory.getLogger(AssignmentService.class);
 
-    public static final String STUDENT_ASSIGNMENTS = "studentAssignments";
+    public static final String STUDENT_ASSIGNMENTS = "studentAssignmentsV2";
 
     private final AssignmentRepository assignmentRepository;
     private final SubmissionRepository submissionRepository;

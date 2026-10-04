@@ -11,8 +11,8 @@ import jakarta.persistence.Index;
 import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
 
-import java.time.LocalDateTime;
 import java.util.UUID;
+import java.time.Instant;
 
 @Entity
 @Table(name = "point_history",
@@ -46,7 +46,7 @@ public class PointHistory {
     private Integer pointsEarned;
 
     @Column(name = "created_at", nullable = false, updatable = false)
-    private LocalDateTime createdAt;
+    private Instant createdAt;
 
     @Column(name = "content_id", updatable = false)
     private UUID contentId;
@@ -94,11 +94,11 @@ public class PointHistory {
         this.pointsEarned = pointsEarned;
     }
 
-    public LocalDateTime getCreatedAt() {
+    public Instant getCreatedAt() {
         return createdAt;
     }
 
-    public void setCreatedAt(LocalDateTime createdAt) {
+    public void setCreatedAt(Instant createdAt) {
         this.createdAt = createdAt;
     }
 

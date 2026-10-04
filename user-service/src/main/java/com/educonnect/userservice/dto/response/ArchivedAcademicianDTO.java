@@ -1,6 +1,6 @@
 package com.educonnect.userservice.dto.response;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.UUID;
 
 public class ArchivedAcademicianDTO {
@@ -13,7 +13,7 @@ public class ArchivedAcademicianDTO {
     private String department;
     private String officeNumber;
     private String profileImageUrl;
-    private LocalDateTime deletedAt;
+    private Instant deletedAt;
     private String deletionReason;
 
     public ArchivedAcademicianDTO() {
@@ -21,7 +21,7 @@ public class ArchivedAcademicianDTO {
 
     public ArchivedAcademicianDTO(UUID archiveId, UUID originalId, String firstName, String lastName,
                                  String title, String department, String officeNumber,
-                                 String profileImageUrl, LocalDateTime deletedAt, String deletionReason) {
+                                 String profileImageUrl, Instant deletedAt, String deletionReason) {
         this.archiveId = archiveId;
         this.originalId = originalId;
         this.firstName = firstName;
@@ -99,11 +99,11 @@ public class ArchivedAcademicianDTO {
         this.profileImageUrl = profileImageUrl;
     }
 
-    public LocalDateTime getDeletedAt() {
+    public Instant getDeletedAt() {
         return deletedAt;
     }
 
-    public void setDeletedAt(LocalDateTime deletedAt) {
+    public void setDeletedAt(Instant deletedAt) {
         this.deletedAt = deletedAt;
     }
 
@@ -115,4 +115,3 @@ public class ArchivedAcademicianDTO {
         this.deletionReason = deletionReason;
     }
 }
-

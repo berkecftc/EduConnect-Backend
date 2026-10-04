@@ -3,7 +3,7 @@ package com.educonnect.clubservice.dto.response;
 import com.educonnect.clubservice.model.MembershipRecommendation;
 import com.educonnect.clubservice.model.MembershipRequestStatus;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.UUID;
 
 /**
@@ -19,8 +19,8 @@ public class MembershipRequestDTO {
     private String studentName;
     private String studentEmail;
     private MembershipRequestStatus status;
-    private LocalDateTime requestDate;
-    private LocalDateTime processedDate;
+    private Instant requestDate;
+    private Instant processedDate;
     private String message;
     private String rejectionReason;
     private MembershipRecommendation recommendation;
@@ -60,11 +60,11 @@ public class MembershipRequestDTO {
     public MembershipRequestStatus getStatus() { return status; }
     public void setStatus(MembershipRequestStatus status) { this.status = status; }
 
-    public LocalDateTime getRequestDate() { return requestDate; }
-    public void setRequestDate(LocalDateTime requestDate) { this.requestDate = requestDate; }
+    public Instant getRequestDate() { return requestDate; }
+    public void setRequestDate(Instant requestDate) { this.requestDate = requestDate; }
 
-    public LocalDateTime getProcessedDate() { return processedDate; }
-    public void setProcessedDate(LocalDateTime processedDate) { this.processedDate = processedDate; }
+    public Instant getProcessedDate() { return processedDate; }
+    public void setProcessedDate(Instant processedDate) { this.processedDate = processedDate; }
 
     public String getMessage() { return message; }
     public void setMessage(String message) { this.message = message; }

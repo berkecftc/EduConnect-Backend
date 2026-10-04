@@ -1,13 +1,13 @@
 package com.educonnect.userservice.dto.response;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 
 public class BadgeInfoDTO {
     private String badgeType;
     private String name;
     private String description;
     private String imageUrl;
-    private LocalDateTime earnedAt;
+    private Instant earnedAt;
 
     public BadgeInfoDTO() {
     }
@@ -44,11 +44,11 @@ public class BadgeInfoDTO {
         this.imageUrl = imageUrl;
     }
 
-    public LocalDateTime getEarnedAt() {
+    public Instant getEarnedAt() {
         return earnedAt;
     }
 
-    public void setEarnedAt(LocalDateTime earnedAt) {
+    public void setEarnedAt(Instant earnedAt) {
         this.earnedAt = earnedAt;
     }
 }
