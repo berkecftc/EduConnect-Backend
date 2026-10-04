@@ -41,6 +41,7 @@ public class GradingService {
     private final GroupWork groupWork;
     private final StudentAssignmentCache studentCache;
     private final Clock clock = Clock.systemDefaultZone();
+    private final AssignmentNotifier notifier;
 
     public GradingService(AssignmentRepository assignmentRepository,
                           SubmissionRepository submissionRepository,
@@ -49,7 +50,8 @@ public class GradingService {
                           AssignmentService assignmentService,
                           MemberGradeRepository memberGradeRepository,
                           GroupWork groupWork,
-                          StudentAssignmentCache studentCache) {
+                          StudentAssignmentCache studentCache,
+                          AssignmentNotifier notifier) {
         this.assignmentRepository = assignmentRepository;
         this.submissionRepository = submissionRepository;
         this.changeRepository = changeRepository;
@@ -58,6 +60,7 @@ public class GradingService {
         this.memberGradeRepository = memberGradeRepository;
         this.groupWork = groupWork;
         this.studentCache = studentCache;
+        this.notifier = notifier;
     }
 
     @CacheEvict(value = AssignmentService.STUDENT_ASSIGNMENTS, key = "#submission.studentId")
@@ -83,6 +86,9 @@ public class GradingService {
                 normalizedReason, actorId, Instant.now(clock)));
         if (afterPublication && previous != null && gradeChanged) {
             log.info("Published grade changed: submission={}, by={}", submission.getId(), actorId);
+            notifier.notify(notifier.studentsOf(List.of(submission)), assignment, "ASSIGNMENT_GRADE_CHANGED",
+                    "Puanınız güncellendi: " + assignment.getTitle(),
+                    "\"" + assignment.getTitle() + "\" için ilan edilmiş puanınız değiştirildi.\nGerekçe: " + normalizedReason);
         }
         evictGroup(submission);
     }
@@ -100,6 +106,10 @@ public class GradingService {
         changeRepository.save(new GradeChange(submission.getId(), previous, grade, false, assignment.gradesPublished(),
                 reason.strip(), actorId, now).forMember(studentId));
         studentCache.evict(List.of(studentId));
+        if (assignment.gradesPublished()) {
+            notifier.notify(List.of(studentId), assignment, "ASSIGNMENT_GRADE_CHANGED", "Puanınız güncellendi: " + assignment.getTitle(),
+                    "\"" + assignment.getTitle() + "\" için kişisel puanınız belirlendi.\nGerekçe: " + reason.strip());
+        }
     }
 
     public void clearMemberGrade(AssignmentSubmission submission, Assignment assignment, UUID studentId, UUID actorId) {
@@ -136,6 +146,8 @@ public class GradingService {
         assignment.publishGrades(actorId, Instant.now(clock));
         Assignment saved = assignmentRepository.save(assignment);
         log.info("Grades published: assignment={}, by={}", assignment.getId(), actorId);
+        notifier.notify(notifier.submitters(saved), saved, "ASSIGNMENT_GRADES_PUBLISHED", "Puanlar ilan edildi: " + saved.getTitle(),
+                "\"" + saved.getTitle() + "\" değerlendirmesinin puanları ilan edildi. Puanınızı ve geri bildirimi ders sayfasından görebilirsiniz.");
         return assignmentService.toResponse(saved);
     }
 

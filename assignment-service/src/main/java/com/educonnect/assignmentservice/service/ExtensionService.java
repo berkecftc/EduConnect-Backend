@@ -12,6 +12,7 @@ import com.educonnect.common.web.NotFoundException;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import com.educonnect.common.messaging.notification.TurkishDates;
 
 import java.time.Clock;
 import java.time.Instant;
@@ -28,15 +29,18 @@ public class ExtensionService {
     private final StudentDirectory studentDirectory;
     private final GroupWork groupWork;
     private final Clock clock = Clock.systemDefaultZone();
+    private final AssignmentNotifier notifier;
 
     public ExtensionService(AssignmentExtensionRepository extensionRepository,
                             SubmissionRepository submissionRepository,
                             GroupWork groupWork,
-                            StudentDirectory studentDirectory) {
+                            StudentDirectory studentDirectory,
+                            AssignmentNotifier notifier) {
         this.extensionRepository = extensionRepository;
         this.submissionRepository = submissionRepository;
         this.studentDirectory = studentDirectory;
         this.groupWork = groupWork;
+        this.notifier = notifier;
     }
 
     @Transactional(readOnly = true)
@@ -58,6 +62,9 @@ public class ExtensionService {
         extension.grant(request.dueDate(), reason, actorId, Instant.now(clock));
         AssignmentExtension saved = extensionRepository.save(extension);
         refreshLateFlag(assignment, studentId);
+        notifier.notify(List.of(studentId), assignment, "ASSIGNMENT_EXTENSION", "Süre uzatımı: " + assignment.getTitle(),
+                "\"" + assignment.getTitle() + "\" için size özel yeni son teslim: " + TurkishDates.format(request.dueDate())
+                        + (reason != null ? "\nGerekçe: " + reason : ""));
         return response(assignment, saved, studentDirectory.byId(List.of(studentId)).get(studentId));
     }
 
@@ -67,6 +74,8 @@ public class ExtensionService {
                 .orElseThrow(() -> new NotFoundException("EXTENSION_NOT_FOUND", "Bu öğrenci için süre uzatımı yok."));
         extensionRepository.delete(extension);
         refreshLateFlag(assignment, studentId);
+        notifier.notify(List.of(studentId), assignment, "ASSIGNMENT_EXTENSION", "Süre uzatımı kaldırıldı: " + assignment.getTitle(),
+                "\"" + assignment.getTitle() + "\" için size tanınan süre uzatımı kaldırıldı; genel son teslim tarihi geçerli.");
     }
 
     private void refreshLateFlag(Assignment assignment, UUID studentId) {

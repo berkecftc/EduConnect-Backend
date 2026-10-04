@@ -39,6 +39,7 @@ public class CourseApplicationService {
     private final CourseStaffAccess staffAccess;
     private final TermService termService;
     private final EnrollmentLedger enrollmentLedger;
+    private final CourseNotifier notifier;
 
     public CourseApplicationService(CourseApplicationRepository applicationRepository,
                                      CourseRepository courseRepository,
@@ -47,7 +48,8 @@ public class CourseApplicationService {
                                      CourseCaches courseCaches,
                                      CourseStaffAccess staffAccess,
                                      TermService termService,
-                                     EnrollmentLedger enrollmentLedger) {
+                                     EnrollmentLedger enrollmentLedger,
+                                     CourseNotifier notifier) {
         this.applicationRepository = applicationRepository;
         this.courseRepository = courseRepository;
         this.enrollmentRepository = enrollmentRepository;
@@ -56,6 +58,7 @@ public class CourseApplicationService {
         this.staffAccess = staffAccess;
         this.termService = termService;
         this.enrollmentLedger = enrollmentLedger;
+        this.notifier = notifier;
     }
 
     private void requireNotOnLeave(UUID studentId) {
@@ -109,6 +112,8 @@ public class CourseApplicationService {
         courseCaches.evictStaffCourses(course);
 
         log.info("Yeni ders başvurusu: Öğrenci {} -> Ders {} ({})", studentId, course.getTitle(), course.getCode());
+        notifier.notifyTeachers(course, "COURSE_APPLICATION", "Yeni ders başvurusu",
+                course.getTitle() + " dersine yeni bir başvuru var. Başvuruyu ders sayfasından değerlendirebilirsiniz.");
 
         return mapToResponse(saved, course);
     }
@@ -170,6 +175,8 @@ public class CourseApplicationService {
 
         log.info("Başvuru onaylandı: Öğrenci {} -> Ders {} ({})",
                 application.getStudentId(), course.getTitle(), course.getCode());
+        notifier.notify(List.of(application.getStudentId()), "COURSE_APPLICATION_APPROVED", course,
+                "Ders başvurunuz onaylandı", course.getTitle() + " dersine kaydınız yapıldı.");
 
         return mapToResponse(application, course);
     }
@@ -202,6 +209,9 @@ public class CourseApplicationService {
 
         log.info("Başvuru reddedildi: Öğrenci {} -> Ders {} ({}). Sebep: {}",
                 application.getStudentId(), LogValues.safe(course.getTitle()), LogValues.safe(course.getCode()), LogValues.safe(rejectionReason));
+        notifier.notify(List.of(application.getStudentId()), "COURSE_APPLICATION_REJECTED", course,
+                "Ders başvurunuz reddedildi",
+                CourseNotifier.withReason(course.getTitle() + " dersine başvurunuz reddedildi.", rejectionReason));
 
         return mapToResponse(application, course);
     }

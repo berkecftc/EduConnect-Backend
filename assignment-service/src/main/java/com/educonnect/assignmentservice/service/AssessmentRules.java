@@ -13,6 +13,7 @@ import com.educonnect.common.web.BadRequestException;
 import com.educonnect.common.web.ConflictException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import com.educonnect.common.messaging.notification.TurkishDates;
 
 import java.math.BigDecimal;
 import java.time.Clock;
@@ -22,6 +23,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
+import java.util.Set;
 
 @Service
 @Transactional
@@ -33,16 +35,21 @@ public class AssessmentRules {
     private final SubmissionRepository submissionRepository;
     private final AssignmentChangeRepository changeRepository;
     private final GroupSetRepository groupSetRepository;
+    private static final Set<String> DEADLINE_FIELDS = Set.of("dueDate", "lateUntil");
+
     private final Clock clock = Clock.systemDefaultZone();
+    private final AssignmentNotifier notifier;
 
     public AssessmentRules(AssignmentRepository assignmentRepository,
                            SubmissionRepository submissionRepository,
                            AssignmentChangeRepository changeRepository,
-                           GroupSetRepository groupSetRepository) {
+                           GroupSetRepository groupSetRepository,
+                           AssignmentNotifier notifier) {
         this.assignmentRepository = assignmentRepository;
         this.submissionRepository = submissionRepository;
         this.changeRepository = changeRepository;
         this.groupSetRepository = groupSetRepository;
+        this.notifier = notifier;
     }
 
     public void requireWeightFits(UUID courseId, UUID assignmentId, BigDecimal weight) {
@@ -143,6 +150,11 @@ public class AssessmentRules {
         requireLateWindow(assignment.getDueDate(), assignment.getLateUntil());
         Assignment saved = assignmentRepository.save(assignment);
         changeRepository.saveAll(changes);
+        if (changes.stream().anyMatch(c -> DEADLINE_FIELDS.contains(c.getField()))) {
+            notifier.notifyEnrolled(saved, "ASSIGNMENT_DEADLINE_CHANGED", "Teslim tarihi değişti: " + saved.getTitle(),
+                    "\"" + saved.getTitle() + "\" için yeni son teslim: " + formatted(saved.getDueDate())
+                            + (saved.getLateUntil() != null ? "\nGeç teslim sınırı: " + formatted(saved.getLateUntil()) : ""));
+        }
         return saved;
     }
 
@@ -170,5 +182,9 @@ public class AssessmentRules {
 
     static String plain(BigDecimal value) {
         return value == null ? null : value.stripTrailingZeros().toPlainString();
+    }
+
+    private static String formatted(LocalDateTime time) {
+        return time != null ? TurkishDates.format(time) : "belirtilmedi";
     }
 }
