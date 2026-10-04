@@ -21,7 +21,7 @@ Backend'e eklenen her uç ve frontend'in API kullanımı bu kurallara uyar. Kura
 - İç içe en fazla iki seviye: `/clubs/{clubId}/membership-requests/{requestId}`.
 - ID'ler UUID (metin). ID tahmin edilemez olsa da yetki kontrolünün yerini tutmaz; her uç sahipliği ayrıca doğrular.
 - Durum değiştiren eylemler alt kaynak olarak ve **`POST`** ile: `POST /…/{id}/approve`, `POST /…/{id}/reject`, `POST /…/{id}/withdraw`.
-- "Benim" listeleri `me` altında: `GET /api/<kaynak>/me/…` (ör. `GET /api/posts/me`).
+- "Benim" listeleri `me` altında: `GET /api/<kaynak>/me/…` (ör. `GET /api/posts/me`). Oturum sahibinin profili: `GET /api/users/me` (toplu görünüm `GET /api/users/me/aggregated`); admin ve görevli hesaplarının profili olmadığı için bunlarda `404`.
 - Arama: `GET /api/<kaynak>/search?q=…`.
 
 ## 4. Metotlar ve durum kodları
@@ -66,6 +66,7 @@ Tüm hatalar `application/problem+json` (RFC 9457):
 
 - Kullanıcıya **`message`** gösterilir (Türkçe, `detail` ile aynı).
 - Kod mantığı **`errorCode`** ile kurulur; mesaj metnine bakılmaz. Genel kodlar: `VALIDATION_FAILED`, `MALFORMED_REQUEST`, `BAD_REQUEST`, `UNAUTHENTICATED`, `BAD_CREDENTIALS`, `ACCESS_DENIED`, `NOT_FOUND`, `CONFLICT`, `CONCURRENT_UPDATE`, `DATA_CONFLICT`, `ENDPOINT_GONE`, `RATE_LIMITED`, `SERVICE_UNAVAILABLE`, `INTERNAL_ERROR`; alana özgü olanlar `<KAYNAK>_NOT_FOUND` gibi (`COURSE_NOT_FOUND`, `CLUB_NAME_TAKEN`, `INVALID_TICKET` …).
+- Girişte (`POST /api/auth/login`) ayrı kodlar: yanlış e-posta/parola `401 BAD_CREDENTIALS`; `403 EMAIL_NOT_VERIFIED` (doğrulama e-postasını yeniden gönder: `POST /api/auth/resend-verification`), `403 ACCOUNT_PENDING_APPROVAL`, `403 ACCOUNT_SUSPENDED`; hatalı deneme kilidinde `429 LOGIN_LOCKED` + `Retry-After` (saniye). Kayıt kapalıysa `403 REGISTRATION_CLOSED`.
 - `errors` yalnız doğrulama hatalarında var; form alanlarının altına `field` ile yazılır.
 - Backend'de yeni hata için `common-web`'deki `NotFoundException`, `BadRequestException`, `ConflictException`, `ForbiddenException` (veya `ApiException(status, errorCode, mesaj)`) fırlatılır; controller'da `try/catch` ile hata gövdesi kurulmaz.
 

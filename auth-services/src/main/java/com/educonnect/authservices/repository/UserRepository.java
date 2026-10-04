@@ -47,8 +47,8 @@ public interface UserRepository extends JpaRepository<User, UUID> {
     @Query("UPDATE User u SET u.emailVerifiedAt = :now WHERE u.email = :email AND u.emailVerifiedAt IS NULL")
     int markEmailVerified(@Param("email") String email, @Param("now") Instant now);
 
-    @Query(value = "SELECT COUNT(*) > 0 FROM users WHERE email = :email AND locked_until > :now", nativeQuery = true)
-    boolean isLoginLocked(@Param("email") String email, @Param("now") Instant now);
+    @Query(value = "SELECT locked_until FROM users WHERE email = :email AND locked_until > :now", nativeQuery = true)
+    Optional<Instant> findLoginLockedUntil(@Param("email") String email, @Param("now") Instant now);
 
     @Modifying
     @Query(value = "UPDATE users SET failed_login_attempts = failed_login_attempts + 1 WHERE email = :email", nativeQuery = true)

@@ -2,6 +2,7 @@ package com.educonnect.authservices.service;
 
 import com.educonnect.authservices.repository.UserRepository;
 import com.educonnect.authservices.config.AuthSecurityProperties;
+import com.educonnect.common.web.ApiException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -9,9 +10,12 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.server.ResponseStatusException;
+import org.springframework.http.HttpHeaders;
 
 import java.time.Clock;
+import java.time.Duration;
+import java.time.Instant;
+import java.util.Optional;
 import java.util.UUID;
 
 @Service
@@ -38,10 +42,15 @@ public class LoginAttemptService {
         if (!settings.enabled()) {
             return;
         }
-        if (userRepository.isLoginLocked(email, clock.instant())) {
-            throw new ResponseStatusException(HttpStatus.TOO_MANY_REQUESTS,
-                    "Çok fazla hatalı giriş denemesi yapıldı. Lütfen " + settings.lockDuration().toMinutes()
-                            + " dakika sonra tekrar deneyin.");
+        Instant now = clock.instant();
+        Optional<Instant> lockedUntil = userRepository.findLoginLockedUntil(email, now);
+        if (lockedUntil.isPresent()) {
+            long seconds = Math.max(1, Duration.between(now, lockedUntil.get()).toSeconds());
+            HttpHeaders headers = new HttpHeaders();
+            headers.set(HttpHeaders.RETRY_AFTER, Long.toString(seconds));
+            throw new ApiException(HttpStatus.TOO_MANY_REQUESTS, "LOGIN_LOCKED",
+                    "Çok fazla hatalı giriş denemesi yapıldı. Lütfen " + Math.ceilDiv(seconds, 60)
+                            + " dakika sonra tekrar deneyin.", headers);
         }
     }
 

@@ -15,10 +15,10 @@ import com.educonnect.authservices.service.PasswordService;
 import com.educonnect.authservices.service.RegistrationService;
 import com.educonnect.authservices.repository.UserRepository;
 import com.educonnect.common.web.ApiException;
+import com.educonnect.common.web.ForbiddenException;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.web.server.ResponseStatusException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
@@ -65,7 +65,7 @@ public class AuthController {
             @Valid @RequestBody RegisterRequest request
     ) {
         if (!openRegistrationEnabled) {
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN,
+            throw new ForbiddenException("REGISTRATION_CLOSED",
                     "Doğrudan kayıt kapalıdır. Lütfen öğrenci veya akademisyen başvurusu yapın.");
         }
         return ResponseEntity.ok(registrationService.register(request));
