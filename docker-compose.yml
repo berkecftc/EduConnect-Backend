@@ -391,7 +391,7 @@ services:
       - educonnect-network
 
   prometheus:
-    image: prom/prometheus:v3.5.0
+    image: prom/prometheus:v3.15.0
     restart: unless-stopped
     profiles: ["observability"]
     command:
