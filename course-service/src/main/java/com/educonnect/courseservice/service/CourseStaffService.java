@@ -163,6 +163,8 @@ public class CourseStaffService {
         UserSummaryDto user = users.get(userId);
         return new CourseStaffResponse(userId, role,
                 user != null ? user.getFirstName() + " " + user.getLastName() : "Bilinmiyor",
+                user != null ? user.getTitle() : null,
+                user != null ? user.getAcademicTitle() : null,
                 user != null ? user.getDepartment() : null,
                 member != null ? member.getCreatedAt() : null);
     }

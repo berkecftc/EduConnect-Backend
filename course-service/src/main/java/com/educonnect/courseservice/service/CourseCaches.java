@@ -15,7 +15,7 @@ import java.util.UUID;
 @Component
 public class CourseCaches {
 
-    public static final String STUDENT_COURSES = "studentCoursesV2";
+    public static final String STUDENT_COURSES = "studentCoursesV3";
     public static final String INSTRUCTOR_COURSES = "instructorCourses";
 
     private static final Logger log = LoggerFactory.getLogger(CourseCaches.class);

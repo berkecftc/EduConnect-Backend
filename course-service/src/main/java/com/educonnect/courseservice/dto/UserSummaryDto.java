@@ -8,6 +8,8 @@ public class UserSummaryDto {
     private String email;
     private String studentNumber;
     private String department;
+    private String title;
+    private String academicTitle;
     private String role;
     private String staffCategory;
     private String studentStatus;
@@ -26,6 +28,10 @@ public class UserSummaryDto {
     public void setStudentNumber(String studentNumber) { this.studentNumber = studentNumber; }
     public String getDepartment() { return department; }
     public void setDepartment(String department) { this.department = department; }
+    public String getTitle() { return title; }
+    public void setTitle(String title) { this.title = title; }
+    public String getAcademicTitle() { return academicTitle; }
+    public void setAcademicTitle(String academicTitle) { this.academicTitle = academicTitle; }
     public String getRole() { return role; }
     public void setRole(String role) { this.role = role; }
     public String getStaffCategory() { return staffCategory; }

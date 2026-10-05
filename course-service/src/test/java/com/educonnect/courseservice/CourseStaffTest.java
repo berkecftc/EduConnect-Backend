@@ -110,8 +110,13 @@ class CourseStaffTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].userId").value(coordinator.toString()))
                 .andExpect(jsonPath("$[0].role").value("COORDINATOR"))
+                .andExpect(jsonPath("$[0].title").value("Doç. Dr."))
+                .andExpect(jsonPath("$[0].academicTitle").value("ASSOCIATE_PROFESSOR"))
                 .andExpect(jsonPath("$[1].userId").value(outsider.toString()))
                 .andExpect(jsonPath("$[1].role").value("INSTRUCTOR"));
+        mockMvc.perform(get("/api/courses/{id}", course.getId()))
+                .andExpect(jsonPath("$.instructorTitle").value("Doç. Dr."))
+                .andExpect(jsonPath("$.instructorAcademicTitle").value("ASSOCIATE_PROFESSOR"));
 
         mockMvc.perform(json(put("/api/courses/{id}/staff/{user}", course.getId(), outsider),
                         TestTokens.academician(coordinator), "{\"role\":\"ASSISTANT\"}"))
@@ -299,6 +304,10 @@ class CourseStaffTest {
         user.setFirstName("Ad");
         user.setLastName(id.toString().substring(0, 4));
         user.setRole(roles.getOrDefault(id, "Academician"));
+        if ("Academician".equals(user.getRole())) {
+            user.setTitle("Doç. Dr.");
+            user.setAcademicTitle("ASSOCIATE_PROFESSOR");
+        }
         if (RESEARCH_ASSISTANT.equals(id)) {
             user.setStaffCategory("RESEARCH_ASSISTANT");
         }

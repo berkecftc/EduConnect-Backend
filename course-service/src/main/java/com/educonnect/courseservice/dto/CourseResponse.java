@@ -20,6 +20,8 @@ public class CourseResponse implements OfferingView {
 
     private UUID instructorId;
     private String instructorName;
+    private String instructorTitle;
+    private String instructorAcademicTitle;
     private int capacity;
     private long enrolledStudentCount;
 
@@ -54,6 +56,12 @@ public class CourseResponse implements OfferingView {
     public void setInstructorId(UUID instructorId) { this.instructorId = instructorId; }
     public String getInstructorName() { return instructorName; }
     public void setInstructorName(String instructorName) { this.instructorName = instructorName; }
+
+    public String getInstructorTitle() { return instructorTitle; }
+    public void setInstructorTitle(String instructorTitle) { this.instructorTitle = instructorTitle; }
+
+    public String getInstructorAcademicTitle() { return instructorAcademicTitle; }
+    public void setInstructorAcademicTitle(String instructorAcademicTitle) { this.instructorAcademicTitle = instructorAcademicTitle; }
     public int getCapacity() { return capacity; }
     public void setCapacity(int capacity) { this.capacity = capacity; }
     public long getEnrolledStudentCount() { return enrolledStudentCount; }

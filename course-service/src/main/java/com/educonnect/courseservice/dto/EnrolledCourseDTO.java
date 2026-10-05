@@ -21,6 +21,8 @@ public class EnrolledCourseDTO implements OfferingView {
     private String imageUrl;
     private UUID instructorId;
     private String instructorName;
+    private String instructorTitle;
+    private String instructorAcademicTitle;
     private Instant enrollmentDate;
 
     public EnrolledCourseDTO() {}
@@ -64,6 +66,12 @@ public class EnrolledCourseDTO implements OfferingView {
 
     public String getInstructorName() { return instructorName; }
     public void setInstructorName(String instructorName) { this.instructorName = instructorName; }
+
+    public String getInstructorTitle() { return instructorTitle; }
+    public void setInstructorTitle(String instructorTitle) { this.instructorTitle = instructorTitle; }
+
+    public String getInstructorAcademicTitle() { return instructorAcademicTitle; }
+    public void setInstructorAcademicTitle(String instructorAcademicTitle) { this.instructorAcademicTitle = instructorAcademicTitle; }
 
     public Instant getEnrollmentDate() { return enrollmentDate; }
     public void setEnrollmentDate(Instant enrollmentDate) { this.enrollmentDate = enrollmentDate; }
