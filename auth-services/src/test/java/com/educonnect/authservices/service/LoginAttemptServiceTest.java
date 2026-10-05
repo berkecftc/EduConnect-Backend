@@ -6,14 +6,18 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.web.server.ResponseStatusException;
+import com.educonnect.common.web.ApiException;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
 
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneOffset;
+import java.util.Optional;
 import java.util.UUID;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
@@ -51,17 +55,21 @@ class LoginAttemptServiceTest {
     }
 
     @Test
-    void ensureNotLocked_whenAccountLocked_shouldReturnTooManyRequests() {
-        when(userRepository.isLoginLocked(EMAIL, NOW)).thenReturn(true);
+    void ensureNotLocked_whenAccountLocked_shouldReturnTooManyRequestsWithRetryAfter() {
+        when(userRepository.findLoginLockedUntil(EMAIL, NOW)).thenReturn(Optional.of(NOW.plusSeconds(610)));
 
         assertThatThrownBy(() -> service(true).ensureNotLocked(EMAIL))
-                .isInstanceOf(ResponseStatusException.class)
-                .hasMessageContaining("429");
+                .isInstanceOfSatisfying(ApiException.class, ex -> {
+                    assertThat(ex.getStatus()).isEqualTo(HttpStatus.TOO_MANY_REQUESTS);
+                    assertThat(ex.getErrorCode()).isEqualTo("LOGIN_LOCKED");
+                    assertThat(ex.getHeaders().getFirst(HttpHeaders.RETRY_AFTER)).isEqualTo("610");
+                    assertThat(ex.getMessage()).contains("11 dakika");
+                });
     }
 
     @Test
     void ensureNotLocked_whenAccountOpen_shouldPass() {
-        when(userRepository.isLoginLocked(EMAIL, NOW)).thenReturn(false);
+        when(userRepository.findLoginLockedUntil(EMAIL, NOW)).thenReturn(Optional.empty());
 
         assertThatCode(() -> service(true).ensureNotLocked(EMAIL)).doesNotThrowAnyException();
     }

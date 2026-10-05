@@ -50,8 +50,15 @@ public class ProblemExceptionHandler extends ResponseEntityExceptionHandler {
 
     @ExceptionHandler(ApiException.class)
     public ResponseEntity<ProblemDetail> handleApiException(ApiException ex, HttpServletRequest request) {
-        return Problems.response(Problems.create(ex.getStatus(), ex.getErrorCode(), ex.getMessage(),
-                request.getRequestURI()));
+        ResponseEntity<ProblemDetail> response = Problems.response(Problems.create(ex.getStatus(), ex.getErrorCode(),
+                ex.getMessage(), request.getRequestURI()));
+        if (ex.getHeaders().isEmpty()) {
+            return response;
+        }
+        return ResponseEntity.status(response.getStatusCode())
+                .headers(response.getHeaders())
+                .headers(ex.getHeaders())
+                .body(response.getBody());
     }
 
     @ExceptionHandler(IllegalArgumentException.class)

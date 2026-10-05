@@ -159,6 +159,21 @@ class UserAuthorizationTest {
     }
 
     @Test
+    void meReturnsTheCallersOwnProfile() throws Exception {
+        mockMvc.perform(as(get("/api/users/me"), TestTokens.student(owner)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.firstName").value("Ayşe"))
+                .andExpect(jsonPath("$.email").value(owner + "@test.educonnect.local"));
+        mockMvc.perform(as(get("/api/users/me/aggregated"), TestTokens.student(owner)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.email").value(owner + "@test.educonnect.local"));
+        mockMvc.perform(get("/api/users/me"))
+                .andExpect(status().isUnauthorized());
+        mockMvc.perform(as(get("/api/users/me"), TestTokens.admin(admin)))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
     void internalProfileEndpointsAcceptOnlyServiceTokens() throws Exception {
         String batch = "[\"" + owner + "\",\"" + otherStudent + "\"]";
 

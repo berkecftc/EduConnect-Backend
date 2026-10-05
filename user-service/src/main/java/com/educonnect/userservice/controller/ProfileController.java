@@ -57,6 +57,20 @@ public class ProfileController {
         return ResponseEntity.ok(profileViewService.getProfile(userId, viewerId, viewerRoles));
     }
 
+    @GetMapping("/me")
+    public ResponseEntity<UserProfileResponse> getMyProfile(
+            @RequestHeader(IdentityHeaders.USER_ID) UUID viewerId,
+            @RequestHeader(value = IdentityHeaders.USER_ROLES, required = false) String viewerRoles) {
+        return ResponseEntity.ok(profileViewService.getProfile(viewerId, viewerId, viewerRoles));
+    }
+
+    @GetMapping("/me/aggregated")
+    public ResponseEntity<UserProfileResponseDTO> getMyAggregatedProfile(
+            @RequestHeader(IdentityHeaders.USER_ID) UUID viewerId,
+            @RequestHeader(value = IdentityHeaders.USER_ROLES, required = false) String viewerRoles) {
+        return ResponseEntity.ok(profileViewService.getAggregatedProfile(viewerId, viewerId, viewerRoles));
+    }
+
     /**
      * Giriş yapmış kullanıcının profil bilgilerini günceller.
      */

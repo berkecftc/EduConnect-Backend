@@ -10,15 +10,14 @@ import com.educonnect.authservices.models.Role;
 import com.educonnect.authservices.models.User;
 import com.educonnect.authservices.repository.UserRepository;
 import com.educonnect.common.messaging.outbox.OutboxPublisher;
+import com.educonnect.common.web.ForbiddenException;
 import com.educonnect.common.web.NotFoundException;
-import org.springframework.http.HttpStatus;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
-import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
@@ -67,15 +66,15 @@ public class AuthSessionService {
                 .orElseThrow(() -> new NotFoundException("USER_NOT_FOUND", "User not found"));
 
         if (user.getRoles().contains(Role.ROLE_PENDING_ACADEMICIAN) && AccountType.of(user.getRoles()) == AccountType.UNKNOWN) {
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN,
+            throw new ForbiddenException("ACCOUNT_PENDING_APPROVAL",
                     "Hesabınız henüz onaylanmadı. Lütfen yönetici onayını bekleyin.");
         }
         if (user.isSuspended()) {
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN,
+            throw new ForbiddenException("ACCOUNT_SUSPENDED",
                     "Hesabınız askıya alınmıştır. Ayrıntılı bilgi için yönetici ile iletişime geçin.");
         }
         if (!emailVerificationService.isVerified(user.getEmailVerifiedAt())) {
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN,
+            throw new ForbiddenException("EMAIL_NOT_VERIFIED",
                     "E-posta adresinizi doğrulamanız gerekiyor. Gelen kutunuzdaki doğrulama bağlantısını kullanın.");
         }
 
