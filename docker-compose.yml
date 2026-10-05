@@ -472,7 +472,7 @@ services:
       - educonnect-network
 
   alloy:
-    image: grafana/alloy:v1.10.2
+    image: grafana/alloy:v1.20.1
     restart: unless-stopped
     profiles: ["observability"]
     command: ["run", "--storage.path=/var/lib/alloy/data", "/etc/alloy/config.alloy"]
