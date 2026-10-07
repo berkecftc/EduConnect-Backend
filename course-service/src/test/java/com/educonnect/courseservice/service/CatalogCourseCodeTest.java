@@ -17,6 +17,11 @@ class CatalogCourseCodeTest {
                 assertThat(CatalogCourseService.normalize("  bil101 ")).isEqualTo("BIL101");
                 assertThat(CatalogCourseService.normalize("bil  101")).isEqualTo("BIL 101");
                 assertThat(CatalogCourseService.normalize("BIL101")).isEqualTo("BIL101");
+                assertThat(CatalogCourseService.normalize("bil 301")).isEqualTo("BIL 301");
+                assertThat(CatalogCourseService.normalize("BİL 301")).isEqualTo("BIL 301");
+                assertThat(CatalogCourseService.normalize("bıl 301")).isEqualTo("BIL 301");
+                assertThat(CatalogCourseService.normalize("fiz 102")).isEqualTo("FIZ 102");
+                assertThat(CatalogCourseService.normalize("işl 210")).isEqualTo("IŞL 210");
             }
         } finally {
             Locale.setDefault(original);

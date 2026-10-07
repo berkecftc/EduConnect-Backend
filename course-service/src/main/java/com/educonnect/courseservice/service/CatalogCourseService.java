@@ -15,6 +15,8 @@ import java.util.UUID;
 @Transactional
 public class CatalogCourseService {
 
+    private static final Locale TURKISH = Locale.forLanguageTag("tr");
+
     private final CatalogCourseRepository catalogRepository;
 
     public CatalogCourseService(CatalogCourseRepository catalogRepository) {
@@ -30,7 +32,7 @@ public class CatalogCourseService {
     @Transactional(readOnly = true)
     public List<CatalogCourseResponse> search(String query) {
         String term = query == null ? "" : query.strip();
-        return catalogRepository.search(term).stream().limit(50).map(CatalogCourseResponse::of).toList();
+        return catalogRepository.search(normalize(term), term).stream().limit(50).map(CatalogCourseResponse::of).toList();
     }
 
     @Transactional(readOnly = true)
@@ -40,6 +42,6 @@ public class CatalogCourseService {
     }
 
     public static String normalize(String code) {
-        return code.strip().replaceAll("\\s+", " ").toUpperCase(Locale.ROOT);
+        return code.strip().replaceAll("\\s+", " ").toUpperCase(TURKISH).replace('İ', 'I');
     }
 }
