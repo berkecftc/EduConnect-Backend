@@ -326,8 +326,13 @@ public class AssignmentService {
     }
 
     private List<SubmissionSummaryDTO> toSubmissionSummaries(List<AssignmentSubmission> submissions) {
-        Map<UUID, UserClient.UserProfileDTO> students = studentDirectory.byId(
-                submissions.stream().map(AssignmentSubmission::getStudentId).toList());
+        Map<UUID, List<UUID>> membersByGroup = groupWork.membersByGroup(submissions.stream()
+                .map(AssignmentSubmission::getGroupId).filter(Objects::nonNull).distinct().toList());
+        Map<UUID, Map<UUID, BigDecimal>> overrides = groupWork.overrides(submissions.stream()
+                .filter(submission -> submission.getGroupId() != null).map(AssignmentSubmission::getId).toList());
+        Map<UUID, UserClient.UserProfileDTO> students = studentDirectory.byId(Stream.concat(
+                submissions.stream().map(AssignmentSubmission::getStudentId),
+                membersByGroup.values().stream().flatMap(List::stream)).distinct().toList());
         Map<UUID, Assignment> assignments = assignmentRepository.findAllById(
                         submissions.stream().map(AssignmentSubmission::getAssignmentId).distinct().toList()).stream()
                 .collect(Collectors.toMap(Assignment::getId, a -> a));
@@ -340,9 +345,31 @@ public class AssignmentService {
                             assignments.get(submission.getAssignmentId()));
                     dto.setGroupId(submission.getGroupId());
                     dto.setGroupName(groupNames.get(submission.getGroupId()));
+                    if (submission.getGroupId() != null) {
+                        dto.setMembers(memberGrades(submission, assignments.get(submission.getAssignmentId()),
+                                membersByGroup.getOrDefault(submission.getGroupId(), List.of()),
+                                overrides.getOrDefault(submission.getId(), Map.of()), students));
+                    }
                     return dto;
                 })
                 .collect(Collectors.toList());
+    }
+
+    private static List<GroupMemberGradeDTO> memberGrades(AssignmentSubmission submission, Assignment assignment,
+                                                          List<UUID> memberIds, Map<UUID, BigDecimal> personalGrades,
+                                                          Map<UUID, UserClient.UserProfileDTO> students) {
+        return memberIds.stream()
+                .map(memberId -> {
+                    UserClient.UserProfileDTO profile = students.get(memberId);
+                    BigDecimal personal = personalGrades.get(memberId);
+                    BigDecimal grade = personal != null ? personal : submission.getGrade();
+                    return new GroupMemberGradeDTO(memberId,
+                            profile != null ? profile.getFirstName() + " " + profile.getLastName() : "Bilinmeyen Öğrenci",
+                            profile != null ? profile.getStudentNumber() : null,
+                            personal, grade,
+                            assignment != null ? DeadlinePolicy.finalGrade(assignment, grade, submission.isLate()) : null);
+                })
+                .toList();
     }
 
     private SubmissionSummaryDTO mapToSubmissionSummary(AssignmentSubmission submission, UserClient.UserProfileDTO userProfile,
@@ -359,6 +386,7 @@ public class AssignmentService {
         dto.setAiUsed(submission.getAiUsed());
         dto.setAiNote(submission.getAiNote());
         dto.setTextContent(submission.getTextContent());
+        dto.setFeedback(submission.getFeedback());
         if (assignment != null) {
             dto.setFinalGrade(DeadlinePolicy.finalGrade(assignment, submission.getGrade(), submission.isLate()));
         }

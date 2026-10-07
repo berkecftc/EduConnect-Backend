@@ -82,6 +82,23 @@ class GradePublicationTest {
     }
 
     @Test
+    void regradingWithoutFeedbackKeepsTheEarlierFeedback() throws Exception {
+        grade(submissionId, TestTokens.academician(assistant), "{\"grade\":70,\"feedback\":\"Kaynakça eksik\"}")
+                .andExpect(status().isOk());
+        mockMvc.perform(as(get("/api/assignments/{id}/submissions", assignmentId), TestTokens.academician(assistant)))
+                .andExpect(jsonPath("$[0].feedback").value("Kaynakça eksik"));
+
+        grade(submissionId, TestTokens.academician(assistant), "{\"grade\":75}").andExpect(status().isOk());
+        mockMvc.perform(as(get("/api/assignments/{id}/submissions", assignmentId), TestTokens.academician(assistant)))
+                .andExpect(jsonPath("$[0].grade").value(75.0))
+                .andExpect(jsonPath("$[0].feedback").value("Kaynakça eksik"));
+
+        grade(submissionId, TestTokens.academician(assistant), "{\"grade\":75,\"feedback\":\"\"}").andExpect(status().isOk());
+        mockMvc.perform(as(get("/api/assignments/{id}/submissions", assignmentId), TestTokens.academician(assistant)))
+                .andExpect(jsonPath("$[0].feedback").doesNotExist());
+    }
+
+    @Test
     void changingAPublishedGradeNeedsAReasonAndIsRecorded() throws Exception {
         grade(submissionId, TestTokens.academician(instructor), "{\"grade\":70}").andExpect(status().isOk());
         publish(TestTokens.academician(instructor)).andExpect(status().isOk());

@@ -69,7 +69,8 @@ public class GradingService {
         assessmentRules.requireValidGrade(assignment, grade);
         BigDecimal previous = submission.getGrade();
         boolean gradeChanged = !sameGrade(previous, grade);
-        boolean feedbackChanged = !Objects.equals(blankToNull(submission.getFeedback()), blankToNull(feedback));
+        String newFeedback = feedback == null ? submission.getFeedback() : blankToNull(feedback);
+        boolean feedbackChanged = !Objects.equals(blankToNull(submission.getFeedback()), newFeedback);
         if (!gradeChanged && !feedbackChanged) {
             return;
         }
@@ -80,7 +81,7 @@ public class GradingService {
                     "İlan edilmiş bir puanı değiştirmek için gerekçe yazılmalı.");
         }
         submission.setGrade(grade);
-        submission.setFeedback(blankToNull(feedback));
+        submission.setFeedback(newFeedback);
         submissionRepository.save(submission);
         changeRepository.save(new GradeChange(submission.getId(), previous, grade, feedbackChanged, afterPublication,
                 normalizedReason, actorId, Instant.now(clock)));
