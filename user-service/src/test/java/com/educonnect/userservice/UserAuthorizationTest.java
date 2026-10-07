@@ -19,9 +19,11 @@ import org.springframework.test.web.servlet.request.AbstractMockHttpServletReque
 import org.springframework.test.web.servlet.request.MockMultipartHttpServletRequestBuilder;
 
 import java.time.Instant;
+import java.util.List;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.hamcrest.Matchers.contains;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -223,6 +225,28 @@ class UserAuthorizationTest {
     void academicianSearchIsPublic() throws Exception {
         mockMvc.perform(get("/api/users/search/academicians").param("query", "Zeynep"))
                 .andExpect(status().isOk());
+    }
+
+    @Test
+    void academicianSearchMatchesFullNamesAndSkipsInactiveStaff() throws Exception {
+        String tag = Long.toString(System.nanoTime(), 36).replaceAll("[0-9]", "x");
+        Academician active = new Academician(UUID.randomUUID(), "Selin", "Koç" + tag, "Doç. Dr.");
+        active.setDepartment("Bilgisayar Mühendisliği");
+        Academician dotted = new Academician(UUID.randomUUID(), "İlker" + tag, "Işık", "Dr.");
+        Academician retired = new Academician(UUID.randomUUID(), "Selin", "Koç" + tag + "eski", "Prof. Dr.");
+        retired.setEmploymentStatus("RETIRED");
+        academicianRepository.saveAll(List.of(active, dotted, retired));
+
+        mockMvc.perform(get("/api/users/search/academicians").param("query", "selin  koç" + tag))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(1))
+                .andExpect(jsonPath("$[0].id").value(active.getId().toString()))
+                .andExpect(jsonPath("$[0].title").value("Doç. Dr."))
+                .andExpect(jsonPath("$[0].department").value("Bilgisayar Mühendisliği"));
+        mockMvc.perform(get("/api/users/search/academicians").param("query", "ilker" + tag))
+                .andExpect(jsonPath("$[*].id").value(contains(dotted.getId().toString())));
+        mockMvc.perform(get("/api/users/search/academicians").param("query", "Koç" + tag))
+                .andExpect(jsonPath("$[*].id").value(contains(active.getId().toString())));
     }
 
     private static <B extends AbstractMockHttpServletRequestBuilder<B>> B as(B request, String token) {

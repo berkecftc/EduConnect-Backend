@@ -135,6 +135,12 @@ class GroupAssignmentTest {
         json(put(memberGrade, submissionId, loner), "{\"grade\":60,\"reason\":\"x\"}")
                 .andExpect(status().isNotFound()).andExpect(jsonPath("$.errorCode").value("GROUP_MEMBER_NOT_FOUND"));
         json(put(memberGrade, submissionId, second), "{\"grade\":60,\"reason\":\"Katkı düşük\"}").andExpect(status().isOk());
+        mockMvc.perform(as(get("/api/assignments/{id}/submissions", assignmentId), TestTokens.academician(instructor)))
+                .andExpect(jsonPath("$[0].members.length()").value(2))
+                .andExpect(jsonPath("$[0].members[?(@.studentId == '" + second + "')].personalGrade").value(contains(60.0)))
+                .andExpect(jsonPath("$[0].members[?(@.studentId == '" + second + "')].grade").value(contains(60.0)))
+                .andExpect(jsonPath("$[0].members[?(@.studentId == '" + first + "')].personalGrade").value(contains((Object) null)))
+                .andExpect(jsonPath("$[0].members[?(@.studentId == '" + first + "')].grade").value(contains(80.0)));
 
         mockMvc.perform(as(get("/api/assignments/course/{id}/gradebook", courseId), TestTokens.academician(instructor)))
                 .andExpect(jsonPath("$.students[?(@.studentId == '" + first + "')].grades[0].grade").value(80.0))

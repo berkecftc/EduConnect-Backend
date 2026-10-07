@@ -2,6 +2,7 @@ package com.educonnect.assignmentservice.dto;
 
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.util.List;
 import java.util.UUID;
 
 public class SubmissionSummaryDTO {
@@ -19,6 +20,8 @@ public class SubmissionSummaryDTO {
     private boolean isLate;
     private Boolean aiUsed;
     private String aiNote;
+    private String feedback;
+    private List<GroupMemberGradeDTO> members;
 
     public SubmissionSummaryDTO() {}
 
@@ -58,4 +61,10 @@ public class SubmissionSummaryDTO {
     public void setAiUsed(Boolean aiUsed) { this.aiUsed = aiUsed; }
     public String getAiNote() { return aiNote; }
     public void setAiNote(String aiNote) { this.aiNote = aiNote; }
+
+    public String getFeedback() { return feedback; }
+    public void setFeedback(String feedback) { this.feedback = feedback; }
+
+    public List<GroupMemberGradeDTO> getMembers() { return members; }
+    public void setMembers(List<GroupMemberGradeDTO> members) { this.members = members; }
 }
