@@ -1,7 +1,9 @@
 package com.educonnect.clubservice.service;
 
 import com.educonnect.clubservice.dto.response.ApprovalDetails;
+import com.educonnect.clubservice.client.UserLookup;
 import com.educonnect.clubservice.dto.response.ApprovalRequestResponse;
+import com.educonnect.clubservice.dto.response.UserSummary;
 import com.educonnect.clubservice.model.ApprovalStatus;
 import com.educonnect.clubservice.model.ApprovalType;
 import com.educonnect.clubservice.model.Club;
@@ -26,8 +28,10 @@ import org.springframework.web.server.ResponseStatusException;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.UUID;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 @Service
 @Transactional
@@ -39,6 +43,7 @@ public class ClubGovernanceService {
     private final ClubApprovalEngine approvalEngine;
     private final ClubDecisionLog decisionLog;
     private final ApprovalDetailsLoader detailsLoader;
+    private final UserLookup userLookup;
 
     public ClubGovernanceService(ClubRepository clubRepository,
                                  ClubMembershipRepository membershipRepository,
@@ -46,7 +51,8 @@ public class ClubGovernanceService {
                                  ClubAuthorizationService clubAuthorizationService,
                                  ClubApprovalEngine approvalEngine,
                                  ClubDecisionLog decisionLog,
-                                 ApprovalDetailsLoader detailsLoader) {
+                                 ApprovalDetailsLoader detailsLoader,
+                                 UserLookup userLookup) {
         this.clubRepository = clubRepository;
         this.membershipRepository = membershipRepository;
         this.requestRepository = requestRepository;
@@ -54,6 +60,7 @@ public class ClubGovernanceService {
         this.approvalEngine = approvalEngine;
         this.decisionLog = decisionLog;
         this.detailsLoader = detailsLoader;
+        this.userLookup = userLookup;
     }
 
     public ClubApprovalRequest resign(UUID clubId, UUID userId, String note) {
@@ -152,7 +159,7 @@ public class ClubGovernanceService {
 
     public ApprovalRequestResponse toResponse(ClubApprovalRequest request) {
         return ApprovalRequestResponse.of(request, clubRepository.findById(request.getClubId()).map(Club::getName).orElse(null),
-                detailsLoader.detailsOf(List.of(request)).get(request.getId()));
+                detailsLoader.detailsOf(List.of(request)).get(request.getId()), userNames(List.of(request)));
     }
 
     private List<ApprovalRequestResponse> toResponses(List<ClubApprovalRequest> requests) {
@@ -160,9 +167,22 @@ public class ClubGovernanceService {
                 .stream()
                 .collect(Collectors.toMap(Club::getId, Club::getName));
         Map<UUID, ApprovalDetails> details = detailsLoader.detailsOf(requests);
+        Map<UUID, String> userNames = userNames(requests);
         return requests.stream()
-                .map(request -> ApprovalRequestResponse.of(request, names.get(request.getClubId()), details.get(request.getId())))
+                .map(request -> ApprovalRequestResponse.of(request, names.get(request.getClubId()), details.get(request.getId()),
+                        userNames))
                 .toList();
+    }
+
+    private Map<UUID, String> userNames(List<ClubApprovalRequest> requests) {
+        List<UUID> ids = requests.stream()
+                .flatMap(request -> Stream.of(request.getPreparedBy(), request.getSubjectUserId(),
+                        request.getPresidentDecidedBy(), request.getDecidedBy()))
+                .filter(Objects::nonNull)
+                .distinct()
+                .toList();
+        return userLookup.usersById(ids).values().stream()
+                .collect(Collectors.toMap(UserSummary::getId, user -> user.getFirstName() + " " + user.getLastName()));
     }
 
     private Club findClub(UUID clubId) {

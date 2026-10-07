@@ -209,7 +209,10 @@ public class CourseService {
             dto.setImageUrl(course.getImageUrl());
             dto.setInstructorId(course.getInstructorId());
             dto.setEnrollmentDate(enrollment.getEnrollmentDate());
-            dto.setInstructorName(instructorName(instructors.get(course.getInstructorId())));
+            UserSummaryDto instructor = instructors.get(course.getInstructorId());
+            dto.setInstructorName(instructorName(instructor));
+            dto.setInstructorTitle(instructor != null ? instructor.getTitle() : null);
+            dto.setInstructorAcademicTitle(instructor != null ? instructor.getAcademicTitle() : null);
 
             return dto;
         }).filter(dto -> dto != null).collect(Collectors.toList());
@@ -354,7 +357,10 @@ public class CourseService {
             res.setInstructorId(course.getInstructorId());
             res.setCapacity(course.getCapacity());
             res.setEnrolledStudentCount(enrolledCounts.getOrDefault(course.getId(), 0L));
-            res.setInstructorName(instructorName(instructors.get(course.getInstructorId())));
+            UserSummaryDto instructor = instructors.get(course.getInstructorId());
+            res.setInstructorName(instructorName(instructor));
+            res.setInstructorTitle(instructor != null ? instructor.getTitle() : null);
+            res.setInstructorAcademicTitle(instructor != null ? instructor.getAcademicTitle() : null);
             return res;
         }).collect(Collectors.toList());
     }
@@ -385,6 +391,8 @@ public class CourseService {
         try {
             UserSummaryDto user = userClient.getUserById(course.getInstructorId());
             res.setInstructorName(user.getFirstName() + " " + user.getLastName());
+            res.setInstructorTitle(user.getTitle());
+            res.setInstructorAcademicTitle(user.getAcademicTitle());
         } catch (Exception e) {
             res.setInstructorName("Bilinmiyor");
         }

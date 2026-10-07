@@ -45,6 +45,7 @@ public class SecurityConfig {
                         // Dashboard endpoints - authentication required (bu kurallar önce gelmeli!)
                         .requestMatchers(HttpMethod.GET, "/api/clubs/my-memberships").authenticated()
                         .requestMatchers(HttpMethod.GET, "/api/clubs/my-managed-clubs").authenticated()
+                        .requestMatchers(HttpMethod.GET, "/api/clubs/my-access").authenticated()
 
                         // Public GET endpoints (genel kulüp listeleme/detay)
                         .requestMatchers(HttpMethod.GET, "/api/clubs").permitAll()

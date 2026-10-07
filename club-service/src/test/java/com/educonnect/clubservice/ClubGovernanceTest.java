@@ -1,6 +1,7 @@
 package com.educonnect.clubservice;
 
 import com.educonnect.clubservice.client.UserClient;
+import com.educonnect.clubservice.dto.response.UserSummary;
 import com.educonnect.clubservice.model.ApprovalStatus;
 import com.educonnect.clubservice.model.ApprovalType;
 import com.educonnect.clubservice.model.Club;
@@ -23,10 +24,13 @@ import org.springframework.test.web.servlet.ResultActions;
 import org.springframework.test.web.servlet.request.AbstractMockHttpServletRequestBuilder;
 
 import java.time.Instant;
+import java.util.Collection;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.hasItems;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.BDDMockito.given;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
@@ -69,6 +73,9 @@ class ClubGovernanceTest {
         seat(vicePresident, ClubPosition.VICE_PRESIDENT);
         seat(officer, ClubPosition.BOARD_MEMBER);
         seat(member, ClubPosition.MEMBER);
+        given(userClient.getUsersByIds(any())).willAnswer(call -> call.<Collection<UUID>>getArgument(0).stream()
+                .map(ClubGovernanceTest::summary)
+                .toList());
     }
 
     @Test
@@ -81,20 +88,24 @@ class ClubGovernanceTest {
 
         mockMvc.perform(as(get("/api/clubs/approvals/inbox"), TestTokens.student(president)))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$[*].id", hasItems(requestId)));
+                .andExpect(jsonPath("$[*].id", hasItems(requestId)))
+                .andExpect(jsonPath("$[?(@.id == '" + requestId + "')].preparedByName").value(hasItems(nameOf(officer))))
+                .andExpect(jsonPath("$[?(@.id == '" + requestId + "')].subjectUserName").value(hasItems(nameOf(officer))));
         mockMvc.perform(as(post(approve(requestId), clubId), TestTokens.academician(advisor)))
                 .andExpect(status().isForbidden());
         mockMvc.perform(as(post(approve(requestId), clubId), TestTokens.student(president)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("PENDING_ADVISOR"))
-                .andExpect(jsonPath("$.presidentDecidedBy").value(president.toString()));
+                .andExpect(jsonPath("$.presidentDecidedBy").value(president.toString()))
+                .andExpect(jsonPath("$.presidentDecidedByName").value(nameOf(president)));
         assertThat(position(officer)).isEqualTo(ClubPosition.BOARD_MEMBER);
 
         mockMvc.perform(as(get("/api/clubs/approvals/inbox"), TestTokens.academician(advisor)))
                 .andExpect(jsonPath("$[*].id", hasItems(requestId)));
         mockMvc.perform(as(post(approve(requestId), clubId), TestTokens.academician(advisor)))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.status").value("APPROVED"));
+                .andExpect(jsonPath("$.status").value("APPROVED"))
+                .andExpect(jsonPath("$.decidedByName").value(nameOf(advisor)));
         assertThat(position(officer)).isEqualTo(ClubPosition.MEMBER);
 
         mockMvc.perform(as(get("/api/clubs/{clubId}/decision-log", clubId), TestTokens.academician(advisor)))
@@ -102,6 +113,43 @@ class ClubGovernanceTest {
                 .andExpect(jsonPath("$[*].action", hasItems("SUBMITTED", "PRESIDENT_APPROVED", "APPROVED")));
         mockMvc.perform(as(get("/api/clubs/{clubId}/decision-log", clubId), TestTokens.student(member)))
                 .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void myAccessTellsTheCallerWhatTheyCanDoInEachClub() throws Exception {
+        mockMvc.perform(as(get("/api/clubs/{clubId}/my-access", clubId), TestTokens.student(president)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.position").value("PRESIDENT"))
+                .andExpect(jsonPath("$.actingPresident").value(true))
+                .andExpect(jsonPath("$.permissions", hasItems("APPROVE_AS_PRESIDENT", "MANAGE_MEMBERSHIP_REQUESTS")));
+        mockMvc.perform(as(get("/api/clubs/{clubId}/my-access", clubId), TestTokens.student(member)))
+                .andExpect(jsonPath("$.member").value(true))
+                .andExpect(jsonPath("$.position").value("MEMBER"))
+                .andExpect(jsonPath("$.actingPresident").value(false));
+        mockMvc.perform(as(get("/api/clubs/{clubId}/my-access", clubId), TestTokens.academician(advisor)))
+                .andExpect(jsonPath("$.advisor").value(true))
+                .andExpect(jsonPath("$.member").value(false));
+        mockMvc.perform(get("/api/clubs/{clubId}/my-access", clubId))
+                .andExpect(status().isUnauthorized());
+
+        mockMvc.perform(as(get("/api/clubs/my-access"), TestTokens.student(officer)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[?(@.clubId == '" + clubId + "')].position").value(hasItems("BOARD_MEMBER")));
+        mockMvc.perform(as(get("/api/clubs/my-access"), TestTokens.academician(advisor)))
+                .andExpect(jsonPath("$[?(@.clubId == '" + clubId + "')].advisor").value(hasItems(true)));
+        mockMvc.perform(as(get("/api/clubs/my-access"), TestTokens.student(member)))
+                .andExpect(jsonPath("$[?(@.clubId == '" + clubId + "')]").isEmpty());
+        mockMvc.perform(get("/api/clubs/my-access"))
+                .andExpect(status().isUnauthorized());
+
+        mockMvc.perform(json(post("/api/clubs/{clubId}/resignations", clubId), TestTokens.student(president), "{}"))
+                .andExpect(status().isCreated());
+        mockMvc.perform(as(post(approve(approvalRequestRepository.findAll().stream()
+                        .filter(request -> request.getClubId().equals(clubId))
+                        .findFirst().orElseThrow().getId().toString()), clubId), TestTokens.academician(advisor)))
+                .andExpect(status().isOk());
+        mockMvc.perform(as(get("/api/clubs/{clubId}/my-access", clubId), TestTokens.student(vicePresident)))
+                .andExpect(jsonPath("$.actingPresident").value(true));
     }
 
     @Test
@@ -196,6 +244,18 @@ class ClubGovernanceTest {
 
     private ClubPosition position(UUID studentId) {
         return membershipRepository.findByClubIdAndStudentId(clubId, studentId).orElseThrow().getClubRole();
+    }
+
+    private static UserSummary summary(UUID id) {
+        UserSummary user = new UserSummary();
+        user.setId(id);
+        user.setFirstName("Kişi");
+        user.setLastName(id.toString().substring(0, 8));
+        return user;
+    }
+
+    private static String nameOf(UUID id) {
+        return "Kişi " + id.toString().substring(0, 8);
     }
 
     private void seat(UUID studentId, ClubPosition position) {

@@ -1,8 +1,12 @@
-INSERT INTO club_db.clubs (id, name, about, academic_advisor_id) VALUES
-    ('5eed0000-0000-4000-8000-00000000c001', 'Yazılım Kulübü', 'Atölyeler, hackathonlar ve açık kaynak projeler.', '5eed0000-0000-4000-8000-00000000a001'),
-    ('5eed0000-0000-4000-8000-00000000c002', 'Fotoğrafçılık Kulübü', 'Kampüs ve şehir fotoğraf yürüyüşleri.', '5eed0000-0000-4000-8000-00000000a001'),
-    ('5eed0000-0000-4000-8000-00000000c003', 'Satranç Kulübü', 'Haftalık turnuvalar ve eğitimler.', '5eed0000-0000-4000-8000-00000000a002')
+INSERT INTO club_db.clubs (id, name, normalized_name, about, academic_advisor_id) VALUES
+    ('5eed0000-0000-4000-8000-00000000c001', 'Yazılım Kulübü', 'yazilim kulubu', 'Atölyeler, hackathonlar ve açık kaynak projeler.', '5eed0000-0000-4000-8000-00000000a001'),
+    ('5eed0000-0000-4000-8000-00000000c002', 'Fotoğrafçılık Kulübü', 'fotografcilik kulubu', 'Kampüs ve şehir fotoğraf yürüyüşleri.', '5eed0000-0000-4000-8000-00000000a001'),
+    ('5eed0000-0000-4000-8000-00000000c003', 'Satranç Kulübü', 'satranc kulubu', 'Haftalık turnuvalar ve eğitimler.', '5eed0000-0000-4000-8000-00000000a002')
 ON CONFLICT DO NOTHING;
+
+UPDATE club_db.clubs SET logo_url = 'club-bucket/logos/' || id || '.png'
+WHERE id IN ('5eed0000-0000-4000-8000-00000000c001', '5eed0000-0000-4000-8000-00000000c002', '5eed0000-0000-4000-8000-00000000c003')
+  AND logo_url IS NULL;
 
 INSERT INTO club_db.club_memberships (id, club_id, student_id, club_role, is_active, term_start_date) VALUES
     ('5eed0000-0000-4000-8000-00000000d001', '5eed0000-0000-4000-8000-00000000c001', '5eed0000-0000-4000-8000-00000000b001', 'PRESIDENT', true, now() - interval '120 days'),
@@ -21,6 +25,6 @@ INSERT INTO club_db.club_membership_requests (id, club_id, student_id, status, m
     ('5eed0000-0000-4000-8000-00000000d103', '5eed0000-0000-4000-8000-00000000c002', '5eed0000-0000-4000-8000-00000000b007', 'PENDING', NULL, now() - interval '2 days')
 ON CONFLICT DO NOTHING;
 
-INSERT INTO club_db.role_change_requests (id, club_id, student_id, previous_role, requested_role, requester_id, status, created_at) VALUES
-    ('5eed0000-0000-4000-8000-00000000d201', '5eed0000-0000-4000-8000-00000000c001', '5eed0000-0000-4000-8000-00000000b003', 'MEMBER', 'BOARD_MEMBER', '5eed0000-0000-4000-8000-00000000b001', 'PENDING', now() - interval '2 days')
+INSERT INTO club_db.club_approval_requests (id, version, club_id, type, status, prepared_by, subject_user_id, current_position, requested_position, created_at) VALUES
+    ('5eed0000-0000-4000-8000-00000000d201', 0, '5eed0000-0000-4000-8000-00000000c001', 'ROLE_CHANGE', 'PENDING_ADVISOR', '5eed0000-0000-4000-8000-00000000b001', '5eed0000-0000-4000-8000-00000000b003', 'MEMBER', 'BOARD_MEMBER', now() - interval '2 days')
 ON CONFLICT DO NOTHING;
