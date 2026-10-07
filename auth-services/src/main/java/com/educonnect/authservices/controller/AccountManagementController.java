@@ -1,6 +1,7 @@
 package com.educonnect.authservices.controller;
 
 import com.educonnect.authservices.dto.request.AffiliationStatusRequest;
+import com.educonnect.authservices.dto.request.ManagedEmailChangeRequest;
 import com.educonnect.authservices.dto.request.SuspendAccountRequest;
 import com.educonnect.authservices.dto.response.AffiliationStatusView;
 import com.educonnect.authservices.models.AccountType;
@@ -9,6 +10,7 @@ import com.educonnect.authservices.repository.UserRepository;
 import com.educonnect.authservices.service.AccountStatusService;
 import com.educonnect.authservices.service.AdminAuditService;
 import com.educonnect.authservices.service.AffiliationLifecycleService;
+import com.educonnect.authservices.service.EmailChangeService;
 import com.educonnect.common.web.ForbiddenException;
 import com.educonnect.common.web.NotFoundException;
 import jakarta.validation.Valid;
@@ -43,15 +45,18 @@ public class AccountManagementController {
     private final AffiliationLifecycleService lifecycleService;
     private final AccountStatusService accountStatusService;
     private final AdminAuditService adminAuditService;
+    private final EmailChangeService emailChangeService;
 
     public AccountManagementController(UserRepository userRepository,
                                        AffiliationLifecycleService lifecycleService,
                                        AccountStatusService accountStatusService,
-                                       AdminAuditService adminAuditService) {
+                                       AdminAuditService adminAuditService,
+                                       EmailChangeService emailChangeService) {
         this.userRepository = userRepository;
         this.lifecycleService = lifecycleService;
         this.accountStatusService = accountStatusService;
         this.adminAuditService = adminAuditService;
+        this.emailChangeService = emailChangeService;
     }
 
     @GetMapping
@@ -112,6 +117,15 @@ public class AccountManagementController {
         accountStatusService.reactivate(userId, authentication.getName());
         adminAuditService.record("REACTIVATE_USER", "USER", userId, null);
         return ResponseEntity.ok("Kullanıcı hesabı yeniden etkinleştirildi.");
+    }
+
+    @PutMapping("/{userId}/email")
+    public ResponseEntity<ManagedAccount> changeEmail(@PathVariable UUID userId,
+                                                      @Valid @RequestBody ManagedEmailChangeRequest request) {
+        requireManaged(userId);
+        User user = emailChangeService.change(userId, request.newEmail());
+        adminAuditService.record("CHANGE_EMAIL", "USER", userId, request.reason());
+        return ResponseEntity.ok(ManagedAccount.of(user));
     }
 
     private void requireManaged(UUID userId) {
