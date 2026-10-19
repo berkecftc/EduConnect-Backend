@@ -44,7 +44,7 @@ class CourseTermTest {
 
     @Test
     void onlyAdminsManageTermsAndDatesAreValidated() throws Exception {
-        int year = ThreadLocalRandom.current().nextInt(2100, 2190);
+        int year = TestCourses.unusedYear();
         String spring = term(year, "SPRING", (year) + "-02-15", (year) + "-06-30");
         mockMvc.perform(json(post("/api/courses/terms"), TestTokens.academician(instructor), spring))
                 .andExpect(status().isForbidden());
@@ -65,7 +65,7 @@ class CourseTermTest {
 
     @Test
     void coursesAreOpenedPerTermAndSectionFromTheCatalog() throws Exception {
-        int year = ThreadLocalRandom.current().nextInt(2100, 2190);
+        int year = TestCourses.unusedYear();
         String springId = JsonPath.read(mockMvc.perform(json(post("/api/courses/terms"), TestTokens.admin(admin),
                         term(year, "SPRING", year + "-02-15", year + "-06-30")))
                 .andExpect(status().isCreated())

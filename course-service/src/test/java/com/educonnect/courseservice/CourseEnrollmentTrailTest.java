@@ -24,7 +24,6 @@ import org.springframework.test.web.servlet.request.AbstractMockHttpServletReque
 
 import java.time.LocalDate;
 import java.util.UUID;
-import java.util.concurrent.ThreadLocalRandom;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.contains;
@@ -146,7 +145,7 @@ class CourseEnrollmentTrailTest {
     @Test
     void theTermEnrollmentWindowGatesApplicationsAndMarksLateWithdrawals() throws Exception {
         LocalDate today = LocalDate.now();
-        Term term = new Term(ThreadLocalRandom.current().nextInt(2100, 2190), TermSeason.SPRING);
+        Term term = new Term(TestCourses.unusedYear(), TermSeason.SPRING);
         term.schedule(today.minusDays(30), today.plusDays(60), today.minusDays(30), today.plusDays(1));
         term = termRepository.save(term);
         course.setTermId(term.getId());
@@ -167,7 +166,7 @@ class CourseEnrollmentTrailTest {
     @Test
     void pendingApplicationsCloseWhenTheCourseCompletes() {
         LocalDate today = LocalDate.now();
-        Term ended = new Term(ThreadLocalRandom.current().nextInt(2100, 2190), TermSeason.FALL);
+        Term ended = new Term(TestCourses.unusedYear(), TermSeason.FALL);
         ended.schedule(today.minusMonths(4), today.minusDays(1), null, null);
         ended = termRepository.save(ended);
         course.setTermId(ended.getId());
