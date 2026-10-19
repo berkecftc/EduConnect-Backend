@@ -110,7 +110,7 @@ class CourseLifecycleTest {
     @Test
     void coursesCompleteAtTermEndAndBecomeReadOnlyWhenArchived() throws Exception {
         LocalDate today = LocalDate.now();
-        Term ended = new Term(ThreadLocalRandom.current().nextInt(2100, 2190), TermSeason.SUMMER);
+        Term ended = new Term(TestCourses.unusedYear(), TermSeason.SUMMER);
         ended.schedule(today.minusMonths(3), today.minusDays(1), null, null);
         ended = termRepository.save(ended);
         Course course = TestCourses.offering(catalogRepository, "Biten Ders", instructor);
@@ -150,7 +150,7 @@ class CourseLifecycleTest {
     @Test
     void completedCoursesAreArchivedAfterTheGracePeriod() {
         LocalDate today = LocalDate.now();
-        Term ended = new Term(ThreadLocalRandom.current().nextInt(2100, 2190), TermSeason.FALL);
+        Term ended = new Term(TestCourses.unusedYear(), TermSeason.FALL);
         ended.schedule(today.minusMonths(6), today.minusDays(40), null, null);
         ended = termRepository.save(ended);
         Course course = TestCourses.offering(catalogRepository, "Eski Ders", instructor);
