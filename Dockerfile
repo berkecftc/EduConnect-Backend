@@ -13,7 +13,7 @@ RUN java -Djarmode=tools -jar app.jar extract --layers --launcher --destination 
     && mkdir -p layers/dependencies layers/spring-boot-loader layers/snapshot-dependencies layers/application
 
 FROM eclipse-temurin:21-jre-alpine
-RUN addgroup -S app && adduser -S -G app app && mkdir -p /app/data && chown app:app /app/data
+RUN apk upgrade --no-cache && addgroup -S app && adduser -S -G app app && mkdir -p /app/data && chown app:app /app/data
 ENV TZ=Europe/Istanbul
 WORKDIR /app
 COPY --from=extract /extract/layers/dependencies/ ./
