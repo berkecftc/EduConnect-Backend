@@ -456,7 +456,7 @@ services:
       - educonnect-network
 
   tempo:
-    image: grafana/tempo:2.8.2
+    image: grafana/tempo:2.10.8
     restart: unless-stopped
     profiles: ["observability"]
     command: ["-config.file=/etc/tempo/tempo.yml"]
