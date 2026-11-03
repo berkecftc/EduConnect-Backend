@@ -40,10 +40,10 @@ class ClubResponsesTest {
         request.setClubName("Fotoğrafçılık Kulübü");
         request.setRequestingStudentId(UUID.randomUUID());
 
-        Map<String, Object> json = objectMapper.readValue(objectMapper.writeValueAsString(ClubCreationRequestResponse.from(request, List.of())), JSON_MAP);
+        Map<String, Object> json = objectMapper.readValue(objectMapper.writeValueAsString(ClubCreationRequestResponse.from(request, List.of(), "Ayşe Yılmaz", null)), JSON_MAP);
 
-        assertThat(json.keySet()).containsExactlyInAnyOrder("id", "clubName", "about", "requestingStudentId",
-                "suggestedAdvisorId", "status", "requestDate", "rejectionReason", "processedAt", "processedBy", "clubId", "founders");
+        assertThat(json.keySet()).containsExactlyInAnyOrder("id", "clubName", "about", "requestingStudentId", "requestingStudentName",
+                "suggestedAdvisorId", "suggestedAdvisorName", "status", "requestDate", "rejectionReason", "processedAt", "processedBy", "clubId", "founders");
         assertThat(json.get("requestDate")).isNotNull();
         assertThat(json.get("status")).isEqualTo("PENDING");
     }

@@ -7,6 +7,7 @@ import com.educonnect.clubservice.model.ClubPosition;
 import com.educonnect.clubservice.repository.ClubMembershipRepository;
 import com.educonnect.clubservice.repository.ClubPositionTermRepository;
 import com.educonnect.clubservice.repository.ClubRepository;
+import com.educonnect.clubservice.dto.response.UserSummary;
 import com.educonnect.common.test.TestTokens;
 import com.jayway.jsonpath.JsonPath;
 import org.junit.jupiter.api.BeforeEach;
@@ -25,6 +26,8 @@ import java.util.UUID;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.nullValue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.BDDMockito.given;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -76,9 +79,15 @@ class ClubElectionTest {
         String path = "/api/clubs/{clubId}/elections";
         String seats = "{\"boardSeats\":2,\"auditSeats\":1}";
         mockMvc.perform(json(post(path, clubId), TestTokens.student(alice), seats)).andExpect(status().isForbidden());
+        UserSummary opener = new UserSummary();
+        opener.setId(secretary);
+        opener.setFirstName("Sekreter");
+        opener.setLastName("Demir");
+        given(userClient.getUsersByIds(any())).willReturn(List.of(opener));
         String opened = mockMvc.perform(json(post(path, clubId), TestTokens.student(secretary), seats))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.status").value("CANDIDACY"))
+                .andExpect(jsonPath("$.openedByName").value("Sekreter Demir"))
                 .andReturn().getResponse().getContentAsString();
         String electionId = JsonPath.read(opened, "$.id");
         mockMvc.perform(json(post(path, clubId), TestTokens.student(secretary), seats)).andExpect(status().isConflict());

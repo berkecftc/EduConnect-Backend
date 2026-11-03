@@ -7,6 +7,7 @@ import com.educonnect.clubservice.model.FinanceEntryType;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.util.Map;
 import java.util.UUID;
 
 public record FinanceEntryResponse(UUID id,
@@ -20,17 +21,18 @@ public record FinanceEntryResponse(UUID id,
                                    boolean budgetExceeded,
                                    UUID sponsorshipId,
                                    UUID preparedBy,
+                                   String preparedByName,
                                    Instant createdAt,
                                    Instant approvedAt,
                                    ApprovalStatus status) {
 
-    public static FinanceEntryResponse of(ClubFinanceEntry entry, ApprovalStatus status) {
+    public static FinanceEntryResponse of(ClubFinanceEntry entry, ApprovalStatus status, Map<UUID, String> names) {
         if (entry == null) {
             return null;
         }
         return new FinanceEntryResponse(entry.getId(), entry.getType(), entry.getAmount(), entry.getDescription(),
                 entry.getOccurredOn(), entry.getAcademicYear(), entry.getDocumentObject() != null, entry.getDocumentName(),
-                entry.isBudgetExceeded(), entry.getSponsorshipId(), entry.getPreparedBy(), entry.getCreatedAt(),
-                entry.getApprovedAt(), status);
+                entry.isBudgetExceeded(), entry.getSponsorshipId(), entry.getPreparedBy(), names.get(entry.getPreparedBy()),
+                entry.getCreatedAt(), entry.getApprovedAt(), status);
     }
 }

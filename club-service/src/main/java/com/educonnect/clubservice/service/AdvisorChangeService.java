@@ -1,5 +1,6 @@
 package com.educonnect.clubservice.service;
 
+import com.educonnect.clubservice.client.UserLookup;
 import com.educonnect.clubservice.dto.request.AdvisorChangeProposal;
 import com.educonnect.clubservice.dto.response.AdvisorChangeRequestResponse;
 import com.educonnect.clubservice.model.ApprovalStatus;
@@ -27,6 +28,7 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 @Service
 @Transactional
@@ -43,6 +45,7 @@ public class AdvisorChangeService {
     private final ClubApprovalEngine approvalEngine;
     private final ClubDecisionLog decisionLog;
     private final ClubCatalogEvents catalogEvents;
+    private final UserLookup userLookup;
 
     public AdvisorChangeService(ClubApprovalRequestRepository requestRepository,
                                 ClubRepository clubRepository,
@@ -52,7 +55,9 @@ public class AdvisorChangeService {
                                 ClubNotificationPublisher notificationPublisher,
                                 ClubApprovalEngine approvalEngine,
                                 ClubDecisionLog decisionLog,
-                                ClubCatalogEvents catalogEvents) {
+                                ClubCatalogEvents catalogEvents,
+                                UserLookup userLookup) {
+        this.userLookup = userLookup;
         this.requestRepository = requestRepository;
         this.clubRepository = clubRepository;
         this.clubAuthorizationService = clubAuthorizationService;
@@ -80,15 +85,17 @@ public class AdvisorChangeService {
         }
         ClubApprovalRequest request = approvalEngine.submit(club, new ClubApprovalRequest(clubId,
                 ApprovalType.ADVISOR_CHANGE, requesterId, proposedAdvisorId, null, null, proposal.message(), Instant.now()));
-        return AdvisorChangeRequestResponse.of(request, club.getName());
+        return responseOf(request, club.getName());
     }
 
     @Transactional(readOnly = true)
     public List<AdvisorChangeRequestResponse> getClubRequests(UUID clubId, UUID userId) {
         Club club = findClub(clubId);
         clubAuthorizationService.require(clubId, userId, ClubPermission.VIEW_DECISIONS);
-        return requestRepository.findByClubIdAndTypeOrderByCreatedAtDesc(clubId, ApprovalType.ADVISOR_CHANGE).stream()
-                .map(request -> AdvisorChangeRequestResponse.of(request, club.getName()))
+        List<ClubApprovalRequest> requests = requestRepository.findByClubIdAndTypeOrderByCreatedAtDesc(clubId, ApprovalType.ADVISOR_CHANGE);
+        Map<UUID, String> names = namesOf(requests);
+        return requests.stream()
+                .map(request -> AdvisorChangeRequestResponse.of(request, club.getName(), names))
                 .toList();
     }
 
@@ -97,20 +104,31 @@ public class AdvisorChangeService {
         List<ClubApprovalRequest> requests = requestRepository.findByTypeAndSubjectUserIdAndStatus(
                 ApprovalType.ADVISOR_CHANGE, advisorId, ApprovalStatus.PENDING_ADVISOR);
         Map<UUID, Club> clubs = clubsById(requests.stream().map(ClubApprovalRequest::getClubId).toList());
+        Map<UUID, String> names = namesOf(requests);
         return requests.stream()
                 .map(request -> AdvisorChangeRequestResponse.of(request,
-                        clubs.containsKey(request.getClubId()) ? clubs.get(request.getClubId()).getName() : null))
+                        clubs.containsKey(request.getClubId()) ? clubs.get(request.getClubId()).getName() : null, names))
                 .toList();
     }
 
     public AdvisorChangeRequestResponse accept(UUID requestId, UUID advisorId) {
         ClubApprovalRequest request = approvalEngine.approve(advisorChangeRequest(requestId).getId(), advisorId);
-        return AdvisorChangeRequestResponse.of(request, findClub(request.getClubId()).getName());
+        return responseOf(request, findClub(request.getClubId()).getName());
     }
 
     public AdvisorChangeRequestResponse reject(UUID requestId, UUID advisorId, String reason) {
         ClubApprovalRequest request = approvalEngine.reject(advisorChangeRequest(requestId).getId(), advisorId, reason);
-        return AdvisorChangeRequestResponse.of(request, findClub(request.getClubId()).getName());
+        return responseOf(request, findClub(request.getClubId()).getName());
+    }
+
+    private AdvisorChangeRequestResponse responseOf(ClubApprovalRequest request, String clubName) {
+        return AdvisorChangeRequestResponse.of(request, clubName, namesOf(List.of(request)));
+    }
+
+    private Map<UUID, String> namesOf(List<ClubApprovalRequest> requests) {
+        return userLookup.namesById(requests.stream()
+                .flatMap(request -> Stream.of(request.getSubjectUserId(), request.getPreparedBy()))
+                .toList());
     }
 
     public void cancel(UUID clubId, UUID requestId, UUID userId) {

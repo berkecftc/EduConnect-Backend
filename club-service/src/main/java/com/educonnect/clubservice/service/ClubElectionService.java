@@ -32,6 +32,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.EnumSet;
 import java.util.List;
@@ -226,8 +227,9 @@ public class ClubElectionService {
                 .stream()
                 .map(ClubElectionBallotCast::getBallot)
                 .collect(Collectors.toCollection(() -> EnumSet.noneOf(ElectionBallot.class)));
-        return ElectionResponse.of(election, candidates,
-                userLookup.usersById(candidates.stream().map(ClubElectionCandidate::getStudentId).toList()), myBallots);
+        List<UUID> people = new ArrayList<>(candidates.stream().map(ClubElectionCandidate::getStudentId).toList());
+        people.add(election.getOpenedBy());
+        return ElectionResponse.of(election, candidates, userLookup.usersById(people), myBallots);
     }
 
     private void requireActiveMember(UUID clubId, UUID userId) {

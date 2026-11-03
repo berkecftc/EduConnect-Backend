@@ -162,7 +162,8 @@ public class RegistrationApprovalService {
                         minioService.createPresignedUrl(req.getStudentDocumentUrl()),
                         req.getEmailVerifiedAt() != null,
                         req.getUserId() != null,
-                        req.getProgramId()
+                        req.getProgramId(),
+                        req.getCreatedAt()
                 ))
                 .toList();
     }
@@ -225,7 +226,8 @@ public class RegistrationApprovalService {
                                 .orElse(false),
                         userRepository.findById(req.getUserId())
                                 .map(u -> u.getRoles().contains(Role.ROLE_STUDENT))
-                                .orElse(false)
+                                .orElse(false),
+                        req.getCreatedAt()
                 ))
                 .toList();
     }

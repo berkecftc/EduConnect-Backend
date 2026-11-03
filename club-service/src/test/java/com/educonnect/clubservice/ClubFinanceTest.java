@@ -6,6 +6,7 @@ import com.educonnect.clubservice.model.ClubMembership;
 import com.educonnect.clubservice.model.ClubPosition;
 import com.educonnect.clubservice.repository.ClubMembershipRepository;
 import com.educonnect.clubservice.repository.ClubRepository;
+import com.educonnect.clubservice.dto.response.UserSummary;
 import com.educonnect.common.test.TestTokens;
 import com.jayway.jsonpath.JsonPath;
 import org.junit.jupiter.api.BeforeEach;
@@ -28,6 +29,8 @@ import java.util.UUID;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.hasSize;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.BDDMockito.given;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -110,9 +113,15 @@ class ClubFinanceTest {
         mockMvc.perform(as(get("/api/clubs/{clubId}/finance/summary", clubId), TestTokens.academician(advisor)))
                 .andExpect(jsonPath("$.expense").value(3300))
                 .andExpect(jsonPath("$.balance").value(-3300));
+        UserSummary preparer = new UserSummary();
+        preparer.setId(treasurer);
+        preparer.setFirstName("Sayman");
+        preparer.setLastName("Kaya");
+        given(userClient.getUsersByIds(any())).willReturn(List.of(preparer));
         String entries = mockMvc.perform(as(get("/api/clubs/{clubId}/finance/entries", clubId), TestTokens.student(auditor)))
                 .andExpect(jsonPath("$", hasSize(2)))
                 .andExpect(jsonPath("$[*].status").value(hasItem("APPROVED")))
+                .andExpect(jsonPath("$[*].preparedByName").value(hasItem("Sayman Kaya")))
                 .andReturn().getResponse().getContentAsString();
         List<String> documented = JsonPath.read(entries, "$[?(@.hasDocument == true)].id");
         String withDocument = documented.getFirst();

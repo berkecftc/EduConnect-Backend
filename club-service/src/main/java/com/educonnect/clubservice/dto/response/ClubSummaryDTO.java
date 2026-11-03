@@ -10,6 +10,7 @@ public class ClubSummaryDTO {
     private String logoUrl;
     private Long memberCount; // Toplam üye sayısı
     private String advisorName; // Danışman hoca ismi
+    private String advisorTitle;
     private UUID advisorId; // Danışman hoca ID
     private ClubCategory category;
 
@@ -44,6 +45,8 @@ public class ClubSummaryDTO {
     public void setMemberCount(Long memberCount) { this.memberCount = memberCount; }
     public String getAdvisorName() { return advisorName; }
     public void setAdvisorName(String advisorName) { this.advisorName = advisorName; }
+    public String getAdvisorTitle() { return advisorTitle; }
+    public void setAdvisorTitle(String advisorTitle) { this.advisorTitle = advisorTitle; }
     public UUID getAdvisorId() { return advisorId; }
     public void setAdvisorId(UUID advisorId) { this.advisorId = advisorId; }
     public ClubCategory getCategory() { return category; }

@@ -25,6 +25,11 @@ public class UserLookup {
         this.userClient = userClient;
     }
 
+    public Map<UUID, String> namesById(Collection<UUID> userIds) {
+        return usersById(userIds).values().stream()
+                .collect(Collectors.toMap(UserSummary::getId, UserSummary::getFullName));
+    }
+
     public Map<UUID, UserSummary> usersById(Collection<UUID> userIds) {
         List<UUID> ids = distinct(userIds);
         if (ids.isEmpty()) {

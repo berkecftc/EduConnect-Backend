@@ -29,6 +29,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.not;
+import static org.hamcrest.Matchers.startsWith;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.mock;
@@ -133,7 +134,9 @@ class ClubFounderTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("REJECTED"));
         mockMvc.perform(as(get("/api/clubs/my-creation-requests"), TestTokens.student(requester)))
-                .andExpect(jsonPath("$[0].status").value("REJECTED"));
+                .andExpect(jsonPath("$[0].status").value("REJECTED"))
+                .andExpect(jsonPath("$[0].requestingStudentName").value(startsWith("Kurucu")))
+                .andExpect(jsonPath("$[0].suggestedAdvisorName").value(startsWith("Kurucu")));
     }
 
     @Test

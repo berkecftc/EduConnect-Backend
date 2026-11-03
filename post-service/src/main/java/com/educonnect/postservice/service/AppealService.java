@@ -1,8 +1,10 @@
 package com.educonnect.postservice.service;
 
 import com.educonnect.common.web.ApiException;
+import com.educonnect.postservice.client.UserClient;
 import com.educonnect.postservice.dto.AppealDecisionRequest;
 import com.educonnect.postservice.dto.AppealResponse;
+import com.educonnect.postservice.dto.UserSummaryDto;
 import com.educonnect.postservice.exception.CommentNotFoundException;
 import com.educonnect.postservice.exception.PostNotFoundException;
 import com.educonnect.postservice.model.Comment;
@@ -27,6 +29,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -52,6 +55,7 @@ public class AppealService {
     private final ContentControlService contentControl;
     private final ModerationLog moderationLog;
     private final ContributionEvents contributionEvents;
+    private final UserClient userClient;
 
     public AppealService(ModerationAppealRepository appealRepository,
                          ModerationRecordRepository recordRepository,
@@ -59,7 +63,9 @@ public class AppealService {
                          CommentRepository commentRepository,
                          ContentControlService contentControl,
                          ModerationLog moderationLog,
-                         ContributionEvents contributionEvents) {
+                         ContributionEvents contributionEvents,
+                         UserClient userClient) {
+        this.userClient = userClient;
         this.appealRepository = appealRepository;
         this.recordRepository = recordRepository;
         this.postRepository = postRepository;
@@ -89,15 +95,17 @@ public class AppealService {
     @Transactional(readOnly = true)
     public List<AppealResponse> myAppeals(Viewer viewer) {
         return appealRepository.findByAppellantIdOrderByCreatedAtDesc(viewer.id()).stream()
-                .map(appeal -> AppealResponse.from(appeal, null))
+                .map(appeal -> AppealResponse.from(appeal, null, null))
                 .toList();
     }
 
     @Transactional(readOnly = true)
     public Page<AppealResponse> openAppeals(Viewer moderator, Pageable pageable) {
         moderator.requireModerator();
-        return appealRepository.findByStatus(ModerationAppeal.Status.OPEN, pageable)
-                .map(appeal -> AppealResponse.from(appeal, contentOf(appeal)));
+        Page<ModerationAppeal> appeals = appealRepository.findByStatus(ModerationAppeal.Status.OPEN, pageable);
+        Map<UUID, String> names = new HashMap<>();
+        return appeals.map(appeal -> AppealResponse.from(appeal, contentOf(appeal),
+                names.computeIfAbsent(appeal.getAppellantId(), this::nameOf)));
     }
 
     @Transactional
@@ -125,7 +133,17 @@ public class AppealService {
         }
         appealRepository.save(appeal);
         log.info("Appeal decided. appealId={}, outcome={}, moderator={}", appealId, appeal.getStatus(), moderator.id());
-        return AppealResponse.from(appeal, contentOf(appeal));
+        return AppealResponse.from(appeal, contentOf(appeal), nameOf(appeal.getAppellantId()));
+    }
+
+    private String nameOf(UUID userId) {
+        try {
+            UserSummaryDto user = userClient.getUserById(userId);
+            return user != null ? user.getFirstName() + " " + user.getLastName() : null;
+        } catch (Exception e) {
+            log.warn("Kullanıcı bilgisi alınamadı — userId: {}", userId);
+            return null;
+        }
     }
 
     private AppealResponse open(ModerationTarget target, UUID targetId, UUID postId, ModerationAction action,
@@ -143,7 +161,7 @@ public class AppealService {
         ModerationAppeal appeal = appealRepository.save(new ModerationAppeal(target, targetId, postId, viewer.id(),
                 statement.strip(), action, decision.getActorId(), Instant.now()));
         log.info("Appeal opened. target={}, targetId={}, action={}", target, targetId, action);
-        return AppealResponse.from(appeal, content);
+        return AppealResponse.from(appeal, content, null);
     }
 
     private void reinstate(ModerationAppeal appeal, Viewer moderator, String reason) {

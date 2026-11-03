@@ -1,6 +1,7 @@
 package com.educonnect.clubservice;
 
 import com.educonnect.clubservice.client.UserClient;
+import com.educonnect.clubservice.dto.response.AcademicianSummary;
 import com.educonnect.clubservice.dto.response.UserSummary;
 import com.educonnect.clubservice.model.ApprovalStatus;
 import com.educonnect.clubservice.model.ApprovalType;
@@ -25,6 +26,7 @@ import org.springframework.test.web.servlet.request.AbstractMockHttpServletReque
 
 import java.time.Instant;
 import java.util.Collection;
+import java.util.List;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -113,7 +115,9 @@ class ClubGovernanceTest {
 
         mockMvc.perform(as(get("/api/clubs/{clubId}/decision-log", clubId), TestTokens.academician(advisor)))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$[*].action", hasItems("SUBMITTED", "PRESIDENT_APPROVED", "APPROVED")));
+                .andExpect(jsonPath("$[*].action", hasItems("SUBMITTED", "PRESIDENT_APPROVED", "APPROVED")))
+                .andExpect(jsonPath("$[?(@.action == 'PRESIDENT_APPROVED')].actorName", contains(nameOf(president))))
+                .andExpect(jsonPath("$[?(@.action == 'PRESIDENT_APPROVED')].subjectUserName", contains(nameOf(officer))));
         mockMvc.perform(as(get("/api/clubs/{clubId}/decision-log", clubId), TestTokens.student(member)))
                 .andExpect(status().isForbidden());
     }
@@ -139,6 +143,17 @@ class ClubGovernanceTest {
                 .andExpect(jsonPath("$[*].id", contains(expulsion)));
         mockMvc.perform(as(get("/api/clubs/approvals/mine"), TestTokens.student(UUID.randomUUID())))
                 .andExpect(jsonPath("$", empty()));
+    }
+
+    @Test
+    void theClubListGivesTheAdvisorsTitle() throws Exception {
+        AcademicianSummary academician = new AcademicianSummary();
+        academician.setId(advisor);
+        academician.setTitle("Doç. Dr.");
+        given(userClient.getAcademiciansByIds(any())).willReturn(List.of(academician));
+        mockMvc.perform(get("/api/clubs"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[?(@.id == '" + clubId + "')].advisorTitle", contains("Doç. Dr.")));
     }
 
     @Test

@@ -13,6 +13,7 @@ public record AppealResponse(
         UUID targetId,
         UUID postId,
         UUID appellantId,
+        String appellantName,
         String statement,
         ModerationAction appealedAction,
         ModerationAppeal.Status status,
@@ -22,9 +23,9 @@ public record AppealResponse(
         String targetContent
 ) {
 
-    public static AppealResponse from(ModerationAppeal appeal, String targetContent) {
+    public static AppealResponse from(ModerationAppeal appeal, String targetContent, String appellantName) {
         return new AppealResponse(appeal.getId(), appeal.getTargetType(), appeal.getTargetId(), appeal.getPostId(),
-                appeal.getAppellantId(), appeal.getStatement(), appeal.getAppealedAction(), appeal.getStatus(),
+                appeal.getAppellantId(), appellantName, appeal.getStatement(), appeal.getAppealedAction(), appeal.getStatus(),
                 appeal.getDecisionNote(), appeal.getDecidedAt(), appeal.getCreatedAt(), targetContent);
     }
 }

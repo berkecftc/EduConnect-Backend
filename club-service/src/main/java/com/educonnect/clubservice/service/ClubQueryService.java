@@ -310,6 +310,7 @@ public class ClubQueryService {
                             club.getAcademicAdvisorId()
 
                     );
+                    summary.setAdvisorTitle(advisor != null ? advisor.getTitle() : null);
                     summary.setCategory(club.getProfile().getCategory());
                     return summary;
                 })

@@ -15,10 +15,18 @@ public class MyEventRegistrationDTO {
     private boolean attended;
     private String registrationStatus;
     private String eventStatus;
+    private LocalDateTime endsAt;
+    private String cancellationReason;
 
     public MyEventRegistrationDTO() {}
 
     // Getters and Setters
+    public LocalDateTime getEndsAt() { return endsAt; }
+    public void setEndsAt(LocalDateTime endsAt) { this.endsAt = endsAt; }
+
+    public String getCancellationReason() { return cancellationReason; }
+    public void setCancellationReason(String cancellationReason) { this.cancellationReason = cancellationReason; }
+
     public UUID getEventId() { return eventId; }
     public void setEventId(UUID eventId) { this.eventId = eventId; }
 

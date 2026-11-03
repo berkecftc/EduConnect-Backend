@@ -2,6 +2,7 @@ package com.educonnect.clubservice;
 
 import com.educonnect.clubservice.client.UserClient;
 import com.educonnect.clubservice.dto.response.AcademicianSummary;
+import com.educonnect.clubservice.dto.response.UserSummary;
 import com.educonnect.clubservice.model.ApprovalStatus;
 import com.educonnect.clubservice.model.ApprovalType;
 import com.educonnect.clubservice.model.Club;
@@ -28,6 +29,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.AbstractMockHttpServletRequestBuilder;
 
 import java.time.Instant;
+import java.util.List;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -125,10 +127,21 @@ class ClubContinuityTest {
                 .andExpect(status().isForbidden());
         mockMvc.perform(json(post(propose, clubId), TestTokens.student(president), advisorBody(advisor)))
                 .andExpect(status().isBadRequest());
+        UserSummary proposed = new UserSummary();
+        proposed.setId(newAdvisor);
+        proposed.setFirstName("Yeni");
+        proposed.setLastName("Danışman");
+        UserSummary requester = new UserSummary();
+        requester.setId(president);
+        requester.setFirstName("Kulüp");
+        requester.setLastName("Başkanı");
+        when(userClient.getUsersByIds(any())).thenReturn(List.of(proposed, requester));
         mockMvc.perform(json(post(propose, clubId), TestTokens.student(president), advisorBody(newAdvisor)))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.status").value("PENDING_ADVISOR"))
-                .andExpect(jsonPath("$.proposedAdvisorId").value(newAdvisor.toString()));
+                .andExpect(jsonPath("$.proposedAdvisorId").value(newAdvisor.toString()))
+                .andExpect(jsonPath("$.proposedAdvisorName").value("Yeni Danışman"))
+                .andExpect(jsonPath("$.requestedByName").value("Kulüp Başkanı"));
         mockMvc.perform(json(post(propose, clubId), TestTokens.student(president), advisorBody(otherAcademician)))
                 .andExpect(status().isConflict());
 

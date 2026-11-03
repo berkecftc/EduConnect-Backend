@@ -3,6 +3,7 @@ package com.educonnect.clubservice.service;
 import com.educonnect.clubservice.dto.response.ApprovalDetails;
 import com.educonnect.clubservice.client.UserLookup;
 import com.educonnect.clubservice.dto.response.ApprovalRequestResponse;
+import com.educonnect.clubservice.dto.response.DecisionLogEntryResponse;
 import com.educonnect.clubservice.dto.response.UserSummary;
 import com.educonnect.clubservice.model.ApprovalStatus;
 import com.educonnect.clubservice.model.ApprovalType;
@@ -126,10 +127,14 @@ public class ClubGovernanceService {
     }
 
     @Transactional(readOnly = true)
-    public List<ClubDecisionLogEntry> decisionLogOf(UUID clubId, UUID userId) {
+    public List<DecisionLogEntryResponse> decisionLogOf(UUID clubId, UUID userId) {
         findClub(clubId);
         clubAuthorizationService.require(clubId, userId, ClubPermission.VIEW_DECISIONS);
-        return decisionLog.entriesOf(clubId);
+        List<ClubDecisionLogEntry> entries = decisionLog.entriesOf(clubId);
+        Map<UUID, String> names = userLookup.namesById(entries.stream()
+                .flatMap(entry -> Stream.of(entry.getActorId(), entry.getSubjectUserId()))
+                .toList());
+        return entries.stream().map(entry -> DecisionLogEntryResponse.of(entry, names)).toList();
     }
 
     @Transactional(readOnly = true)

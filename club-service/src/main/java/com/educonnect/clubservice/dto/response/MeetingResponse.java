@@ -7,6 +7,7 @@ import com.educonnect.clubservice.model.ClubMeetingDecision;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
@@ -18,22 +19,30 @@ public record MeetingResponse(UUID id,
                               String agenda,
                               String minutes,
                               Set<UUID> attendeeIds,
+                              List<Attendee> attendees,
                               int boardSize,
                               boolean quorumMet,
                               List<MeetingDecisionResponse> decisions,
                               UUID preparedBy,
+                              String preparedByName,
                               Instant createdAt,
                               Instant approvedAt,
                               ApprovalStatus status) {
 
-    public static MeetingResponse of(ClubMeeting meeting, List<ClubMeetingDecision> decisions, ApprovalStatus status) {
+    public record Attendee(UUID id, String name) {
+    }
+
+    public static MeetingResponse of(ClubMeeting meeting, List<ClubMeetingDecision> decisions, ApprovalStatus status,
+                                     Map<UUID, String> names) {
         if (meeting == null) {
             return null;
         }
         return new MeetingResponse(meeting.getId(), meeting.getMeetingAt(), meeting.getAcademicYear(),
                 AcademicYears.label(meeting.getAcademicYear()), meeting.getLocation(), meeting.getAgenda(),
-                meeting.getMinutes(), meeting.getAttendeeIds(), meeting.getBoardSize(), meeting.isQuorumMet(),
+                meeting.getMinutes(), meeting.getAttendeeIds(),
+                meeting.getAttendeeIds().stream().map(id -> new Attendee(id, names.get(id))).toList(),
+                meeting.getBoardSize(), meeting.isQuorumMet(),
                 decisions.stream().map(MeetingDecisionResponse::of).toList(), meeting.getPreparedBy(),
-                meeting.getCreatedAt(), meeting.getApprovedAt(), status);
+                names.get(meeting.getPreparedBy()), meeting.getCreatedAt(), meeting.getApprovedAt(), status);
     }
 }

@@ -2,7 +2,9 @@ package com.educonnect.authservices.models;
 
 import jakarta.persistence.*;
 import com.educonnect.common.storage.ObjectUrlConverter;
+import org.hibernate.annotations.CreationTimestamp;
 
+import java.time.Instant;
 import java.util.UUID;
 
 @Entity
@@ -38,8 +40,13 @@ public class AcademicianRegistrationRequest {
     @Convert(converter = ObjectUrlConverter.class)
     private String idCardImageUrl; // Akademisyen kimlik kartı fotoğrafı URL'si (MinIO'da)
 
-    // İstersen başvuru tarihi
-    // private LocalDateTime createdAt;
+    @CreationTimestamp
+    @Column(name = "created_at", nullable = false, updatable = false)
+    private Instant createdAt;
+
+    public Instant getCreatedAt() {
+        return createdAt;
+    }
 
     // Getter ve Setter metodları
     public Long getId() {

@@ -1,5 +1,6 @@
 package com.educonnect.clubservice.service;
 
+import com.educonnect.clubservice.client.UserLookup;
 import com.educonnect.clubservice.dto.request.BudgetRequest;
 import com.educonnect.clubservice.dto.request.FinanceEntryForm;
 import com.educonnect.clubservice.dto.request.SponsorshipForm;
@@ -55,6 +56,7 @@ public class ClubFinanceService {
     private final ClubApprovalEngine approvalEngine;
     private final FinanceDocumentStorage documentStorage;
     private final MembershipTerms membershipTerms;
+    private final UserLookup userLookup;
 
     public ClubFinanceService(ClubRepository clubRepository,
                               ClubApprovalRequestRepository requestRepository,
@@ -64,7 +66,9 @@ public class ClubFinanceService {
                               ClubAuthorizationService clubAuthorizationService,
                               ClubApprovalEngine approvalEngine,
                               FinanceDocumentStorage documentStorage,
-                              MembershipTerms membershipTerms) {
+                              MembershipTerms membershipTerms,
+                              UserLookup userLookup) {
+        this.userLookup = userLookup;
         this.clubRepository = clubRepository;
         this.requestRepository = requestRepository;
         this.budgetRepository = budgetRepository;
@@ -164,7 +168,8 @@ public class ClubFinanceService {
         int academicYear = membershipTerms.resolveAcademicYear(year);
         List<ClubFinanceEntry> entries = entryRepository.findByClubIdAndAcademicYearOrderByOccurredOnDescCreatedAtDesc(clubId, academicYear);
         Map<UUID, ApprovalStatus> statuses = statusesOf(entries.stream().map(ClubFinanceEntry::getRequestId).toList());
-        return entries.stream().map(entry -> FinanceEntryResponse.of(entry, statuses.get(entry.getRequestId()))).toList();
+        Map<UUID, String> names = userLookup.namesById(entries.stream().map(ClubFinanceEntry::getPreparedBy).toList());
+        return entries.stream().map(entry -> FinanceEntryResponse.of(entry, statuses.get(entry.getRequestId()), names)).toList();
     }
 
     @Transactional(readOnly = true)

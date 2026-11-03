@@ -1,5 +1,6 @@
 package com.educonnect.authservices.dto.response;
 
+import java.time.Instant;
 import java.util.UUID;
 
 public record StudentRequestAdminView(
@@ -12,5 +13,6 @@ public record StudentRequestAdminView(
         String studentDocumentUrl,
         boolean emailVerified,
         boolean additionalAffiliation,
-        UUID programId
+        UUID programId,
+        Instant createdAt
 ) {}

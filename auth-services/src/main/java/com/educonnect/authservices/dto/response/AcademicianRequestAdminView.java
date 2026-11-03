@@ -1,5 +1,6 @@
 package com.educonnect.authservices.dto.response;
 
+import java.time.Instant;
 import java.util.UUID;
 
 public record AcademicianRequestAdminView(
@@ -12,5 +13,6 @@ public record AcademicianRequestAdminView(
         String officeNumber,
         String idCardImageUrl,
         boolean emailVerified,
-        boolean additionalAffiliation
+        boolean additionalAffiliation,
+        Instant createdAt
 ) {}

@@ -1,5 +1,6 @@
 package com.educonnect.clubservice.service;
 
+import com.educonnect.clubservice.client.UserLookup;
 import com.educonnect.clubservice.dto.response.AnnouncementResponse;
 import com.educonnect.clubservice.dto.response.ApprovalDetails;
 import com.educonnect.clubservice.dto.response.BudgetResponse;
@@ -10,6 +11,7 @@ import com.educonnect.clubservice.dto.response.ReportResponse;
 import com.educonnect.clubservice.dto.response.SponsorshipResponse;
 import com.educonnect.clubservice.model.ApprovalType;
 import com.educonnect.clubservice.model.ClubApprovalRequest;
+import com.educonnect.clubservice.model.ClubFinanceEntry;
 import com.educonnect.clubservice.model.ClubMeeting;
 import com.educonnect.clubservice.model.ClubMeetingDecision;
 import com.educonnect.clubservice.repository.ClubAnnouncementRepository;
@@ -32,6 +34,7 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 @Component
 @Transactional(readOnly = true)
@@ -49,6 +52,7 @@ public class ApprovalDetailsLoader {
     private final ClubReportRepository reportRepository;
     private final ClubElectionRepository electionRepository;
     private final ClubElectionService electionService;
+    private final UserLookup userLookup;
 
     public ApprovalDetailsLoader(ClubProfileChangeRepository profileChangeRepository,
                                  ClubAnnouncementRepository announcementRepository,
@@ -59,7 +63,9 @@ public class ApprovalDetailsLoader {
                                  ClubMeetingDecisionRepository decisionRepository,
                                  ClubReportRepository reportRepository,
                                  ClubElectionRepository electionRepository,
-                                 @Lazy ClubElectionService electionService) {
+                                 @Lazy ClubElectionService electionService,
+                                 UserLookup userLookup) {
+        this.userLookup = userLookup;
         this.profileChangeRepository = profileChangeRepository;
         this.announcementRepository = announcementRepository;
         this.budgetRepository = budgetRepository;
@@ -85,19 +91,25 @@ public class ApprovalDetailsLoader {
         budgetRepository.findByRequestIdIn(idsOf(requests, Set.of(ApprovalType.CLUB_BUDGET)))
                 .forEach(budget -> details.put(budget.getRequestId(), ApprovalDetails.ofBudget(
                         BudgetResponse.of(budget, byId.get(budget.getRequestId()).getStatus()))));
-        entryRepository.findByRequestIdIn(idsOf(requests, Set.of(ApprovalType.CLUB_FINANCE_ENTRY)))
-                .forEach(entry -> details.put(entry.getRequestId(), ApprovalDetails.ofFinanceEntry(
-                        FinanceEntryResponse.of(entry, byId.get(entry.getRequestId()).getStatus()))));
+        List<ClubFinanceEntry> entries = entryRepository.findByRequestIdIn(idsOf(requests, Set.of(ApprovalType.CLUB_FINANCE_ENTRY)));
+        List<ClubMeeting> meetings = meetingRepository.findByRequestIdIn(idsOf(requests, Set.of(ApprovalType.CLUB_MEETING_MINUTES)));
+        Map<UUID, String> names = userLookup.namesById(Stream.of(
+                        entries.stream().map(ClubFinanceEntry::getPreparedBy),
+                        meetings.stream().map(ClubMeeting::getPreparedBy),
+                        meetings.stream().flatMap(meeting -> meeting.getAttendeeIds().stream()))
+                .flatMap(Function.identity())
+                .toList());
+        entries.forEach(entry -> details.put(entry.getRequestId(), ApprovalDetails.ofFinanceEntry(
+                FinanceEntryResponse.of(entry, byId.get(entry.getRequestId()).getStatus(), names))));
         sponsorshipRepository.findByRequestIdIn(idsOf(requests, Set.of(ApprovalType.CLUB_SPONSORSHIP)))
                 .forEach(sponsorship -> details.put(sponsorship.getRequestId(), ApprovalDetails.ofSponsorship(
                         SponsorshipResponse.of(sponsorship, byId.get(sponsorship.getRequestId()).getStatus()))));
-        List<ClubMeeting> meetings = meetingRepository.findByRequestIdIn(idsOf(requests, Set.of(ApprovalType.CLUB_MEETING_MINUTES)));
         Map<UUID, List<ClubMeetingDecision>> decisions = decisionRepository
                 .findByMeetingIdInOrderByItemOrder(meetings.stream().map(ClubMeeting::getId).toList())
                 .stream()
                 .collect(Collectors.groupingBy(ClubMeetingDecision::getMeetingId));
         meetings.forEach(meeting -> details.put(meeting.getRequestId(), ApprovalDetails.ofMeeting(MeetingResponse.of(meeting,
-                decisions.getOrDefault(meeting.getId(), List.of()), byId.get(meeting.getRequestId()).getStatus()))));
+                decisions.getOrDefault(meeting.getId(), List.of()), byId.get(meeting.getRequestId()).getStatus(), names))));
         reportRepository.findByRequestIdIn(idsOf(requests, Set.of(ApprovalType.CLUB_ACTIVITY_REPORT, ApprovalType.CLUB_AUDIT_REPORT)))
                 .forEach(report -> details.put(report.getRequestId(), ApprovalDetails.ofReport(ReportResponse.of(report))));
         electionRepository.findByRequestIdIn(idsOf(requests, Set.of(ApprovalType.CLUB_ELECTION)))

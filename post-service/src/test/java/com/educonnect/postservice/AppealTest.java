@@ -1,6 +1,8 @@
 package com.educonnect.postservice;
 
 import com.educonnect.common.test.TestTokens;
+import com.educonnect.postservice.client.UserClient;
+import com.educonnect.postservice.dto.UserSummaryDto;
 import com.educonnect.postservice.model.Comment;
 import com.educonnect.postservice.model.CommentStatus;
 import com.educonnect.postservice.model.ModerationAction;
@@ -16,6 +18,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 import tools.jackson.databind.ObjectMapper;
@@ -24,6 +27,8 @@ import java.time.Instant;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.BDDMockito.given;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
@@ -52,8 +57,15 @@ class AppealTest {
     @Autowired
     private ModerationRecordRepository recordRepository;
 
+    @MockitoBean
+    private UserClient userClient;
+
     @Test
     void anotherModeratorReinstatesRemovedContentOnAnAcceptedAppeal() throws Exception {
+        UserSummaryDto appellant = new UserSummaryDto();
+        appellant.setFirstName("Ayşe");
+        appellant.setLastName("Yılmaz");
+        given(userClient.getUserById(any())).willReturn(appellant);
         UUID postId = savePost(PostStatus.PUBLISHED);
         mockMvc.perform(as(post("/api/posts/moderation/posts/{id}/remove", postId), moderator(firstModerator))
                         .contentType(MediaType.APPLICATION_JSON).content("{\"reason\":\"Reklam\"}"))
@@ -70,7 +82,8 @@ class AppealTest {
                 .andExpect(jsonPath("$.errorCode").value("APPEAL_EXISTS"));
 
         mockMvc.perform(as(get("/api/posts/moderation/appeals").param("size", "200"), moderator(secondModerator)))
-                .andExpect(jsonPath("$.content[?(@.id == '" + appealId + "')].appealedAction").value("REMOVED"));
+                .andExpect(jsonPath("$.content[?(@.id == '" + appealId + "')].appealedAction").value("REMOVED"))
+                .andExpect(jsonPath("$.content[?(@.id == '" + appealId + "')].appellantName").value("Ayşe Yılmaz"));
         mockMvc.perform(as(post("/api/posts/moderation/appeals/{id}/decision", appealId), moderator(firstModerator))
                         .contentType(MediaType.APPLICATION_JSON).content("{\"outcome\":\"ACCEPT\",\"reason\":\"Haklı\"}"))
                 .andExpect(status().isForbidden())
@@ -78,7 +91,8 @@ class AppealTest {
         mockMvc.perform(as(post("/api/posts/moderation/appeals/{id}/decision", appealId), moderator(secondModerator))
                         .contentType(MediaType.APPLICATION_JSON).content("{\"outcome\":\"ACCEPT\",\"reason\":\"Ders duyurusu, reklam değil\"}"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.status").value("ACCEPTED"));
+                .andExpect(jsonPath("$.status").value("ACCEPTED"))
+                .andExpect(jsonPath("$.appellantName").value("Ayşe Yılmaz"));
 
         assertThat(postRepository.findById(postId).orElseThrow().getStatus()).isEqualTo(PostStatus.PUBLISHED);
         assertThat(recordRepository.findByTargetTypeAndTargetIdOrderByCreatedAtDesc(ModerationTarget.POST, postId))

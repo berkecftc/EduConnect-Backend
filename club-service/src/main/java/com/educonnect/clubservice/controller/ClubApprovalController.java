@@ -109,8 +109,6 @@ public class ClubApprovalController {
     @GetMapping("/{clubId}/decision-log")
     public ResponseEntity<List<DecisionLogEntryResponse>> decisionLog(@PathVariable UUID clubId,
                                                                       @RequestHeader(USER_ID_HEADER) String userIdHeader) {
-        return ResponseEntity.ok(governanceService.decisionLogOf(clubId, UUID.fromString(userIdHeader)).stream()
-                .map(DecisionLogEntryResponse::of)
-                .toList());
+        return ResponseEntity.ok(governanceService.decisionLogOf(clubId, UUID.fromString(userIdHeader)));
     }
 }

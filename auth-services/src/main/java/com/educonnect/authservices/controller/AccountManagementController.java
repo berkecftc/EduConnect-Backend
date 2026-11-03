@@ -11,6 +11,7 @@ import com.educonnect.authservices.service.AccountStatusService;
 import com.educonnect.authservices.service.AdminAuditService;
 import com.educonnect.authservices.service.AffiliationLifecycleService;
 import com.educonnect.authservices.service.EmailChangeService;
+import com.educonnect.authservices.service.ProfileNames;
 import com.educonnect.common.web.ForbiddenException;
 import com.educonnect.common.web.NotFoundException;
 import jakarta.validation.Valid;
@@ -46,12 +47,15 @@ public class AccountManagementController {
     private final AccountStatusService accountStatusService;
     private final AdminAuditService adminAuditService;
     private final EmailChangeService emailChangeService;
+    private final ProfileNames profileNames;
 
     public AccountManagementController(UserRepository userRepository,
                                        AffiliationLifecycleService lifecycleService,
                                        AccountStatusService accountStatusService,
                                        AdminAuditService adminAuditService,
-                                       EmailChangeService emailChangeService) {
+                                       EmailChangeService emailChangeService,
+                                       ProfileNames profileNames) {
+        this.profileNames = profileNames;
         this.userRepository = userRepository;
         this.lifecycleService = lifecycleService;
         this.accountStatusService = accountStatusService;
@@ -68,9 +72,12 @@ public class AccountManagementController {
         Map<UUID, User> found = new LinkedHashMap<>();
         userRepository.findFirstByStudentNumber(term).ifPresent(user -> found.put(user.getId(), user));
         userRepository.findTop50ByEmailContainingIgnoreCaseOrderByEmailAsc(term).forEach(user -> found.putIfAbsent(user.getId(), user));
-        return ResponseEntity.ok(found.values().stream()
+        List<User> managed = found.values().stream()
                 .filter(user -> MANAGED.contains(AccountType.of(user.getRoles())))
-                .map(ManagedAccount::of)
+                .toList();
+        Map<UUID, ProfileNames.Names> names = profileNames.namesOf(managed.stream().map(User::getId).toList());
+        return ResponseEntity.ok(managed.stream()
+                .map(user -> ManagedAccount.of(user, names.get(user.getId())))
                 .toList());
     }
 
@@ -125,7 +132,7 @@ public class AccountManagementController {
         requireManaged(userId);
         User user = emailChangeService.change(userId, request.newEmail());
         adminAuditService.record("CHANGE_EMAIL", "USER", userId, request.reason());
-        return ResponseEntity.ok(ManagedAccount.of(user));
+        return ResponseEntity.ok(ManagedAccount.of(user, profileNames.namesOf(List.of(userId)).get(userId)));
     }
 
     private void requireManaged(UUID userId) {
@@ -136,11 +143,12 @@ public class AccountManagementController {
         }
     }
 
-    public record ManagedAccount(UUID id, String email, Set<String> roles, String status, String studentNumber,
-                                 String studentStatus, String staffStatus, Instant closureDueAt) {
+    public record ManagedAccount(UUID id, String firstName, String lastName, String email, Set<String> roles, String status,
+                                 String studentNumber, String studentStatus, String staffStatus, Instant closureDueAt) {
 
-        static ManagedAccount of(User user) {
-            return new ManagedAccount(user.getId(), user.getEmail(),
+        static ManagedAccount of(User user, ProfileNames.Names names) {
+            return new ManagedAccount(user.getId(), names != null ? names.firstName() : null,
+                    names != null ? names.lastName() : null, user.getEmail(),
                     user.getRoles().stream().map(Enum::name).collect(Collectors.toCollection(TreeSet::new)),
                     user.getStatus().name(), user.getStudentNumber(),
                     user.getStudentStatus() == null ? null : user.getStudentStatus().name(),

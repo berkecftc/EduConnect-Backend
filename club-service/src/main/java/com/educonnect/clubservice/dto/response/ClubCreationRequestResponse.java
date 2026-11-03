@@ -11,7 +11,9 @@ public record ClubCreationRequestResponse(UUID id,
                                           String clubName,
                                           String about,
                                           UUID requestingStudentId,
+                                          String requestingStudentName,
                                           UUID suggestedAdvisorId,
+                                          String suggestedAdvisorName,
                                           ClubCreationRequestStatus status,
                                           Instant requestDate,
                                           String rejectionReason,
@@ -20,9 +22,11 @@ public record ClubCreationRequestResponse(UUID id,
                                           UUID clubId,
                                           List<FounderResponse> founders) {
 
-    public static ClubCreationRequestResponse from(ClubCreationRequest request, List<FounderResponse> founders) {
+    public static ClubCreationRequestResponse from(ClubCreationRequest request, List<FounderResponse> founders,
+                                                   String requestingStudentName, String suggestedAdvisorName) {
         return new ClubCreationRequestResponse(request.getId(), request.getClubName(), request.getAbout(),
-                request.getRequestingStudentId(), request.getSuggestedAdvisorId(), request.getStatus(),
+                request.getRequestingStudentId(), requestingStudentName,
+                request.getSuggestedAdvisorId(), suggestedAdvisorName, request.getStatus(),
                 request.getRequestDate(), request.getRejectionReason(), request.getProcessedAt(),
                 request.getProcessedBy(), request.getClubId(), founders);
     }

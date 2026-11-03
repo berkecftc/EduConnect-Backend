@@ -8,20 +8,25 @@ import com.educonnect.authservices.models.StudentStatus;
 import com.educonnect.authservices.models.User;
 import com.educonnect.authservices.repository.UserRepository;
 import com.educonnect.authservices.service.JWTService;
+import com.educonnect.authservices.service.ProfileNames;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 
 import java.util.HashSet;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.BDDMockito.given;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
@@ -38,6 +43,9 @@ class AccountManagementTest {
 
     @Autowired
     private UserRepository userRepository;
+
+    @MockitoBean
+    private ProfileNames profileNames;
 
     @Autowired
     private JWTService jwtService;
@@ -56,10 +64,13 @@ class AccountManagementTest {
     @Test
     void accountManagersFindAndManageStudentAndStaffAccounts() throws Exception {
         save("adm", Role.ROLE_ADMIN);
+        given(profileNames.namesOf(any())).willReturn(Map.of(student.getId(), new ProfileNames.Names("Ayşe", "Yılmaz")));
         mockMvc.perform(as(get("/api/auth/account-management/users").param("query", tag), manager))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.length()").value(1))
-                .andExpect(jsonPath("$[0].id").value(student.getId().toString()));
+                .andExpect(jsonPath("$[0].id").value(student.getId().toString()))
+                .andExpect(jsonPath("$[0].firstName").value("Ayşe"))
+                .andExpect(jsonPath("$[0].lastName").value("Yılmaz"));
         mockMvc.perform(as(get("/api/auth/account-management/users").param("query", student.getStudentNumber()), manager))
                 .andExpect(jsonPath("$[0].email").value(student.getEmail()));
 

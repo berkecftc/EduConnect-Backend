@@ -1,8 +1,12 @@
 package com.educonnect.authservices;
 
+import com.educonnect.authservices.repository.AcademicianRequestRepository;
+import com.educonnect.authservices.repository.StudentRequestRepository;
 import com.educonnect.authservices.repository.UserRepository;
+import com.educonnect.authservices.models.AcademicianRegistrationRequest;
 import com.educonnect.authservices.models.AccountStatus;
 import com.educonnect.authservices.models.Role;
+import com.educonnect.authservices.models.StudentRegistrationRequest;
 import com.educonnect.authservices.models.User;
 import com.educonnect.authservices.service.JWTService;
 import com.educonnect.common.test.TestTokens;
@@ -48,6 +52,12 @@ class AuthAuthorizationTest {
     @Autowired
     private PasswordEncoder passwordEncoder;
 
+    @Autowired
+    private AcademicianRequestRepository academicianRequestRepository;
+
+    @Autowired
+    private StudentRequestRepository studentRequestRepository;
+
     private User student;
     private User academician;
     private User admin;
@@ -57,6 +67,29 @@ class AuthAuthorizationTest {
         student = save(Role.ROLE_STUDENT);
         academician = save(Role.ROLE_ACADEMICIAN);
         admin = save(Role.ROLE_ADMIN);
+    }
+
+    @Test
+    void registrationRequestListsSayWhenEachRequestCameIn() throws Exception {
+        AcademicianRegistrationRequest staffRequest = new AcademicianRegistrationRequest();
+        staffRequest.setUserId(academician.getId());
+        staffRequest.setFirstName("Hoca");
+        Long staffRequestId = academicianRequestRepository.save(staffRequest).getId();
+        mockMvc.perform(as(get("/api/auth/admin/requests/academicians"), admin))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[?(@.id == " + staffRequestId + ")].createdAt").isNotEmpty());
+
+        StudentRegistrationRequest studentRequest = new StudentRegistrationRequest();
+        studentRequest.setFirstName("Öğrenci");
+        studentRequest.setLastName("Kaya");
+        studentRequest.setEmail(email(Role.ROLE_STUDENT));
+        studentRequest.setPassword("{noop}unused");
+        studentRequest.setStudentNumber("88" + Math.abs(UUID.randomUUID().getMostSignificantBits() % 10_000_000L));
+        studentRequest.setDepartment("Bilgisayar");
+        Long studentRequestId = studentRequestRepository.save(studentRequest).getId();
+        mockMvc.perform(as(get("/api/auth/admin/requests/students"), admin))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[?(@.id == " + studentRequestId + ")].createdAt").isNotEmpty());
     }
 
     @Test

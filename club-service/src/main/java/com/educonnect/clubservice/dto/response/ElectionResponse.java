@@ -18,6 +18,7 @@ public record ElectionResponse(UUID id,
                                int auditSeats,
                                String note,
                                UUID openedBy,
+                               String openedByName,
                                Instant openedAt,
                                Instant votingStartedAt,
                                Instant closedAt,
@@ -40,8 +41,10 @@ public record ElectionResponse(UUID id,
     public static ElectionResponse of(ClubElection election, List<ClubElectionCandidate> candidates,
                                       Map<UUID, UserSummary> users, Set<ElectionBallot> myBallots) {
         boolean counted = election.getClosedAt() != null;
+        UserSummary opener = election.getOpenedBy() != null ? users.get(election.getOpenedBy()) : null;
         return new ElectionResponse(election.getId(), election.getClubId(), election.getStatus(), election.getBoardSeats(),
-                election.getAuditSeats(), election.getNote(), election.getOpenedBy(), election.getOpenedAt(),
+                election.getAuditSeats(), election.getNote(), election.getOpenedBy(),
+                opener != null ? opener.getFullName() : null, election.getOpenedAt(),
                 election.getVotingStartedAt(), election.getClosedAt(), election.getEligibleVoters(), election.getVoters(),
                 election.getRequestId(), election.getCompletedAt(),
                 candidates.stream()

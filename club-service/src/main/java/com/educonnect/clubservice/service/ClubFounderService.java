@@ -33,6 +33,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 @Service
 @Transactional
@@ -157,7 +158,7 @@ public class ClubFounderService {
         } else if (founders.stream().noneMatch(found -> found.getStatus() == FounderStatus.INVITED)) {
             sendToAdvisor(request);
         }
-        return responseOf(request, founders);
+        return responseOf(request);
     }
 
     public void enrollFounders(ClubCreationRequest request, Club club) {
@@ -207,14 +208,14 @@ public class ClubFounderService {
         Map<UUID, List<ClubFounder>> founders = founderRepository
                 .findByRequestIdIn(requests.stream().map(ClubCreationRequest::getId).toList()).stream()
                 .collect(Collectors.groupingBy(ClubFounder::getRequestId));
-        Map<UUID, UserSummary> users = userLookup.usersById(founders.values().stream()
-                .flatMap(List::stream)
-                .map(ClubFounder::getStudentId)
+        Map<UUID, UserSummary> users = userLookup.usersById(Stream.concat(
+                founders.values().stream().flatMap(List::stream).map(ClubFounder::getStudentId),
+                requests.stream().flatMap(request -> Stream.of(request.getRequestingStudentId(), request.getSuggestedAdvisorId())))
                 .toList());
         return requests.stream()
                 .map(request -> ClubCreationRequestResponse.from(request, founders.getOrDefault(request.getId(), List.of()).stream()
                         .map(founder -> FounderResponse.of(founder, users.get(founder.getStudentId())))
-                        .toList()))
+                        .toList(), nameOf(users, request.getRequestingStudentId()), nameOf(users, request.getSuggestedAdvisorId())))
                 .toList();
     }
 
@@ -222,8 +223,9 @@ public class ClubFounderService {
         return responsesOf(List.of(request)).getFirst();
     }
 
-    private ClubCreationRequestResponse responseOf(ClubCreationRequest request, List<ClubFounder> founders) {
-        return ClubCreationRequestResponse.from(request, namedFounders(founders));
+    private static String nameOf(Map<UUID, UserSummary> users, UUID userId) {
+        UserSummary user = userId != null ? users.get(userId) : null;
+        return user != null ? user.getFullName() : null;
     }
 
     private List<FounderResponse> namedFounders(List<ClubFounder> founders) {

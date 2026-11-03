@@ -7,6 +7,7 @@ import com.educonnect.clubservice.model.ClubPosition;
 import com.educonnect.clubservice.repository.ClubMembershipRepository;
 import com.educonnect.clubservice.repository.ClubRepository;
 import com.educonnect.clubservice.service.MembershipTerms;
+import com.educonnect.clubservice.dto.response.UserSummary;
 import com.educonnect.common.test.TestTokens;
 import com.jayway.jsonpath.JsonPath;
 import org.junit.jupiter.api.BeforeEach;
@@ -20,11 +21,15 @@ import org.springframework.test.web.servlet.request.AbstractMockHttpServletReque
 
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
+import java.util.Collection;
 import java.util.UUID;
 
 import static org.hamcrest.Matchers.contains;
+import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.endsWith;
 import static org.hamcrest.Matchers.hasSize;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.BDDMockito.given;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -108,8 +113,21 @@ class ClubMeetingTest {
                 .andExpect(jsonPath("$[*].number", contains(1, 2, 3)))
                 .andExpect(jsonPath("$[0].text").value("Bahar şenliği düzenlenecek"))
                 .andExpect(jsonPath("$[2].label", endsWith("/3")));
+        given(userClient.getUsersByIds(any())).willAnswer(call -> call.<Collection<UUID>>getArgument(0).stream()
+                .map(id -> {
+                    UserSummary user = new UserSummary();
+                    user.setId(id);
+                    user.setFirstName("Kişi");
+                    user.setLastName(id.toString().substring(0, 8));
+                    return user;
+                })
+                .toList());
+        String firstMeeting = "$[?(@.preparedBy == '" + secretary + "')]";
         mockMvc.perform(as(get("/api/clubs/{clubId}/meetings", clubId).param("academicYear", year), TestTokens.student(boardMember)))
-                .andExpect(jsonPath("$", hasSize(2)));
+                .andExpect(jsonPath("$", hasSize(2)))
+                .andExpect(jsonPath(firstMeeting + ".preparedByName", contains("Kişi " + secretary.toString().substring(0, 8))))
+                .andExpect(jsonPath(firstMeeting + ".attendees[*].name",
+                        containsInAnyOrder("Kişi " + president.toString().substring(0, 8), "Kişi " + secretary.toString().substring(0, 8))));
         mockMvc.perform(as(get("/api/clubs/{clubId}/decision-book", clubId).param("academicYear", year), TestTokens.student(member)))
                 .andExpect(status().isForbidden());
     }

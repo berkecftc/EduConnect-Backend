@@ -108,6 +108,8 @@ public class EventQueryService {
             dto.setAttended(registration.isAttended());
             dto.setRegistrationStatus(registration.getStatus().name());
             dto.setEventStatus(event.getStatus().name());
+            dto.setEndsAt(event.getEndsAt());
+            dto.setCancellationReason(event.getCancellationReason());
             return dto;
         }).filter(dto -> dto != null).collect(Collectors.toList());
     }

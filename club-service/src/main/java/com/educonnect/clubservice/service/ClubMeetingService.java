@@ -1,5 +1,6 @@
 package com.educonnect.clubservice.service;
 
+import com.educonnect.clubservice.client.UserLookup;
 import com.educonnect.clubservice.dto.request.MeetingRequest;
 import com.educonnect.clubservice.dto.response.DecisionBookEntryResponse;
 import com.educonnect.clubservice.dto.response.MeetingResponse;
@@ -30,6 +31,7 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 @Service
 @Transactional
@@ -43,6 +45,7 @@ public class ClubMeetingService {
     private final ClubAuthorizationService clubAuthorizationService;
     private final ClubApprovalEngine approvalEngine;
     private final MembershipTerms membershipTerms;
+    private final UserLookup userLookup;
 
     public ClubMeetingService(ClubRepository clubRepository,
                               ClubMembershipRepository membershipRepository,
@@ -51,7 +54,9 @@ public class ClubMeetingService {
                               ClubMeetingDecisionRepository decisionRepository,
                               ClubAuthorizationService clubAuthorizationService,
                               ClubApprovalEngine approvalEngine,
-                              MembershipTerms membershipTerms) {
+                              MembershipTerms membershipTerms,
+                              UserLookup userLookup) {
+        this.userLookup = userLookup;
         this.clubRepository = clubRepository;
         this.membershipRepository = membershipRepository;
         this.requestRepository = requestRepository;
@@ -109,9 +114,12 @@ public class ClubMeetingService {
         Map<UUID, ApprovalStatus> statuses = requestRepository.findAllById(meetings.stream().map(ClubMeeting::getRequestId).toList())
                 .stream()
                 .collect(Collectors.toMap(ClubApprovalRequest::getId, ClubApprovalRequest::getStatus));
+        Map<UUID, String> names = userLookup.namesById(meetings.stream()
+                .flatMap(meeting -> Stream.concat(Stream.of(meeting.getPreparedBy()), meeting.getAttendeeIds().stream()))
+                .toList());
         return meetings.stream()
                 .map(meeting -> MeetingResponse.of(meeting, decisions.getOrDefault(meeting.getId(), List.of()),
-                        statuses.get(meeting.getRequestId())))
+                        statuses.get(meeting.getRequestId()), names))
                 .toList();
     }
 
