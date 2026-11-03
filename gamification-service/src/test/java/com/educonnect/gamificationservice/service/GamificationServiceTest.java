@@ -4,6 +4,7 @@ import com.educonnect.gamificationservice.dto.event.GamificationEvent;
 import com.educonnect.gamificationservice.model.ActionType;
 import com.educonnect.gamificationservice.model.PointHistory;
 import com.educonnect.gamificationservice.model.UserReputation;
+import com.educonnect.gamificationservice.repository.LeaderboardPreferenceRepository;
 import com.educonnect.gamificationservice.repository.PointHistoryRepository;
 import com.educonnect.gamificationservice.repository.UserBadgeRepository;
 import com.educonnect.gamificationservice.repository.UserReputationRepository;
@@ -49,7 +50,8 @@ class GamificationServiceTest {
                 pointHistoryRepository,
                 new NoOpTransactionManager(),
                 userBadgeRepository,
-                mock(OutboxPublisher.class)
+                mock(OutboxPublisher.class),
+                mock(LeaderboardPreferenceRepository.class)
         );
     }
 

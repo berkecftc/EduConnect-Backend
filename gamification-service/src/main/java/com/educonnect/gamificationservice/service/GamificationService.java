@@ -5,9 +5,11 @@ import com.educonnect.gamificationservice.dto.response.BadgeInfoResponse;
 import com.educonnect.gamificationservice.dto.response.GamificationSummaryResponse;
 import com.educonnect.gamificationservice.model.ActionType;
 import com.educonnect.gamificationservice.model.BadgeType;
+import com.educonnect.gamificationservice.model.LeaderboardPreference;
 import com.educonnect.gamificationservice.model.PointHistory;
 import com.educonnect.gamificationservice.model.UserReputation;
 import com.educonnect.gamificationservice.model.UserBadge;
+import com.educonnect.gamificationservice.repository.LeaderboardPreferenceRepository;
 import com.educonnect.gamificationservice.repository.PointHistoryRepository;
 import com.educonnect.gamificationservice.repository.UserReputationRepository;
 import com.educonnect.gamificationservice.repository.UserBadgeRepository;
@@ -67,12 +69,15 @@ public class GamificationService {
     private final TransactionTemplate transactionTemplate;
     private final UserBadgeRepository userBadgeRepository;
     private final OutboxPublisher outboxPublisher;
+    private final LeaderboardPreferenceRepository leaderboardPreferenceRepository;
 
     public GamificationService(UserReputationRepository userReputationRepository,
                                PointHistoryRepository pointHistoryRepository,
                                PlatformTransactionManager transactionManager,
                                UserBadgeRepository userBadgeRepository,
-                               OutboxPublisher outboxPublisher) {
+                               OutboxPublisher outboxPublisher,
+                               LeaderboardPreferenceRepository leaderboardPreferenceRepository) {
+        this.leaderboardPreferenceRepository = leaderboardPreferenceRepository;
         this.userReputationRepository = userReputationRepository;
         this.pointHistoryRepository = pointHistoryRepository;
         this.transactionTemplate = new TransactionTemplate(transactionManager);
@@ -215,7 +220,8 @@ public class GamificationService {
                 reputation.getTotalPoints(),
                 reputation.getCurrentStreak(),
                 reputation.getHighestStreak(),
-                badges
+                badges,
+                leaderboardPreferenceRepository.findById(userId).map(LeaderboardPreference::isVisible).orElse(true)
         );
     }
 

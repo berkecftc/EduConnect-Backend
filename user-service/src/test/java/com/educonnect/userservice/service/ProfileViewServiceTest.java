@@ -4,6 +4,7 @@ import com.educonnect.common.web.NotFoundException;
 import com.educonnect.userservice.client.ClubRelationClient;
 import com.educonnect.userservice.client.CourseRelationClient;
 import com.educonnect.userservice.dto.response.UserProfileResponse;
+import com.educonnect.userservice.dto.response.BadgeInfoDTO;
 import com.educonnect.userservice.dto.response.GamificationSummaryDTO;
 import com.educonnect.userservice.dto.response.UserProfileResponseDTO;
 import org.junit.jupiter.api.BeforeEach;
@@ -157,6 +158,7 @@ class ProfileViewServiceTest {
             UserProfileResponseDTO aggregated = new UserProfileResponseDTO();
             GamificationSummaryDTO gamification = new GamificationSummaryDTO();
             gamification.setTotalPoints(40);
+            gamification.setLeaderboardVisible(true);
             gamification.setCurrentStreak(3);
             gamification.setHighestStreak(5);
             aggregated.setGamification(gamification);
@@ -170,6 +172,47 @@ class ProfileViewServiceTest {
         assertThat(forOthers.getGamification().getCurrentStreak()).isNull();
         assertThat(forOthers.getGamification().getHighestStreak()).isNull();
         assertThat(forOwner.getGamification().getCurrentStreak()).isEqualTo(3);
+    }
+
+    @Test
+    void getAggregatedProfile_hidesPointsAndBadgesFromOthersWhenTheOwnerLeftTheLeaderboard() {
+        when(profileService.getUserProfile(ownerId)).thenReturn(cachedProfile);
+        when(profileAggregationService.getAggregatedUserProfile(ownerId)).thenAnswer(invocation -> {
+            UserProfileResponseDTO aggregated = new UserProfileResponseDTO();
+            GamificationSummaryDTO gamification = new GamificationSummaryDTO();
+            gamification.setTotalPoints(40);
+            gamification.setLeaderboardVisible(false);
+            gamification.setBadges(List.of(new BadgeInfoDTO()));
+            aggregated.setGamification(gamification);
+            return aggregated;
+        });
+
+        UserProfileResponseDTO forOthers = profileViewService.getAggregatedProfile(ownerId, UUID.randomUUID(), "ROLE_STUDENT");
+        UserProfileResponseDTO forOwner = profileViewService.getAggregatedProfile(ownerId, ownerId, "ROLE_STUDENT");
+        UserProfileResponseDTO forAdmin = profileViewService.getAggregatedProfile(ownerId, UUID.randomUUID(), "ROLE_ADMIN");
+
+        assertThat(forOthers.getGamification().getTotalPoints()).isNull();
+        assertThat(forOthers.getGamification().getBadges()).isEmpty();
+        assertThat(forOwner.getGamification().getTotalPoints()).isEqualTo(40);
+        assertThat(forOwner.getGamification().getBadges()).hasSize(1);
+        assertThat(forAdmin.getGamification().getTotalPoints()).isEqualTo(40);
+    }
+
+    @Test
+    void getProfile_studentStatusFollowsTheContactRules() {
+        cachedProfile.setStudentStatus("ON_LEAVE");
+        when(profileService.getUserProfile(ownerId)).thenReturn(cachedProfile);
+        UUID teacher = UUID.randomUUID();
+        UUID stranger = UUID.randomUUID();
+        when(courseRelationClient.teachesStudent(teacher, ownerId)).thenReturn(Map.of("related", true));
+        when(courseRelationClient.teachesStudent(stranger, ownerId)).thenReturn(Map.of("related", false));
+        when(clubRelationClient.managesStudent(stranger, ownerId)).thenReturn(Map.of("related", false));
+
+        assertThat(profileViewService.getProfile(ownerId, ownerId, "ROLE_STUDENT").getStudentStatus()).isEqualTo("ON_LEAVE");
+        assertThat(profileViewService.getProfile(ownerId, teacher, "ROLE_ACADEMICIAN").getStudentStatus()).isEqualTo("ON_LEAVE");
+        assertThat(profileViewService.getProfile(ownerId, stranger, "ROLE_STUDENT").getStudentStatus()).isNull();
+        assertThat(profileViewService.getProfile(ownerId, null, null).getStudentStatus()).isNull();
+        assertThat(cachedProfile.getStudentStatus()).isEqualTo("ON_LEAVE");
     }
 
     @Test

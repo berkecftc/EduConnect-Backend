@@ -149,6 +149,11 @@ class LeaderboardTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.visible").value(false))
                 .andExpect(jsonPath("$.displayMode").value("INITIALS"));
+        mockMvc.perform(as(get("/api/gamification/internal/users/{id}/summary", student), TestTokens.service("user-service")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.leaderboardVisible").value(false));
+        mockMvc.perform(as(get("/api/gamification/internal/users/{id}/summary", UUID.randomUUID()), TestTokens.service("user-service")))
+                .andExpect(jsonPath("$.leaderboardVisible").value(true));
     }
 
     @Test

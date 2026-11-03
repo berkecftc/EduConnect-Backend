@@ -2,6 +2,7 @@ package com.educonnect.postservice.repository;
 
 import com.educonnect.postservice.model.Post;
 import com.educonnect.postservice.model.PostStatus;
+import com.educonnect.postservice.model.PublisherType;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -23,7 +24,7 @@ public interface PostRepository extends JpaRepository<Post, UUID>, JpaSpecificat
      */
     Page<Post> findByStatus(PostStatus status, Pageable pageable);
 
-    List<Post> findTop5ByAuthorIdAndStatusOrderByCreatedAtDesc(UUID authorId, PostStatus status);
+    List<Post> findTop5ByAuthorIdAndStatusAndPublisherTypeOrderByCreatedAtDesc(UUID authorId, PostStatus status, PublisherType publisherType);
 
     Page<Post> findByAuthorId(UUID authorId, Pageable pageable);
 

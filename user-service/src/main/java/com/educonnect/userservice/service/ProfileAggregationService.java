@@ -74,9 +74,10 @@ public class ProfileAggregationService {
 
         GamificationSummaryDTO gamificationSummary = new GamificationSummaryDTO();
         gamificationSummary.setTotalPoints(gamification.getTotalPoints());
+        gamificationSummary.setLeaderboardVisible(gamification.isLeaderboardVisible());
         gamificationSummary.setCurrentStreak(gamification.getCurrentStreak());
         gamificationSummary.setHighestStreak(gamification.getHighestStreak());
-        
+
         List<BadgeInfoDTO> badgeDTOs = (gamification.getBadges() == null ? new java.util.ArrayList<BadgeInfoClientResponse>() : gamification.getBadges()).stream()
                 .map(b -> {
                     BadgeInfoDTO dto = new BadgeInfoDTO();
@@ -139,4 +140,3 @@ public class ProfileAggregationService {
         return value != null && !value.isBlank();
     }
 }
-

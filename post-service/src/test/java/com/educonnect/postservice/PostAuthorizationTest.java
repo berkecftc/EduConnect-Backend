@@ -6,6 +6,7 @@ import com.educonnect.postservice.model.CommentStatus;
 import com.educonnect.postservice.model.Post;
 import com.educonnect.postservice.model.PostCategory;
 import com.educonnect.postservice.model.PostStatus;
+import com.educonnect.postservice.model.PublisherType;
 import com.educonnect.postservice.repository.CommentRepository;
 import com.educonnect.postservice.repository.PostLikeRepository;
 import com.educonnect.postservice.repository.PostRepository;
@@ -291,6 +292,12 @@ class PostAuthorizationTest {
     @Test
     void recentPostsInternalEndpointAcceptsOnlyServiceTokens() throws Exception {
         String path = "/api/posts/internal/users/{id}/recent";
+        Post clubPost = postRepository.findById(savePost(PostStatus.PUBLISHED)).orElseThrow();
+        clubPost.setPublisherType(PublisherType.CLUB);
+        clubPost.setClubId(UUID.randomUUID());
+        clubPost.setPublisherName("Kulüp");
+        clubPost.setCategory(PostCategory.DUYURU);
+        postRepository.save(clubPost);
         mockMvc.perform(get(path, author))
                 .andExpect(status().isUnauthorized());
         mockMvc.perform(as(get(path, author), TestTokens.student(author)))

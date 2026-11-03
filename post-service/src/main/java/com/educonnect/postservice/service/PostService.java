@@ -260,9 +260,8 @@ public class PostService {
 
     @Transactional(readOnly = true)
     public List<RecentPostDto> getRecentPostsByUser(UUID userId) {
-        return postRepository.findTop5ByAuthorIdAndStatusOrderByCreatedAtDesc(userId, PostStatus.PUBLISHED)
+        return postRepository.findTop5ByAuthorIdAndStatusAndPublisherTypeOrderByCreatedAtDesc(userId, PostStatus.PUBLISHED, PublisherType.STUDENT)
                 .stream()
-                .filter(post -> post.getPublisherType() != PublisherType.COURSE)
                 .map(post -> new RecentPostDto(
                         post.getId(),
                         post.getTitle(),

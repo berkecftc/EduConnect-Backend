@@ -7,9 +7,18 @@ public class GamificationSummaryClientResponse {
     private int totalPoints;
     private int currentStreak;
     private int highestStreak;
+    private boolean leaderboardVisible;
     private List<BadgeInfoClientResponse> badges = new ArrayList<>();
 
     public GamificationSummaryClientResponse() {
+    }
+
+    public boolean isLeaderboardVisible() {
+        return leaderboardVisible;
+    }
+
+    public void setLeaderboardVisible(boolean leaderboardVisible) {
+        this.leaderboardVisible = leaderboardVisible;
     }
 
     public int getTotalPoints() {
@@ -44,4 +53,3 @@ public class GamificationSummaryClientResponse {
         this.badges = badges == null ? List.of() : badges;
     }
 }
-

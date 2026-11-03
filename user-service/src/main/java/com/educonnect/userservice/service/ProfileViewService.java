@@ -54,6 +54,7 @@ public class ProfileViewService {
         }
         if (!visibility.studentNumber()) {
             visible.setStudentNumber(null);
+            visible.setStudentStatus(null);
         }
         return visible;
     }
@@ -71,6 +72,11 @@ public class ProfileViewService {
         if (!userId.equals(viewerId) && profile.getGamification() != null) {
             profile.getGamification().setCurrentStreak(null);
             profile.getGamification().setHighestStreak(null);
+        }
+        if (profile.getGamification() != null && !profile.getGamification().isLeaderboardVisible()
+                && !canSeeEverything(userId, viewerId, viewerRoles)) {
+            profile.getGamification().setTotalPoints(null);
+            profile.getGamification().setBadges(List.of());
         }
         return profile;
     }

@@ -4,7 +4,8 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class GamificationSummaryDTO {
-    private int totalPoints;
+    private Integer totalPoints;
+    private boolean leaderboardVisible;
     private Integer currentStreak;
     private Integer highestStreak;
     private List<BadgeInfoDTO> badges = new ArrayList<>();
@@ -21,12 +22,20 @@ public class GamificationSummaryDTO {
         return dto;
     }
 
-    public int getTotalPoints() {
+    public Integer getTotalPoints() {
         return totalPoints;
     }
 
-    public void setTotalPoints(int totalPoints) {
+    public void setTotalPoints(Integer totalPoints) {
         this.totalPoints = totalPoints;
+    }
+
+    public boolean isLeaderboardVisible() {
+        return leaderboardVisible;
+    }
+
+    public void setLeaderboardVisible(boolean leaderboardVisible) {
+        this.leaderboardVisible = leaderboardVisible;
     }
 
     public Integer getCurrentStreak() {
