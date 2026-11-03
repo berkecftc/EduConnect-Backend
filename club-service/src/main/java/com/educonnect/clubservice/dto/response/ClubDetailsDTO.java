@@ -2,6 +2,7 @@ package com.educonnect.clubservice.dto.response;
 
 import com.educonnect.clubservice.model.ClubStatus;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
 
@@ -20,11 +21,14 @@ public class ClubDetailsDTO {
     private Instant closedAt;
     private String closureReason;
     private ClubProfileResponse profile;
+    private LocalDate academicYearEnd;
 
     // JSON dönüşümü için boş constructor
     public ClubDetailsDTO() {}
 
     // --- Getter ve Setter metotları ---
+    public LocalDate getAcademicYearEnd() { return academicYearEnd; }
+    public void setAcademicYearEnd(LocalDate academicYearEnd) { this.academicYearEnd = academicYearEnd; }
     public UUID getId() { return id; }
     public void setId(UUID id) { this.id = id; }
     public String getName() { return name; }

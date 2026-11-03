@@ -5,6 +5,7 @@ import com.educonnect.eventservice.dto.response.EventResponse;
 import com.educonnect.eventservice.dto.response.PageResponse;
 import com.educonnect.eventservice.model.Event;
 import com.educonnect.eventservice.service.EventQueryService;
+import com.educonnect.eventservice.service.EventSchedule;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
@@ -17,9 +18,11 @@ import java.util.UUID;
 public class EventController {
 
     private final EventQueryService eventQueryService;
+    private final EventSchedule eventSchedule;
 
-    public EventController(EventQueryService eventQueryService) {
+    public EventController(EventQueryService eventQueryService, EventSchedule eventSchedule) {
         this.eventQueryService = eventQueryService;
+        this.eventSchedule = eventSchedule;
     }
 
     /**
@@ -53,7 +56,8 @@ public class EventController {
             @RequestHeader(value = "X-Authenticated-User-Id", required = false) String userIdHeader
     ) {
         UUID viewerId = userIdHeader != null ? UUID.fromString(userIdHeader) : null;
-        return ResponseEntity.ok(EventResponse.from(eventQueryService.getEventDetailsForViewer(eventId, viewerId)));
+        Event event = eventQueryService.getEventDetailsForViewer(eventId, viewerId);
+        return ResponseEntity.ok(EventResponse.from(event, eventSchedule.checkInOpensAt(event)));
     }
 
     /**

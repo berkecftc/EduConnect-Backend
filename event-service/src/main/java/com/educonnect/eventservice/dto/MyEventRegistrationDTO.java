@@ -17,10 +17,14 @@ public class MyEventRegistrationDTO {
     private String eventStatus;
     private LocalDateTime endsAt;
     private String cancellationReason;
+    private LocalDateTime checkInOpensAt;
 
     public MyEventRegistrationDTO() {}
 
     // Getters and Setters
+    public LocalDateTime getCheckInOpensAt() { return checkInOpensAt; }
+    public void setCheckInOpensAt(LocalDateTime checkInOpensAt) { this.checkInOpensAt = checkInOpensAt; }
+
     public LocalDateTime getEndsAt() { return endsAt; }
     public void setEndsAt(LocalDateTime endsAt) { this.endsAt = endsAt; }
 

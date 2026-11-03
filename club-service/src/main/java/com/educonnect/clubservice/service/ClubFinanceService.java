@@ -1,6 +1,7 @@
 package com.educonnect.clubservice.service;
 
 import com.educonnect.clubservice.client.UserLookup;
+import com.educonnect.clubservice.config.FinanceSettings;
 import com.educonnect.clubservice.dto.request.BudgetRequest;
 import com.educonnect.clubservice.dto.request.FinanceEntryForm;
 import com.educonnect.clubservice.dto.request.SponsorshipForm;
@@ -57,6 +58,7 @@ public class ClubFinanceService {
     private final FinanceDocumentStorage documentStorage;
     private final MembershipTerms membershipTerms;
     private final UserLookup userLookup;
+    private final FinanceSettings financeSettings;
 
     public ClubFinanceService(ClubRepository clubRepository,
                               ClubApprovalRequestRepository requestRepository,
@@ -67,8 +69,10 @@ public class ClubFinanceService {
                               ClubApprovalEngine approvalEngine,
                               FinanceDocumentStorage documentStorage,
                               MembershipTerms membershipTerms,
-                              UserLookup userLookup) {
+                              UserLookup userLookup,
+                              FinanceSettings financeSettings) {
         this.userLookup = userLookup;
+        this.financeSettings = financeSettings;
         this.clubRepository = clubRepository;
         this.requestRepository = requestRepository;
         this.budgetRepository = budgetRepository;
@@ -158,7 +162,7 @@ public class ClubFinanceService {
         BigDecimal overall = entryRepository.approvedTotal(clubId, FinanceEntryType.INCOME)
                 .subtract(entryRepository.approvedTotal(clubId, FinanceEntryType.EXPENSE));
         return new FinanceSummaryResponse(academicYear, AcademicYears.label(academicYear), budget, income, expense,
-                income.subtract(expense), overall);
+                income.subtract(expense), overall, financeSettings.advisorThreshold(), membershipTerms.academicYearEnd(academicYear));
     }
 
     @Transactional(readOnly = true)

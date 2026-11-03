@@ -97,6 +97,7 @@ class AttendanceTest {
 
         mockMvc.perform(as(get("/api/events/manage/{id}/attendance", live.getId()), TestTokens.academician(advisor)))
                 .andExpect(status().isOk())
+                .andExpect(jsonPath("$.checkInOpensAt").isNotEmpty())
                 .andExpect(jsonPath("$.registered").value(2))
                 .andExpect(jsonPath("$.attended").value(2))
                 .andExpect(jsonPath("$.rows.length()").value(2));

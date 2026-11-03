@@ -61,13 +61,16 @@ public class ClubQueryService {
     private final UserClient userClient;
     private final UserLookup userLookup;
     private final ClubAuthorizationService clubAuthorizationService;
+    private final MembershipTerms membershipTerms;
 
     public ClubQueryService(ClubRepository clubRepository,
                             ClubMembershipRepository membershipRepository,
                             ArchivedClubRepository archivedClubRepository,
                             UserClient userClient,
                             UserLookup userLookup,
-                            ClubAuthorizationService clubAuthorizationService) {
+                            ClubAuthorizationService clubAuthorizationService,
+                            MembershipTerms membershipTerms) {
+        this.membershipTerms = membershipTerms;
         this.clubRepository = clubRepository;
         this.membershipRepository = membershipRepository;
         this.archivedClubRepository = archivedClubRepository;
@@ -139,6 +142,7 @@ public class ClubQueryService {
         detailsDTO.setClosedAt(club.getClosedAt());
         detailsDTO.setClosureReason(club.getClosureReason());
         detailsDTO.setProfile(ClubProfileResponse.of(club.getProfile()));
+        detailsDTO.setAcademicYearEnd(membershipTerms.currentValidUntil());
         return detailsDTO;
     }
 

@@ -159,7 +159,10 @@ class EventChangeTest {
         mockMvc.perform(as(get("/api/events/my-registrations"), TestTokens.student(attendee)))
                 .andExpect(jsonPath("$[0].eventStatus").value("CANCELLED"))
                 .andExpect(jsonPath("$[0].cancellationReason").value("Konuşmacı gelemiyor"))
-                .andExpect(jsonPath("$[0].endsAt").isNotEmpty());
+                .andExpect(jsonPath("$[0].endsAt").isNotEmpty())
+                .andExpect(jsonPath("$[0].checkInOpensAt").isNotEmpty());
+        mockMvc.perform(as(get("/api/events/{id}", active.getId()), TestTokens.student(attendee)))
+                .andExpect(jsonPath("$.checkInOpensAt").isNotEmpty());
     }
 
     private int outbox(String routingKey, UUID eventId) {

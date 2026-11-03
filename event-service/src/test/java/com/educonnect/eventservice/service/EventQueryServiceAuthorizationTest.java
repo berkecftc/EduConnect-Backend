@@ -43,7 +43,7 @@ class EventQueryServiceAuthorizationTest {
         registrationRepository = mock(EventRegistrationRepository.class);
         authorizationService = mock(EventAuthorizationService.class);
         service = new EventQueryService(eventRepository, registrationRepository, mock(UserClient.class),
-                authorizationService);
+                authorizationService, mock(EventSchedule.class));
 
         event = new Event();
         event.setId(eventId);

@@ -93,7 +93,9 @@ class ClubFinanceTest {
         mockMvc.perform(as(get("/api/clubs/{clubId}/finance/summary", clubId), TestTokens.student(auditor)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.budget.plannedExpense").value(3000))
-                .andExpect(jsonPath("$.academicYearLabel").isNotEmpty());
+                .andExpect(jsonPath("$.academicYearLabel").isNotEmpty())
+                .andExpect(jsonPath("$.advisorThreshold").value(1000))
+                .andExpect(jsonPath("$.academicYearEnd").isNotEmpty());
         mockMvc.perform(as(get("/api/clubs/{clubId}/finance/summary", clubId), TestTokens.student(member)))
                 .andExpect(status().isForbidden());
     }

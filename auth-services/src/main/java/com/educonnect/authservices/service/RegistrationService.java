@@ -117,7 +117,7 @@ public class RegistrationService {
     @Transactional
     public void requestStudentAccount(RegisterRequest request, MultipartFile studentDocument) {
         if (userRepository.findByEmail(request.getEmail()).isPresent()) {
-            throw new BadRequestException("EMAIL_ALREADY_REGISTERED", "Email already registered");
+            throw new BadRequestException("EMAIL_ALREADY_REGISTERED", "Bu e-posta adresi zaten kayıtlı.");
         }
         if (studentRequestRepository.findByEmail(request.getEmail()).isPresent()) {
             throw new BadRequestException("STUDENT_REQUEST_ALREADY_EXISTS", "Bu email ile zaten bir başvuru mevcut");
@@ -157,7 +157,7 @@ public class RegistrationService {
     @Transactional
     public void requestAcademicianAccount(RegisterRequest request, MultipartFile idCardImage) {
         if (userRepository.findByEmail(request.getEmail()).isPresent()) {
-            throw new BadRequestException("EMAIL_ALREADY_REGISTERED", "Email already registered");
+            throw new BadRequestException("EMAIL_ALREADY_REGISTERED", "Bu e-posta adresi zaten kayıtlı.");
         }
         institutionPolicy.requireStaffEmail(request.getEmail());
         String title = AcademicTitles.require(request.getTitle());

@@ -3,6 +3,7 @@ package com.educonnect.eventservice.controller;
 import com.educonnect.eventservice.dto.request.EventStaffRequest;
 import com.educonnect.eventservice.dto.response.EventResponse;
 import com.educonnect.eventservice.dto.response.EventStaffResponse;
+import com.educonnect.eventservice.service.EventSchedule;
 import com.educonnect.eventservice.service.EventStaffService;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
@@ -26,9 +27,11 @@ public class EventStaffController {
     private static final String USER_ID_HEADER = "X-Authenticated-User-Id";
 
     private final EventStaffService staffService;
+    private final EventSchedule eventSchedule;
 
-    public EventStaffController(EventStaffService staffService) {
+    public EventStaffController(EventStaffService staffService, EventSchedule eventSchedule) {
         this.staffService = staffService;
+        this.eventSchedule = eventSchedule;
     }
 
     @GetMapping("/{eventId}/staff")
@@ -64,6 +67,8 @@ public class EventStaffController {
 
     @GetMapping("/staff/me")
     public ResponseEntity<List<EventResponse>> myAssignments(@RequestHeader(USER_ID_HEADER) UUID userId) {
-        return ResponseEntity.ok(EventResponse.from(staffService.myAssignments(userId)));
+        return ResponseEntity.ok(staffService.myAssignments(userId).stream()
+                .map(event -> EventResponse.from(event, eventSchedule.checkInOpensAt(event)))
+                .toList());
     }
 }

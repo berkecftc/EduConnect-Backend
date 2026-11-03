@@ -162,6 +162,7 @@ class ClubGovernanceTest {
         String ofPresident = "$.members[?(@.studentId == '" + president + "')]";
         mockMvc.perform(as(get("/api/clubs/{clubId}", clubId), TestTokens.student(president)))
                 .andExpect(status().isOk())
+                .andExpect(jsonPath("$.academicYearEnd").isNotEmpty())
                 .andExpect(jsonPath(ofMember + ".firstName", contains("Kişi")))
                 .andExpect(jsonPath(ofMember + ".lastName", contains(member.toString().substring(0, 8))))
                 .andExpect(jsonPath(ofMember + ".role", contains(ClubPosition.MEMBER.apiName())));

@@ -73,6 +73,10 @@ public class EventSchedule {
         }
     }
 
+    public LocalDateTime checkInOpensAt(Event event) {
+        return event.getStartsAt() != null ? event.getStartsAt().minus(checkInOpensBefore) : null;
+    }
+
     public void requireCheckInOpen(Event event) {
         LocalDateTime now = now();
         if (now.isBefore(event.getStartsAt().minus(checkInOpensBefore)) || now.isAfter(event.getEndsAt())) {

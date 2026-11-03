@@ -32,16 +32,21 @@ public record EventResponse(UUID id,
                             Instant createdAt,
                             Instant updatedAt,
                             String rejectionReason,
-                            String cancellationReason) {
+                            String cancellationReason,
+                            LocalDateTime checkInOpensAt) {
 
     public static EventResponse from(Event event) {
+        return from(event, null);
+    }
+
+    public static EventResponse from(Event event, LocalDateTime checkInOpensAt) {
         return new EventResponse(event.getId(), event.getTitle(), event.getDescription(), event.getStartsAt(),
                 event.getStartsAt(), event.getEndsAt(), event.getSpeakers(),
                 event.getAudience(), event.getAdmission(), event.getCapacity(), event.getRegistrationOpensAt(),
                 event.getStartsAt() == null ? null : event.effectiveRegistrationClose(),
                 event.getStartsAt() == null ? null : event.effectiveCancelUntil(),
                 event.getLocation(), event.getImageUrl(), event.getClubId(), event.getClubName(), event.getOrganizerName(), event.getStatus(),
-                event.getCreatedAt(), event.getUpdatedAt(), event.getRejectionReason(), event.getCancellationReason());
+                event.getCreatedAt(), event.getUpdatedAt(), event.getRejectionReason(), event.getCancellationReason(), checkInOpensAt);
     }
 
     public static List<EventResponse> from(List<Event> events) {

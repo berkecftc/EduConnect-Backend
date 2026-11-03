@@ -20,9 +20,9 @@ public record ReportResponse(
         String supportMessage
 ) {
 
-    public static final String SUPPORT_MESSAGE = "Bildirimin öncelikli olarak bir moderatöre iletildi. "
-            + "Acil bir tehlike varsa kampüs güvenliğine veya 112'ye başvur; konuşmak istersen "
-            + "üniversitenin psikolojik danışmanlık birimi sana destek olabilir.";
+    public static final String SUPPORT_MESSAGE = "Bildiriminiz öncelikli olarak bir moderatöre iletildi. "
+            + "Acil bir tehlike varsa kampüs güvenliğine veya 112'ye başvurun; konuşmak isterseniz "
+            + "üniversitenin psikolojik danışmanlık birimi size destek olabilir.";
 
     public static ReportResponse from(ContentReport report) {
         boolean sensitive = report.getReason().sensitive();

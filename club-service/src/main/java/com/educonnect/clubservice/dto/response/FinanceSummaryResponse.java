@@ -1,6 +1,7 @@
 package com.educonnect.clubservice.dto.response;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 
 public record FinanceSummaryResponse(int academicYear,
                                      String academicYearLabel,
@@ -8,5 +9,7 @@ public record FinanceSummaryResponse(int academicYear,
                                      BigDecimal income,
                                      BigDecimal expense,
                                      BigDecimal balance,
-                                     BigDecimal overallBalance) {
+                                     BigDecimal overallBalance,
+                                     BigDecimal advisorThreshold,
+                                     LocalDate academicYearEnd) {
 }

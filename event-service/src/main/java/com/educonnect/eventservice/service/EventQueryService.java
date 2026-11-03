@@ -36,11 +36,14 @@ public class EventQueryService {
     private final EventRegistrationRepository eventRegistrationRepository;
     private final UserClient userClient;
     private final EventAuthorizationService eventAuthorizationService;
+    private final EventSchedule schedule;
 
     public EventQueryService(EventRepository eventRepository,
                              EventRegistrationRepository eventRegistrationRepository,
                              UserClient userClient,
-                             EventAuthorizationService eventAuthorizationService) {
+                             EventAuthorizationService eventAuthorizationService,
+                             EventSchedule schedule) {
+        this.schedule = schedule;
         this.eventRepository = eventRepository;
         this.eventRegistrationRepository = eventRegistrationRepository;
         this.userClient = userClient;
@@ -110,6 +113,7 @@ public class EventQueryService {
             dto.setEventStatus(event.getStatus().name());
             dto.setEndsAt(event.getEndsAt());
             dto.setCancellationReason(event.getCancellationReason());
+            dto.setCheckInOpensAt(schedule.checkInOpensAt(event));
             return dto;
         }).filter(dto -> dto != null).collect(Collectors.toList());
     }

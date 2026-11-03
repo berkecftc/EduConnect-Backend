@@ -102,6 +102,7 @@ public class AttendanceService {
                         .thenComparing(row -> row.firstName() == null ? "" : row.firstName()))
                 .toList();
         return new AttendanceReport(event.getId(), event.getTitle(), event.getStatus(), event.getStartsAt(),
+                schedule.checkInOpensAt(event),
                 count(registrations, RegistrationStatus.REGISTERED) + count(registrations, RegistrationStatus.NO_SHOW),
                 registrations.stream().filter(EventRegistration::isAttended).count(),
                 count(registrations, RegistrationStatus.NO_SHOW),

@@ -64,15 +64,15 @@ public class PasswordService {
                 .orElseThrow(() -> new NotFoundException("USER_NOT_FOUND", "User not found"));
 
         if (!passwordEncoder.matches(request.getCurrentPassword(), user.getPassword())) {
-            throw new BadRequestException("WRONG_CURRENT_PASSWORD", "Wrong current password");
+            throw new BadRequestException("WRONG_CURRENT_PASSWORD", "Mevcut şifre yanlış.");
         }
 
         if (!request.getNewPassword().equals(request.getConfirmationPassword())) {
-            throw new BadRequestException("PASSWORD_CONFIRMATION_MISMATCH", "New password and confirmation do not match");
+            throw new BadRequestException("PASSWORD_CONFIRMATION_MISMATCH", "Şifreler eşleşmiyor.");
         }
 
         if (passwordEncoder.matches(request.getNewPassword(), user.getPassword())) {
-            throw new BadRequestException("PASSWORD_UNCHANGED", "New password cannot be the same as the old password");
+            throw new BadRequestException("PASSWORD_UNCHANGED", "Yeni şifre eskisiyle aynı olamaz.");
         }
         passwordPolicy.validateNewPassword(request.getNewPassword(), user.getEmail());
 

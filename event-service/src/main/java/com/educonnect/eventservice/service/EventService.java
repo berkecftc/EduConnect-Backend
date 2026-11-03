@@ -205,7 +205,7 @@ public class EventService {
             event = staffedEvent(registration.getEventId(), scannerId);
         }
         if (event.getStatus() != EventStatus.ACTIVE) {
-            throw new BadRequestException("EVENT_NOT_ACTIVE", "Event is not active.");
+            throw new BadRequestException("EVENT_NOT_ACTIVE", "Etkinlik aktif değil.");
         }
         schedule.requireCheckInOpen(event);
 
@@ -213,7 +213,7 @@ public class EventService {
             throw new BadRequestException("TICKET_CANCELLED", "Bu kayıt iptal edilmiş.");
         }
         if (registration.isAttended()) {
-            throw new BadRequestException("TICKET_ALREADY_USED", "Ticket already used/scanned.");
+            throw new BadRequestException("TICKET_ALREADY_USED", "Bu bilet daha önce kullanılmış.");
         }
 
         registration.checkIn(scannerId, CheckInMethod.QR, Instant.now());
@@ -225,7 +225,7 @@ public class EventService {
 
     private EventRegistration ticket(String qrCode) {
         return eventRegistrationRepository.findByQrCode(qrCode)
-                .orElseThrow(() -> new BadRequestException("INVALID_TICKET", "Invalid ticket (QR Code not found)"));
+                .orElseThrow(() -> new BadRequestException("INVALID_TICKET", "Geçersiz bilet: QR kod bulunamadı."));
     }
 
     private Event staffedEvent(UUID eventId, UUID scannerId) {
