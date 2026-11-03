@@ -6,6 +6,7 @@ import com.educonnect.eventservice.dto.MyEventRegistrationDTO;
 import com.educonnect.eventservice.dto.response.ClubAccess;
 import com.educonnect.eventservice.dto.response.EventRegistrantDTO;
 import com.educonnect.eventservice.dto.response.PageResponse;
+import com.educonnect.eventservice.dto.response.TicketVerificationResponse;
 import com.educonnect.eventservice.dto.response.UserSummary;
 import com.educonnect.eventservice.model.Event;
 import com.educonnect.eventservice.model.EventRegistration;
@@ -44,6 +45,13 @@ public class EventQueryService {
         this.eventRegistrationRepository = eventRegistrationRepository;
         this.userClient = userClient;
         this.eventAuthorizationService = eventAuthorizationService;
+    }
+
+    public TicketVerificationResponse ticketVerificationOf(EventRegistration registration) {
+        UserSummary user = UserLookup.usersById(userClient, List.of(registration.getStudentId())).get(registration.getStudentId());
+        return new TicketVerificationResponse(registration.getEventId(), registration.getStudentId(),
+                user != null ? user.getFirstName() : null, user != null ? user.getLastName() : null,
+                user != null ? user.getStudentNumber() : null, registration.getCheckedInAt());
     }
 
     public List<Event> getAllActiveEvents() {

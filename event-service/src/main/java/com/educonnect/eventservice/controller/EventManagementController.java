@@ -4,7 +4,9 @@ import com.educonnect.eventservice.dto.request.CreateEventRequest;
 import com.educonnect.eventservice.dto.request.VerifyQrRequest;
 import com.educonnect.eventservice.dto.response.EventRegistrantDTO;
 import com.educonnect.eventservice.dto.response.EventResponse;
+import com.educonnect.eventservice.dto.response.TicketVerificationResponse;
 import com.educonnect.eventservice.model.Event;
+import com.educonnect.eventservice.model.EventRegistration;
 import com.educonnect.eventservice.service.EventQueryService;
 import com.educonnect.eventservice.service.EventService;
 import com.educonnect.common.web.BadRequestException;
@@ -60,8 +62,9 @@ public class EventManagementController {
      */
     @PostMapping("/verify-qr")
     @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<String> verifyTicket(
+    public ResponseEntity<TicketVerificationResponse> verifyTicket(
             @RequestParam(required = false) String qrCode,
+            @RequestParam(required = false) UUID eventId,
             @Valid @RequestBody(required = false) VerifyQrRequest body,
             @RequestHeader("X-Authenticated-User-Id") String userIdHeader
     ) {
@@ -70,16 +73,17 @@ public class EventManagementController {
         if (code == null && body != null) {
             code = body.qrCode();
         }
+        UUID gateEventId = eventId;
+        if (gateEventId == null && body != null) {
+            gateEventId = body.eventId();
+        }
 
         if (code == null || code.isBlank()) {
             throw new BadRequestException("QR_CODE_REQUIRED", "QR code is required.");
         }
 
-        boolean verified = eventService.verifyTicket(code, UUID.fromString(userIdHeader));
-        if (!verified) {
-            throw new BadRequestException("VERIFICATION_FAILED", "Verification failed.");
-        }
-        return ResponseEntity.ok("ACCESS GRANTED: Ticket verified successfully.");
+        EventRegistration registration = eventService.verifyTicket(code, gateEventId, UUID.fromString(userIdHeader));
+        return ResponseEntity.ok(eventQueryService.ticketVerificationOf(registration));
     }
 
     // ==================== CLUB OFFICIAL DASHBOARD ENDPOINTS ====================

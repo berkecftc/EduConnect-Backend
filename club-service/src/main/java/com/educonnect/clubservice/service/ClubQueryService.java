@@ -99,14 +99,15 @@ public class ClubQueryService {
 
         List<ClubMembership> memberships = membershipRepository.findByClubId(clubId);
         boolean canViewAllMembers = clubAuthorizationService.accessOf(club, viewerId).has(ClubPermission.VIEW_MEMBERS);
-        List<MemberDTO> memberDTOs = memberships.stream()
+        List<ClubMembership> visibleMemberships = memberships.stream()
                 .filter(ClubMembership::isActive)
                 .filter(membership -> canViewAllMembers || membership.getClubRole().isManagement())
-                .map(membership -> new MemberDTO(
-                        membership.getStudentId(),
-                        membership.getClubRole()
-                ))
-                .collect(Collectors.toList());
+                .toList();
+        List<MemberDTO> memberDTOs = canViewAllMembers
+                ? namedMembers(visibleMemberships)
+                : visibleMemberships.stream()
+                        .map(membership -> new MemberDTO(membership.getStudentId(), membership.getClubRole()))
+                        .collect(Collectors.toList());
 
         long memberCount = membershipRepository.countByClubIdAndIsActive(clubId, true);
 
@@ -190,9 +191,13 @@ public class ClubQueryService {
                 .filter(ClubMembership::isActive)
                 .filter(m -> m.getClubRole().isManagement())
                 .toList();
-        Map<UUID, UserSummary> users = userLookup.usersById(boardMembers.stream().map(ClubMembership::getStudentId).toList());
+        return namedMembers(boardMembers);
+    }
 
-        return boardMembers.stream()
+    private List<MemberDTO> namedMembers(List<ClubMembership> memberships) {
+        Map<UUID, UserSummary> users = userLookup.usersById(memberships.stream().map(ClubMembership::getStudentId).toList());
+
+        return memberships.stream()
                 .map(m -> {
                     UserSummary user = users.get(m.getStudentId());
                     return new MemberDTO(

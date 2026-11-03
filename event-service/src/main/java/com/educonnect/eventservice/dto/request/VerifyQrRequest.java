@@ -1,3 +1,5 @@
 package com.educonnect.eventservice.dto.request;
 
-public record VerifyQrRequest(String qrCode) {}
+import java.util.UUID;
+
+public record VerifyQrRequest(String qrCode, UUID eventId) {}

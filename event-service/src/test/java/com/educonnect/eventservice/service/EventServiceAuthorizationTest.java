@@ -64,7 +64,7 @@ class EventServiceAuthorizationTest {
         doThrow(new ResponseStatusException(HttpStatus.FORBIDDEN))
                 .when(authorizationService).requireCheckInStaff(event, userId);
 
-        assertThatThrownBy(() -> service.verifyTicket("ticket", userId))
+        assertThatThrownBy(() -> service.verifyTicket("ticket", null, userId))
                 .isInstanceOf(ResponseStatusException.class)
                 .hasMessageContaining("403");
         assertThat(registration.isAttended()).isFalse();

@@ -16,6 +16,8 @@ public class SubmitClubRequest {
     private UUID academicAdvisorId;
     @Size(max = 50, message = "En fazla 50 kurucu eklenebilir")
     private Set<UUID> founderIds;
+    @Size(max = 50, message = "En fazla 50 kurucu eklenebilir")
+    private Set<@NotBlank(message = "Öğrenci numarası boş olamaz") String> founderStudentNumbers;
 
     // Getter/Setter
     public String getName() { return name; }
@@ -26,4 +28,6 @@ public class SubmitClubRequest {
     public void setAcademicAdvisorId(UUID academicAdvisorId) { this.academicAdvisorId = academicAdvisorId; }
     public Set<UUID> getFounderIds() { return founderIds; }
     public void setFounderIds(Set<UUID> founderIds) { this.founderIds = founderIds; }
+    public Set<String> getFounderStudentNumbers() { return founderStudentNumbers; }
+    public void setFounderStudentNumbers(Set<String> founderStudentNumbers) { this.founderStudentNumbers = founderStudentNumbers; }
 }

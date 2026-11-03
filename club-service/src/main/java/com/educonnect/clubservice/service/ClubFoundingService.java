@@ -133,7 +133,8 @@ public class ClubFoundingService {
             throw new ConflictException("CLUB_NAME_TAKEN", "Bu isimde bekleyen bir kulüp kuruluş başvurusu var.");
         }
 
-        Set<UUID> invitedFounders = founderService.validateFounders(studentId, request.getAcademicAdvisorId(), request.getFounderIds());
+        Set<UUID> invitedFounders = founderService.validateFounders(studentId, request.getAcademicAdvisorId(),
+                founderService.resolveFounders(request.getFounderIds(), request.getFounderStudentNumbers()));
 
         ClubCreationRequest newRequest = new ClubCreationRequest();
         newRequest.setClubName(request.getName());

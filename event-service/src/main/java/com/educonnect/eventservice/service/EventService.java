@@ -191,12 +191,19 @@ public class EventService {
         log.info("Updated club name for {} events.", clubEvents.size());
     }
 
-    public boolean verifyTicket(String qrCode, UUID scannerId) {
-        EventRegistration registration = eventRegistrationRepository.findByQrCode(qrCode)
-                .orElseThrow(() -> new BadRequestException("INVALID_TICKET", "Invalid ticket (QR Code not found)"));
-
-        Event event = EventFinder.require(eventRepository, registration.getEventId());
-        eventAuthorizationService.requireCheckInStaff(event, scannerId);
+    public EventRegistration verifyTicket(String qrCode, UUID eventId, UUID scannerId) {
+        Event event;
+        EventRegistration registration;
+        if (eventId != null) {
+            event = staffedEvent(eventId, scannerId);
+            registration = ticket(qrCode);
+            if (!eventId.equals(registration.getEventId())) {
+                throw new BadRequestException("TICKET_WRONG_EVENT", "Bu bilet başka bir etkinliğe ait.");
+            }
+        } else {
+            registration = ticket(qrCode);
+            event = staffedEvent(registration.getEventId(), scannerId);
+        }
         if (event.getStatus() != EventStatus.ACTIVE) {
             throw new BadRequestException("EVENT_NOT_ACTIVE", "Event is not active.");
         }
@@ -210,9 +217,20 @@ public class EventService {
         }
 
         registration.checkIn(scannerId, CheckInMethod.QR, Instant.now());
-        eventRegistrationRepository.save(registration);
+        EventRegistration saved = eventRegistrationRepository.save(registration);
         eventCaches.evictStudentRegistrations(registration.getStudentId());
 
-        return true;
+        return saved;
+    }
+
+    private EventRegistration ticket(String qrCode) {
+        return eventRegistrationRepository.findByQrCode(qrCode)
+                .orElseThrow(() -> new BadRequestException("INVALID_TICKET", "Invalid ticket (QR Code not found)"));
+    }
+
+    private Event staffedEvent(UUID eventId, UUID scannerId) {
+        Event event = EventFinder.require(eventRepository, eventId);
+        eventAuthorizationService.requireCheckInStaff(event, scannerId);
+        return event;
     }
 }

@@ -10,6 +10,7 @@ import com.educonnect.clubservice.repository.ClubCreationRequestRepository;
 import com.educonnect.clubservice.repository.ClubMembershipRepository;
 import com.educonnect.common.test.TestTokens;
 import com.jayway.jsonpath.JsonPath;
+import feign.FeignException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -30,6 +31,7 @@ import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.not;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.mock;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
@@ -132,6 +134,48 @@ class ClubFounderTest {
                 .andExpect(jsonPath("$.status").value("REJECTED"));
         mockMvc.perform(as(get("/api/clubs/my-creation-requests"), TestTokens.student(requester)))
                 .andExpect(jsonPath("$[0].status").value("REJECTED"));
+    }
+
+    @Test
+    void foundersCanBeNamedByStudentNumber() throws Exception {
+        given(userClient.getUserByStudentNumber("2026001")).willReturn(student(first));
+        given(userClient.getUserByStudentNumber("2026002")).willReturn(student(second));
+        given(userClient.getUserByStudentNumber("2026999")).willThrow(mock(FeignException.NotFound.class));
+        given(userClient.getUserByStudentNumber("2026500")).willThrow(mock(FeignException.ServiceUnavailable.class));
+
+        mockMvc.perform(json(post("/api/clubs/request-creation"), TestTokens.student(requester),
+                        bodyWithNumbers("\"2026001\",\"2026999\"")))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errorCode").value("FOUNDER_STUDENT_NOT_FOUND"));
+        mockMvc.perform(json(post("/api/clubs/request-creation"), TestTokens.student(requester),
+                        bodyWithNumbers("\"2026500\"")))
+                .andExpect(status().isServiceUnavailable())
+                .andExpect(jsonPath("$.errorCode").value("UPSTREAM_UNAVAILABLE"));
+        mockMvc.perform(json(post("/api/clubs/request-creation"), TestTokens.student(requester),
+                        bodyWithNumbers("\"  \"")))
+                .andExpect(status().isBadRequest());
+        mockMvc.perform(json(post("/api/clubs/request-creation"), TestTokens.student(requester),
+                        bodyWithNumbers("\"2026001\"")))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errorCode").value("FOUNDERS_REQUIRED"));
+
+        mockMvc.perform(json(post("/api/clubs/request-creation"), TestTokens.student(requester),
+                        bodyWithNumbers(" \"2026001\", \" 2026002 \" ")))
+                .andExpect(status().isOk());
+        assertThat(requestOf(requester).getStatus()).isEqualTo(ClubCreationRequestStatus.PENDING_FOUNDERS);
+        mockMvc.perform(as(get("/api/clubs/founding-invitations"), TestTokens.student(second)))
+                .andExpect(jsonPath("$[*].id", hasItem(requestOf(requester).getId().toString())));
+    }
+
+    private static UserSummary student(UUID id) {
+        UserSummary user = new UserSummary();
+        user.setId(id);
+        return user;
+    }
+
+    private String bodyWithNumbers(String numbers) {
+        return "{\"name\":\"Kurucu Kulübü " + UUID.randomUUID() + "\",\"academicAdvisorId\":\"" + advisor
+                + "\",\"founderStudentNumbers\":[" + numbers + "]}";
     }
 
     private ClubCreationRequest requestOf(UUID studentId) {

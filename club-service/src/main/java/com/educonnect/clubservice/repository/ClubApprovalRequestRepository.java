@@ -24,6 +24,8 @@ public interface ClubApprovalRequestRepository extends JpaRepository<ClubApprova
 
     List<ClubApprovalRequest> findByTypeAndSubjectUserIdAndStatus(ApprovalType type, UUID subjectUserId, ApprovalStatus status);
 
+    List<ClubApprovalRequest> findByPreparedByOrSubjectUserIdOrderByCreatedAtDesc(UUID preparedBy, UUID subjectUserId);
+
     boolean existsByClubIdAndTypeAndStatusIn(UUID clubId, ApprovalType type, Collection<ApprovalStatus> statuses);
 
     boolean existsByClubIdAndTypeAndSubjectUserIdAndStatusIn(UUID clubId, ApprovalType type, UUID subjectUserId,

@@ -142,6 +142,11 @@ public class ClubGovernanceService {
         return toResponses(approvalEngine.inboxOf(userId));
     }
 
+    @Transactional(readOnly = true)
+    public List<ApprovalRequestResponse> requestsConcerning(UUID userId) {
+        return toResponses(requestRepository.findByPreparedByOrSubjectUserIdOrderByCreatedAtDesc(userId, userId));
+    }
+
     public ApprovalRequestResponse approve(UUID clubId, UUID requestId, UUID userId) {
         approvalEngine.find(clubId, requestId);
         return toResponse(approvalEngine.approve(requestId, userId));

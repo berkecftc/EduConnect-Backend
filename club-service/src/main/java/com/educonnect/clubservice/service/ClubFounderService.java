@@ -16,9 +16,12 @@ import com.educonnect.clubservice.model.FounderStatus;
 import com.educonnect.clubservice.repository.ClubCreationRequestRepository;
 import com.educonnect.clubservice.repository.ClubFounderRepository;
 import com.educonnect.clubservice.repository.ClubMembershipRepository;
+import com.educonnect.common.web.ApiException;
 import com.educonnect.common.web.BadRequestException;
 import com.educonnect.common.web.ConflictException;
 import com.educonnect.common.web.NotFoundException;
+import feign.FeignException;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -36,6 +39,7 @@ import java.util.stream.Collectors;
 public class ClubFounderService {
 
     private static final String SUBJECT = "Kulüp kuruluş başvurusu";
+    private static final int MAX_FOUNDERS = 50;
 
     private final ClubFounderRepository founderRepository;
     private final ClubCreationRequestRepository requestRepository;
@@ -65,6 +69,33 @@ public class ClubFounderService {
         this.membershipTerms = membershipTerms;
         this.cacheEvictor = cacheEvictor;
         this.notificationPublisher = notificationPublisher;
+    }
+
+    public Set<UUID> resolveFounders(Collection<UUID> founderIds, Collection<String> studentNumbers) {
+        Set<UUID> founders = new LinkedHashSet<>(founderIds != null ? founderIds : Set.of());
+        if (studentNumbers != null) {
+            studentNumbers.forEach(number -> founders.add(studentIdOf(number.strip())));
+        }
+        if (founders.size() > MAX_FOUNDERS) {
+            throw new BadRequestException("TOO_MANY_FOUNDERS", "En fazla " + MAX_FOUNDERS + " kurucu eklenebilir.");
+        }
+        return founders;
+    }
+
+    private UUID studentIdOf(String studentNumber) {
+        UserSummary student;
+        try {
+            student = userClient.getUserByStudentNumber(studentNumber);
+        } catch (FeignException.NotFound e) {
+            student = null;
+        } catch (FeignException e) {
+            throw new ApiException(HttpStatus.SERVICE_UNAVAILABLE, "UPSTREAM_UNAVAILABLE",
+                    "Öğrenci bilgisi şu anda alınamıyor. Lütfen daha sonra tekrar deneyin.");
+        }
+        if (student == null || student.getId() == null) {
+            throw new BadRequestException("FOUNDER_STUDENT_NOT_FOUND", "Bu öğrenci numarası kayıtlı değil: " + studentNumber);
+        }
+        return student.getId();
     }
 
     public Set<UUID> validateFounders(UUID requesterId, UUID advisorId, Collection<UUID> founderIds) {

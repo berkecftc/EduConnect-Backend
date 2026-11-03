@@ -28,7 +28,10 @@ import java.util.Collection;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.hamcrest.Matchers.contains;
+import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.hasItems;
+import static org.hamcrest.Matchers.nullValue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -113,6 +116,45 @@ class ClubGovernanceTest {
                 .andExpect(jsonPath("$[*].action", hasItems("SUBMITTED", "PRESIDENT_APPROVED", "APPROVED")));
         mockMvc.perform(as(get("/api/clubs/{clubId}/decision-log", clubId), TestTokens.student(member)))
                 .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void myApprovalsListWhatTheCallerPreparedOrIsTheSubjectOf() throws Exception {
+        String resignation = created(mockMvc.perform(json(post("/api/clubs/{clubId}/resignations", clubId),
+                        TestTokens.student(officer), "{\"note\":\"Ders yoğunluğu\"}"))
+                .andExpect(status().isCreated()));
+        String expulsion = created(mockMvc.perform(json(post("/api/clubs/{clubId}/expulsion-requests", clubId),
+                        TestTokens.student(president), "{\"studentId\":\"" + member + "\",\"reason\":\"Kurallara aykırı davranış\"}"))
+                .andExpect(status().isCreated()));
+
+        mockMvc.perform(as(get("/api/clubs/approvals/mine"), TestTokens.student(officer)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[*].id", contains(resignation)))
+                .andExpect(jsonPath("$[0].status").value("PENDING_PRESIDENT"))
+                .andExpect(jsonPath("$[0].clubName").isNotEmpty());
+        mockMvc.perform(as(get("/api/clubs/approvals/mine"), TestTokens.student(member)))
+                .andExpect(jsonPath("$[*].id", contains(expulsion)))
+                .andExpect(jsonPath("$[0].preparedByName").value(nameOf(president)));
+        mockMvc.perform(as(get("/api/clubs/approvals/mine"), TestTokens.student(president)))
+                .andExpect(jsonPath("$[*].id", contains(expulsion)));
+        mockMvc.perform(as(get("/api/clubs/approvals/mine"), TestTokens.student(UUID.randomUUID())))
+                .andExpect(jsonPath("$", empty()));
+    }
+
+    @Test
+    void clubDetailsNameTheMembersOnlyForThoseWhoMayViewThem() throws Exception {
+        String ofMember = "$.members[?(@.studentId == '" + member + "')]";
+        String ofPresident = "$.members[?(@.studentId == '" + president + "')]";
+        mockMvc.perform(as(get("/api/clubs/{clubId}", clubId), TestTokens.student(president)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath(ofMember + ".firstName", contains("Kişi")))
+                .andExpect(jsonPath(ofMember + ".lastName", contains(member.toString().substring(0, 8))))
+                .andExpect(jsonPath(ofMember + ".role", contains(ClubPosition.MEMBER.apiName())));
+        mockMvc.perform(as(get("/api/clubs/{clubId}", clubId), TestTokens.student(UUID.randomUUID())))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath(ofMember, empty()))
+                .andExpect(jsonPath(ofPresident + ".role", contains(ClubPosition.PRESIDENT.apiName())))
+                .andExpect(jsonPath(ofPresident + ".firstName", contains(nullValue())));
     }
 
     @Test

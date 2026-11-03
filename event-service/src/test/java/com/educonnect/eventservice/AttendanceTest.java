@@ -2,7 +2,9 @@ package com.educonnect.eventservice;
 
 import com.educonnect.common.test.TestTokens;
 import com.educonnect.eventservice.client.ClubClient;
+import com.educonnect.eventservice.client.UserClient;
 import com.educonnect.eventservice.dto.response.ClubAccess;
+import com.educonnect.eventservice.dto.response.UserSummary;
 import com.educonnect.eventservice.model.CheckInMethod;
 import com.educonnect.eventservice.model.Event;
 import com.educonnect.eventservice.model.EventRegistration;
@@ -14,12 +16,14 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.AbstractMockHttpServletRequestBuilder;
 
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 
@@ -53,6 +57,9 @@ class AttendanceTest {
 
     @Autowired
     private ClubClient clubClient;
+
+    @MockitoBean
+    private UserClient userClient;
 
     @BeforeEach
     void grants() {
@@ -121,6 +128,44 @@ class AttendanceTest {
         mockMvc.perform(as(get("/api/events/manage/club/{club}/attendance", clubId).param("from", from).param("to", to),
                         TestTokens.student(member)))
                 .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void aTicketScannedAtAnotherEventsGateIsRefusedAndAMatchingOneNamesTheAttendee() throws Exception {
+        UserSummary attendee = new UserSummary();
+        attendee.setId(burak);
+        attendee.setFirstName("Burak");
+        attendee.setLastName("Yılmaz");
+        attendee.setStudentNumber("2026001");
+        given(userClient.getUsersByIds(any())).willReturn(List.of(attendee));
+        Event gate = event(LocalDateTime.now().minusMinutes(10), LocalDateTime.now().plusHours(1));
+        Event other = event(LocalDateTime.now().minusMinutes(10), LocalDateTime.now().plusHours(1));
+        String qr = register(other, burak);
+        String verify = "/api/events/manage/verify-qr";
+
+        mockMvc.perform(as(post(verify), TestTokens.student(member)).contentType(MediaType.APPLICATION_JSON)
+                        .content(qrBody(qr, gate.getId())))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(as(post(verify), TestTokens.student(officer)).contentType(MediaType.APPLICATION_JSON)
+                        .content(qrBody(qr, gate.getId())))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errorCode").value("TICKET_WRONG_EVENT"));
+        assertThat(registrationRepository.findByQrCode(qr).orElseThrow().isAttended()).isFalse();
+
+        mockMvc.perform(as(post(verify), TestTokens.student(officer)).contentType(MediaType.APPLICATION_JSON)
+                        .content(qrBody(qr, other.getId())))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.eventId").value(other.getId().toString()))
+                .andExpect(jsonPath("$.studentId").value(burak.toString()))
+                .andExpect(jsonPath("$.firstName").value("Burak"))
+                .andExpect(jsonPath("$.lastName").value("Yılmaz"))
+                .andExpect(jsonPath("$.studentNumber").value("2026001"))
+                .andExpect(jsonPath("$.checkedInAt").isNotEmpty());
+        assertThat(registrationRepository.findByQrCode(qr).orElseThrow().isAttended()).isTrue();
+    }
+
+    private static String qrBody(String qr, UUID eventId) {
+        return "{\"qrCode\":\"" + qr + "\",\"eventId\":\"" + eventId + "\"}";
     }
 
     private String register(Event event, UUID student) {

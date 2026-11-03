@@ -40,6 +40,11 @@ public class ClubApprovalController {
         return ResponseEntity.ok(governanceService.inboxOf(UUID.fromString(userIdHeader)));
     }
 
+    @GetMapping("/approvals/mine")
+    public ResponseEntity<List<ApprovalRequestResponse>> mine(@RequestHeader(USER_ID_HEADER) String userIdHeader) {
+        return ResponseEntity.ok(governanceService.requestsConcerning(UUID.fromString(userIdHeader)));
+    }
+
     @GetMapping("/{clubId}/approvals")
     public ResponseEntity<List<ApprovalRequestResponse>> clubRequests(@PathVariable UUID clubId,
                                                                       @RequestHeader(USER_ID_HEADER) String userIdHeader) {
