@@ -66,20 +66,28 @@ export function useMyCreationRequests(enabled = true) {
   })
 }
 
-export type ClubCreationDraft = { name: string; about: string; advisorId: string | undefined }
-export type ClubCreationErrors = Partial<Record<'name' | 'about' | 'advisorId', string>>
+export type ClubCreationDraft = { name: string; about: string; advisorId: string | undefined; founders: string }
+export type ClubCreationErrors = Partial<Record<'name' | 'about' | 'advisorId' | 'founders', string>>
 
 export const CLUB_NAME_MAX = 255
 export const ABOUT_MAX = 5000
+export const FOUNDERS_MAX = 50
+
+/** Yazılan ya da yapıştırılan kurucu numaraları: satır, virgül ya da boşlukla ayrılır; tekrarlar atılır. */
+export const parseFounderNumbers = (text: string) => [...new Set(text.split(/[\s,;]+/).filter(Boolean))]
 
 export function validateCreationDraft(d: ClubCreationDraft): ClubCreationErrors {
   const e: ClubCreationErrors = {}
   if (!d.name.trim()) e.name = 'Kulübün adını yazın.'
   if (!d.advisorId) e.advisorId = 'Danışman olacak akademisyeni listeden seçin.'
+  if (parseFounderNumbers(d.founders).length > FOUNDERS_MAX) e.founders = `En fazla ${FOUNDERS_MAX} kurucu eklenebilir.`
   return e
 }
 
-/** Kuruluş başvurusu: yanıt düz metin, başvuru "Kuruluş başvurularım"dan izlenir. Kurucu olarak yalnız başvuran kaydedilir. */
+/**
+ * Kuruluş başvurusu: yanıt düz metin, başvuru "Kuruluş başvurularım"dan izlenir. Kurucular öğrenci numarasıyla eklenir
+ * (F-89); asgari sayı sunucu ayarı, eksikse `FOUNDERS_REQUIRED` mesajı sayıyı söyler.
+ */
 export function useRequestClubCreation() {
   const qc = useQueryClient()
   return useMutation({
@@ -88,7 +96,7 @@ export function useRequestClubCreation() {
         name: d.name.trim(),
         about: d.about.trim() || null,
         academicAdvisorId: d.advisorId,
-        founderIds: [],
+        founderStudentNumbers: parseFounderNumbers(d.founders),
       })
     },
     onSuccess: () => void qc.invalidateQueries({ queryKey: ['clubs', 'founding'] }),
@@ -258,9 +266,9 @@ export type AdvisorChange = {
   clubId: string
   clubName: string | null
   proposedAdvisorId: string
-  /** Backend eklediğinde önerilen akademisyenin adı. */
   proposedAdvisorName?: string | null
   requestedBy: string
+  requestedByName?: string | null
   message: string | null
   status: ApprovalStatus
   rejectionReason: string | null

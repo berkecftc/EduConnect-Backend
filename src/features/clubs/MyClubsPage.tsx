@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { toast } from 'sonner'
 import { toApiError } from '@/lib/api/problem'
+import { useSession } from '@/lib/auth/session'
 import { formatInstant, formatLocal, nowLocalIso } from '@/lib/time'
 import { usePageTitle } from '@/lib/usePageTitle'
 import { Badge } from '@/components/ui/Badge'
@@ -25,13 +26,18 @@ import {
   type MembershipRequest,
   type MyMembership,
 } from './api'
+import { ApprovalItem } from './ApprovalItem'
 import { ClubLogo } from './ClubMark'
 import { FoundingInvitations, CreationRequests } from './Founding'
 import { useMyCreationRequests } from './governance'
+import { isPendingApproval, useMyApprovals, type ApprovalRequest } from './manage'
 
 const ROW = 'grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-6 gap-y-2 sm:grid-cols-[minmax(0,1fr)_14rem]'
 
-/** Kulüplerim: üyelikler (görev ve geçerlilik), bekleyen ve sonuçlanan başvurular, görev ve üyelik geçmişi (F-32, F-38). */
+/**
+ * Kulüplerim: üyelikler (görev ve geçerlilik), bekleyen ve sonuçlanan başvurular, görev ve üyelik geçmişi (F-32, F-38);
+ * kişinin kendi talepleri ve hakkında açılanlar (F-89).
+ */
 export function MyClubsPage() {
   usePageTitle('Kulüplerim')
   const memberships = useMyMemberships()
@@ -39,6 +45,9 @@ export function MyClubsPage() {
   const history = useMembershipHistory()
   const positions = useMyPositions()
   const creations = useMyCreationRequests()
+  const approvals = useMyApprovals()
+  const openApprovals = (approvals.data ?? []).filter((r) => isPendingApproval(r.status))
+  const decidedApprovals = (approvals.data ?? []).filter((r) => !isPendingApproval(r.status))
 
   const active = (memberships.data ?? [])
     .filter(isActiveMembership)
@@ -64,6 +73,16 @@ export function MyClubsPage() {
       />
 
       <FoundingInvitations />
+
+      {openApprovals.length > 0 && (
+        <Panel
+          title="Taleplerim"
+          className="mt-8 mb-16"
+          action={<span className="tabular text-md text-warning">{openApprovals.length} açık</span>}
+        >
+          <MyApprovals list={openApprovals} />
+        </Panel>
+      )}
 
       <div className="mt-8">
         <QueryBoundary query={memberships} what="Üyelikler" skeletonRows={3}>
@@ -113,6 +132,11 @@ export function MyClubsPage() {
               </ul>
             </Panel>
           )}
+          {decidedApprovals.length > 0 && (
+            <Panel title="Sonuçlanan taleplerim">
+              <MyApprovals list={decidedApprovals} />
+            </Panel>
+          )}
         </div>
         {pastPositions.length > 0 && (
           <aside className="lg:col-span-5">
@@ -133,6 +157,28 @@ export function MyClubsPage() {
         )}
       </div>
     </div>
+  )
+}
+
+/** Talep satırları: hakkında çıkarma talebi açılan savunma ekler, hazırlayan bekleyen talebini geri çeker. */
+function MyApprovals({ list }: { list: ApprovalRequest[] }) {
+  const me = useSession()?.userId
+  return (
+    <ul className="border-t border-rule">
+      {list.map((r) => {
+        const pending = isPendingApproval(r.status)
+        const defends = pending && r.type === 'MEMBER_EXPULSION' && r.subjectUserId === me
+        return (
+          <ApprovalItem
+            key={r.id}
+            request={r}
+            showClub
+            self={r.subjectUserId === me}
+            mode={defends ? 'defend' : pending && r.preparedBy === me ? 'withdraw' : undefined}
+          />
+        )
+      })}
+    </ul>
   )
 }
 

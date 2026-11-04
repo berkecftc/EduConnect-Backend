@@ -48,10 +48,9 @@ function PasswordForm() {
       },
       onError: (err) => {
         const ae = toApiError(err)
-        // Backend bu kodlarda İngilizce mesaj döner; Türkçesi ilgili alanın altına yazılır.
-        if (ae.code === 'WRONG_CURRENT_PASSWORD') form.setError('currentPassword', { message: 'Mevcut şifreniz yanlış.' })
-        else if (ae.code === 'PASSWORD_UNCHANGED') form.setError('newPassword', { message: 'Yeni şifre eskisiyle aynı olamaz.' })
-        else if (ae.code === 'PASSWORD_CONFIRMATION_MISMATCH') form.setError('confirmationPassword', { message: 'Şifreler eşleşmiyor.' })
+        if (ae.code === 'WRONG_CURRENT_PASSWORD') form.setError('currentPassword', { message: ae.message })
+        else if (ae.code === 'PASSWORD_UNCHANGED') form.setError('newPassword', { message: ae.message })
+        else if (ae.code === 'PASSWORD_CONFIRMATION_MISMATCH') form.setError('confirmationPassword', { message: ae.message })
         else setFailure(ae)
       },
     })

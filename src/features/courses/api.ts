@@ -140,9 +140,10 @@ export const courseKeys = {
   currentTerm: ['courses', 'terms', 'current'] as const,
 }
 
-export function useMyCourses() {
+export function useMyCourses(enabled = true) {
   return useQuery({
     queryKey: courseKeys.mine,
+    enabled,
     queryFn: async () => (await api.get<EnrolledCourse[]>('/courses/my-courses')).data,
   })
 }

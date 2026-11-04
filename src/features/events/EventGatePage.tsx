@@ -12,15 +12,14 @@ import { EmptyState, QueryBoundary, Skeleton } from '@/components/ui/States'
 import { useEvent, type CampusEvent } from './api'
 import { useAttendance } from './manage'
 import { QrScanner } from './QrScanner'
-import { scanFailure, useMyStaffEvents, useVerifyTicket } from './staff'
+import { checkInName, scanFailure, useMyStaffEvents, useVerifyTicket } from './staff'
 
-/** Sunucunun varsayılanı: giriş etkinlikten 60 dakika önce açılır, bitince kapanır. */
-const OPENS_BEFORE_MS = 60 * 60_000
 /** Sonuç ekranda kalırken okuyucu bekler; aynı kod bu süre içinde yeniden gönderilmez. */
 const HOLD_MS = 1800
 const SAME_CODE_MS = 5000
 
-type Scan = { id: number; ok: boolean; message: string; at: string; code: string }
+/** Başarılı okutmada `message` katılımcının adı (gelmediyse boş), başarısızda neden. */
+type Scan = { id: number; ok: boolean; message: string; number: string | null; at: string; code: string }
 
 /**
  * Kapı ekranı (F-63): görevli ya da etkinliği yöneten, bileti kamerayla okutur ya da kodu yazar; sonuç büyük ve
@@ -73,9 +72,9 @@ function GateBody({ event: e, manages }: { event: CampusEvent; manages: boolean 
   const seq = useRef(0)
 
   const now = localStamp(nowLocalIso())
-  const opensAt = localStamp(e.startsAt) - OPENS_BEFORE_MS
-  const closesAt = localStamp(e.endsAt ?? e.startsAt)
-  const phase = now < opensAt ? 'early' : now > closesAt ? 'over' : 'open'
+  // Açılış saati gelmezse erken uyarısı çıkmaz; sunucu yine `CHECK_IN_CLOSED` ile söyler.
+  const early = !!e.checkInOpensAt && now < localStamp(e.checkInOpensAt)
+  const phase = early ? 'early' : now > localStamp(e.endsAt ?? e.startsAt) ? 'over' : 'open'
   const last = scans[0]
 
   const submit = (raw: string) => {
@@ -84,14 +83,14 @@ function GateBody({ event: e, manages }: { event: CampusEvent; manages: boolean 
     const t = Date.now()
     if (recent.current && recent.current.code === value && t - recent.current.at < SAME_CODE_MS) return
     recent.current = { code: value, at: t }
-    const record = (ok: boolean, message: string) => {
-      setScans((s) => [{ id: ++seq.current, ok, message, at: nowLocalIso(), code: value }, ...s].slice(0, 30))
+    const record = (ok: boolean, message: string, number: string | null = null) => {
+      setScans((s) => [{ id: ++seq.current, ok, message, number, at: nowLocalIso(), code: value }, ...s].slice(0, 30))
       setHold(true)
       setTimeout(() => setHold(false), HOLD_MS)
       navigator.vibrate?.(ok ? 80 : [60, 60, 60])
     }
     verify.mutate(value, {
-      onSuccess: () => record(true, 'Giriş yapıldı'),
+      onSuccess: (t) => record(true, checkInName(t), t.studentNumber),
       onError: (err) => record(false, scanFailure(toApiError(err))),
     })
   }
@@ -115,9 +114,7 @@ function GateBody({ event: e, manages }: { event: CampusEvent; manages: boolean 
 
       {phase !== 'open' && (
         <Notice variant="line" tone={phase === 'early' ? 'info' : 'warning'} className="mt-8">
-          {phase === 'early'
-            ? `Giriş ${formatLocal(new Date(opensAt).toISOString().slice(0, 19), 'datetime')} itibarıyla açılır (etkinlikten bir saat önce).`
-            : 'Etkinlik bitti; giriş kapandı.'}
+          {phase === 'early' ? `Giriş ${formatLocal(e.checkInOpensAt, 'datetime')} itibarıyla açılır.` : 'Etkinlik bitti; giriş kapandı.'}
         </Notice>
       )}
 
@@ -134,9 +131,9 @@ function GateBody({ event: e, manages }: { event: CampusEvent; manages: boolean 
               <p className={`text-3xl leading-tight font-heavy ${last.ok ? 'text-success' : 'text-danger'}`}>
                 {last.ok ? 'Giriş yapıldı' : 'Giriş yok'}
               </p>
-              {!last.ok && <p className="mt-1 text-lg">{last.message}</p>}
+              {last.message && <p className={last.ok ? 'mt-1 text-2xl leading-tight font-semibold' : 'mt-1 text-lg'}>{last.message}</p>}
               <p className="tabular mt-2 text-sm text-ink-3">
-                {formatLocal(last.at, 'time')}, kod …{last.code.slice(-6)}
+                {formatLocal(last.at, 'time')}, {last.number ?? `kod …${last.code.slice(-6)}`}
               </p>
             </div>
           ) : (
@@ -203,7 +200,7 @@ function GateBody({ event: e, manages }: { event: CampusEvent; manages: boolean 
                   <li key={s.id} className="grid grid-cols-[4rem_minmax(0,1fr)] gap-x-4 border-b border-rule py-2 text-md">
                     <span className="tabular text-ink-3">{formatLocal(s.at, 'time')}</span>
                     <span className={s.ok ? undefined : 'text-danger'}>
-                      {s.ok ? 'Giriş yapıldı' : s.message} <span className="tabular text-sm text-ink-3">…{s.code.slice(-6)}</span>
+                      {s.message || 'Giriş yapıldı'} <span className="tabular text-sm text-ink-3">{s.number ?? `…${s.code.slice(-6)}`}</span>
                     </span>
                   </li>
                 ))}

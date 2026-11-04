@@ -45,7 +45,7 @@ import { ClubSettings } from './ClubSettings'
 import { ballotsToVote, isRunning, useClubElections } from './elections'
 import { useResign } from './governance'
 import { usePastPresidents } from './records'
-import { can, useClubAccess, useRemoveAnnouncement, type ClubAccess } from './manage'
+import { can, isPendingApproval, useClubAccess, useMyApprovals, useRemoveAnnouncement, type ClubAccess } from './manage'
 import { PersonLink } from '@/features/people/PersonLink'
 
 const MESSAGE_MAX = 500
@@ -278,6 +278,8 @@ function MembershipBoard({
   const [dialog, setDialog] = useState<'join' | 'leave' | 'cancel' | 'resign' | null>(null)
   const [message, setMessage] = useState('')
   const official = !!membership && roleRank(membership.clubRole) < roleRank('MEMBER')
+  const myApprovals = useMyApprovals(official)
+  const resigning = myApprovals.data?.some((r) => r.clubId === c.id && r.type === 'RESIGNATION' && isPendingApproval(r.status))
 
   const fail = (e: unknown) => toast.error(toApiError(e).message)
 
@@ -318,15 +320,21 @@ function MembershipBoard({
                       Üyeliği yenile
                     </Button>
                   )}
-                  {official && c.status !== 'CLOSED' && (
-                    <button
-                      type="button"
-                      onClick={() => setDialog('resign')}
-                      className="text-sm font-semibold text-ink-2 underline-offset-4 hover:text-ink hover:underline"
-                    >
-                      Görevden ayrıl
-                    </button>
-                  )}
+                  {official &&
+                    c.status !== 'CLOSED' &&
+                    (resigning ? (
+                      <Link to="/clubs/mine" className="text-sm font-semibold text-warning underline-offset-4 hover:underline">
+                        Ayrılma talebiniz onayda
+                      </Link>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => setDialog('resign')}
+                        className="text-sm font-semibold text-ink-2 underline-offset-4 hover:text-ink hover:underline"
+                      >
+                        Görevden ayrıl
+                      </button>
+                    ))}
                   <button
                     type="button"
                     onClick={() => setDialog('leave')}

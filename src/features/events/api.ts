@@ -19,6 +19,9 @@ export type MyRegistration = {
   attended: boolean
   registrationStatus: RegistrationStatus
   eventStatus: EventStatus
+  endsAt?: string | null
+  cancellationReason?: string | null
+  checkInOpensAt?: string | null
 }
 
 /** `GET /api/events/{id}` ve liste öğesi (EventResponse). Saatler bölgesiz yerel (F-61). */
@@ -43,6 +46,8 @@ export type CampusEvent = {
   status: EventStatus
   rejectionReason?: string | null
   cancellationReason?: string | null
+  /** Girişin açıldığı an (F-91): tekil etkinlikte ve görevli listesinde gelir, diğer listelerde boş. */
+  checkInOpensAt?: string | null
 }
 
 /** `GET /api/events/{id}/availability` (F-62). `capacity` boşsa sınırsız. */

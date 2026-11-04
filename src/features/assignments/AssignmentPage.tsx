@@ -30,6 +30,7 @@ import {
   useSubmitAssignment,
   type MyAssignment,
 } from './api'
+import { useGroupSets } from './staff'
 import { DeadlineTrack } from './DeadlineTrack'
 import { viewAssignment, type AssignmentView } from './model'
 
@@ -175,6 +176,8 @@ function AssignmentBody({ assignment: a, course }: { assignment: MyAssignment; c
             <Panel title={s ? 'Yeniden teslim et' : 'Teslim et'}>
               {v.canSubmit ? (
                 <SubmitForm assignment={a} resubmit={!!s} late={v.phase === 'late'} />
+              ) : v.needsGroup ? (
+                <GroupGate assignment={a} />
               ) : (
                 <p className="text-lg text-ink-2">{v.blockedReason}</p>
               )}
@@ -196,7 +199,14 @@ function AssignmentBody({ assignment: a, course }: { assignment: MyAssignment; c
               <Rule label="Yeniden teslim">
                 Puanlanana kadar yeniden teslim edebilirsiniz; yeni teslim öncekinin yerine geçer. Geç teslimden sonra yeniden teslim yapılamaz.
               </Rule>
-              {a.groupSetId && <Rule label="Grup">{a.groupName ?? 'Henüz bir gruba katılmadınız. Teslim için önce bir gruba katılın.'}</Rule>}
+              {a.groupSetId && (
+                <Rule label="Grup">
+                  {a.groupName ?? 'Henüz bir grubunuz yok.'}{' '}
+                  <Link to={`/courses/${a.courseId}?sekme=gruplar`} className="font-semibold underline-offset-4 hover:underline">
+                    Gruplar
+                  </Link>
+                </Rule>
+              )}
             </dl>
           </Panel>
         </aside>
@@ -256,6 +266,21 @@ function Board({ assignment: a, view: v }: { assignment: MyAssignment; view: Ass
 }
 
 /** Teslim ayrıntısı satırı: solda etiket, sağda değer; ince çizgiyle ayrılır. */
+/** Grubu olmayan öğrenci grup ödevini teslim edemez: seçim açıksa gruplara yönlendirir, değilse hocaya. */
+function GroupGate({ assignment: a }: { assignment: MyAssignment }) {
+  const sets = useGroupSets(a.courseId)
+  const set = sets.data?.find((s) => s.id === a.groupSetId)
+  if (set && !set.signupOpen) return <p className="text-lg text-ink-2">Bu bir grup ödevi ve henüz bir grubunuz yok. Grubunuz için hocanıza başvurun.</p>
+  return (
+    <>
+      <p className="text-lg text-ink-2">Bu bir grup ödevi. Teslim etmek için önce {set ? `${set.name} içinden ` : ''}bir gruba katılın.</p>
+      <Button asChild variant="primary" className="mt-5">
+        <Link to={`/courses/${a.courseId}?sekme=gruplar`}>Gruplara git</Link>
+      </Button>
+    </>
+  )
+}
+
 function Row({ label, children }: { label: string; children: ReactNode }) {
   return (
     <div className="grid gap-x-6 gap-y-1 border-b border-rule py-3.5 sm:grid-cols-[11rem_minmax(0,1fr)]">

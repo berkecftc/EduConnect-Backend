@@ -188,6 +188,28 @@ export function useApprovalInbox(enabled = true) {
   })
 }
 
+/** Taleplerim (F-89): kişinin kendi hazırladığı ve hakkında açılan talepler, yeniden eskiye. */
+export function useMyApprovals(enabled = true) {
+  return useQuery({
+    queryKey: ['clubs', 'approvals', 'mine'],
+    enabled,
+    queryFn: async () => (await api.get<ApprovalRequest[]>('/clubs/approvals/mine')).data,
+  })
+}
+
+/** Hakkındaki üyelikten çıkarma talebine savunma: danışman kararını vermeden önce yenilenebilir. */
+export function useSubmitDefence() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (a: { clubId: string; requestId: string; note: string }) =>
+      (await api.post<ApprovalRequest>(`/clubs/${a.clubId}/approvals/${a.requestId}/defence`, { note: a.note.trim() })).data,
+    onSuccess: (_d, a) => {
+      void qc.invalidateQueries({ queryKey: ['clubs', 'approvals'] })
+      void qc.invalidateQueries({ queryKey: ['clubs', a.clubId, 'approvals'] })
+    },
+  })
+}
+
 /** Kulübün karar kayıtları (VIEW_DECISIONS), yeniden eskiye. */
 export function useClubApprovals(clubId: string, enabled: boolean) {
   return useQuery({

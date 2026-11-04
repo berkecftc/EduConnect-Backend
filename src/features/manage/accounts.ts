@@ -20,7 +20,6 @@ export type ManagedAccount = {
   staffStatus: StaffStatus | null
   /** Bütün bağlılıklar sona erdiyse hesabın kapanacağı an. */
   closureDueAt: string | null
-  /** Backend eklediğinde. */
   firstName?: string | null
   lastName?: string | null
 }

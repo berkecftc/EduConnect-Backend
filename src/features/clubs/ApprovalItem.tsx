@@ -12,7 +12,7 @@ import { CATEGORY_LABEL, roleLabel } from './api'
 import { ClubLogo } from './ClubMark'
 import { ElectionResult } from './ClubElections'
 import { RecordPreview } from './RecordPreview'
-import { APPROVAL_STATUS, APPROVAL_TYPE_LABEL, useDecideApproval, type ApprovalRequest } from './manage'
+import { APPROVAL_STATUS, APPROVAL_TYPE_LABEL, useDecideApproval, useSubmitDefence, type ApprovalRequest } from './manage'
 
 const REASON_MAX = 1000
 
@@ -24,20 +24,26 @@ const GRID = 'grid gap-x-8 gap-y-3 @lg:grid-cols-[minmax(0,1fr)_11rem] @4xl:grid
 
 /**
  * Onay kaydı satırı: solda tür ve tarih, ortada (isteğe bağlı kulüp adıyla) içeriğin önizlemesi ve kimin hazırladığı,
- * sağda durum ve eylem. `mode="decide"` onay/ret, `mode="withdraw"` hazırlayanın geri çekmesi.
+ * sağda durum ve eylem. `mode="decide"` onay/ret, `mode="withdraw"` hazırlayanın geri çekmesi, `mode="defend"` hakkında
+ * çıkarma talebi açılan üyenin savunması. `self`: kayıt okuyan kişinin kendisi hakkında, metin ona göre yazılır.
  */
 export function ApprovalItem({
   request: r,
   mode,
   showClub = false,
+  self = false,
 }: {
   request: ApprovalRequest
-  mode?: 'decide' | 'withdraw'
+  mode?: 'decide' | 'withdraw' | 'defend'
   showClub?: boolean
+  self?: boolean
 }) {
   const decide = useDecideApproval()
+  const defence = useSubmitDefence()
   const [dialog, setDialog] = useState<'approve' | 'reject' | 'withdraw' | null>(null)
+  const [defending, setDefending] = useState(false)
   const [reason, setReason] = useState('')
+  const [note, setNote] = useState(r.responseNote ?? '')
   const status = APPROVAL_STATUS[r.status]
   const label = APPROVAL_TYPE_LABEL[r.type] ?? 'İstek'
 
@@ -75,7 +81,7 @@ export function ApprovalItem({
               {r.clubName}
             </Link>
           )}
-          <Preview request={r} />
+          <Preview request={r} self={self} />
           <p className="mt-3 text-sm text-ink-3">
             {r.preparedByName ? `Hazırlayan ${r.preparedByName}` : 'Hazırlayan bilinmiyor'}
             {r.presidentDecidedByName && r.presidentDecidedAt
@@ -116,9 +122,44 @@ export function ApprovalItem({
                 Geri çek
               </button>
             )}
+            {mode === 'defend' && (
+              <Button size="sm" variant="primary" onClick={() => setDefending(true)}>
+                {r.responseNote ? 'Savunmayı düzenle' : 'Savunma ekle'}
+              </Button>
+            )}
           </div>
         )}
       </div>
+
+      <ConfirmDialog
+        open={defending}
+        onOpenChange={(o) => {
+          setDefending(o)
+          if (!o) setNote(r.responseNote ?? '')
+        }}
+        title="Savunmanız"
+        description="Danışman kararını vermeden önce savunmanızı okur. Karar verilene kadar düzenleyebilirsiniz."
+        confirmLabel="Savunmayı gönder"
+        loading={defence.isPending}
+        onConfirm={() =>
+          note.trim()
+            ? defence.mutate(
+                { clubId: r.clubId, requestId: r.id, note },
+                {
+                  onSuccess: () => {
+                    toast.success('Savunmanız iletildi')
+                    setDefending(false)
+                  },
+                  onError: (e) => toast.error(toApiError(e).message),
+                },
+              )
+            : toast.error('Savunmanızı yazın.')
+        }
+      >
+        <Field label="Savunma" required>
+          <Textarea maxLength={REASON_MAX} valueLength={note.length} value={note} onChange={(e) => setNote(e.target.value)} rows={4} />
+        </Field>
+      </ConfirmDialog>
 
       <ConfirmDialog
         open={dialog === 'approve'}
@@ -173,7 +214,7 @@ export function ApprovalItem({
 }
 
 /** Türe göre içerik: duyuru metni, önerilen profil alanları, yeni logo, görev değişikliği, çıkarma gerekçesi ve savunma. */
-function Preview({ request: r }: { request: ApprovalRequest }) {
+function Preview({ request: r, self }: { request: ApprovalRequest; self: boolean }) {
   const subject = r.subjectUserName ?? 'Üye'
   switch (r.type) {
     case 'CLUB_ANNOUNCEMENT':
@@ -233,10 +274,14 @@ function Preview({ request: r }: { request: ApprovalRequest }) {
     case 'RESIGNATION':
       return (
         <div>
-          <p className="text-lg">
-            <span className="font-semibold">{subject}</span> {roleLabel(r.currentPosition).toLocaleLowerCase('tr-TR')} görevinden ayrılmak
-            istiyor.
-          </p>
+          {self ? (
+            <p className="text-lg">{roleLabel(r.currentPosition)} görevinden ayrılmak istediniz.</p>
+          ) : (
+            <p className="text-lg">
+              <span className="font-semibold">{subject}</span> {roleLabel(r.currentPosition).toLocaleLowerCase('tr-TR')} görevinden ayrılmak
+              istiyor.
+            </p>
+          )}
           <Note text={r.note} />
         </div>
       )
@@ -253,11 +298,18 @@ function Preview({ request: r }: { request: ApprovalRequest }) {
     case 'MEMBER_EXPULSION':
       return (
         <div>
-          <p className="text-lg">
-            <span className="font-semibold">{subject}</span> üyelikten çıkarılsın.
-          </p>
+          {self ? (
+            <p className="text-lg font-semibold">Üyelikten çıkarılmanız istendi.</p>
+          ) : (
+            <p className="text-lg">
+              <span className="font-semibold">{subject}</span> üyelikten çıkarılsın.
+            </p>
+          )}
           <Note label="Gerekçe" text={r.note} />
-          <Note label="Savunma" text={r.responseNote ?? 'Üye henüz savunma eklemedi.'} />
+          <Note
+            label={self ? 'Savunmanız' : 'Savunma'}
+            text={r.responseNote ?? (self ? 'Henüz savunma eklemediniz.' : 'Üye henüz savunma eklemedi.')}
+          />
         </div>
       )
     default:

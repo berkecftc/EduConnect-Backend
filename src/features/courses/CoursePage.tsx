@@ -8,7 +8,9 @@ import { formatNumber } from '@/lib/format'
 import { formatInstant, formatLocal, nowLocalIso } from '@/lib/time'
 import { usePageTitle } from '@/lib/usePageTitle'
 import { useMyAssignments, useMyGrades, TYPE_LABEL, type MyAssignment, type MyGrades } from '@/features/assignments/api'
+import { setsAwaitingChoice } from '@/features/assignments/groups'
 import { viewAssignment, type AssignmentView } from '@/features/assignments/model'
+import { useGroupSets } from '@/features/assignments/staff'
 import { Meter } from '@/components/ui/Meter'
 import { withTitle } from '@/features/people/titles'
 import { RevealTitle } from '@/components/ui/RevealTitle'
@@ -35,8 +37,9 @@ import {
   type Material,
 } from './api'
 import { PersonLink } from '@/features/people/PersonLink'
+import { StudentGroups } from './StudentGroups'
 
-/** Ders sayfası (öğrenci): genel bakış ve kadro, ödevler, materyaller, notlarım, duyurular. */
+/** Ders sayfası (öğrenci): genel bakış ve kadro, ödevler, materyaller, notlarım, duyurular; derste grup seti varsa gruplar. */
 export function CoursePage() {
   const { courseId = '' } = useParams()
   const course = useCourse(courseId)
@@ -58,6 +61,8 @@ export function CoursePage() {
 
 function CourseBody({ course: c }: { course: Course }) {
   const assignments = useMyAssignments()
+  const groupSets = useGroupSets(c.id).data ?? []
+  const awaitingGroup = isRunning(c.status) ? setsAwaitingChoice(groupSets).length : 0
   const mine = useMemo(
     () => (assignments.data ?? []).filter((a) => a.courseId === c.id).sort((a, b) => a.effectiveDueDate.localeCompare(b.effectiveDueDate)),
     [assignments.data, c.id],
@@ -93,6 +98,16 @@ function CourseBody({ course: c }: { course: Course }) {
                 </ul>
               ),
             },
+            ...(groupSets.length > 0
+              ? [
+                  {
+                    value: 'gruplar',
+                    label: 'Gruplar',
+                    count: awaitingGroup || undefined,
+                    content: <StudentGroups course={c} sets={groupSets} assignments={mine} />,
+                  },
+                ]
+              : []),
             { value: 'materyaller', label: 'Materyaller', content: <Materials courseId={c.id} /> },
             { value: 'notlar', label: 'Notlarım', content: <Grades courseId={c.id} /> },
             { value: 'duyurular', label: 'Duyurular', content: <Announcements courseId={c.id} /> },

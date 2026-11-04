@@ -3,6 +3,7 @@ import {
   canonicalRole,
   holderCount,
   logoProblem,
+  parseFounderNumbers,
   profileChanges,
   validateProfileDraft,
   validateCreationDraft,
@@ -69,11 +70,25 @@ describe('validateProfileDraft', () => {
 
 describe('validateCreationDraft', () => {
   it('ad ve danışman zorunlu', () => {
-    expect(validateCreationDraft({ name: '  ', about: '', advisorId: undefined })).toEqual({
+    expect(validateCreationDraft({ name: '  ', about: '', advisorId: undefined, founders: '' })).toEqual({
       name: 'Kulübün adını yazın.',
       advisorId: 'Danışman olacak akademisyeni listeden seçin.',
     })
-    expect(validateCreationDraft({ name: 'Münazara Kulübü', about: '', advisorId: 'u-c7' })).toEqual({})
+    expect(validateCreationDraft({ name: 'Münazara Kulübü', about: '', advisorId: 'u-c7', founders: '' })).toEqual({})
+  })
+
+  it('kurucu sayısının üst sınırını denetler; asgari sayı sunucuda', () => {
+    const founders = Array.from({ length: 51 }, (_, i) => `20260${i}`).join('\n')
+    expect(validateCreationDraft({ name: 'Münazara Kulübü', about: '', advisorId: 'u-c7', founders }).founders).toBe(
+      'En fazla 50 kurucu eklenebilir.',
+    )
+  })
+})
+
+describe('parseFounderNumbers', () => {
+  it('satır, virgül ya da boşlukla ayrılan numaraları tekilleştirir', () => {
+    expect(parseFounderNumbers(' 2026001\n2026002, 2026003;2026001\n\n')).toEqual(['2026001', '2026002', '2026003'])
+    expect(parseFounderNumbers('   ')).toEqual([])
   })
 })
 

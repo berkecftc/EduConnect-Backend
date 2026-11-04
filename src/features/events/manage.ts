@@ -208,7 +208,7 @@ export function useCheckIn(eventId: string) {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: async (a: { kind: 'in' | 'undo'; studentId: string } | { kind: 'code'; code: string }) => {
-      if (a.kind === 'code') await api.post('/events/manage/verify-qr', { qrCode: a.code.trim() })
+      if (a.kind === 'code') await api.post('/events/manage/verify-qr', { qrCode: a.code.trim(), eventId })
       else if (a.kind === 'in') await api.post(`/events/manage/${eventId}/registrations/${a.studentId}/check-in`)
       else await api.delete(`/events/manage/${eventId}/registrations/${a.studentId}/check-in`)
     },

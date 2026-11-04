@@ -19,9 +19,10 @@ import { QueryBoundary } from '@/components/ui/States'
 import { Textarea } from '@/components/ui/Textarea'
 import {
   APPEALABLE,
-  CATEGORY_LABEL,
   COMMENT_STATUS,
   POST_STATUS,
+  postKindLabel,
+  publisherPath,
   useAcceptAnswer,
   useAddComment,
   useComments,
@@ -38,6 +39,19 @@ import { PersonLink } from '@/features/people/PersonLink'
 
 const COMMENT_MAX = 2000
 const LINK = 'text-sm font-semibold text-ink-2 underline-offset-4 hover:text-ink hover:underline'
+
+/** Resmî duyuruda yayımlayan: kulübe ya da derse bağlantı; kampüs biriminin sayfası yok. */
+function Publisher({ post: p }: { post: Post }) {
+  const name = p.publisherName ?? p.authorName
+  const path = publisherPath(p)
+  return path ? (
+    <Link to={path} className="font-semibold text-ink underline-offset-4 hover:underline">
+      {name}
+    </Link>
+  ) : (
+    <span className="font-semibold text-ink">{name}</span>
+  )
+}
 
 /** Gönderi sayfası (F-67…F-72). */
 export function PostPage() {
@@ -70,15 +84,14 @@ function PostBody({ post: p }: { post: Post }) {
       <p className="flex flex-wrap items-center gap-x-3 gap-y-1 text-md">
         <span aria-hidden className="h-5 w-[4px] bg-topluluk" />
         <Link to={`/posts?goster=${p.category === 'SORU' ? 'sorular' : p.category === 'DERS_NOTU' ? 'notlar' : p.official ? 'duyurular' : 'genel'}`} className="font-semibold underline-offset-4 hover:underline">
-          {CATEGORY_LABEL[p.category]}
+          {postKindLabel(p)}
         </Link>
-        {p.courseLabel && <span className="text-ink-2">{p.courseLabel}</span>}
-        {p.official && <Badge tone="info">Resmî duyuru</Badge>}
+        {p.courseLabel && !p.official && <span className="text-ink-2">{p.courseLabel}</span>}
       </p>
       <RevealTitle text={p.title} className="mt-1 text-4xl sm:text-5xl" />
       <p className="mt-4 flex flex-wrap gap-x-4 gap-y-1 text-md text-ink-2">
         {p.official ? (
-          <span className="font-semibold text-ink">{p.publisherName ?? p.authorName}</span>
+          <Publisher post={p} />
         ) : (
           <PersonLink id={p.authorId} className="font-semibold text-ink">
             {p.authorName}
@@ -91,7 +104,13 @@ function PostBody({ post: p }: { post: Post }) {
 
       {own && status && (
         <Notice variant="line" tone={status.tone === 'danger' ? 'danger' : 'warning'} title={status.label} className="mt-8">
-          {p.reviewNote ? `Gerekçe: ${p.reviewNote}` : p.status === 'PENDING' ? 'Gönderiniz otomatik kontrolden geçtikten sonra yayımlanır.' : 'Gönderiniz yalnız size görünüyor.'}
+          {p.reviewNote
+            ? `Gerekçe: ${p.reviewNote}`
+            : p.status === 'AWAITING_APPROVAL'
+              ? 'Kulüp başkanı onaylayınca akışta yayımlanır; o zamana kadar düzenleyebilirsiniz.'
+              : p.status === 'PENDING'
+                ? 'Gönderiniz otomatik kontrolden geçtikten sonra yayımlanır.'
+                : 'Gönderiniz yalnız size görünüyor.'}
           {APPEALABLE.has(p.status) && (
             <span className="mt-2 block">
               <AppealButton target={target} />

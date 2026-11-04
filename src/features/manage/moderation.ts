@@ -48,6 +48,7 @@ export type AppealItem = {
   targetId: string
   postId: string
   appellantId: string
+  appellantName?: string | null
   statement: string
   appealedAction: string
   status: 'OPEN' | 'ACCEPTED' | 'REJECTED'

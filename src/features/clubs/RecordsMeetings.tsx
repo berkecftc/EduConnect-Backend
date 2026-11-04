@@ -62,7 +62,7 @@ export function RecordsMeetings({ clubId, year, access, closed }: { clubId: stri
                   {[...list]
                     .sort((a, b) => b.meetingAt.localeCompare(a.meetingAt))
                     .map((m) => (
-                      <MeetingRow key={m.id} meeting={m} board={board.data ?? []} />
+                      <MeetingRow key={m.id} meeting={m} />
                     ))}
                 </ul>
               )
@@ -103,9 +103,9 @@ export function RecordsMeetings({ clubId, year, access, closed }: { clubId: stri
 }
 
 /** Toplantı satırı: tarih, gündemin başı, katılım ve yeter sayı; açılınca tutanağın tamamı ve kararlar. */
-function MeetingRow({ meeting: m, board }: { meeting: Meeting; board: ClubMember[] }) {
+function MeetingRow({ meeting: m }: { meeting: Meeting }) {
   const [open, setOpen] = useState(false)
-  const names = board.filter((b) => m.attendeeIds.includes(b.studentId)).map(fullName)
+  const names = (m.attendees ?? []).flatMap((a) => (a.name ? [a.name] : []))
   const unknown = m.attendeeIds.length - names.length
   const pending = m.status && m.status !== 'APPROVED'
   const id = `toplanti-${m.id}`
@@ -150,10 +150,11 @@ function MeetingRow({ meeting: m, board }: { meeting: Meeting; board: ClubMember
             <h4 className="text-sm font-semibold text-ink-3">Katılanlar</h4>
             <p className="mt-1 text-md">
               {names.join(', ')}
-              {unknown > 0 && `${names.length ? ' ve ' : ''}${unknown} eski görevli`}
+              {unknown > 0 && `${names.length ? ' ve ' : ''}${unknown} kişi`}
             </p>
             <p className="text-sm text-ink-3">
               Toplantı günü yönetim kurulu {m.boardSize} kişiydi; {m.quorumMet ? 'yeter sayı sağlandı' : 'yeter sayı sağlanmadı'}.
+              {m.preparedByName ? ` Tutanağı ${m.preparedByName} hazırladı.` : ''}
             </p>
           </div>
           {m.decisions.length > 0 && (

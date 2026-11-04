@@ -40,7 +40,7 @@ const body = <T>(config: InternalAxiosRequestConfig) => JSON.parse(String(config
 let seq = 0
 const nextId = (p: string) => `${p}-${++seq}`
 
-function fail(config: InternalAxiosRequestConfig, status: number, errorCode: string, message: string): never {
+export function fail(config: InternalAxiosRequestConfig, status: number, errorCode: string, message: string): never {
   throw Object.assign(new Error(message), {
     isAxiosError: true,
     config,
@@ -143,6 +143,9 @@ const founder = (
   respondedAt,
 })
 
+/** `educonnect.club.founding.min-members` (F-89). */
+const MIN_FOUNDERS = 7
+
 export const invitations: ClubCreationRequest[] = [
   {
     id: 'cr-inv1',
@@ -201,7 +204,7 @@ export const elections: Record<string, Election[]> = {
       boardSeats: 3,
       auditSeats: 0,
       note: 'Genel kurul 24 Ekim cuma 18.00, B Blok 204. Oylama genel kurulun sonuna kadar açık.',
-      openedBy: 'st5',
+      openedBy: 'st2',
       openedAt: ago(24 * 9),
       votingStartedAt: ago(30),
       closedAt: null,
@@ -273,8 +276,15 @@ const OTHER_VOTERS = 26
 const myVotes: Record<string, string[]> = {}
 
 /** Oylama bitmeden oy sayıları gizli: yanıtta null. */
+/** Kurul listesinden ad; eski görevlinin adı örnek veride yok. */
+const boardName = (clubId: string, id: string) => {
+  const m = (fx.clubBoard[clubId] ?? []).find((x) => x.studentId === id)
+  return m ? [m.firstName, m.lastName].filter(Boolean).join(' ') : null
+}
+
 const electionView = (e: Election): Election => ({
   ...e,
+  openedByName: boardName(e.clubId, e.openedBy),
   myBallots: [...(e.myBallots ?? [])],
   candidates: e.candidates.map((c) => ({ ...c, votes: e.closedAt ? c.votes : null, elected: !!e.closedAt && c.elected })),
 })
@@ -858,6 +868,37 @@ function submit(clubId: string, r: Partial<ApprovalRequest> & Pick<ApprovalReque
   return { ...saved }
 }
 
+const POINTS: Record<string, number> = { st2: 340, st3: 215 }
+/** Liderlik tablosundan çıkan öğrenci: başkası puanını ve rozetlerini görmez (F-92). */
+const LEADERBOARD_OPTED_OUT = new Set(['st4'])
+
+/** Hakkımda açılan talep: Robotik'te başkan, Elif'in üyelikten çıkarılmasını istemiş; danışman kararı bekleniyor (F-89). */
+export const requestsAboutMe: ApprovalRequest[] = [
+  {
+    id: 'ar-mine-1',
+    clubId: 'k1',
+    clubName: 'Robotik Kulübü',
+    type: 'MEMBER_EXPULSION',
+    status: 'PENDING_ADVISOR',
+    preparedBy: 'st2',
+    preparedByName: 'Can Erdem',
+    subjectUserId: 'u1',
+    subjectUserName: 'Elif Demir',
+    currentPosition: 'EVENT_COORDINATOR',
+    requestedPosition: null,
+    note: 'Son üç yönetim toplantısına ve iki etkinliğe mazeretsiz katılmadı.',
+    rejectionReason: null,
+    responseNote: null,
+    createdAt: ago(30),
+    presidentDecidedByName: null,
+    presidentDecidedAt: null,
+    decidedByName: null,
+    decidedAt: null,
+    profileChange: null,
+    announcement: null,
+  },
+]
+
 const pendingOf = (clubId: string, type: string, subject?: string) =>
   (fx.clubApprovals[clubId] ?? []).some(
     (r) =>
@@ -879,11 +920,16 @@ export const GET: [RegExp, Handler][] = [
     /^\/users\/profile\/([^/]+)\/aggregated$/,
     (m, config) => {
       if (!people[m[1]!]) fail(config, 404, 'NOT_FOUND', 'Profile not found')
+      const optedOut = LEADERBOARD_OPTED_OUT.has(m[1]!)
       return {
         ...people[m[1]!],
-        gamification: { badges: BADGES[m[1]!] ?? [] },
+        gamification: {
+          totalPoints: optedOut ? null : (POINTS[m[1]!] ?? 0),
+          leaderboardVisible: !optedOut,
+          badges: optedOut ? [] : (BADGES[m[1]!] ?? []),
+        },
         recentPosts: px.posts
-          .filter((x) => x.authorId === m[1] && x.publisherType !== 'COURSE')
+          .filter((x) => x.authorId === m[1] && !x.official)
           .slice(0, 5)
           .map((x) => ({ id: x.id, title: x.title, content: x.content, createdAt: x.createdAt })),
       }
@@ -903,7 +949,14 @@ export const GET: [RegExp, Handler][] = [
   [/^\/events\/manage\/([^/]+)\/staff$/, (m) => (eventStaff[m[1]!] ?? []).map((x) => ({ ...x }))],
   [
     /^\/clubs\/([^/]+)\/meetings$/,
-    (m, config) => (meetings[m[1]!] ?? []).filter((x) => x.academicYear === yearParam(config)).map((x) => ({ ...x })),
+    (m, config) =>
+      (meetings[m[1]!] ?? [])
+        .filter((x) => x.academicYear === yearParam(config))
+        .map((x) => ({
+          ...x,
+          attendees: x.attendeeIds.map((id) => ({ id, name: boardName(m[1]!, id) })),
+          preparedByName: boardName(m[1]!, x.preparedBy),
+        })),
   ],
   [
     /^\/clubs\/([^/]+)\/decision-book$/,
@@ -939,6 +992,8 @@ export const GET: [RegExp, Handler][] = [
         expense: total(inYear, 'EXPENSE'),
         balance: total(inYear, 'INCOME') - total(inYear, 'EXPENSE'),
         overallBalance: total(all, 'INCOME') - total(all, 'EXPENSE'),
+        advisorThreshold: 1000,
+        academicYearEnd: `${y}-09-30`,
       }
     },
   ],
@@ -947,6 +1002,7 @@ export const GET: [RegExp, Handler][] = [
     /^\/clubs\/([^/]+)\/finance\/entries$/,
     (m, config) =>
       (entries[m[1]!] ?? [])
+        .map((e) => ({ ...e, preparedByName: boardName(m[1]!, e.preparedBy) }))
         .filter((e) => e.academicYear === yearParam(config))
         .sort((a, b) => b.occurredOn.localeCompare(a.occurredOn))
         .map((x) => ({ ...x })),
@@ -975,23 +1031,42 @@ export const GET: [RegExp, Handler][] = [
 export const WRITE: [string, RegExp, Handler][] = [
   [
     'post',
+    /^\/clubs\/([^/]+)\/approvals\/([^/]+)\/defence$/,
+    (m, config) => {
+      const r = requestsAboutMe.find((x) => x.id === m[2])
+      if (!r) fail(config, 403, 'FORBIDDEN', 'Savunmayı yalnızca hakkında çıkarma talebi açılan üye yapabilir.')
+      r.responseNote = body<{ note: string }>(config).note
+      return { ...r }
+    },
+  ],
+  [
+    'post',
     /^\/clubs\/request-creation$/,
     (_m, config) => {
-      const b = body<{ name: string; about: string | null; academicAdvisorId: string }>(config)
+      const b = body<{ name: string; about: string | null; academicAdvisorId: string; founderStudentNumbers: string[] }>(config)
       if (fx.clubs.some((c) => c.name.toLocaleLowerCase('tr-TR') === b.name.toLocaleLowerCase('tr-TR')))
         fail(config, 409, 'CLUB_NAME_TAKEN', 'Bu isimde bir kulüp zaten var.')
+      const unknown = b.founderStudentNumbers.find((n) => !/^\d{7,10}$/.test(n))
+      if (unknown) fail(config, 400, 'FOUNDER_STUDENT_NOT_FOUND', `Bu öğrenci numarası kayıtlı değil: ${unknown}`)
+      if (b.founderStudentNumbers.length + 1 < MIN_FOUNDERS)
+        fail(config, 400, 'FOUNDERS_REQUIRED', `Kulüp kurmak için en az ${MIN_FOUNDERS} kurucu öğrenci gerekir.`)
       creations.unshift({
         id: nextId('cr'),
         clubName: b.name,
         about: b.about,
         requestingStudentId: 'u1',
+        requestingStudentName: 'Elif Demir',
         suggestedAdvisorId: b.academicAdvisorId,
-        status: 'PENDING',
+        suggestedAdvisorName: 'Prof. Dr. Hakan Öztürk',
+        status: 'PENDING_FOUNDERS',
         requestDate: now(),
         rejectionReason: null,
         processedAt: null,
         clubId: null,
-        founders: [founder('u1', 'Elif', 'Demir', 'CONFIRMED', now())],
+        founders: [
+          founder('u1', 'Elif', 'Demir', 'CONFIRMED', now()),
+          ...b.founderStudentNumbers.map((n) => founder(`st-${n}`, 'Öğrenci', n, 'INVITED', null)),
+        ],
       })
       return 'Club creation request submitted. Pending advisor approval.'
     },
@@ -1540,15 +1615,24 @@ export const WRITE: [string, RegExp, Handler][] = [
     'post',
     /^\/events\/manage\/verify-qr$/,
     (_m, config) => {
-      const code = String(body<{ qrCode?: string }>(config).qrCode ?? '').trim()
+      const { qrCode, eventId } = body<{ qrCode?: string; eventId?: string }>(config)
+      const code = String(qrCode ?? '').trim()
       const own = fx.registrations.find((r) => r.qrCode === code)
       const target = GATE_CODES[code] ?? (own ? { eventId: own.eventId, studentId: 'u1' } : null)
+      if (target && eventId && target.eventId !== eventId) fail(config, 400, 'TICKET_WRONG_EVENT', 'Bu bilet başka bir etkinliğe ait.')
       const row = target && (fx.attendance[target.eventId] ?? []).find((r) => r.studentId === target.studentId)
-      if (!row) fail(config, 400, 'INVALID_TICKET', 'Invalid ticket (QR Code not found)')
+      if (!row) fail(config, 400, 'INVALID_TICKET', 'Geçersiz bilet: QR kod bulunamadı.')
       if (row.status === 'CANCELLED') fail(config, 400, 'TICKET_CANCELLED', 'Bu kayıt iptal edilmiş.')
-      if (row.attended) fail(config, 400, 'TICKET_ALREADY_USED', 'Ticket already used/scanned.')
+      if (row.attended) fail(config, 400, 'TICKET_ALREADY_USED', 'Bu bilet daha önce kullanılmış.')
       Object.assign(row, { attended: true, checkedInAt: now(), method: 'QR' })
-      return 'ACCESS GRANTED: Ticket verified successfully.'
+      return {
+        eventId: target!.eventId,
+        studentId: row.studentId,
+        firstName: row.firstName,
+        lastName: row.lastName,
+        studentNumber: row.studentNumber,
+        checkedInAt: row.checkedInAt,
+      }
     },
   ],
 ]

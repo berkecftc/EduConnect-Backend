@@ -39,8 +39,10 @@ export function TicketsPage() {
       <QueryBoundary query={registrations} what="Biletler" skeletonRows={3}>
         {(list) => {
           const live = list.filter((r) => r.registrationStatus === 'REGISTERED' && r.eventStatus !== 'CANCELLED' && r.eventStatus !== 'COMPLETED')
-          // Başlangıçtan 6 saat sonrasına kadar bilet yaklaşanlarda kalır (bitiş saati kayıtta yok).
-          const upcoming = live.filter((r) => localDiffMs(now, r.eventDate) > -6 * 3_600_000).sort((a, b) => a.eventDate.localeCompare(b.eventDate))
+          // Etkinlik bitene kadar bilet yaklaşanlarda kalır (bitiş boşsa başlangıçtan 2 saat sonra, sunucunun varsayılanı).
+          const upcoming = live
+            .filter((r) => (r.endsAt ? localDiffMs(now, r.endsAt) > 0 : localDiffMs(now, r.eventDate) > -2 * 3_600_000))
+            .sort((a, b) => a.eventDate.localeCompare(b.eventDate))
           const past = list.filter((r) => !upcoming.includes(r)).sort((a, b) => b.eventDate.localeCompare(a.eventDate))
           return (
             <>
@@ -107,6 +109,9 @@ function Ticket({ registration: r }: { registration: MyRegistration }) {
           <span className="tabular font-semibold text-ink">{formatLocal(r.eventDate, 'time')}</span>
           {r.eventLocation && <span>{r.eventLocation}</span>}
           {r.attended && <Badge tone="success">Giriş yapıldı</Badge>}
+          {!r.attended && r.checkInOpensAt && localDiffMs(nowLocalIso(), r.checkInOpensAt) > 0 && (
+            <span>Giriş {formatLocal(r.checkInOpensAt, 'time')} itibarıyla açılır</span>
+          )}
         </span>
       </span>
       <span className="col-span-2 flex items-center gap-4 border-t border-dashed border-rule-strong pt-4 sm:col-span-1 sm:block sm:border-t-0 sm:border-l sm:pt-0 sm:pl-6">
@@ -165,6 +170,9 @@ function History({ list }: { list: MyRegistration[] }) {
                 {r.eventTitle}
               </Link>
               <span className="tabular ml-3 text-sm text-ink-3">{formatLocal(r.eventDate, 'short')}</span>
+              {r.eventStatus === 'CANCELLED' && r.cancellationReason && (
+                <span className="mt-1 block text-md text-ink-2">Gerekçe: {r.cancellationReason}</span>
+              )}
             </span>
             <Badge tone={status.tone}>{status.label}</Badge>
           </li>

@@ -45,6 +45,8 @@ export type ClubDetails = {
   id: string
   name: string
   about: string | null
+  /** Geçerli akademik yılın bitiş günü (F-91). */
+  academicYearEnd?: string | null
   logoUrl: string | null
   academicAdvisorId: string | null
   advisorName: string | null

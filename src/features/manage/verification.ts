@@ -22,6 +22,7 @@ export type StudentRequest = {
   /** Hesap zaten var; bu, mevcut hesaba öğrenci kaydı ekleme başvurusu (F-54). */
   additionalAffiliation: boolean
   programId: string | null
+  createdAt?: string | null
 }
 
 /** `GET /api/auth/verification/academicians` öğesi. Onay ve ret `userId` ile yapılır. */
@@ -37,6 +38,7 @@ export type AcademicianRequest = {
   emailVerified: boolean
   /** Kişi zaten öğrenci; bu, mevcut hesaba personel kaydı ekleme başvurusu. */
   additionalAffiliation: boolean
+  createdAt?: string | null
 }
 
 export type ChangeStatus = 'PENDING' | 'APPROVED' | 'REJECTED'

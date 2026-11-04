@@ -12,7 +12,12 @@ import {
 } from './records'
 
 describe('academicYearOf', () => {
-  it('30 Eylül yılın son günü; ertesi gün yeni akademik yıl', () => {
+  it('kulübün bildirdiği bitiş gününe uyar', () => {
+    expect(academicYearOf('2026-07-01', '2026-06-30')).toBe(2027)
+    expect(academicYearOf('2026-06-30', '2026-06-30')).toBe(2026)
+  })
+
+  it('bitiş günü gelmezse 30 Eylül yılın son günü; ertesi gün yeni akademik yıl', () => {
     expect(academicYearOf('2026-09-30')).toBe(2026)
     expect(academicYearOf('2026-10-01')).toBe(2027)
     expect(academicYearOf('2027-03-15')).toBe(2027)

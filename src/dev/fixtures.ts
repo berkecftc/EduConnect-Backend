@@ -5,6 +5,7 @@
 import { localStamp, nowLocalIso } from '@/lib/time'
 import type { EnrolledCourse, Course, CourseStaff, Material, Announcement, CourseApplication, Term } from '@/features/courses/api'
 import type { MyAssignment, MyGrades } from '@/features/assignments/api'
+import type { GroupSet } from '@/features/assignments/staff'
 import type { MyRegistration, CampusEvent, ParticipationRequest } from '@/features/events/api'
 import type { AppNotification } from '@/features/notifications/api'
 import type { GamificationSummary } from '@/features/gamification/api'
@@ -247,7 +248,64 @@ const assignment = (a: Partial<MyAssignment> & Pick<MyAssignment, 'id' | 'course
   ...a,
 })
 
+const groupMember = (studentId: string, name: string) => ({ studentId, name, studentNumber: null, joinedAt: new Date(Date.now() - 86_400_000).toISOString() })
+const groupOf = (id: string, name: string, members: ReturnType<typeof groupMember>[]) => ({ id, name, memberCount: members.length, members })
+
+/** Öğrenci görünümünün grup setleri (F-50). Üyeler burada tam; yanıtta öğrenci yalnız kendi grubunun üyelerini görür. */
+export const studentGroupSets: GroupSet[] = [
+  {
+    id: 'gs1',
+    courseId: 'c1',
+    name: 'Bağlı liste grupları',
+    selfSignup: true,
+    maxMembers: 4,
+    signupClosesAt: at(-3, 23, 59),
+    signupOpen: false,
+    myGroupId: 'g3',
+    groups: [
+      groupOf('g1', 'Grup 1', [groupMember('st20', 'Kerem Aslan'), groupMember('st21', 'Pınar Ünal')]),
+      groupOf('g3', 'Grup 3', [groupMember('u1', 'Elif Demir'), groupMember('st2', 'Can Erdem'), groupMember('st3', 'Ece Yalçın')]),
+    ],
+  },
+  {
+    id: 'gs2',
+    courseId: 'c2',
+    name: 'Proje grupları',
+    selfSignup: true,
+    maxMembers: 4,
+    signupClosesAt: at(6, 23, 59),
+    signupOpen: true,
+    myGroupId: null,
+    groups: [
+      groupOf('g21', 'Grup A', ['st20', 'st21', 'st22', 'st23'].map((id, i) => groupMember(id, `Öğrenci ${i + 1}`))),
+      groupOf('g22', 'Grup B', [groupMember('st2', 'Can Erdem'), groupMember('st4', 'Mert Aksu')]),
+      groupOf('g23', 'Grup C', []),
+    ],
+  },
+  {
+    id: 'gs3',
+    courseId: 'c3',
+    name: 'Laboratuvar grupları',
+    selfSignup: false,
+    maxMembers: null,
+    signupClosesAt: null,
+    signupOpen: false,
+    myGroupId: null,
+    groups: [groupOf('g31', 'Lab 1', [groupMember('st3', 'Ece Yalçın')])],
+  },
+]
+
 export const assignments: MyAssignment[] = [
+  assignment({
+    id: 'a8',
+    courseId: 'c2',
+    title: 'Veritabanı projesi',
+    dueDate: at(8, 23, 59),
+    type: 'PROJECT',
+    weight: 30,
+    groupSetId: 'gs2',
+    description: 'Üç kişilik gruplarla bir kütüphane veritabanı tasarlayın; ER diyagramını ve örnek sorguları teslim edin.',
+  }),
   assignment({
     id: 'a1',
     courseId: 'c2',

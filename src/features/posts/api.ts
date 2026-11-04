@@ -1,6 +1,7 @@
-import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useInfiniteQuery, useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/api/client'
 import { toPaged, type Paged as SpringPage } from '@/lib/api/page'
+import type { Publisher } from './publishers'
 
 /** Topluluk akışı (F-67…F-72). */
 
@@ -52,6 +53,21 @@ export type PostComment = {
 
 export const CATEGORY_LABEL: Record<PostCategory, string> = { SORU: 'Soru', GENEL: 'Genel', DERS_NOTU: 'Ders notu', DUYURU: 'Duyuru' }
 
+/** Gönderinin türü: resmî duyuruda kimin adına olduğu da söylenir. */
+export function postKindLabel(p: Pick<Post, 'official' | 'publisherType' | 'category'>): string {
+  if (p.official && p.publisherType === 'CLUB') return 'Kulüp duyurusu'
+  if (p.official && p.publisherType === 'COURSE') return 'Ders duyurusu'
+  if (p.official && p.publisherType === 'CAMPUS') return 'Kampüs duyurusu'
+  return CATEGORY_LABEL[p.category]
+}
+
+/** Yayımlayanın sayfası (kampüs biriminin sayfası yok). */
+export function publisherPath(p: Pick<Post, 'official' | 'publisherType' | 'clubId' | 'courseId'>): string | null {
+  if (p.official && p.publisherType === 'CLUB' && p.clubId) return `/clubs/${p.clubId}`
+  if (p.official && p.publisherType === 'COURSE' && p.courseId) return `/courses/${p.courseId}`
+  return null
+}
+
 /** Yazarın gördüğü durum etiketleri; yayındaki içerikte etiket yok. */
 export const POST_STATUS: Partial<Record<PostStatus, { label: string; tone: 'warning' | 'danger' | 'neutral' }>> = {
   AWAITING_APPROVAL: { label: 'Başkan onayı bekliyor', tone: 'warning' },
@@ -78,15 +94,16 @@ export const REPORT_REASONS = [
 ] as const
 export type ReportReason = (typeof REPORT_REASONS)[number][0]
 
-export type FeedFilter = { list: 'all' | 'saved' | 'mine'; category?: PostCategory; official?: boolean }
+export type FeedFilter = { list: 'all' | 'saved' | 'mine'; category?: PostCategory; official?: boolean; publisherType?: PublisherType }
 
 const PAGE_SIZE = 10
 
 export const postKeys = {
-  feed: (f: FeedFilter) => ['posts', 'feed', f.list, f.category ?? 'all', f.official ?? false] as const,
+  feed: (f: FeedFilter) => ['posts', 'feed', f.list, f.category ?? 'all', f.official ?? false, f.publisherType ?? 'all'] as const,
   detail: (id: string) => ['posts', id] as const,
   comments: (id: string) => ['posts', id, 'comments'] as const,
   appeals: ['posts', 'appeals', 'me'] as const,
+  awaiting: (clubId: string) => ['posts', 'awaiting', clubId] as const,
 }
 
 export function useFeed(f: FeedFilter) {
@@ -99,6 +116,7 @@ export function useFeed(f: FeedFilter) {
       if (f.list === 'all') {
         if (f.category) params.category = f.category
         if (f.official) params.official = true
+        if (f.publisherType) params.publisherType = f.publisherType
       }
       return toPaged((await api.get<SpringPage<Post>>(url, { params })).data)
     },
@@ -135,27 +153,74 @@ function useRefresh() {
 export type PostInput = {
   title: string
   content: string
-  category: Exclude<PostCategory, 'DUYURU'>
+  category: PostCategory
   courseId?: string | null
   sharingDeclaration?: boolean
+  /** Resmî duyuru: kimin adına; kampüs duyurusunda birimin adı. */
+  publisher?: Publisher
+  publisherName?: string
+  commentsDisabled?: boolean
+}
+
+/** Yeni gönderinin gövdesi: duyuru yayımlayana, diğerleri öğrenci adına ve isteğe bağlı derse bağlanır. */
+export function createPostBody(input: PostInput) {
+  const base = { title: input.title.trim(), content: input.content.trim(), category: input.category }
+  const p = input.publisher
+  if (input.category === 'DUYURU' && p) {
+    return {
+      ...base,
+      publisherType: p.type,
+      clubId: p.type === 'CLUB' ? p.clubId : null,
+      courseId: p.type === 'COURSE' ? p.courseId : null,
+      publisherName: p.type === 'CAMPUS' ? input.publisherName?.trim() : null,
+      commentsDisabled: !!input.commentsDisabled,
+    }
+  }
+  return {
+    ...base,
+    publisherType: 'STUDENT' as const,
+    courseId: input.courseId || null,
+    sharingDeclaration: input.category === 'DERS_NOTU' ? !!input.sharingDeclaration : null,
+  }
 }
 
 export function useSavePost(postId?: string) {
   const refresh = useRefresh()
   return useMutation({
     mutationFn: async (input: PostInput) => {
-      const body = { title: input.title.trim(), content: input.content.trim(), category: input.category }
-      if (postId) return (await api.put<Post>(`/posts/${postId}`, body)).data
-      return (
-        await api.post<Post>('/posts', {
-          ...body,
-          publisherType: 'STUDENT',
-          courseId: input.courseId || null,
-          sharingDeclaration: input.category === 'DERS_NOTU' ? !!input.sharingDeclaration : null,
-        })
-      ).data
+      if (postId) {
+        const body = { title: input.title.trim(), content: input.content.trim(), category: input.category }
+        return (await api.put<Post>(`/posts/${postId}`, input.category === 'DUYURU' ? { ...body, commentsDisabled: !!input.commentsDisabled } : body)).data
+      }
+      return (await api.post<Post>('/posts', createPostBody(input))).data
     },
     onSuccess: (p) => refresh(p.id),
+  })
+}
+
+// ——— Başkan onayı ———
+
+/** Yönettiği kulüplerde başkan onayı bekleyen duyurular (F-67); eskiden yeniye. Yetki yoksa o kulüp sessizce boş kalır. */
+export function useAwaitingClubPosts(clubIds: string[]) {
+  return useQueries({
+    queries: clubIds.map((clubId) => ({
+      queryKey: postKeys.awaiting(clubId),
+      queryFn: async () => toPaged((await api.get<SpringPage<Post>>(`/posts/club/${clubId}/awaiting-approval`, { params: { size: 50 } })).data).content,
+    })),
+    combine: (results) => ({ posts: results.flatMap((r) => r.data ?? []), isPending: results.some((r) => r.isPending) }),
+  })
+}
+
+export function useDecideClubPost() {
+  const refresh = useRefresh()
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (a: { postId: string; approve: true } | { postId: string; approve: false; note: string }) =>
+      (a.approve ? await api.post<Post>(`/posts/${a.postId}/approve`) : await api.post<Post>(`/posts/${a.postId}/reject`, { note: a.note.trim() })).data,
+    onSuccess: (p) => {
+      refresh(p.id)
+      void qc.invalidateQueries({ queryKey: ['posts', 'awaiting'] })
+    },
   })
 }
 

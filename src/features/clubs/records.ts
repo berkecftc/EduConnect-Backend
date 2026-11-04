@@ -1,23 +1,33 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/api/client'
-import type { ClubMember, ClubRole } from './api'
+import { useClub, type ClubMember, type ClubRole } from './api'
 import type { ApprovalRequest, ApprovalStatus, ApprovalType } from './manage'
 
 /**
  * Kulüp kayıtları (F-85): toplantı tutanakları ve karar defteri, mali işler (bütçe, gelir-gider, sponsorluk),
  * dönem raporları (faaliyet, denetim), karar günlüğü ve görev geçmişi. Yazma işleri onay kaydı açar.
- * Akademik yıl bitiş yılıyla anılır: 2027 = "2026-2027"; yıl 30 Eylül'de kapanır (sunucu ayarı).
+ * Akademik yıl bitiş yılıyla anılır: 2027 = "2026-2027"; yılın bittiği gün sunucu ayarı (F-91).
  */
 
 // ——— Akademik yıl ———
 
-/** Sunucudaki `educonnect.club.membership.year-end` varsayılanı. */
-const YEAR_END = { month: 9, day: 30 }
+/** Kulüp yanıtı henüz gelmemişken kullanılan, sunucunun varsayılanı olan bitiş günü (30 Eylül). */
+const DEFAULT_YEAR_END = '0000-09-30'
 
-/** Günün akademik yılı: 30 Eylül'den sonrası bir sonraki yıla sayılır. `day` yerel takvim günü (YYYY-MM-DD). */
-export function academicYearOf(day: string): number {
+/**
+ * Günün akademik yılı: yılın bitiş gününden sonrası bir sonraki yıla sayılır. `day` yerel takvim günü (YYYY-MM-DD),
+ * `yearEnd` kulüp ya da mali özet yanıtındaki `academicYearEnd`.
+ */
+export function academicYearOf(day: string, yearEnd?: string | null): number {
   const [y, m, d] = day.split('-').map(Number) as [number, number, number]
-  return m > YEAR_END.month || (m === YEAR_END.month && d > YEAR_END.day) ? y + 1 : y
+  const [, endMonth, endDay] = (yearEnd ?? DEFAULT_YEAR_END).split('-').map(Number) as [number, number, number]
+  return m > endMonth || (m === endMonth && d > endDay) ? y + 1 : y
+}
+
+/** Kulübün yıl hesabı: verilen günün akademik yılı, kulübün bildirdiği bitiş gününe göre. */
+export function useAcademicYearOf(clubId: string) {
+  const yearEnd = useClub(clubId).data?.academicYearEnd
+  return (day: string) => academicYearOf(day, yearEnd)
 }
 
 export const yearLabel = (year: number) => `${year - 1}-${year}`
@@ -66,10 +76,13 @@ export type Meeting = {
   agenda: string
   minutes: string
   attendeeIds: string[]
+  /** Toplantı günkü katılanlar; görevden ayrılanların da adı gelir. */
+  attendees?: { id: string; name: string | null }[]
   boardSize: number
   quorumMet: boolean
   decisions: MeetingDecision[]
   preparedBy: string
+  preparedByName?: string | null
   createdAt: string
   approvedAt: string | null
   status: ApprovalStatus | null
@@ -111,6 +124,7 @@ export type FinanceEntry = {
   budgetExceeded: boolean
   sponsorshipId: string | null
   preparedBy: string
+  preparedByName?: string | null
   createdAt: string
   approvedAt: string | null
   status: ApprovalStatus | null
@@ -140,6 +154,9 @@ export type FinanceSummary = {
   expense: number
   balance: number
   overallBalance: number
+  /** Bu tutarın üstündeki kayıtlar danışman onayına da gider. */
+  advisorThreshold?: number | null
+  academicYearEnd?: string | null
 }
 
 export type ReportType = 'ACTIVITY' | 'AUDIT'
@@ -191,7 +208,6 @@ export type DecisionLogEntry = {
   action: DecisionAction
   actorId: string | null
   subjectUserId: string | null
-  /** Backend eklediğinde kişi adları. */
   actorName?: string | null
   subjectUserName?: string | null
   detail: string | null

@@ -424,7 +424,9 @@ function AppealRow({ appeal: a }: { appeal: AppealItem }) {
       <div className="min-w-0">
         <p className="text-lg font-semibold">{what}</p>
         <p className="mt-0.5 flex flex-wrap items-baseline gap-x-4 text-sm text-ink-3">
-          <span>{formatRelative(a.createdAt)} itiraz edildi</span>
+          <span>
+            {a.appellantName ? `${a.appellantName}, ${formatRelative(a.createdAt)} itiraz etti` : `${formatRelative(a.createdAt)} itiraz edildi`}
+          </span>
           {postLink(a.postId)}
         </p>
         <Quote label="İtiraz">{a.statement}</Quote>

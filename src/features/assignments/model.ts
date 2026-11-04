@@ -13,6 +13,8 @@ export type AssignmentView = {
   canSubmit: boolean
   /** Neden kapalı; açıksa null. */
   blockedReason: string | null
+  /** Teslimi engelleyen tek şey grubun olmaması (ekran gruplara yönlendirir). */
+  needsGroup: boolean
   status: { label: string; tone: Tone }
   /** Kısa zaman bilgisi: "2 gün kaldı", "Geç teslim 5 saat daha açık". */
   timing: string | null
@@ -40,10 +42,14 @@ export function viewAssignment(a: MyAssignment, now: string = nowLocalIso()): As
   const graded = !!s && a.gradesPublished && s.grade !== null
 
   let blockedReason: string | null = null
+  let needsGroup = false
   if (graded) blockedReason = 'Puanlanan çalışma yeniden teslim edilemez.'
   else if (phase === 'closed') blockedReason = 'Teslim süresi doldu.'
   else if (s?.late) blockedReason = 'Geç teslimden sonra yeniden teslim yapılamaz.'
-  else if (a.groupSetId && !a.groupId) blockedReason = 'Bu bir grup ödevi. Önce bir gruba katılın.'
+  else if (a.groupSetId && !a.groupId) {
+    blockedReason = 'Bu bir grup ödevi. Önce bir gruba katılın.'
+    needsGroup = true
+  }
 
   let status: AssignmentView['status']
   if (graded) status = { label: 'Puanlandı', tone: 'success' }
@@ -71,6 +77,7 @@ export function viewAssignment(a: MyAssignment, now: string = nowLocalIso()): As
     graded,
     canSubmit: blockedReason === null,
     blockedReason,
+    needsGroup,
     status,
     timing,
     gradeText,

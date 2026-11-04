@@ -4,21 +4,21 @@ import { useSession } from '@/lib/auth/session'
 import { formatInstant } from '@/lib/time'
 import { usePageTitle } from '@/lib/usePageTitle'
 import { LEVEL_LABEL } from '@/features/auth/register/api'
-import { useCatalog, useCurrentTerm } from '@/features/courses/api'
-import { STAFF_CATEGORY_LABEL } from '@/features/profile/api'
+import { useCurrentTerm } from '@/features/courses/api'
+import { STAFF_CATEGORY_LABEL, STATUS_LABEL } from '@/features/profile/api'
 import { Avatar } from '@/features/profile/Avatar'
 import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
 import { Panel } from '@/components/ui/Panel'
 import { RevealTitle } from '@/components/ui/RevealTitle'
 import { EmptyState, QueryBoundary, Skeleton } from '@/components/ui/States'
-import { isAcademician, isStudent, usePersonExtras, usePersonProfile, type PersonExtras, type PersonProfile } from './api'
+import { isAcademician, isStudent, usePersonCourses, usePersonExtras, usePersonProfile, type PersonExtras, type PersonProfile } from './api'
 import { titleLabel } from './titles'
 
 /**
- * Kişi profili: başkasının kimlik bandı, hakkında, iletişim (görünürse), son gönderiler ve rozetler.
- * Neyin görüneceği sunucuda belirlenir; boş gelen alanın bölümü hiç çizilmez. Kayıt durumu (dondurma,
- * mezuniyet …) kişisel bilgi olduğu için başkasına gösterilmez. Kendi kimliğiniz Profilim'e yönlenir.
+ * Kişi profili: başkasının kimlik bandı, hakkında, iletişim (görünürse), son gönderiler, puan ve rozetler.
+ * Neyin görüneceği sunucuda belirlenir (F-92); boş gelen alanın bölümü hiç çizilmez, liderlik tablosundan çıkan
+ * kişi için "gizliyor" gibi bir şey de yazılmaz. Kendi kimliğiniz Profilim'e yönlenir.
  */
 export function PersonPage() {
   const { userId = '' } = useParams()
@@ -81,6 +81,7 @@ function Person({ person: p }: { person: PersonProfile }) {
           {student && p.classYear && <span>{p.classYear}. sınıf</span>}
           {p.studentNumber && <span className="tabular">{p.studentNumber}</span>}
           {staff && student && <Badge tone="info">Personel ve öğrenci</Badge>}
+          {p.studentStatus && p.studentStatus !== 'ACTIVE' && <Badge tone="warning">{STATUS_LABEL[p.studentStatus] ?? p.studentStatus}</Badge>}
         </p>
         {p.bio && <p className="mt-6 max-w-[60ch] text-lg whitespace-pre-line">{p.bio}</p>}
       </section>
@@ -110,7 +111,7 @@ function Person({ person: p }: { person: PersonProfile }) {
         </div>
         <aside className="flex flex-col gap-20 lg:col-span-4">
           {staff && <Teaching id={p.id} />}
-          <Badges extras={extras.data} loading={extras.isPending} />
+          <Contribution extras={extras.data} loading={extras.isPending} showPoints={student} />
         </aside>
       </div>
     </>
@@ -141,11 +142,11 @@ function Posts({ extras, loading }: { extras?: PersonExtras; loading: boolean })
   )
 }
 
-/** Bu dönem koordinatörü olduğu dersler (herkese açık katalogdan). */
+/** Bu dönem koordinatörü ya da hocası olduğu dersler. */
 function Teaching({ id }: { id: string }) {
   const term = useCurrentTerm()
-  const catalog = useCatalog(term.data?.id)
-  const list = (catalog.data ?? []).filter((c) => c.instructorId === id).sort((a, b) => a.code.localeCompare(b.code, 'tr'))
+  const courses = usePersonCourses(id)
+  const list = (courses.data ?? []).filter((c) => c.termId === term.data?.id).sort((a, b) => a.code.localeCompare(b.code, 'tr'))
   if (list.length === 0) return null
   return (
     <Panel title="Bu dönem verdiği dersler">
@@ -166,12 +167,20 @@ function Teaching({ id }: { id: string }) {
   )
 }
 
-function Badges({ extras, loading }: { extras?: PersonExtras; loading: boolean }) {
+/** Katkı: toplam puan ve rozetler. Puan `null` ise (liderlik tablosundan çıkmış) sıfır gibi gösterilmez, bölüm hiç çizilmez. */
+function Contribution({ extras, loading, showPoints }: { extras?: PersonExtras; loading: boolean; showPoints: boolean }) {
   if (loading) return null
+  const points = showPoints ? (extras?.gamification?.totalPoints ?? null) : null
   const badges = extras?.gamification?.badges ?? []
-  if (badges.length === 0) return null
+  if (points === null && badges.length === 0) return null
   return (
-    <Panel title="Rozetler">
+    <Panel title="Katkı">
+      {points !== null && (
+        <p className="mb-5">
+          <span className="tabular text-6xl leading-none font-heavy">{points.toLocaleString('tr-TR')}</span>
+          <span className="ml-2 text-xl text-ink-3">puan</span>
+        </p>
+      )}
       <ul>
         {badges.map((b) => (
           <li key={b.badgeType} className="flex items-start gap-4 border-b border-rule py-4 first:pt-0">

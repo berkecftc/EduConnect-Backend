@@ -4,6 +4,7 @@ import { useQueryClient } from '@tanstack/react-query'
 import type { AxiosAdapter, AxiosResponse, InternalAxiosRequestConfig } from 'axios'
 import { api } from '@/lib/api/client'
 import { setSession } from '@/lib/auth/session'
+import { localStamp } from '@/lib/time'
 import * as fx from './fixtures'
 import * as px from './postFixtures'
 import * as ax from './assessPreview'
@@ -14,6 +15,18 @@ import * as tx from './teachPreview'
 
 type Handler = (m: RegExpMatchArray, config: InternalAxiosRequestConfig) => unknown
 
+/** Sunucunun varsayılanı gibi: giriş etkinlikten bir saat önce açılır. */
+const gateOpens = (startsAt: string) => new Date(localStamp(startsAt) - 3_600_000).toISOString().slice(0, 19)
+
+/** Öğrenci yanıtı: başka grupların üye adları gizli. */
+const studentGroupView = (courseId: string) =>
+  fx.studentGroupSets
+    .filter((s) => s.courseId === courseId)
+    .map((s) => ({
+      ...s,
+      groups: s.groups.map((g) => ({ ...g, memberCount: g.members.length, members: g.id === s.myGroupId ? [...g.members] : [] })),
+    }))
+
 /** Yol → örnek yanıt. Sıra önemli: daha özel yollar önce. */
 const GET: [RegExp, Handler][] = [
   [/^\/users\/me$/, () => ({ ...fx.me })],
@@ -21,6 +34,7 @@ const GET: [RegExp, Handler][] = [
   [/^\/posts\/saved$/, (_m, config) => px.feed('saved', (config.params ?? {}) as { page?: number })],
   [/^\/posts\/me$/, (_m, config) => px.feed('mine', (config.params ?? {}) as { page?: number })],
   [/^\/posts\/appeals\/me$/, () => px.appeals.map((a) => ({ ...a }))],
+  [/^\/posts\/club\/([^/]+)\/awaiting-approval$/, (m) => px.awaitingOf(m[1]!)],
   [/^\/posts\/([^/]+)\/comments$/, (m) => px.commentsOf(m[1]!)],
   [/^\/posts\/([^/]+)$/, (m) => ({ ...(px.posts.find((p) => p.id === m[1]) ?? notFound()) })],
   [/^\/users\/profile\/me\/change-requests$/, () => fx.changeRequests.map((r) => ({ ...r }))],
@@ -33,6 +47,7 @@ const GET: [RegExp, Handler][] = [
       return fx.leaderboard(period, limit)
     },
   ],
+  [/^\/courses\/instructor\/([^/]+)$/, (m) => fx.catalog(fx.term.id).filter((c) => c.instructorId === m[1])],
   [/^\/courses\/my-courses$/, () => fx.courses],
   // Kopya: başvuru ve geri çekme diziyi yerinde değiştirir; aynı nesne dönerse React Query değişikliği görmez.
   [/^\/courses\/my-applications$/, () => fx.applications.map((a) => ({ ...a }))],
@@ -44,9 +59,17 @@ const GET: [RegExp, Handler][] = [
   [/^\/courses\/([^/]+)\/announcements$/, (m) => fx.announcements[m[1]!] ?? []],
   [/^\/courses\/([^/]+)$/, (m) => fx.courseDetail(m[1]!) ?? notFound()],
   [/^\/assignments\/my-assignments$/, () => fx.assignments],
+  [/^\/assignments\/course\/([^/]+)\/group-sets$/, (m) => studentGroupView(m[1]!)],
   [/^\/assignments\/course\/([^/]+)\/my-grades$/, (m) => fx.gradesFor(m[1]!)],
   [/^\/assignments\/submissions\/([^/]+)\/versions$/, () => []],
-  [/^\/events\/my-registrations$/, () => fx.registrations.map((r) => ({ ...r }))],
+  [
+    /^\/events\/my-registrations$/,
+    () =>
+      fx.registrations.map((r) => {
+        const e = fx.findEvent(r.eventId)
+        return { ...r, endsAt: e?.endsAt ?? null, cancellationReason: e?.cancellationReason ?? null, checkInOpensAt: gateOpens(r.eventDate) }
+      }),
+  ],
   [/^\/events\/my-participation-requests$/, () => fx.participationRequests.map((r) => ({ ...r }))],
   [
     /^\/events$/,
@@ -87,6 +110,13 @@ const GET: [RegExp, Handler][] = [
         .filter((r) => r.status === 'PENDING_PRESIDENT' && fx.clubAccess(r.clubId).actingPresident)
         .map((r) => ({ ...r })),
   ],
+  [
+    /^\/clubs\/approvals\/mine$/,
+    () =>
+      [...cx.requestsAboutMe, ...Object.values(fx.clubApprovals).flat().filter((r) => r.preparedBy === 'u1' || r.subjectUserId === 'u1')]
+        .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+        .map((r) => ({ ...r })),
+  ],
   [/^\/clubs\/([^/]+)\/my-access$/, (m) => fx.clubAccess(m[1]!)],
   [/^\/clubs\/([^/]+)\/membership-requests\/pending$/, (m) => (fx.pendingMembershipRequests[m[1]!] ?? []).map((r) => ({ ...r }))],
   [/^\/clubs\/([^/]+)\/approvals$/, (m) => (fx.clubApprovals[m[1]!] ?? []).map((r) => ({ ...r }))],
@@ -104,12 +134,51 @@ const GET: [RegExp, Handler][] = [
   ],
   [/^\/clubs\/([^/]+)$/, (m) => fx.clubDetail(m[1]!) ?? notFound()],
   [/^\/events\/club\/([^/]+)$/, (m) => fx.campusEvents.filter((e) => e.clubId === m[1])],
-  [/^\/events\/([^/]+)$/, (m) => ({ ...(fx.findEvent(m[1]!) ?? notFound()) })],
+  [
+    /^\/events\/([^/]+)$/,
+    (m) => {
+      const e = fx.findEvent(m[1]!) ?? notFound()
+      return { ...e, checkInOpensAt: gateOpens(e.startsAt) }
+    },
+  ],
 ]
 
 /** Yazma istekleri (yöntem, yol): başvuru, geri çekme, ayrılma ve yenileme önizleme verisini değiştirir; diğerleri boş yanıt döner. */
 const WRITE: [string, RegExp, Handler][] = [
+  [
+    'post',
+    /^\/assignments\/groups\/([^/]+)\/(join|leave)$/,
+    (m, config) => {
+      const set = fx.studentGroupSets.find((s) => s.groups.some((g) => g.id === m[1]))!
+      const group = set.groups.find((g) => g.id === m[1])!
+      const related = fx.assignments.filter((a) => a.groupSetId === set.id)
+      if (!set.signupOpen) cx.fail(config, 409, 'SIGNUP_CLOSED', 'Bu grup setinde öğrenci seçimi kapalı.')
+      if (m[2] === 'join') {
+        if (set.myGroupId) cx.fail(config, 409, 'ALREADY_IN_GROUP', 'Bu sette zaten bir gruptasınız; önce ayrılın.')
+        if (set.maxMembers != null && group.members.length >= set.maxMembers) cx.fail(config, 409, 'GROUP_FULL', 'Grup kontenjanı dolu.')
+        group.members.push({ studentId: 'u1', name: 'Elif Demir', studentNumber: null, joinedAt: new Date().toISOString() })
+        set.myGroupId = group.id
+      } else {
+        if (related.some((a) => a.submission))
+          cx.fail(config, 409, 'GROUP_HAS_SUBMISSIONS', 'Grubunuz teslim yaptığı için gruptan ayrılamazsınız; hocanıza başvurun.')
+        group.members = group.members.filter((x) => x.studentId !== 'u1')
+        set.myGroupId = null
+      }
+      for (const a of related) Object.assign(a, { groupId: set.myGroupId, groupName: set.myGroupId ? group.name : null })
+      return studentGroupView(set.courseId)
+    },
+  ],
   ['post', /^\/posts$/, (_m, config) => px.newPost(JSON.parse(String(config.data)))],
+  [
+    'post',
+    /^\/posts\/([^/]+)\/(approve|reject)$/,
+    (m, config) => {
+      const p = px.posts.find((x) => x.id === m[1])!
+      if (m[2] === 'approve') Object.assign(p, { status: 'PUBLISHED', reviewNote: null })
+      else Object.assign(p, { status: 'REJECTED', reviewNote: (JSON.parse(String(config.data)) as { note: string }).note })
+      return { ...p }
+    },
+  ],
   [
     'put',
     /^\/posts\/([^/]+)$/,
@@ -390,9 +459,15 @@ const WRITE: [string, RegExp, Handler][] = [
     'post',
     /^\/events\/manage\/verify-qr$/,
     (_m, config) => {
-      const code = (JSON.parse(String(config.data ?? '{}')) as { qrCode?: string }).qrCode
+      const { qrCode: code, eventId } = JSON.parse(String(config.data ?? '{}')) as { qrCode?: string; eventId?: string }
       const ticket = fx.registrations.find((r) => r.qrCode === code)
       const row = ticket && (fx.attendance[ticket.eventId] ?? []).find((r) => r.studentId === 'u1')
+      if (row && eventId && ticket.eventId !== eventId)
+        throw Object.assign(new Error('Başka etkinlik'), {
+          isAxiosError: true,
+          config,
+          response: { status: 400, data: { status: 400, errorCode: 'TICKET_WRONG_EVENT', message: 'Bu bilet başka bir etkinliğe ait.' } },
+        })
       if (!row) throw Object.assign(new Error('Bilet bulunamadı'), { isAxiosError: true, config, response: { status: 400, data: { status: 400, errorCode: 'VERIFICATION_FAILED', message: 'Bilet doğrulanamadı.' }, headers: {}, config } })
       Object.assign(row, { attended: true, checkedInAt: new Date().toISOString(), method: 'QR' })
       return 'ACCESS GRANTED'

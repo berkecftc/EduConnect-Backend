@@ -13,7 +13,7 @@ import { Textarea } from '@/components/ui/Textarea'
 import { can, type ClubAccess } from './manage'
 import {
   REPORT_STATUS,
-  academicYearOf,
+  useAcademicYearOf,
   formatMoney,
   useReportPreview,
   useReports,
@@ -47,9 +47,10 @@ export function RecordsReports(props: Props) {
   )
 }
 
-const reportableYear = (year: number) => {
-  const current = academicYearOf(nowLocalIso().slice(0, 10))
-  return year === current || year === current - 1
+/** Rapor yazılabilen yıllar: içinde bulunulan ve bir önceki akademik yıl. */
+function useReportableYear(clubId: string) {
+  const current = useAcademicYearOf(clubId)(nowLocalIso().slice(0, 10))
+  return (year: number) => year === current || year === current - 1
 }
 
 function StatusBadge({ report }: { report?: Report }) {
@@ -57,6 +58,7 @@ function StatusBadge({ report }: { report?: Report }) {
 }
 
 function ActivityReport({ clubId, year, access, closed, report }: Props & { report?: Report }) {
+  const reportableYear = useReportableYear(clubId)
   const editable = reportableYear(year) && !closed && (!report || report.status === 'DRAFT')
   const writesSummary = editable && can(access, 'PREPARE_ACTIVITY_REPORT')
   const writesFinance = editable && can(access, 'PREPARE_FINANCE')
@@ -138,6 +140,7 @@ function ActivityReport({ clubId, year, access, closed, report }: Props & { repo
 
 function AuditReport({ clubId, year, access, closed, report }: Props & { report?: Report }) {
   const auditor = can(access, 'PREPARE_AUDIT_REPORT')
+  const reportableYear = useReportableYear(clubId)
   const editable = auditor && reportableYear(year) && !closed && (!report || report.status === 'DRAFT')
   const [dirty, setDirty] = useState(false)
 

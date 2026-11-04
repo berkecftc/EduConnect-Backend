@@ -163,7 +163,7 @@ export function EventStaffPanel({ event: e, access }: { event: CampusEvent; acce
 }
 
 /**
- * Görevli öner: kulübün adı bilinen üyeleri (yönetim ve, adlarıyla geldiğinde, bütün üyeler) arasında arama.
+ * Görevli öner: kulübün üyeleri arasında arama; üye listesi yetkisi olmayan etkinlik yetkilisi yalnız yönetimi görür.
  * Zaten görevli ya da önerilmiş olanlar listede yok.
  */
 function Propose({

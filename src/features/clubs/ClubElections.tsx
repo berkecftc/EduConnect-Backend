@@ -193,6 +193,7 @@ function Current({
       <div className="min-w-0 lg:col-span-8">
         <Panel title="Genel kurul seçimi" action={<Badge tone={ELECTION_STATUS[e.status].tone}>{ELECTION_STATUS[e.status].label}</Badge>}>
           <StationLine line="kulup" stations={stationsOf(e)} label="Seçimin aşamaları" className="mt-2" />
+          {e.openedByName && <p className="mt-4 text-sm text-ink-3">Seçimi {e.openedByName} açtı.</p>}
           {e.note && <p className="mt-8 max-w-[64ch] text-md whitespace-pre-line text-ink-2">{e.note}</p>}
           <p className="mt-6 max-w-[64ch] text-md text-ink-2">
             {e.status === 'CANDIDACY'

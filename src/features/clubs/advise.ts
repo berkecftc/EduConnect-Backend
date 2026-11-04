@@ -16,9 +16,10 @@ export type ClubCreationRequest = {
   clubName: string
   about: string | null
   requestingStudentId: string
-  /** Backend eklediğinde başvuranın adı; yoksa kurucular listesinden bulunur. */
+  /** Ad gelmezse kurucular listesinden bulunur. */
   requestingStudentName?: string | null
   suggestedAdvisorId: string | null
+  suggestedAdvisorName?: string | null
   status: 'PENDING_FOUNDERS' | 'PENDING' | 'APPROVED' | 'REJECTED'
   requestDate: string
   rejectionReason: string | null
@@ -34,7 +35,6 @@ export type AdvisorOffer = {
   clubName: string
   proposedAdvisorId: string
   requestedBy: string
-  /** Backend eklediğinde teklif edenin adı. */
   requestedByName?: string | null
   message: string | null
   status: string

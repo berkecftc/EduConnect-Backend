@@ -51,6 +51,7 @@ export function AssignmentRow({
             <span>{TYPE_LABEL[a.type]}</span>
             {a.weight > 0 && <span>ağırlık %{formatNumber(a.weight)}</span>}
             {a.groupName && <span>grup {a.groupName}</span>}
+            {v.needsGroup && <span className="font-semibold text-warning">grup seçilmedi</span>}
           </span>
         </span>
         <span className="col-start-2 flex flex-wrap items-center gap-x-3 gap-y-1 sm:col-start-auto sm:flex-col sm:items-end sm:text-right">

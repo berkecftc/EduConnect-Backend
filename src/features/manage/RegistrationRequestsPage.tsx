@@ -3,6 +3,7 @@ import type { UseQueryResult } from '@tanstack/react-query'
 import { ExternalLink } from 'lucide-react'
 import { toast } from 'sonner'
 import { toApiError } from '@/lib/api/problem'
+import { formatRelative } from '@/lib/time'
 import { usePageTitle } from '@/lib/usePageTitle'
 import { useCatalog } from '@/features/auth/register/api'
 import { Badge } from '@/components/ui/Badge'
@@ -34,6 +35,7 @@ type Row = {
   documentLabel: string
   emailVerified: boolean
   additional: boolean
+  createdAt: string | null
 }
 
 const fullName = (r: { firstName: string | null; lastName: string | null }) =>
@@ -64,6 +66,7 @@ function StudentRequests() {
       documentLabel: 'Öğrenci belgesi',
       emailVerified: r.emailVerified,
       additional: r.additionalAffiliation,
+      createdAt: r.createdAt ?? null,
     }))
   }, [list.data, catalog.data])
   return <RequestsView kind="student" title="Öğrenci başvuruları" query={list} rows={rows} />
@@ -93,6 +96,7 @@ function AcademicianRequests() {
         documentLabel: 'Personel kimlik kartı',
         emailVerified: r.emailVerified,
         additional: r.additionalAffiliation,
+        createdAt: r.createdAt ?? null,
       })),
     [list.data],
   )
@@ -182,13 +186,14 @@ function RequestRow({ kind, row: r }: { kind: 'student' | 'academician'; row: Ro
           {r.additional && <Badge tone="info">Mevcut hesaba ek</Badge>}
           {!r.emailVerified && <Badge tone="warning">E-posta doğrulanmadı</Badge>}
         </p>
-        {r.lines.length > 0 && (
+        {(r.lines.length > 0 || r.createdAt) && (
           <p className="mt-0.5 flex flex-wrap gap-x-4 text-sm text-ink-3">
             {r.lines.map((l) => (
               <span key={l} className="tabular">
                 {l}
               </span>
             ))}
+            {r.createdAt && <span>{formatRelative(r.createdAt)} başvurdu</span>}
           </p>
         )}
         {r.detail && <p className="mt-1 text-md text-ink-2">{r.detail}</p>}

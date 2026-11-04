@@ -41,7 +41,7 @@ export function ClubRecordsPage() {
 
 function Records({ club: c, access }: { club: ClubDetails; access: ClubAccess }) {
   const [params, setParams] = useSearchParams()
-  const current = academicYearOf(nowLocalIso().slice(0, 10))
+  const current = academicYearOf(nowLocalIso().slice(0, 10), c.academicYearEnd)
   const years = recentYears(current)
   const asked = Number(params.get('yil'))
   const year = years.includes(asked) ? asked : current

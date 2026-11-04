@@ -63,9 +63,7 @@ export function RecordPreview({ request: r }: { request: ApprovalRequest }) {
 function MeetingPreview({ request: r }: { request: ApprovalRequest }) {
   const m = r.meeting!
   const board = useClubBoard(r.clubId)
-  const names = (board.data ?? [])
-    .filter((b) => m.attendeeIds.includes(b.studentId))
-    .map((b) => [b.firstName, b.lastName].filter(Boolean).join(' '))
+  const names = (m.attendees ?? []).flatMap((a) => (a.name ? [a.name] : []))
   const q = board.data ? quorum(board.data, m.attendeeIds) : null
   return (
     <div>

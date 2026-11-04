@@ -15,6 +15,7 @@ import { AcademicianPicker, type PickedAcademician } from './AcademicianPicker'
 import {
   ABOUT_MAX,
   CLUB_NAME_MAX,
+  parseFounderNumbers,
   useMyCreationRequests,
   useRequestClubCreation,
   validateCreationDraft,
@@ -25,9 +26,16 @@ import {
 const CODE_FIELD: Record<string, keyof ClubCreationErrors> = {
   CLUB_NAME_TAKEN: 'name',
   ADVISOR_NOT_ELIGIBLE: 'advisorId',
+  FOUNDERS_REQUIRED: 'founders',
+  FOUNDER_STUDENT_NOT_FOUND: 'founders',
+  INVALID_FOUNDER: 'founders',
+  TOO_MANY_FOUNDERS: 'founders',
 }
 
-/** Kulüp kur (F-28): ad, tanıtım ve danışman; başvuru danışmana gider, onaylanınca başvuran başkan olur. */
+/**
+ * Kulüp kur (F-28, F-89): ad, tanıtım, kurucular ve danışman. Kurucular davete yanıt verince başvuru danışmana gider;
+ * onaylanınca başvuran başkan olur.
+ */
 export function ClubCreatePage() {
   usePageTitle('Kulüp kur')
   const session = useSession()
@@ -42,7 +50,7 @@ export function ClubCreatePage() {
       </Link>
       <PageHeader
         title="Kulüp kur"
-        meta="Başvurunuz önerdiğiniz danışmana gider. Danışman onaylarsa kulüp kurulur ve siz başkanı olursunuz."
+        meta="Kurucular davetinize yanıt verince başvurunuz önerdiğiniz danışmana gider. Danışman onaylarsa kulüp kurulur ve siz başkanı olursunuz."
       />
       <div className="mt-8">
         {!student ? (
@@ -75,6 +83,8 @@ function CreateForm() {
   const [name, setName] = useState('')
   const [about, setAbout] = useState('')
   const [advisor, setAdvisor] = useState<PickedAcademician | null>(null)
+  const [founders, setFounders] = useState('')
+  const founderCount = parseFounderNumbers(founders).length
   const [errors, setErrors] = useState<ClubCreationErrors>({})
   const [failure, setFailure] = useState<ApiError | null>(null)
 
@@ -92,14 +102,14 @@ function CreateForm() {
 
   const onSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    const draft = { name, about, advisorId: advisor?.id }
+    const draft = { name, about, advisorId: advisor?.id, founders }
     const next = validateCreationDraft(draft)
     setErrors(next)
     setFailure(null)
     if (Object.keys(next).length) return focusInvalid()
     create.mutate(draft, {
       onSuccess: () => {
-        toast.success(`“${name.trim()}” başvurunuz danışmana gönderildi`)
+        toast.success(`“${name.trim()}” başvurunuz alındı`)
         navigate('/clubs/mine')
       },
       onError: (x) => {
@@ -136,8 +146,35 @@ function CreateForm() {
       </FormSection>
 
       <FormSection
+        title="Kurucular"
+        hint="Sizinle birlikte kulübü kuracak öğrenciler. Her biri davet alır; kulüp kurulursa onaylayanlar üye olur."
+      >
+        <Field
+          label="Kurucu öğrenci numaraları"
+          required
+          error={err('founders')}
+          hint={
+            founderCount > 0
+              ? `Sizinle birlikte ${founderCount + 1} kurucu. Her satıra bir numara yazın.`
+              : 'Her satıra bir numara yazın. Kendi numaranızı eklemeniz gerekmez; siz kurucu sayılırsınız.'
+          }
+        >
+          <Textarea
+            rows={5}
+            autoComplete="off"
+            spellCheck={false}
+            value={founders}
+            onChange={(e) => {
+              setFounders(e.target.value)
+              clear('founders')
+            }}
+          />
+        </Field>
+      </FormSection>
+
+      <FormSection
         title="Danışman"
-        hint="Danışman, kulübün etkinliklerini ve kararlarını onaylayan akademisyendir. Başvurunuzu önce o değerlendirir."
+        hint="Danışman, kulübün etkinliklerini ve kararlarını onaylayan akademisyendir. Kurucular yanıt verince başvurunuzu o değerlendirir."
       >
         <AcademicianPicker
           label="Danışman olacak akademisyen"
@@ -152,8 +189,7 @@ function CreateForm() {
 
       <div className="flex flex-col gap-5 border-t border-ink pt-6">
         <p className="max-w-[64ch] text-md text-ink-2">
-          Kurucu olarak siz kaydedilirsiniz. Danışman kararını verdiğinde bildirim alırsınız; başvurunuzu Kulüplerim sayfasından
-          izleyebilirsiniz.
+          Kurucuların yanıtlarını ve danışmanın kararını Kulüplerim sayfasından izleyebilirsiniz; karar verildiğinde bildirim alırsınız.
         </p>
         {general && (
           <Notice variant="line" tone="danger" title="Başvuru gönderilemedi">

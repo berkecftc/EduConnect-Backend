@@ -2,6 +2,7 @@
  * Akış önizleme deposu: gönderiler, yorumlar ve işlemler bellekte; sayfa yenilenince sıfırlanır.
  * Biçimler gerçek API ile aynıdır (PostResponse, CommentResponse). Yalnız `/onizleme` içindir.
  */
+import { getSession } from '@/lib/auth/session'
 import type { Appeal, Post, PostComment } from '@/features/posts/api'
 
 const ago = (hours: number) => new Date(Date.now() - hours * 3_600_000).toISOString()
@@ -76,6 +77,51 @@ export const posts: Post[] = [
     commentsDisabled: true,
   }),
   post({
+    id: 'p-ders-1',
+    title: 'Ara sınav yeri değişti',
+    content: 'BİL 301 ara sınavı A-101 yerine B-204 salonunda yapılacak. Saat değişmedi; öğrenci kartınızı yanınızda getirin.',
+    category: 'DUYURU',
+    publisherType: 'COURSE',
+    courseId: 'c1',
+    courseLabel: 'BİL 301 Veri Yapıları ve Algoritmalar',
+    publisherName: 'BİL 301 Veri Yapıları ve Algoritmalar',
+    official: true,
+    authorId: 'u-c1',
+    authorName: 'Mehmet Kaya',
+    createdAt: ago(40),
+    likeCount: 4,
+    commentCount: 0,
+  }),
+  post({
+    id: 'p-kampus-1',
+    title: 'Bahar dönemi ders kayıt takvimi yayımlandı',
+    content: 'Ders kayıtları 2 Şubat Pazartesi başlıyor ve 6 Şubat Cuma 17.00’de sona eriyor. Danışman onayları kayıt haftası boyunca yapılabilir.',
+    category: 'DUYURU',
+    publisherType: 'CAMPUS',
+    publisherName: 'Öğrenci İşleri Daire Başkanlığı',
+    official: true,
+    commentsDisabled: true,
+    authorId: 'staff1',
+    authorName: 'Görevli',
+    createdAt: ago(60),
+    likeCount: 21,
+    commentCount: 0,
+  }),
+  post({
+    id: 'p-onay-1',
+    title: 'Hızlı satranç turnuvası kayıtları açıldı',
+    content: 'Cumartesi 13.00’te kütüphane salonunda turnuva var. Kulüp üyesi olmayanlar da katılabilir; kayıt kulüp masasından yapılır.',
+    category: 'DUYURU',
+    status: 'AWAITING_APPROVAL',
+    publisherType: 'CLUB',
+    clubId: 'k2',
+    publisherName: 'Satranç Kulübü',
+    official: true,
+    authorId: 'st5',
+    authorName: 'Deniz Kara',
+    createdAt: ago(5),
+  }),
+  post({
     id: 'p4',
     title: 'Kütüphanenin üçüncü katı sınav haftasında 24 saat açık mı?',
     content: 'Geçen dönem açıktı diye hatırlıyorum, bu dönem için duyuru göremedim. Bilen var mı?',
@@ -141,9 +187,17 @@ export const comments: PostComment[] = [
 export const appeals: Appeal[] = []
 
 /** Akış süzgeci: kategori, resmî; kaydedilenler ve benimkiler ayrı. */
-export function feed(list: 'all' | 'saved' | 'mine', params: { category?: string; official?: boolean; page?: number; size?: number }) {
+export function feed(list: 'all' | 'saved' | 'mine', params: { category?: string; official?: boolean; publisherType?: string; page?: number; size?: number }) {
+  const me = getSession()?.userId ?? ME
   const all = posts.filter((p) =>
-    list === 'saved' ? p.bookmarked : list === 'mine' ? p.authorId === ME : p.status === 'PUBLISHED' && (!params.category || p.category === params.category) && (!params.official || p.official),
+    list === 'saved'
+      ? p.bookmarked
+      : list === 'mine'
+        ? p.authorId === me
+        : p.status === 'PUBLISHED' &&
+          (!params.category || p.category === params.category) &&
+          (!params.official || p.official) &&
+          (!params.publisherType || p.publisherType === params.publisherType),
   )
   const page = params.page ?? 0
   const size = params.size ?? 10
@@ -172,16 +226,38 @@ export function recount(postId: string) {
   if (p) p.commentCount = comments.filter((c) => c.postId === postId && c.status === 'PUBLISHED').reduce((n, c) => n + 1 + c.replies.length, 0)
 }
 
+/** Başkanın onay listesi: kulübün onay bekleyen duyuruları, eskiden yeniye. */
+export function awaitingOf(clubId: string) {
+  const content = posts.filter((p) => p.clubId === clubId && p.status === 'AWAITING_APPROVAL').map((p) => ({ ...p }))
+  return { content, totalElements: content.length, totalPages: 1, number: 0, last: true }
+}
+
+/** Resmî duyuru: başkan olmadığı kulüpte (Robotik) başkan onayı bekler; kulüp ve ders adı örnek veriden. */
+function announcementFields(body: Record<string, unknown>): Partial<Post> {
+  const type = body.publisherType as Post['publisherType']
+  const names: Record<string, string> = { k1: 'Robotik Kulübü', k2: 'Satranç Kulübü' }
+  return {
+    official: true,
+    publisherType: type,
+    clubId: (body.clubId as string) ?? null,
+    commentsDisabled: !!body.commentsDisabled,
+    publisherName: type === 'CLUB' ? (names[String(body.clubId)] ?? 'Kulüp') : type === 'COURSE' ? 'BİL 301 Veri Yapıları ve Algoritmalar' : String(body.publisherName),
+    status: type === 'CLUB' && body.clubId === 'k1' ? 'AWAITING_APPROVAL' : 'PUBLISHED',
+  }
+}
+
 export function newPost(body: Record<string, unknown>): Post {
+  const session = getSession()
   const p = post({
     id: 'p-' + Date.now(),
     title: String(body.title),
     content: String(body.content),
     category: (body.category as Post['category']) ?? 'SORU',
     courseId: (body.courseId as string) ?? null,
+    ...(body.category === 'DUYURU' ? announcementFields(body) : {}),
     courseLabel: body.courseId === 'c1' ? 'BİL 301 Veri Yapıları ve Algoritmalar' : body.courseId === 'c2' ? 'BİL 304 Veri Tabanı Sistemleri' : null,
-    authorId: ME,
-    authorName: 'Elif Demir',
+    authorId: session?.userId ?? ME,
+    authorName: !session || session.userId === ME ? 'Elif Demir' : 'Önizleme yayıncısı',
     createdAt: new Date().toISOString(),
   })
   posts.unshift(p)

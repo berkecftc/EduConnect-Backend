@@ -31,6 +31,7 @@ export type Election = {
   auditSeats: number
   note: string | null
   openedBy: string
+  openedByName?: string | null
   openedAt: string
   votingStartedAt: string | null
   closedAt: string | null

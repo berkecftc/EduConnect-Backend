@@ -72,32 +72,30 @@ export function useStaffAction(eventId: string) {
 
 // ——— Kapı ———
 
-/** Bilet doğrulama hatası: sunucunun kodları (bir kısmı İngilizce mesajlı) Türkçe ve kapıda okunacak kadar kısa. */
-export function scanFailure(e: ApiError): string {
-  switch (e.code) {
-    case 'INVALID_TICKET':
-    case 'VERIFICATION_FAILED':
-      return 'Bilet bulunamadı. Kodu kontrol edin.'
-    case 'TICKET_ALREADY_USED':
-      return 'Bu bilet zaten okutuldu.'
-    case 'TICKET_CANCELLED':
-      return 'Bu kayıt iptal edilmiş.'
-    case 'EVENT_NOT_ACTIVE':
-      return 'Etkinlik yayında değil.'
-    case 'CHECK_IN_CLOSED':
-      return e.message
-    default:
-      return e.status === 403 ? 'Bu biletin etkinliğinde giriş yapma yetkiniz yok.' : e.message
-  }
+/** `POST /api/events/manage/verify-qr` yanıtı (F-88). Ad gelmeyebilir; giriş yine sayılmıştır. */
+export type TicketCheckIn = {
+  eventId: string
+  studentId: string
+  firstName: string | null
+  lastName: string | null
+  studentNumber: string | null
+  checkedInAt: string
 }
 
-/** Bilet kodunu doğrular ve girişi yapar; yoklama listesi tazelenir. */
+export const checkInName = (t: Pick<TicketCheckIn, 'firstName' | 'lastName'>) => [t.firstName, t.lastName].filter(Boolean).join(' ')
+
+/** Bilet doğrulama hatası: sunucunun mesajı; kapıda ne yapılacağını söyleyen iki istisna dışında. */
+export function scanFailure(e: ApiError): string {
+  if (e.code === 'INVALID_TICKET' || e.code === 'VERIFICATION_FAILED') return 'Bilet bulunamadı. Kodu kontrol edin.'
+  return e.status === 403 ? 'Bu biletin etkinliğinde giriş yapma yetkiniz yok.' : e.message
+}
+
+/** Bilet kodunu bu etkinlik için doğrular ve girişi yapar; başka etkinliğin bileti reddedilir, yoklama listesi tazelenir. */
 export function useVerifyTicket(eventId: string) {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: async (code: string) => {
-      await api.post('/events/manage/verify-qr', { qrCode: code.trim() })
-    },
+    mutationFn: async (code: string) =>
+      (await api.post<TicketCheckIn>('/events/manage/verify-qr', { qrCode: code.trim(), eventId })).data,
     onSuccess: () => void qc.invalidateQueries({ queryKey: ['events', eventId, 'attendance'] }),
   })
 }

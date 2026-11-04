@@ -9,9 +9,28 @@ import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
 import { Panel } from '@/components/ui/Panel'
 import { EmptyState, PageHeader, QueryBoundary } from '@/components/ui/States'
-import { APPEAL_STATUS, CATEGORY_LABEL, POST_STATUS, useFeed, useMyAppeals, type FeedFilter, type Post, type PostCategory } from './api'
+import { APPEAL_STATUS, POST_STATUS, postKindLabel, useFeed, useMyAppeals, type FeedFilter, type Post, type PublisherType } from './api'
+import { usePublishers } from './publishers'
 
 type View = { key: string; label: string; filter: FeedFilter }
+
+/** Duyurular görünümünde yayımlayana göre daraltma. */
+const SOURCES: { key: string; label: string; type?: PublisherType }[] = [
+  { key: 'hepsi', label: 'Hepsi' },
+  { key: 'kulup', label: 'Kulüpler', type: 'CLUB' },
+  { key: 'ders', label: 'Dersler', type: 'COURSE' },
+  { key: 'kampus', label: 'Kampüs', type: 'CAMPUS' },
+]
+
+/** Satırdaki renk çizgisi: alanı anlatır (kulüp, ders); kampüs duyurusu kuruma ait, nötr. */
+const lineOf = (p: Post) =>
+  p.official && p.publisherType === 'CLUB'
+    ? 'bg-kulup'
+    : p.official && p.publisherType === 'COURSE'
+      ? 'bg-ders'
+      : p.official && p.publisherType === 'CAMPUS'
+        ? 'bg-ink'
+        : 'bg-topluluk'
 
 const VIEWS: View[] = [
   { key: 'tumu', label: 'Tümü', filter: { list: 'all' } },
@@ -25,20 +44,34 @@ const VIEWS: View[] = [
 
 const ROW = 'grid gap-x-8 gap-y-2 py-6 sm:grid-cols-[9rem_minmax(0,1fr)_7rem]'
 
-/** Akış (F-67): kategori ve liste süzgeçleri; satırda tür, başlık, özet, yazar ve sayılar. Gönderi yazmak öğrencilere açık. */
+/**
+ * Akış (F-67): kategori ve liste süzgeçleri; satırda tür, başlık, özet, yazar ve sayılar. Gönderi yazmak öğrencilere,
+ * resmî duyuru yazmak kulüp, ders ya da kampüs adına yetkisi olanlara açık.
+ */
 export function PostsPage() {
   usePageTitle('Akış')
   const session = useSession()
   const student = hasRole(session, 'ROLE_STUDENT', 'ROLE_CLUB_OFFICIAL')
+  const { publishers } = usePublishers()
+  const writes = student || publishers.length > 0
   const [params, setParams] = useSearchParams()
   const view = VIEWS.find((v) => v.key === params.get('goster')) ?? VIEWS[0]!
-  const feed = useFeed(view.filter)
+  const official = !!view.filter.official
+  const source = SOURCES.find((s) => s.key === params.get('yayinci')) ?? SOURCES[0]!
+  const feed = useFeed(official ? { ...view.filter, publisherType: source.type } : view.filter)
   const mine = view.filter.list === 'mine'
 
   const setView = (key: string) => {
     const next = new URLSearchParams(params)
+    next.delete('yayinci')
     if (key === 'tumu') next.delete('goster')
     else next.set('goster', key)
+    setParams(next, { replace: true })
+  }
+  const setSource = (key: string) => {
+    const next = new URLSearchParams(params)
+    if (key === 'hepsi') next.delete('yayinci')
+    else next.set('yayinci', key)
     setParams(next, { replace: true })
   }
 
@@ -48,9 +81,9 @@ export function PostsPage() {
         title="Akış"
         meta="Sorular, ders notları ve duyurular. Katkılarınız puan kazandırır."
         actions={
-          student ? (
+          writes ? (
             <Button asChild variant="primary">
-              <Link to="/posts/new">Gönderi yaz</Link>
+              <Link to="/posts/new">{student ? 'Gönderi yaz' : 'Duyuru yaz'}</Link>
             </Button>
           ) : undefined
         }
@@ -58,7 +91,7 @@ export function PostsPage() {
 
       <nav aria-label="Akış süzgeçleri" className="mt-8 border-y border-rule">
         <ul className="-mx-3 flex overflow-x-auto">
-          {VIEWS.filter((v) => student || v.key !== 'benim').map((v, i) => (
+          {VIEWS.filter((v) => writes || v.key !== 'benim').map((v, i) => (
             <li key={v.key} className={cn(i === 5 && 'ml-auto')}>
               <button
                 type="button"
@@ -73,6 +106,23 @@ export function PostsPage() {
           ))}
         </ul>
       </nav>
+
+      {official && (
+        <ul aria-label="Duyuruyu yayımlayan" className="mt-4 flex flex-wrap gap-x-5 gap-y-1">
+          {SOURCES.map((s) => (
+            <li key={s.key}>
+              <button
+                type="button"
+                aria-pressed={source.key === s.key}
+                onClick={() => setSource(s.key)}
+                className={cn('text-sm font-semibold underline-offset-4 hover:underline', source.key === s.key ? 'text-ink underline' : 'text-ink-3')}
+              >
+                {s.label}
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
 
       <div className={cn('mt-8', mine && 'grid gap-20 lg:grid-cols-12 lg:gap-10')}>
         <div className={cn(mine && 'min-w-0 lg:col-span-8')}>
@@ -146,8 +196,8 @@ function PostRow({ post: p, showStatus }: { post: Post; showStatus: boolean }) {
       <Link to={`/posts/${p.id}`} className={cn(ROW, 'row-fill group')}>
         <span className="flex flex-wrap items-baseline gap-x-3 sm:block">
           <span className="flex items-center gap-2 text-md font-semibold">
-            <span aria-hidden className="h-4 w-[3px] bg-topluluk" />
-            {CATEGORY_LABEL[p.category as PostCategory]}
+            <span aria-hidden className={cn('h-4 w-[3px] shrink-0', lineOf(p))} />
+            {postKindLabel(p)}
           </span>
           <span className="text-sm text-ink-3 sm:mt-1 sm:block">{formatRelative(p.createdAt)}</span>
         </span>
@@ -160,7 +210,7 @@ function PostRow({ post: p, showStatus }: { post: Post; showStatus: boolean }) {
           <span className="mt-1 line-clamp-2 block max-w-[72ch] text-md text-ink-2">{excerpt(p.content)}</span>
           <span className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-ink-3">
             <span className={p.official ? 'font-semibold text-ink' : undefined}>{p.official ? (p.publisherName ?? p.authorName) : p.authorName}</span>
-            {p.courseLabel && <span>{p.courseLabel}</span>}
+            {p.courseLabel && !p.official && <span>{p.courseLabel}</span>}
             {p.attachmentName && (
               <span className="flex items-center gap-1">
                 <Paperclip className="size-3.5" aria-hidden />

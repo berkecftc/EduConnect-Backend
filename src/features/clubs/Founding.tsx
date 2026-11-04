@@ -72,7 +72,8 @@ function Invitation({ request: r }: { request: ClubCreationRequest }) {
       <div className="min-w-0 border-l-[3px] border-kulup pl-5">
         <p className="text-2xl leading-tight font-heavy">{r.clubName}</p>
         <p className="mt-1 text-md text-ink-2">
-          {requester ? founderName(requester) : 'Bir öğrenci'} sizi kurucular arasına ekledi, {formatInstant(r.requestDate, 'date')}.
+          {r.requestingStudentName ?? (requester ? founderName(requester) : 'Bir öğrenci')} sizi kurucular arasına ekledi,{' '}
+          {formatInstant(r.requestDate, 'date')}.
         </p>
         {r.about && <p className="mt-3 line-clamp-3 max-w-[64ch] text-md whitespace-pre-line text-ink-2">{r.about}</p>}
         {summary && <p className="mt-2 text-sm text-ink-3">Diğer kurucular: {summary}.</p>}
@@ -146,6 +147,7 @@ export function CreationRequests({ list }: { list: ClubCreationRequest[] }) {
                     ? `Başvuru ${formatInstant(r.requestDate, 'date')}, karar ${formatInstant(r.processedAt, 'date')}`
                     : `${formatInstant(r.requestDate, 'datetime')} tarihinde başvurdunuz`}
                   {summary ? `. Kurucular: ${summary}` : ''}
+                  {r.suggestedAdvisorName ? `. Danışman: ${r.suggestedAdvisorName}` : ''}
                 </span>
                 {r.status === 'PENDING_FOUNDERS' && waiting.length > 0 && (
                   <span className="mt-1 block text-md text-ink-2">

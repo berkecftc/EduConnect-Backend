@@ -30,10 +30,10 @@ describe('bilet QR okuma', () => {
 })
 
 describe('scanFailure', () => {
-  it('sunucu kodlarını kapıda okunacak Türkçeye çevirir', () => {
+  it('sunucunun mesajını gösterir; bulunamayan bilet ve yetki için kapıda ne yapılacağını söyler', () => {
     const err = (code: string, status = 400, message = 'x') => new ApiError({ status, code, message })
     expect(scanFailure(err('INVALID_TICKET'))).toBe('Bilet bulunamadı. Kodu kontrol edin.')
-    expect(scanFailure(err('TICKET_ALREADY_USED'))).toBe('Bu bilet zaten okutuldu.')
+    expect(scanFailure(err('TICKET_WRONG_EVENT', 400, 'Bu bilet başka bir etkinliğe ait.'))).toBe('Bu bilet başka bir etkinliğe ait.')
     expect(scanFailure(err('FORBIDDEN', 403))).toBe('Bu biletin etkinliğinde giriş yapma yetkiniz yok.')
     expect(scanFailure(err('CHECK_IN_CLOSED', 409, 'Giriş yalnız etkinlikten 60 dakika önce açılır'))).toMatch(/60 dakika/)
   })

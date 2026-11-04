@@ -18,9 +18,9 @@ import { DocumentLink } from './RecordPreview'
 import {
   DOCUMENT_MAX_BYTES,
   DOCUMENT_TYPES,
-  academicYearOf,
   formatMoney,
   parseMoney,
+  useAcademicYearOf,
   useBudgets,
   useFinanceEntries,
   useFinanceSummary,
@@ -168,6 +168,7 @@ function Entries({ clubId, year }: { clubId: string; year: number }) {
                       {e.budgetExceeded && <span className="text-sm font-semibold text-warning">Bütçeyi aşıyor</span>}
                       {e.sponsorshipId && <span className="text-sm text-ink-3">Sponsorluk</span>}
                     </span>
+                    {e.preparedByName && <span className="block text-sm text-ink-3">Hazırlayan {e.preparedByName}</span>}
                     {e.hasDocument && <DocumentLink url={`/clubs/${clubId}/finance/entries/${e.id}/document`} name={e.documentName} />}
                   </span>
                   <span className="tabular text-lg font-heavy sm:text-right">
@@ -264,6 +265,9 @@ function amountError(raw: string, max: number, required: boolean, min = 0.01): s
 function EntryDialog({ clubId, presides, onClose }: { clubId: string; presides: boolean; onClose: () => void }) {
   const submit = useSubmitEntry(clubId)
   const today = nowLocalIso().slice(0, 10)
+  const yearOf = useAcademicYearOf(clubId)
+  const threshold = useFinanceSummary(clubId, yearOf(today)).data?.advisorThreshold
+  const large = threshold != null ? `${formatMoney(threshold)} üstü tutarlar` : 'Büyük tutarlar'
   const [type, setType] = useState<FinanceEntryType>('EXPENSE')
   const [amount, setAmount] = useState('')
   const [description, setDescription] = useState('')
@@ -301,8 +305,8 @@ function EntryDialog({ clubId, presides, onClose }: { clubId: string; presides: 
       title="Gelir ya da gider ekle"
       description={
         presides
-          ? 'Büyük tutarlar danışman onayına gider; diğerleri hemen hesaba işlenir.'
-          : 'Kayıt başkan onayına gider; büyük tutarlar ayrıca danışman onayından geçer.'
+          ? `${large} danışman onayına gider; diğerleri hemen hesaba işlenir.`
+          : `Kayıt başkan onayına gider; ${large.toLocaleLowerCase('tr-TR')} ayrıca danışman onayından geçer.`
       }
       confirmLabel="Kaydet"
       loading={submit.isPending}
@@ -327,7 +331,7 @@ function EntryDialog({ clubId, presides, onClose }: { clubId: string; presides: 
           label="Tarih"
           required
           error={errors.occurredOn}
-          hint={`Hangi akademik yıla yazılacağı tarihe göre belirlenir (${yearLabel(academicYearOf(occurredOn || today))}).`}
+          hint={`Hangi akademik yıla yazılacağı tarihe göre belirlenir (${yearLabel(yearOf(occurredOn || today))}).`}
         >
           <Input type="date" max={today} value={occurredOn} onChange={(e) => setOccurredOn(e.target.value)} className="max-w-[12rem]" />
         </Field>
@@ -350,7 +354,7 @@ function EntryDialog({ clubId, presides, onClose }: { clubId: string; presides: 
 
 function BudgetDialog({ clubId, route, onClose }: { clubId: string; route: string; onClose: () => void }) {
   const submit = useSubmitBudget(clubId)
-  const current = academicYearOf(nowLocalIso().slice(0, 10))
+  const current = useAcademicYearOf(clubId)(nowLocalIso().slice(0, 10))
   const [year, setYear] = useState(String(current))
   const [income, setIncome] = useState('')
   const [expense, setExpense] = useState('')
