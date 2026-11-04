@@ -19,6 +19,7 @@ import { PASSWORD_MIN } from '../schemas'
 import {
   DOCUMENT_ACCEPT,
   DOCUMENT_MAX_BYTES,
+  ENTRY_YEARS,
   LEVEL_LABEL,
   submitApplication,
   useCatalog,
@@ -30,8 +31,6 @@ import { SERVER_FIELD, SERVER_FIELD_ALIAS, STEPS, applicationSchema, stepOf, typ
 const DRAFT_KEY = 'ec-register-draft'
 /** Taslakta saklanmayan alanlar: şifreler ve arayüz bayrakları. */
 const NOT_DRAFTED = new Set(['password', 'confirmPassword', 'catalogAvailable', 'programRequired'])
-const THIS_YEAR = new Date().getFullYear()
-const ENTRY_YEARS = Array.from({ length: 12 }, (_, i) => String(THIS_YEAR - i))
 
 const EMPTY: ApplicationValues = {
   kind: undefined as unknown as ApplicationValues['kind'],

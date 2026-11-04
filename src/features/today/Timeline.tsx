@@ -8,10 +8,11 @@ import { TYPE_LABEL } from '@/features/assignments/api'
 import { Badge } from '@/components/ui/Badge'
 import type { TodayItem } from './items'
 
-const ROW = 'grid grid-cols-[3.75rem_minmax(0,1fr)] gap-x-4 gap-y-1.5 sm:grid-cols-[4.5rem_6.5rem_minmax(0,1fr)_11rem]'
+const ROW = 'grid grid-cols-[3.75rem_minmax(0,1fr)] gap-x-4 gap-y-1.5 @xl:grid-cols-[4.5rem_6.5rem_minmax(0,1fr)_11rem]'
 
 /**
- * Yaklaşanlar tablosu: gün başlıkları altında saat, ders kodu ya da etkinlik, başlık ve durum kolonları.
+ * Yaklaşanlar tablosu: gün başlıkları altında saat, ders kodu ya da etkinlik, başlık ve durum kolonları. Kolonlar sayfaya
+ * değil tablonun kendi genişliğine göre açılır; yan sütunlu dar sayfada başlık sıkışmaz.
  * Satıra gelince zemin soldan dolar; liste süzülünce günler kısa bir geçişle girip çıkar.
  */
 export function Timeline({ items, now, codeOf }: { items: TodayItem[]; now: string; codeOf: Map<string, string> }) {
@@ -24,7 +25,7 @@ export function Timeline({ items, now, codeOf }: { items: TodayItem[]; now: stri
   }
 
   return (
-    <div>
+    <div className="@container">
       <AnimatePresence initial={false}>
         {groups.map(([day, list]) => {
           const label = dayLabel(list[0]!.at, now)
@@ -61,7 +62,7 @@ export function Timeline({ items, now, codeOf }: { items: TodayItem[]; now: stri
 
 function Line({ color, code }: { color: string; code: string }) {
   return (
-    <span className="hidden items-center gap-2 pt-1 sm:flex">
+    <span className="hidden items-center gap-2 pt-1 @xl:flex">
       <span aria-hidden className="h-4 w-[3px]" style={{ background: color }} />
       <span className="tabular truncate text-md font-heavy">{code}</span>
     </span>
@@ -79,11 +80,11 @@ function AssignmentRow({ item, code, now }: { item: Extract<TodayItem, { kind: '
         <span className="min-w-0">
           <span className="block text-lg font-semibold">{a.title}</span>
           <span className="mt-0.5 block text-sm text-ink-3">
-            <span className="tabular font-semibold text-ders sm:hidden">{code} </span>
+            <span className="tabular font-semibold text-ders @xl:hidden">{code} </span>
             {v.phase === 'late' ? `Geç teslim bitişi${v.penaltyText ? `, ${v.penaltyText}` : ''}` : TYPE_LABEL[a.type]}
           </span>
         </span>
-        <span className="col-start-2 flex flex-wrap items-center gap-x-3 gap-y-1 sm:col-start-auto sm:flex-col sm:items-end sm:text-right">
+        <span className="col-start-2 flex flex-wrap items-center gap-x-3 gap-y-1 @xl:col-start-auto @xl:flex-col @xl:items-end @xl:text-right">
           <Badge tone={v.status.tone}>{v.status.label}</Badge>
           {v.timing && <span className="tabular text-sm text-ink-3">{v.timing}</span>}
         </span>
@@ -103,7 +104,7 @@ function EventRow({ item }: { item: Extract<TodayItem, { kind: 'event' }> }) {
           <span className="block text-lg font-semibold">{e.eventTitle}</span>
           {e.eventLocation && <span className="mt-0.5 block text-sm text-ink-3">{e.eventLocation}</span>}
         </span>
-        <span className="col-start-2 sm:col-start-auto sm:text-right">
+        <span className="col-start-2 @xl:col-start-auto @xl:text-right">
           <Badge tone="success">Kayıtlısınız</Badge>
         </span>
       </Link>

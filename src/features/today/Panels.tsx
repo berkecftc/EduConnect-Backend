@@ -108,14 +108,14 @@ const WEEKDAY = new Intl.DateTimeFormat('tr-TR', { weekday: 'long', timeZone: 'U
 export function CampusEvents({ list, registered }: { list: CampusEvent[]; registered: Set<string> }) {
   if (list.length === 0) return <p className="py-2 text-md text-ink-2">Bu hafta kampüste yayımlanmış etkinlik yok.</p>
   return (
-    <ul>
+    <ul className="@container">
       {list.map((e) => {
         const d = new Date(`${e.startsAt.slice(0, 10)}T12:00:00Z`)
         return (
           <li key={e.id} className="border-b border-rule last:border-0">
             <Link
               to={`/events/${e.id}`}
-              className="row-fill grid grid-cols-[4rem_minmax(0,1fr)] items-start gap-x-5 gap-y-1 py-4 sm:grid-cols-[4.5rem_minmax(0,1fr)_14rem]"
+              className="row-fill grid grid-cols-[4rem_minmax(0,1fr)] items-start gap-x-5 gap-y-1 py-4 @xl:grid-cols-[4.5rem_minmax(0,1fr)_14rem]"
             >
               <span>
                 <span className="tabular block text-4xl leading-none font-heavy">{d.getUTCDate()}</span>
@@ -130,7 +130,7 @@ export function CampusEvents({ list, registered }: { list: CampusEvent[]; regist
                 </span>
                 <span className="mt-0.5 block pl-[11px] text-sm text-ink-3">{e.clubName ?? e.organizerName ?? 'Kampüs'}</span>
               </span>
-              <span className="col-start-2 text-sm text-ink-2 sm:col-start-auto sm:text-right">
+              <span className="col-start-2 text-sm text-ink-2 @xl:col-start-auto @xl:text-right">
                 <span className="tabular block font-semibold text-ink">
                   {formatLocal(e.startsAt, 'time')}
                   {e.endsAt ? `–${formatLocal(e.endsAt, 'time')}` : ''}

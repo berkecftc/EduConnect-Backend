@@ -1,15 +1,13 @@
 import { Link, useSearchParams } from 'react-router-dom'
-import { Paperclip } from 'lucide-react'
 import { hasRole, useSession } from '@/lib/auth/session'
 import { cn } from '@/lib/cn'
-import { formatNumber } from '@/lib/format'
-import { formatRelative } from '@/lib/time'
 import { usePageTitle } from '@/lib/usePageTitle'
 import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
 import { Panel } from '@/components/ui/Panel'
 import { EmptyState, PageHeader, QueryBoundary } from '@/components/ui/States'
-import { APPEAL_STATUS, POST_STATUS, postKindLabel, useFeed, useMyAppeals, type FeedFilter, type Post, type PublisherType } from './api'
+import { APPEAL_STATUS, useFeed, useMyAppeals, type FeedFilter, type PublisherType } from './api'
+import { PostRow } from './PostRow'
 import { usePublishers } from './publishers'
 
 type View = { key: string; label: string; filter: FeedFilter }
@@ -22,16 +20,6 @@ const SOURCES: { key: string; label: string; type?: PublisherType }[] = [
   { key: 'kampus', label: 'Kampüs', type: 'CAMPUS' },
 ]
 
-/** Satırdaki renk çizgisi: alanı anlatır (kulüp, ders); kampüs duyurusu kuruma ait, nötr. */
-const lineOf = (p: Post) =>
-  p.official && p.publisherType === 'CLUB'
-    ? 'bg-kulup'
-    : p.official && p.publisherType === 'COURSE'
-      ? 'bg-ders'
-      : p.official && p.publisherType === 'CAMPUS'
-        ? 'bg-ink'
-        : 'bg-topluluk'
-
 const VIEWS: View[] = [
   { key: 'tumu', label: 'Tümü', filter: { list: 'all' } },
   { key: 'sorular', label: 'Sorular', filter: { list: 'all', category: 'SORU' } },
@@ -41,8 +29,6 @@ const VIEWS: View[] = [
   { key: 'kaydedilenler', label: 'Kaydedilenler', filter: { list: 'saved' } },
   { key: 'benim', label: 'Gönderilerim', filter: { list: 'mine' } },
 ]
-
-const ROW = 'grid gap-x-8 gap-y-2 py-6 sm:grid-cols-[9rem_minmax(0,1fr)_7rem]'
 
 /**
  * Akış (F-67): kategori ve liste süzgeçleri; satırda tür, başlık, özet, yazar ve sayılar. Gönderi yazmak öğrencilere,
@@ -179,56 +165,6 @@ function Empty({ view, student }: { view: View; student: boolean }) {
     >
       {body}
     </EmptyState>
-  )
-}
-
-function excerpt(text: string) {
-  const flat = text.replace(/\s+/g, ' ').trim()
-  return flat.length > 220 ? `${flat.slice(0, 220).trimEnd()}…` : flat
-}
-
-/** Satır: solda tür (resmî duyuruda yayımlayan), ortada başlık, özet ve künye, sağda beğeni ve yorum sayısı. */
-function PostRow({ post: p, showStatus }: { post: Post; showStatus: boolean }) {
-  const status = POST_STATUS[p.status]
-  const answered = p.category === 'SORU' && !!p.acceptedCommentId
-  return (
-    <li className="border-b border-rule">
-      <Link to={`/posts/${p.id}`} className={cn(ROW, 'row-fill group')}>
-        <span className="flex flex-wrap items-baseline gap-x-3 sm:block">
-          <span className="flex items-center gap-2 text-md font-semibold">
-            <span aria-hidden className={cn('h-4 w-[3px] shrink-0', lineOf(p))} />
-            {postKindLabel(p)}
-          </span>
-          <span className="text-sm text-ink-3 sm:mt-1 sm:block">{formatRelative(p.createdAt)}</span>
-        </span>
-        <span className="min-w-0">
-          <span className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-            <span className="text-xl leading-snug font-semibold text-balance transition-transform duration-300 ease-rail group-hover:translate-x-1">{p.title}</span>
-            {answered && <Badge tone="success">Cevaplandı</Badge>}
-            {showStatus && status && <Badge tone={status.tone}>{status.label}</Badge>}
-          </span>
-          <span className="mt-1 line-clamp-2 block max-w-[72ch] text-md text-ink-2">{excerpt(p.content)}</span>
-          <span className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-ink-3">
-            <span className={p.official ? 'font-semibold text-ink' : undefined}>{p.official ? (p.publisherName ?? p.authorName) : p.authorName}</span>
-            {p.courseLabel && !p.official && <span>{p.courseLabel}</span>}
-            {p.attachmentName && (
-              <span className="flex items-center gap-1">
-                <Paperclip className="size-3.5" aria-hidden />
-                Ek dosya
-              </span>
-            )}
-          </span>
-        </span>
-        <span className="flex gap-6 sm:flex-col sm:items-end sm:gap-1 sm:text-right">
-          <span className="text-sm text-ink-2">
-            <span className="tabular text-lg font-heavy text-ink">{formatNumber(p.commentCount)}</span> yorum
-          </span>
-          <span className="text-sm text-ink-2">
-            <span className="tabular text-lg font-heavy text-ink">{formatNumber(p.likeCount)}</span> beğeni
-          </span>
-        </span>
-      </Link>
-    </li>
   )
 }
 

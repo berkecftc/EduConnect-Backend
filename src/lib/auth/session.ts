@@ -112,6 +112,12 @@ export function setSession(next: Session | null, { persist = true }: { persist?:
   emit()
 }
 
+/** Açık oturumun alanlarını değiştirir; önizleme oturumu kalıcı depoya yazılmaz. */
+export function patchSession(patch: Partial<Session>) {
+  if (!current) return
+  setSession({ ...current, ...patch }, { persist: read()?.token === current.token })
+}
+
 export function subscribe(listener: () => void) {
   listeners.add(listener)
   return () => {

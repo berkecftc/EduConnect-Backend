@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { usePageTitle } from '@/lib/usePageTitle'
+import { usePanel, viewRoles } from '@/lib/auth/panel'
 import { hasRole, useSession } from '@/lib/auth/session'
 import { formatLocal, greeting, localDiffMs, nowLocalIso } from '@/lib/time'
 import { useMe } from '@/features/me/useMe'
@@ -23,9 +24,8 @@ import { StaffToday } from '@/features/today/StaffToday'
 export function HomePage() {
   usePageTitle('Bugün')
   const session = useSession()
-  const student = hasRole(session, 'ROLE_STUDENT', 'ROLE_CLUB_OFFICIAL')
-  // Menü gibi: akademisyen kaydı varsa akademisyen görünümü (çift bağlılıkta da).
-  const academician = hasRole(session, 'ROLE_ACADEMICIAN')
+  // Menü gibi: çift bağlılıkta seçili görünüm belirler.
+  const { student, academician } = viewRoles(session, usePanel())
   const staffOrAdmin = hasRole(session, 'ROLE_STAFF', 'ROLE_ADMIN')
 
   return (

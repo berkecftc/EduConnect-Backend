@@ -1,5 +1,5 @@
 import { useId, useState } from 'react'
-import { Link, useNavigate, useParams } from 'react-router-dom'
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { toApiError, type ApiError } from '@/lib/api/problem'
@@ -116,13 +116,17 @@ function Composer({ existing, publishers, student }: { existing?: Post; publishe
   const qc = useQueryClient()
   const save = useSavePost(existing?.id)
   const courses = useMyCourses(student)
+  // Ders sayfasındaki "Ders notu paylaş" türü ve dersi seçili açar.
+  const [params] = useSearchParams()
   const declarationId = useId()
   const commentsId = useId()
   const editing = !!existing
-  const [category, setCategory] = useState<PostInput['category']>(existing?.category ?? (student ? 'SORU' : 'DUYURU'))
+  const [category, setCategory] = useState<PostInput['category']>(
+    existing?.category ?? (!student ? 'DUYURU' : params.get('tur') === 'DERS_NOTU' ? 'DERS_NOTU' : 'SORU'),
+  )
   const [title, setTitle] = useState(existing?.title ?? '')
   const [content, setContent] = useState(existing?.content ?? '')
-  const [courseId, setCourseId] = useState(existing?.courseId ?? '')
+  const [courseId, setCourseId] = useState(existing?.courseId ?? params.get('ders') ?? '')
   const [declared, setDeclared] = useState(false)
   const [publisherKey, setPublisherKey] = useState('')
   const [publisherName, setPublisherName] = useState('')

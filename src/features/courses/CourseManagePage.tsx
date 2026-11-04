@@ -26,6 +26,7 @@ import {
 } from './api'
 import { useCourseAssignments, useGroupSets } from '@/features/assignments/staff'
 import { CourseAssessmentsTab, GradebookTab } from './CourseAssessments'
+import { CourseNotes } from './CourseNotes'
 import { CourseGroupsTab } from './CourseGroups'
 import { CourseAnnouncementsManage, CourseMaterialsManage } from './CourseContent'
 import { CourseApplications, CourseStudents } from './CourseRoster'
@@ -92,6 +93,7 @@ function Body({ course: c, role, pending }: { course: Course; role: StaffRole; p
               count: materials.data?.length,
               content: <CourseMaterialsManage course={c} role={role} />,
             },
+            { value: 'ders-notlari', label: 'Ders notları', content: <CourseNotes courseId={c.id} canHide={role !== 'ASSISTANT'} /> },
           ]}
         />
       </div>

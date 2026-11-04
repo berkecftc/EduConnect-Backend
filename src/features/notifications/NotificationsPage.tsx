@@ -9,7 +9,8 @@ import { Button } from '@/components/ui/Button'
 import { EmptyState, PageHeader, QueryBoundary } from '@/components/ui/States'
 import {
   CATEGORY_META,
-  REMINDER_SHORTCUT,
+  isReminder,
+  notificationShortcut,
   useMarkAllRead,
   useNotifications,
   useOpenNotification,
@@ -154,15 +155,14 @@ function Days({ items }: { items: AppNotification[] }) {
 
 /**
  * Bildirim satırı: başlık bütün satırı kaplayan düğmedir (tıklayınca okundu + bağlantı);
- * hatırlatma kısayolu satırın üstünde ayrı bir düğme olarak durur.
+ * türüne göre kısayol satırın üstünde ayrı bir düğme olarak durur.
  */
 function Row({ n, time }: { n: AppNotification; time: string }) {
   const open = useOpenNotification()
   const meta = CATEGORY_META[n.category]
-  const shortcut = REMINDER_SHORTCUT[n.type]
-  const shortcutTo = shortcut?.to(n)
+  const shortcut = notificationShortcut(n)
   const actionable = !!n.link || !n.read
-  const reminder = !!shortcut
+  const reminder = isReminder(n)
 
   return (
     <li className={cn('border-b border-rule', actionable && 'row-fill')}>
@@ -190,10 +190,10 @@ function Row({ n, time }: { n: AppNotification; time: string }) {
             <p className={cn('mt-1 text-lg', n.read ? 'text-ink-2' : 'font-semibold')}>{n.title}</p>
           )}
           {n.body && <p className="mt-0.5 max-w-[64ch] text-md text-ink-2">{n.body}</p>}
-          {shortcut && shortcutTo && (
+          {shortcut && (
             <button
               type="button"
-              onClick={() => open(n, shortcutTo)}
+              onClick={() => open(n, shortcut.to)}
               className="relative z-10 mt-2 text-sm font-semibold underline underline-offset-4 hover:text-ink"
             >
               {shortcut.label}

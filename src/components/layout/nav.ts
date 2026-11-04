@@ -1,4 +1,5 @@
 import type { LineKey } from '@/design/lines'
+import { viewRoles, type Panel } from '@/lib/auth/panel'
 import { hasPermission, hasRole, type Session } from '@/lib/auth/session'
 
 export type NavItem = { to: string; label: string }
@@ -8,10 +9,10 @@ export type NavGroup = { line: LineKey; label: string; items: NavItem[] }
  * Rol ve yetkiye göre menü. Her grup bir hat; öğeler o hattın durakları.
  * Rotalar bildirimlerin `link` alanlarıyla aynı (F-74…F-77).
  * `clubs.approver`: herhangi bir kulüpte başkan onayı yetkisi (GET /clubs/my-access, F-85); rol adından tahmin edilmez.
+ * `panel`: hem personel hem öğrenci olan hesapta seçili görünüm (F-54).
  */
-export function buildNav(session: Session, clubs: { approver: boolean } = { approver: false }): NavGroup[] {
-  const student = hasRole(session, 'ROLE_STUDENT', 'ROLE_CLUB_OFFICIAL')
-  const academician = hasRole(session, 'ROLE_ACADEMICIAN')
+export function buildNav(session: Session, clubs: { approver: boolean } = { approver: false }, panel: Panel | null = null): NavGroup[] {
+  const { student, academician } = viewRoles(session, panel)
   const staff = hasRole(session, 'ROLE_STAFF')
   const admin = hasRole(session, 'ROLE_ADMIN')
   const groups: NavGroup[] = []

@@ -137,7 +137,7 @@ export function AcademicianToday() {
       </div>
 
       <div className="mt-14 grid gap-14 lg:grid-cols-12 lg:gap-10">
-        <div className="flex min-w-0 flex-col gap-20 lg:col-span-8">
+        <div className="@container flex min-w-0 flex-col gap-20 lg:col-span-8">
           <Panel title="Bu dönem verdiğiniz dersler" to="/courses" linkLabel="Verdiğim dersler">
             {teaching.isPending ? (
               <Skeleton rows={3} />
@@ -155,7 +155,7 @@ export function AcademicianToday() {
                     <li key={c.id} className="border-b border-rule">
                       <Link
                         to={`/courses/${c.id}`}
-                        className="row-fill group grid gap-x-6 gap-y-2 py-5 sm:grid-cols-[8rem_minmax(0,1fr)_14rem]"
+                        className="row-fill group grid gap-x-6 gap-y-2 py-5 @xl:grid-cols-[8rem_minmax(0,1fr)_14rem]"
                       >
                         <span className="flex items-start gap-3">
                           <span aria-hidden className="mt-1 h-6 w-[3px] shrink-0 bg-ders" />
@@ -175,7 +175,7 @@ export function AcademicianToday() {
                             )}
                           </span>
                         </span>
-                        <span className="flex flex-col gap-0.5 text-md sm:items-end sm:text-right">
+                        <span className="flex flex-col gap-0.5 text-md @xl:items-end @xl:text-right">
                           {can.applications && c.pendingApplicationCount > 0 && (
                             <span className="font-semibold text-warning">{c.pendingApplicationCount} başvuru bekliyor</span>
                           )}
@@ -206,9 +206,9 @@ export function AcademicianToday() {
                     <li key={a.id} className="border-b border-rule">
                       <Link
                         to={`/courses/${course.id}/assignments/${a.id}`}
-                        className="row-fill grid grid-cols-[3.5rem_minmax(0,1fr)] gap-x-5 gap-y-1 py-4 sm:grid-cols-[4rem_minmax(0,1fr)_11rem]"
+                        className="row-fill grid grid-cols-[3.5rem_minmax(0,1fr)] gap-x-5 gap-y-1 py-4 @lg:grid-cols-[4rem_minmax(0,1fr)_11rem]"
                       >
-                        <span className="row-span-2 sm:row-span-1">
+                        <span className="row-span-2 @lg:row-span-1">
                           <span className="tabular block text-3xl leading-none font-heavy">{DAY.format(at)}</span>
                           <span className="mt-1 block text-xs text-ink-3">
                             {MONTH.format(at)}, {formatLocal(a.dueDate, 'time')}
@@ -222,7 +222,7 @@ export function AcademicianToday() {
                             <span>ağırlık %{formatNumber(a.weight)}</span>
                           </span>
                         </span>
-                        <span className="tabular col-start-2 text-sm text-ink-2 sm:col-start-auto sm:text-right">
+                        <span className="tabular col-start-2 text-sm text-ink-2 @lg:col-start-auto @lg:text-right">
                           {p.submitted} / {p.students} teslim
                         </span>
                       </Link>

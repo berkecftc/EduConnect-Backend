@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { NavLink, useLocation, useOutlet } from 'react-router-dom'
+import { NavLink, useLocation, useNavigate, useOutlet } from 'react-router-dom'
 import { Bell, LogOut, Menu, X } from 'lucide-react'
 import { Dialog } from 'radix-ui'
 import { AnimatePresence, motion } from 'motion/react'
 import { LINES } from '@/design/lines'
 import { ease, transition } from '@/design/motion'
 import { logout } from '@/lib/api/client'
+import { setPanel, usePanel, type Panel } from '@/lib/auth/panel'
 import { hasRole, useSession, type Session } from '@/lib/auth/session'
 import { cn } from '@/lib/cn'
 import { Button } from '@/components/ui/Button'
@@ -165,7 +166,8 @@ function useActivePath(groups: NavGroup[]) {
 function SideNav({ session, indicatorId }: { session: Session; indicatorId: string }) {
   const accesses = useClubAccesses(hasRole(session, 'ROLE_STUDENT', 'ROLE_CLUB_OFFICIAL'))
   const approver = (accesses.data ?? []).some((a) => a.permissions.includes('APPROVE_AS_PRESIDENT'))
-  const groups = useMemo(() => buildNav(session, { approver }), [session, approver])
+  const panel = usePanel()
+  const groups = useMemo(() => buildNav(session, { approver }, panel), [session, approver, panel])
   const active = useActivePath(groups)
   const indicator = `nav-gosterge-${indicatorId}`
 
@@ -261,9 +263,43 @@ function NotificationBell() {
   )
 }
 
+const PANELS: { value: Panel; label: string }[] = [
+  { value: 'academician', label: 'Personel' },
+  { value: 'student', label: 'Öğrenci' },
+]
+
+/** Hem personel hem öğrenci olan hesapta görünüm seçimi (F-54); menü değiştiği için Bugün ekranına dönülür. */
+function PanelSwitch({ panel }: { panel: Panel }) {
+  const navigate = useNavigate()
+  return (
+    <div role="group" aria-label="Görünüm" className="mt-3 flex items-baseline gap-4 text-sm">
+      <span className="text-ink-3">Görünüm</span>
+      {PANELS.map((p) => (
+        <button
+          key={p.value}
+          type="button"
+          aria-pressed={panel === p.value}
+          onClick={() => {
+            if (panel === p.value) return
+            setPanel(p.value)
+            navigate('/')
+          }}
+          className={cn(
+            'font-semibold underline-offset-4 hover:underline',
+            panel === p.value ? 'text-ink underline decoration-2' : 'text-ink-3 hover:text-ink',
+          )}
+        >
+          {p.label}
+        </button>
+      ))}
+    </div>
+  )
+}
+
 function UserBlock({ session }: { session: Session }) {
   // Profil yoksa (yönetici/görevli) e-posta ve JWT rolleriyle devam edilir (F-83).
   const { data: me } = useMe()
+  const panel = usePanel()
   return (
     <div className="border-t border-rule px-6 py-5">
       <NavLink to="/profile" className="group block min-w-0">
@@ -271,6 +307,7 @@ function UserBlock({ session }: { session: Session }) {
         <span className="block truncate text-md font-semibold group-hover:underline">{displayName(me, session.email)}</span>
         <span className="block truncate text-sm text-ink-3">{me?.programName ?? roleLabel(session)}</span>
       </NavLink>
+      {panel && <PanelSwitch panel={panel} />}
       <NavLink
         to="/settings"
         className={({ isActive }) => cn('mt-2 inline-block text-sm font-semibold underline-offset-4 hover:underline', isActive ? 'text-ink' : 'text-ink-2')}

@@ -1,4 +1,4 @@
-import { useId, type ReactNode } from 'react'
+import { useEffect, useId, useRef, type ReactNode } from 'react'
 import { Tabs as RTabs } from 'radix-ui'
 import { motion } from 'motion/react'
 import { useSearchParams } from 'react-router-dom'
@@ -16,6 +16,21 @@ export function Tabs({ tabs, label, param = 'sekme' }: { tabs: TabDef[]; label: 
   const first = tabs[0]?.value ?? ''
   const requested = params.get(param)
   const value = tabs.some((t) => t.value === requested) ? requested! : first
+  const listRef = useRef<HTMLDivElement>(null)
+
+  // Sayılar sonradan gelince sekmeler genişler; konum o zaman yeniden hesaplanır.
+  const widths = tabs.map((t) => t.count).join()
+
+  // Bağlantıyla açılan sekme dar ekranda şeridin dışında kalmasın; yalnız şerit kayar, sayfa yerinde durur.
+  useEffect(() => {
+    const list = listRef.current
+    const active = list?.querySelector('[data-state="active"]')
+    if (!list || !active) return
+    const a = active.getBoundingClientRect()
+    const l = list.getBoundingClientRect()
+    if (a.left < l.left) list.scrollLeft -= l.left - a.left
+    else if (a.right > l.right) list.scrollLeft += a.right - l.right
+  }, [value, widths])
 
   return (
     <RTabs.Root
@@ -27,7 +42,7 @@ export function Tabs({ tabs, label, param = 'sekme' }: { tabs: TabDef[]; label: 
         setParams(next, { replace: true })
       }}
     >
-      <RTabs.List aria-label={label} className="-mx-1 flex gap-1 overflow-x-auto overflow-y-hidden border-b border-rule px-1">
+      <RTabs.List ref={listRef} aria-label={label} className="-mx-1 flex gap-1 overflow-x-auto overflow-y-hidden border-b border-rule px-1 [scrollbar-width:thin]">
         {tabs.map((t) => (
           <RTabs.Trigger
             key={t.value}

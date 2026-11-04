@@ -37,9 +37,10 @@ import {
   type Material,
 } from './api'
 import { PersonLink } from '@/features/people/PersonLink'
+import { CourseNotes } from './CourseNotes'
 import { StudentGroups } from './StudentGroups'
 
-/** Ders sayfası (öğrenci): genel bakış ve kadro, ödevler, materyaller, notlarım, duyurular; derste grup seti varsa gruplar. */
+/** Ders sayfası (öğrenci): genel bakış ve kadro, ödevler, materyaller, ders notları, notlarım, duyurular; derste grup seti varsa gruplar. */
 export function CoursePage() {
   const { courseId = '' } = useParams()
   const course = useCourse(courseId)
@@ -109,6 +110,7 @@ function CourseBody({ course: c }: { course: Course }) {
                 ]
               : []),
             { value: 'materyaller', label: 'Materyaller', content: <Materials courseId={c.id} /> },
+            { value: 'ders-notlari', label: 'Ders notları', content: <CourseNotes courseId={c.id} canShare /> },
             { value: 'notlar', label: 'Notlarım', content: <Grades courseId={c.id} /> },
             { value: 'duyurular', label: 'Duyurular', content: <Announcements courseId={c.id} /> },
           ]}

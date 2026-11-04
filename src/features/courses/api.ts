@@ -140,6 +140,33 @@ export const courseKeys = {
   currentTerm: ['courses', 'terms', 'current'] as const,
 }
 
+/** `GET /api/courses/my-enrollment-history` öğesi (F-44): öğrencinin kayıt izi, yeniden eskiye. */
+export type MyEnrollmentEvent = {
+  id: string
+  courseId: string
+  courseCode: string | null
+  courseTitle: string | null
+  termLabel: string | null
+  type: 'ENROLLED' | 'WITHDRAWN' | 'REMOVED'
+  reason: string | null
+  occurredAt: string
+  afterEnrollmentPeriod: boolean
+}
+
+export const MY_ENROLLMENT_LABEL: Record<MyEnrollmentEvent['type'], string> = {
+  ENROLLED: 'Kaydoldunuz',
+  WITHDRAWN: 'Çekildiniz',
+  REMOVED: 'Dersten çıkarıldınız',
+}
+
+export function useMyEnrollmentHistory(enabled = true) {
+  return useQuery({
+    queryKey: ['courses', 'my-enrollment-history'],
+    enabled,
+    queryFn: async () => (await api.get<MyEnrollmentEvent[]>('/courses/my-enrollment-history')).data,
+  })
+}
+
 export function useMyCourses(enabled = true) {
   return useQuery({
     queryKey: courseKeys.mine,

@@ -15,6 +15,17 @@ import * as tx from './teachPreview'
 
 type Handler = (m: RegExpMatchArray, config: InternalAxiosRequestConfig) => unknown
 
+/** `?rol=cift`: hem personel hem öğrenci; iki tarafın örnek verisi de açık. */
+let dualPreview = false
+
+const TITLES = [
+  { code: 'PROFESSOR', label: 'Prof. Dr.', category: 'FACULTY_MEMBER' },
+  { code: 'ASSOCIATE_PROFESSOR', label: 'Doç. Dr.', category: 'FACULTY_MEMBER' },
+  { code: 'ASSISTANT_PROFESSOR', label: 'Dr. Öğr. Üyesi', category: 'FACULTY_MEMBER' },
+  { code: 'LECTURER', label: 'Öğr. Gör.', category: 'LECTURER' },
+  { code: 'RESEARCH_ASSISTANT', label: 'Arş. Gör.', category: 'RESEARCH_ASSISTANT' },
+]
+
 /** Sunucunun varsayılanı gibi: giriş etkinlikten bir saat önce açılır. */
 const gateOpens = (startsAt: string) => new Date(localStamp(startsAt) - 3_600_000).toISOString().slice(0, 19)
 
@@ -30,7 +41,7 @@ const studentGroupView = (courseId: string) =>
 /** Yol → örnek yanıt. Sıra önemli: daha özel yollar önce. */
 const GET: [RegExp, Handler][] = [
   [/^\/users\/me$/, () => ({ ...fx.me })],
-  [/^\/posts$/, (_m, config) => px.feed('all', (config.params ?? {}) as { category?: string; official?: boolean; page?: number; size?: number })],
+  [/^\/posts$/, (_m, config) => px.feed('all', (config.params ?? {}) as { category?: string; official?: boolean; publisherType?: string; courseId?: string; page?: number; size?: number })],
   [/^\/posts\/saved$/, (_m, config) => px.feed('saved', (config.params ?? {}) as { page?: number })],
   [/^\/posts\/me$/, (_m, config) => px.feed('mine', (config.params ?? {}) as { page?: number })],
   [/^\/posts\/appeals\/me$/, () => px.appeals.map((a) => ({ ...a }))],
@@ -39,6 +50,7 @@ const GET: [RegExp, Handler][] = [
   [/^\/posts\/([^/]+)$/, (m) => ({ ...(px.posts.find((p) => p.id === m[1]) ?? notFound()) })],
   [/^\/users\/profile\/me\/change-requests$/, () => fx.changeRequests.map((r) => ({ ...r }))],
   [/^\/users\/academic\/catalog$/, () => fx.academicCatalog],
+  [/^\/users\/academic\/titles$/, () => TITLES],
   [/^\/gamification\/users\/me\/leaderboard-preference$/, () => ({ ...fx.leaderboardPreference })],
   [
     /^\/gamification\/leaderboard$/,
@@ -48,6 +60,7 @@ const GET: [RegExp, Handler][] = [
     },
   ],
   [/^\/courses\/instructor\/([^/]+)$/, (m) => fx.catalog(fx.term.id).filter((c) => c.instructorId === m[1])],
+  [/^\/courses\/my-enrollment-history$/, () => fx.enrollmentHistory],
   [/^\/courses\/my-courses$/, () => fx.courses],
   // Kopya: başvuru ve geri çekme diziyi yerinde değiştirir; aynı nesne dönerse React Query değişikliği görmez.
   [/^\/courses\/my-applications$/, () => fx.applications.map((a) => ({ ...a }))],
@@ -145,6 +158,17 @@ const GET: [RegExp, Handler][] = [
 
 /** Yazma istekleri (yöntem, yol): başvuru, geri çekme, ayrılma ve yenileme önizleme verisini değiştirir; diğerleri boş yanıt döner. */
 const WRITE: [string, RegExp, Handler][] = [
+  [
+    'post',
+    /^\/auth\/affiliations\/(student|academician)$/,
+    async (_m, config) => {
+      const part = (config.data as FormData).get('request') as Blob
+      const request = JSON.parse(await part.text()) as { studentNumber?: string }
+      if (request.studentNumber !== undefined && !/^\d{8,12}$/.test(request.studentNumber))
+        cx.fail(config, 400, 'INVALID_STUDENT_NUMBER', 'Öğrenci numarası kurum biçimine uymuyor.')
+      return 'Başvurunuz alındı; onay bekleniyor.'
+    },
+  ],
   [
     'post',
     /^\/assignments\/groups\/([^/]+)\/(join|leave)$/,
@@ -271,6 +295,15 @@ const WRITE: [string, RegExp, Handler][] = [
           ? "Bildirimin öncelikli olarak bir moderatöre iletildi. Acil bir tehlike varsa kampüs güvenliğine veya 112'ye başvur; konuşmak istersen üniversitenin psikolojik danışmanlık birimi sana destek olabilir."
           : null,
       }
+    },
+  ],
+  [
+    'post',
+    /^\/posts\/([^/]+)\/hide$/,
+    (m, config) => {
+      const p = px.posts.find((x) => x.id === m[1])!
+      Object.assign(p, { status: 'HIDDEN', reviewNote: (JSON.parse(String(config.data)) as { reason: string }).reason })
+      return null
     },
   ],
   [
@@ -683,10 +716,10 @@ const fixtureAdapter: AxiosAdapter = async (config: InternalAxiosRequestConfig) 
   const reply = (status: number, data: unknown): AxiosResponse => ({ status, statusText: '', data, headers: {}, config })
   const method = config.method ?? 'get'
   if (method !== 'get') {
-    const hit = (tx.state.academician ? [...dx.WRITE, ...ax.WRITE, ...tx.WRITE, ...WRITE] : mx.state.role ? [...mx.WRITE, ...WRITE] : [...cx.WRITE, ...WRITE]).filter(([verb]) => verb === method).map(([, re, handle]) => [url.match(re), handle] as const).find(([m]) => m)
+    const hit = (tx.state.academician ? [...dx.WRITE, ...ax.WRITE, ...tx.WRITE, ...(dualPreview ? cx.WRITE : []), ...WRITE] : mx.state.role ? [...mx.WRITE, ...WRITE] : [...cx.WRITE, ...WRITE]).filter(([verb]) => verb === method).map(([, re, handle]) => [url.match(re), handle] as const).find(([m]) => m)
     return reply(200, hit ? await hit[1](hit[0]!, config) : {})
   }
-  for (const [re, handle] of tx.state.academician ? [...dx.GET, ...ax.GET, ...tx.GET, ...GET] : mx.state.role ? [...mx.GET, ...GET] : [...cx.GET, ...GET]) {
+  for (const [re, handle] of tx.state.academician ? [...dx.GET, ...ax.GET, ...tx.GET, ...(dualPreview ? cx.GET : []), ...GET] : mx.state.role ? [...mx.GET, ...GET] : [...cx.GET, ...GET]) {
     const m = url.match(re)
     if (!m) continue
     try {
@@ -712,10 +745,11 @@ export function PreviewPage() {
   const navigate = useNavigate()
   const qc = useQueryClient()
   useEffect(() => {
-    // ?rol=akademisyen: Dr. Öğr. Üyesi Mehmet Kaya; ?rol=gorevli: öğrenci ve personel doğrulayıcısı;
-    // ?rol=yonetici: sistem yöneticisi; yoksa öğrenci Elif Demir.
+    // ?rol=akademisyen: Dr. Öğr. Üyesi Mehmet Kaya; ?rol=cift: Mehmet Kaya hem personel hem öğrenci;
+    // ?rol=gorevli: öğrenci ve personel doğrulayıcısı; ?rol=yonetici: sistem yöneticisi; yoksa öğrenci Elif Demir.
     const rol = new URLSearchParams(window.location.search).get('rol')
-    const academician = rol === 'akademisyen'
+    dualPreview = rol === 'cift'
+    const academician = rol === 'akademisyen' || dualPreview
     const manager = rol === 'gorevli' ? 'staff' : rol === 'yonetici' ? 'admin' : null
     tx.state.academician = academician
     mx.state.role = manager
@@ -728,7 +762,7 @@ export function PreviewPage() {
         refreshToken: 'onizleme',
         userId: academician ? tx.me.id : manager ? mx.STAFF.id : 'u1',
         email: academician ? tx.me.email! : manager ? mx.STAFF.email : fx.me.email!,
-        roles: [role],
+        roles: dualPreview ? ['ROLE_ACADEMICIAN', 'ROLE_STUDENT'] : [role],
         primaryRole: role,
         pendingRequests: [],
         permissions: manager === 'staff' ? ['PERM_STUDENT_VERIFIER', 'PERM_STAFF_VERIFIER', 'PERM_ACCOUNT_MANAGER', 'PERM_MODERATOR', 'PERM_CAMPUS_PUBLISHER'] : [],

@@ -62,6 +62,9 @@ export async function submitApplication(kind: ApplicationKind, request: Applicat
   await api.post(kind === 'student' ? '/auth/request/student-account' : '/auth/request/academician-account', body)
 }
 
+/** Seçilebilir giriş yılları: bu yıl ve önceki 11 yıl, yeniden eskiye. */
+export const ENTRY_YEARS = Array.from({ length: 12 }, (_, i) => String(new Date().getFullYear() - i))
+
 /** Belge kuralları: sunucu dosya imzasına bakar; tek dosya en fazla 5 MB (multipart sınırı). */
 export const DOCUMENT_ACCEPT = 'application/pdf,image/jpeg,image/png,image/webp,image/gif'
 export const DOCUMENT_MAX_BYTES = 5 * 1024 * 1024

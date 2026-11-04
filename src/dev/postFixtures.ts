@@ -62,6 +62,19 @@ export const posts: Post[] = [
     bookmarked: true,
   }),
   post({
+    id: 'p-not-c1',
+    title: 'Ağaç dolaşımları için tek sayfalık özet',
+    content: 'Ön, iç ve son sıra dolaşımı aynı örnek ağaç üzerinde gösterdim; özyinelemeli ve yığınlı çözümleri yan yana yazdım.',
+    category: 'DERS_NOTU',
+    courseId: 'c1',
+    courseLabel: 'BİL 301 Veri Yapıları ve Algoritmalar',
+    authorId: 'st3',
+    authorName: 'Ece Yalçın',
+    createdAt: ago(52),
+    likeCount: 7,
+    commentCount: 0,
+  }),
+  post({
     id: 'p3',
     title: 'Robotik Kulübü yarışma takımı seçmeleri',
     content: 'Bahar dönemindeki robot yarışması için takım seçmeleri gelecek hafta laboratuvarda. Katılmak isteyenler kulüp sayfasından başvurabilir.',
@@ -187,7 +200,7 @@ export const comments: PostComment[] = [
 export const appeals: Appeal[] = []
 
 /** Akış süzgeci: kategori, resmî; kaydedilenler ve benimkiler ayrı. */
-export function feed(list: 'all' | 'saved' | 'mine', params: { category?: string; official?: boolean; publisherType?: string; page?: number; size?: number }) {
+export function feed(list: 'all' | 'saved' | 'mine', params: { category?: string; official?: boolean; publisherType?: string; courseId?: string; page?: number; size?: number }) {
   const me = getSession()?.userId ?? ME
   const all = posts.filter((p) =>
     list === 'saved'
@@ -197,7 +210,8 @@ export function feed(list: 'all' | 'saved' | 'mine', params: { category?: string
         : p.status === 'PUBLISHED' &&
           (!params.category || p.category === params.category) &&
           (!params.official || p.official) &&
-          (!params.publisherType || p.publisherType === params.publisherType),
+          (!params.publisherType || p.publisherType === params.publisherType) &&
+          (!params.courseId || p.courseId === params.courseId),
   )
   const page = params.page ?? 0
   const size = params.size ?? 10

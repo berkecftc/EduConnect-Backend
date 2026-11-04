@@ -94,12 +94,12 @@ export const REPORT_REASONS = [
 ] as const
 export type ReportReason = (typeof REPORT_REASONS)[number][0]
 
-export type FeedFilter = { list: 'all' | 'saved' | 'mine'; category?: PostCategory; official?: boolean; publisherType?: PublisherType }
+export type FeedFilter = { list: 'all' | 'saved' | 'mine'; category?: PostCategory; official?: boolean; publisherType?: PublisherType; courseId?: string }
 
 const PAGE_SIZE = 10
 
 export const postKeys = {
-  feed: (f: FeedFilter) => ['posts', 'feed', f.list, f.category ?? 'all', f.official ?? false, f.publisherType ?? 'all'] as const,
+  feed: (f: FeedFilter) => ['posts', 'feed', f.list, f.category ?? 'all', f.official ?? false, f.publisherType ?? 'all', f.courseId ?? 'all'] as const,
   detail: (id: string) => ['posts', id] as const,
   comments: (id: string) => ['posts', id, 'comments'] as const,
   appeals: ['posts', 'appeals', 'me'] as const,
@@ -117,6 +117,7 @@ export function useFeed(f: FeedFilter) {
         if (f.category) params.category = f.category
         if (f.official) params.official = true
         if (f.publisherType) params.publisherType = f.publisherType
+        if (f.courseId) params.courseId = f.courseId
       }
       return toPaged((await api.get<SpringPage<Post>>(url, { params })).data)
     },

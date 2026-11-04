@@ -45,10 +45,41 @@ export const CATEGORY_META: Record<NotificationCategory, { line: string; label: 
   ACHIEVEMENT: { line: LINES.topluluk.stroke, label: 'Puan ve rozet' },
 }
 
-/** Hatırlatmalar ayrı işaretlenir ve kısayol taşır (F-78). */
-export const REMINDER_SHORTCUT: Record<string, { label: string; to: (n: AppNotification) => string | null }> = {
-  EVENT_REMINDER: { label: 'Biletimi göster', to: () => '/me/tickets' },
-  ASSIGNMENT_REMINDER: { label: 'Teslim et', to: (n) => n.link },
+/** Hatırlatmalar diğer bildirimlerden ayrı işaretlenir (F-78). */
+export const isReminder = (n: Pick<AppNotification, 'type'>) => n.type === 'EVENT_REMINDER' || n.type === 'ASSIGNMENT_REMINDER'
+
+/**
+ * Türüne göre kısayol (F-75…F-78): satırın kendisi `link`e gider, kısayol işin yapıldığı yere. Kapatılmış kulüpte `link` boş
+ * olabilir; o zaman yalnız sabit adresli kısayollar kalır.
+ */
+export function notificationShortcut(n: Pick<AppNotification, 'type' | 'title' | 'link'>): { label: string; to: string } | null {
+  const { link } = n
+  switch (n.type) {
+    case 'EVENT_REMINDER':
+    case 'EVENT_TICKET':
+      return { label: 'Biletimi göster', to: '/me/tickets' }
+    case 'EVENT_APPROVAL_REQUEST':
+      return { label: 'Onay kutusuna git', to: '/clubs/approvals' }
+    case 'ASSIGNMENT_REMINDER':
+      return link ? { label: 'Teslim et', to: link } : null
+    case 'CLUB_MEMBERSHIP':
+      // Başvuranın kararı da aynı türle gelir; yöneticiye giden yalnız başlığından ayrılır.
+      return link && n.title.toLocaleLowerCase('tr-TR').includes('yeni üyelik başvurusu') ? { label: 'Başvuruları gör', to: `${link}?sekme=yonetim` } : null
+    case 'EVENT_PARTICIPATION_REQUEST':
+      return link ? { label: 'Katılım isteklerini gör', to: `${link}/yonetim?sekme=istekler` } : null
+    case 'EVENT_STAFF_ASSIGNED':
+      return link ? { label: 'Kapı ekranı', to: `${link}/kapi` } : null
+    case 'COURSE_APPLICATION':
+      return link ? { label: 'Başvuruları gör', to: `${link}?sekme=basvurular` } : null
+    case 'COURSE_MATERIAL':
+      return link ? { label: 'Materyallere git', to: `${link}?sekme=materyaller` } : null
+    case 'MODERATION_REJECTED':
+    case 'MODERATION_HIDDEN':
+    case 'MODERATION_REMOVED':
+      return link ? { label: 'İtiraz et', to: link } : null
+    default:
+      return null
+  }
 }
 
 export const notificationKeys = {

@@ -6,6 +6,7 @@ import { usePageTitle } from '@/lib/usePageTitle'
 import { LEVEL_LABEL } from '@/features/auth/register/api'
 import { isActiveMembership, roleLabel, useMyMemberships } from '@/features/clubs/api'
 import { useMySummary } from '@/features/gamification/api'
+import { CourseHistory } from '@/features/courses/CourseHistory'
 import { useMe, type Me } from '@/features/me/useMe'
 import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
@@ -113,6 +114,7 @@ function Profile({ me, student }: { me: Me; student: boolean }) {
               </dl>
             </Panel>
           )}
+          {student && <CourseHistory />}
           {student && (
             <Panel title="Rozetler">
               {summary.isPending ? (

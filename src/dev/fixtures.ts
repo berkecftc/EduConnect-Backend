@@ -6,6 +6,7 @@ import { localStamp, nowLocalIso } from '@/lib/time'
 import type { EnrolledCourse, Course, CourseStaff, Material, Announcement, CourseApplication, Term } from '@/features/courses/api'
 import type { MyAssignment, MyGrades } from '@/features/assignments/api'
 import type { GroupSet } from '@/features/assignments/staff'
+import type { MyEnrollmentEvent } from '@/features/courses/api'
 import type { MyRegistration, CampusEvent, ParticipationRequest } from '@/features/events/api'
 import type { AppNotification } from '@/features/notifications/api'
 import type { GamificationSummary } from '@/features/gamification/api'
@@ -566,7 +567,18 @@ export const participationRequests: ParticipationRequest[] = [
   { id: 'pr1', eventId: 'e5', eventTitle: 'Doğa yürüyüşü: Belgrad Ormanı', status: 'WAITLISTED', requestDate: ago(26), processedDate: null, message: null, rejectionReason: null },
 ]
 
+/** Ders geçmişim (F-44), yeniden eskiye. */
+export const enrollmentHistory: MyEnrollmentEvent[] = [
+  { id: 'eh1', courseId: 'c1', courseCode: 'BİL 301', courseTitle: 'Veri Yapıları ve Algoritmalar', termLabel: '2026-2027 Güz', type: 'ENROLLED', reason: null, occurredAt: new Date(Date.now() - 45 * 86_400_000).toISOString(), afterEnrollmentPeriod: false },
+  { id: 'eh2', courseId: 'c7', courseCode: 'İST 202', courseTitle: 'Olasılık ve İstatistik', termLabel: '2025-2026 Bahar', type: 'WITHDRAWN', reason: 'Ders programım çakıştı.', occurredAt: new Date(Date.now() - 170 * 86_400_000).toISOString(), afterEnrollmentPeriod: true },
+  { id: 'eh3', courseId: 'c7', courseCode: 'İST 202', courseTitle: 'Olasılık ve İstatistik', termLabel: '2025-2026 Bahar', type: 'ENROLLED', reason: null, occurredAt: new Date(Date.now() - 230 * 86_400_000).toISOString(), afterEnrollmentPeriod: false },
+]
+
 export const notifications: AppNotification[] = [
+  { id: 'nt10', category: 'COURSE', type: 'COURSE_MATERIAL', title: '[BİL 301] Yeni ders materyali: Hafta 8 slaytları', body: 'Dersin materyallerine yeni bir dosya eklendi.', link: '/courses/c1', read: false, createdAt: new Date(Date.now() - 9 * 3_600_000).toISOString() },
+  { id: 'nt11', category: 'MODERATION', type: 'MODERATION_HIDDEN', title: 'Gönderiniz gizlendi', body: '"Ara sınav soruları" gizlendi. Gerekçe: sınav soruları paylaşılamaz. Karara itiraz edebilirsiniz.', link: '/posts/p6', read: false, createdAt: new Date(Date.now() - 12 * 3_600_000).toISOString() },
+  { id: 'nt12', category: 'CLUB_MANAGEMENT', type: 'EVENT_APPROVAL_REQUEST', title: 'Satranç Kulübü: etkinlik onayınızı bekliyor', body: '"Simültane gösterisi" başkan onayında.', link: '/events/e-p1', read: false, createdAt: new Date(Date.now() - 14 * 3_600_000).toISOString() },
+  { id: 'nt13', category: 'CLUB_MANAGEMENT', type: 'EVENT_STAFF_ASSIGNED', title: 'Robotik Kulübü: Etkinlik görevlisi oldunuz', body: '"Arduino atölyesi" etkinliğinde görevli olarak atandınız.', link: '/events/e1', read: true, createdAt: new Date(Date.now() - 30 * 3_600_000).toISOString() },
   { id: 'nt1', category: 'COURSE', type: 'ASSIGNMENT_GRADES_PUBLISHED', title: '[BİL 301] Yığın ve kuyruk puanları ilan edildi', body: 'Puanınız ve geri bildiriminiz hazır.', link: '/courses/c1/assignments/a4', read: false, createdAt: ago(2) },
   { id: 'nt2', category: 'COURSE', type: 'ANNOUNCEMENT', title: '[BİL 301] Ara sınav salonları açıklandı', body: 'Salon bilgisi ders duyurularında.', link: '/courses/c1?sekme=duyurular', read: false, createdAt: ago(5) },
   { id: 'nt3', category: 'EVENT', type: 'EVENT_REMINDER', title: 'Arduino atölyesi yarın 18:30', body: 'Biletiniz Biletlerim sayfasında.', link: '/events/e1', read: false, createdAt: ago(9) },

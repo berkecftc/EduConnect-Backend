@@ -69,7 +69,7 @@ export function TeachingPage() {
   )
 }
 
-const BOARD = 'grid grid-cols-[minmax(0,1fr)_auto] gap-x-6 gap-y-3 lg:grid-cols-[13rem_minmax(0,1fr)_13rem_8rem]'
+const BOARD = 'grid grid-cols-[minmax(0,1fr)_auto] gap-x-6 gap-y-3 xl:grid-cols-[13rem_minmax(0,1fr)_13rem_8rem]'
 
 /**
  * Süren dersler: dev ders kodu, ad ve göreviniz; kayıtlı öğrenci ve kontenjan doluluğu;
@@ -78,7 +78,7 @@ const BOARD = 'grid grid-cols-[minmax(0,1fr)_auto] gap-x-6 gap-y-3 lg:grid-cols-
 function Board({ courses }: { courses: TeachingCourse[] }) {
   return (
     <section aria-label="Süren dersler">
-      <div aria-hidden className={`${BOARD} hidden border-b border-ink pb-2 text-sm text-ink-3 lg:grid`}>
+      <div aria-hidden className={`${BOARD} hidden border-b border-ink pb-2 text-sm text-ink-3 xl:grid`}>
         <span>Ders</span>
         <span />
         <span>Öğrenci</span>
@@ -97,7 +97,7 @@ function Board({ courses }: { courses: TeachingCourse[] }) {
                     {c.code}
                   </span>
                 </span>
-                <span className="col-span-2 min-w-0 lg:col-span-1">
+                <span className="col-span-2 min-w-0 xl:col-span-1">
                   <span className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
                     <span className="text-2xl leading-tight font-heavy text-balance transition-transform duration-300 ease-rail group-hover:translate-x-1">
                       {c.title}
@@ -112,7 +112,7 @@ function Board({ courses }: { courses: TeachingCourse[] }) {
                     </span>
                   </span>
                 </span>
-                <span className="col-span-2 min-w-0 lg:col-span-1">
+                <span className="col-span-2 min-w-0 xl:col-span-1">
                   <span className="flex items-baseline gap-2">
                     <span className="tabular text-2xl leading-none font-heavy">{c.enrolledStudentCount}</span>
                     <span className="tabular text-md text-ink-3">/ {c.capacity}</span>
@@ -126,7 +126,7 @@ function Board({ courses }: { courses: TeachingCourse[] }) {
                     />
                   </span>
                 </span>
-                <span className="row-start-1 col-start-2 text-right lg:row-start-auto lg:col-start-auto">
+                <span className="row-start-1 col-start-2 text-right xl:row-start-auto xl:col-start-auto">
                   {can.applications ? (
                     <>
                       <span className={`tabular block text-4xl leading-none font-heavy ${c.pendingApplicationCount ? '' : 'text-ink-3'}`}>

@@ -1,5 +1,6 @@
 import { lazy, Suspense } from 'react'
 import { Link, useParams } from 'react-router-dom'
+import { usePanel, viewRoles } from '@/lib/auth/panel'
 import { hasRole, useSession } from '@/lib/auth/session'
 import { EmptyState, Skeleton } from '@/components/ui/States'
 import { useTeachingCourses } from './teach'
@@ -12,7 +13,8 @@ const CourseManagePage = lazy(() => import('./CourseManagePage').then((m) => ({ 
 /** `/courses`: akademisyene verdiği dersler, öğrenciye kayıtlı olduğu dersler. */
 export function CoursesIndex() {
   const session = useSession()
-  return <Suspense fallback={<Skeleton rows={5} />}>{hasRole(session, 'ROLE_ACADEMICIAN') ? <TeachingPage /> : <CoursesPage />}</Suspense>
+  const { academician } = viewRoles(session, usePanel())
+  return <Suspense fallback={<Skeleton rows={5} />}>{academician ? <TeachingPage /> : <CoursesPage />}</Suspense>
 }
 
 /** Akademisyen, kadrosunda olmadığı bir derse geldiğinde (ör. kadrodan ayrıldıktan sonra ya da paylaşılan bağlantıyla). */

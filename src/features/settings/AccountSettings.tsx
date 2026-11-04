@@ -12,6 +12,7 @@ import { Field } from '@/components/ui/Field'
 import { PasswordInput } from '@/components/ui/Input'
 import { Notice } from '@/components/ui/Notice'
 import { Panel } from '@/components/ui/Panel'
+import { AffiliationSettings } from './AffiliationSettings'
 
 const passwordSchema = z
   .object({
@@ -27,6 +28,7 @@ type PasswordValues = z.infer<typeof passwordSchema>
 export function AccountSettings() {
   return (
     <div className="flex flex-col gap-20">
+      <AffiliationSettings />
       <PasswordForm />
       <EmailAddress />
     </div>
