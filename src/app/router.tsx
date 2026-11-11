@@ -45,6 +45,7 @@ const shellRoutes: RouteObject[] = [
   { path: 'posts/:postId', ...page(() => import('@/features/posts/PostPage'), 'PostPage') },
   { path: 'posts/:postId/edit', ...page(() => import('@/features/posts/PostComposerPage'), 'PostComposerPage') },
   { path: 'leaderboard', ...page(() => import('@/features/gamification/LeaderboardPage'), 'LeaderboardPage') },
+  { path: 'assistant', ...page(() => import('@/features/assistant/AssistantPage'), 'AssistantPage') },
   { path: 'profile', ...page(() => import('@/features/profile/ProfilePage'), 'ProfilePage') },
   { path: 'people/:userId', ...page(() => import('@/features/people/PersonPage'), 'PersonPage') },
   { path: 'notifications', ...page(() => import('@/features/notifications/NotificationsPage'), 'NotificationsPage') },

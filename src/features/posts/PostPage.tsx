@@ -99,7 +99,6 @@ function PostBody({ post: p }: { post: Post }) {
         )}
         {!p.official && p.authorDepartment && <span>{p.authorDepartment}</span>}
         <span>{formatInstant(p.createdAt, 'datetime')}</span>
-        {p.updatedAt && p.updatedAt !== p.createdAt && <span>düzenlendi</span>}
       </p>
 
       {own && status && (

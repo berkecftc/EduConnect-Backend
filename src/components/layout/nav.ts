@@ -63,6 +63,7 @@ export function buildNav(session: Session, clubs: { approver: boolean } = { appr
     items: [
       { to: '/posts', label: 'Akış' },
       ...(student ? [{ to: '/leaderboard', label: 'Liderlik tablosu' }] : []),
+      ...(student || academician ? [{ to: '/assistant', label: 'Asistan' }] : []),
     ],
   })
 

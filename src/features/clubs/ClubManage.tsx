@@ -117,8 +117,8 @@ function ClubWorkStrip({
     )
   }
   if (events) {
-    const list = managed.data ?? []
-    const upcoming = list.filter((e) => e.status === 'ACTIVE' && localDiffMs(now, e.endsAt ?? e.startsAt) >= 0).length
+    const list = (managed.data ?? []).filter((e) => localDiffMs(now, e.endsAt ?? e.startsAt) >= 0)
+    const upcoming = list.filter((e) => e.status === 'ACTIVE').length
     const waiting = list.filter((e) => e.status === 'PENDING_PRESIDENT' || e.status === 'PENDING' || e.status === 'REJECTED').length
     items.push({
       key: 'etkinlikler',
