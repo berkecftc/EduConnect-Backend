@@ -1,0 +1,324 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>EduConnect tasarım yönleri</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Overpass:wght@400;600;800&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600;8..60,700&family=Public+Sans:wght@400;500;600&family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=Figtree:wght@400;500;600&display=swap&subset=latin-ext" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; background: #E9ECEE; color: #1A1F24; font: 15px/1.55 system-ui, sans-serif; }
+  .wrap { max-width: 1180px; margin: 0 auto; padding: 32px 16px 80px; }
+  .intro { max-width: 68ch; margin-bottom: 32px; }
+  .intro h1 { font-size: 22px; margin: 0 0 6px; }
+  .intro p { margin: 0; color: #4A535C; }
+
+  .dir { background: var(--bg); color: var(--ink); font-family: var(--body); border-radius: 6px; padding: 32px; margin-bottom: 40px; }
+  .dir header { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr); gap: 32px; margin-bottom: 28px; }
+  .dir h2 { font-family: var(--display); margin: 0 0 8px; }
+  .dir .concept { margin: 0; color: var(--ink-2); max-width: 60ch; }
+  .dir ul.principles { margin: 0; padding-left: 18px; color: var(--ink-2); }
+  .dir ul.principles li { margin-bottom: 4px; }
+  .swatches { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 18px; }
+  .sw { width: 112px; font-size: 12px; line-height: 1.35; }
+  .sw i { display: block; height: 44px; border-radius: 4px; margin-bottom: 6px; border: 1px solid rgba(0,0,0,.08); }
+  .spec { margin: 0 0 24px; padding: 20px 0; border-top: 1px solid var(--rule); border-bottom: 1px solid var(--rule); }
+  .spec .big { font-family: var(--display); margin: 0; }
+  .spec .small { margin: 6px 0 0; color: var(--ink-2); }
+  .mocks { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 20px; }
+  .mocklabel { font-size: 12px; color: var(--ink-2); margin: 0 0 6px; }
+  .screen { background: var(--s-bg); color: var(--s-ink); border-radius: var(--r-frame); padding: 20px; border: 1px solid var(--s-rule); }
+  .screen h3 { font-family: var(--display); margin: 0 0 2px; color: var(--s-ink); }
+  .screen .sub { margin: 0 0 16px; color: var(--s-ink-2); font-size: 13px; }
+  @media (max-width: 860px) {
+    .dir { padding: 20px; }
+    .dir header, .mocks { grid-template-columns: minmax(0, 1fr); }
+  }
+
+  /* ---------- Yön A: Hat ---------- */
+  .hat { --bg: #F6F7F5; --ink: #14202B; --ink-2: #4B5864; --rule: #D5DBDF;
+         --display: 'Overpass', sans-serif; --body: 'Overpass', sans-serif; --r-frame: 6px; }
+  .hat h2 { font-size: 40px; font-weight: 800; letter-spacing: -0.02em; line-height: 1; }
+  .hat .spec .big { font-size: 34px; font-weight: 800; letter-spacing: -0.015em; line-height: 1.1; }
+  .hat .screen { --s-bg: #FFFFFF; --s-ink: #14202B; --s-ink-2: #56636E; --s-rule: #DDE2E5;
+                 --l-ders: #0057B8; --l-kulup: #007A52; --l-etk: #C2410C; --l-top: #A3135F; --l-off: #B9C2C8; }
+  .hat .screen.dark { --s-bg: #0F1B24; --s-ink: #E5EBEE; --s-ink-2: #9AA8B2; --s-rule: #23323D;
+                      --l-ders: #5EA2F0; --l-kulup: #3FBF8C; --l-etk: #F2884A; --l-top: #E86FAE; --l-off: #3A4A55; }
+  .hat .screen h3 { font-size: 22px; font-weight: 800; }
+  .hat .row { display: grid; grid-template-columns: 28px minmax(0, 1fr) auto; gap: 12px; align-items: start; padding: 11px 0; border-top: 1px solid var(--s-rule); }
+  .hat .bullet { width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; color: #fff; font-weight: 800; font-size: 13px; }
+  .hat .dark .bullet { color: #0F1B24; }
+  .hat .row b { display: block; font-weight: 600; }
+  .hat .row span { font-size: 13px; color: var(--s-ink-2); }
+  .hat .time { font-variant-numeric: tabular-nums; font-weight: 600; font-size: 14px; }
+  .hat .chain { margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--s-rule); }
+  .hat .chain p { margin: 0 0 14px; font-size: 13px; color: var(--s-ink-2); }
+  .hat .chain p b { color: var(--s-ink); font-weight: 600; }
+  .hat .line { display: grid; grid-template-columns: repeat(4, 1fr); position: relative; }
+  .hat .line::before { content: ""; position: absolute; left: 12.5%; right: 12.5%; top: 8px; height: 5px; background: linear-gradient(to right, var(--l-kulup) 0 66.6%, var(--l-off) 66.6% 100%); border-radius: 3px; }
+  .hat .st { position: relative; text-align: center; font-size: 12px; color: var(--s-ink-2); }
+  .hat .st i { display: block; width: 21px; height: 21px; margin: 0 auto 6px; border-radius: 50%; background: var(--s-bg); border: 4px solid var(--l-kulup); }
+  .hat .st.now i { background: var(--l-kulup); box-shadow: 0 0 0 4px var(--s-bg), 0 0 0 6px var(--l-kulup); }
+  .hat .st.now { color: var(--s-ink); font-weight: 600; }
+  .hat .st.off i { border-color: var(--l-off); }
+
+  /* ---------- Yön B: Defter ---------- */
+  .defter { --bg: #F8FAFC; --ink: #1F2633; --ink-2: #4D5768; --rule: #D6DDE6;
+            --display: 'Source Serif 4', serif; --body: 'Public Sans', sans-serif; --r-frame: 3px; }
+  .defter h2 { font-size: 42px; font-weight: 600; line-height: 1.05; font-optical-sizing: auto; }
+  .defter .spec .big { font-size: 32px; font-weight: 600; line-height: 1.15; }
+  .defter .screen { --s-bg: #FFFFFF; --s-ink: #1F2633; --s-ink-2: #566175; --s-rule: #DCE3EB;
+                    --ink-blue: #1D3A8A; --stamp-red: #B42318; --stamp-green: #17633F; --stamp-amber: #8A5A00; }
+  .defter .screen.dark { --s-bg: #131B2C; --s-ink: #E6EAF2; --s-ink-2: #9AA6BA; --s-rule: #26324A;
+                         --ink-blue: #9BB3F5; --stamp-red: #F49A92; --stamp-green: #7FD3A6; --stamp-amber: #E9C46A; }
+  .defter .screen h3 { font-size: 24px; font-weight: 600; }
+  .defter table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  .defter td { padding: 10px 8px 10px 0; border-top: 1px solid var(--s-rule); vertical-align: top; }
+  .defter td.t { font-family: 'Source Serif 4', serif; font-size: 17px; color: var(--ink-blue); width: 64px; font-variant-numeric: lining-nums tabular-nums; }
+  .defter td b { font-weight: 600; display: block; }
+  .defter td span { color: var(--s-ink-2); font-size: 13px; }
+  .defter .stamp { display: inline-block; font-family: 'Source Serif 4', serif; font-weight: 600; font-size: 13px; padding: 2px 8px; border: 3px double currentColor; border-radius: 3px; white-space: nowrap; }
+  .defter .stamp.ok { color: var(--stamp-green); } .defter .stamp.wait { color: var(--stamp-amber); } .defter .stamp.no { color: var(--stamp-red); }
+  .defter .ledger { margin-top: 18px; }
+  .defter .ledger h4 { font-family: 'Source Serif 4', serif; font-weight: 600; font-size: 16px; margin: 0 0 6px; }
+  .defter ol { margin: 0; padding-left: 22px; font-size: 13px; color: var(--s-ink-2); }
+  .defter ol li { padding: 4px 0; }
+  .defter ol li::marker { font-family: 'Source Serif 4', serif; color: var(--ink-blue); }
+  .defter ol li b { color: var(--s-ink); font-weight: 600; }
+
+  /* ---------- Yön C: Fosforlu ---------- */
+  .fos { --bg: #EEF2EE; --ink: #1E2321; --ink-2: #4E5A54; --rule: #CCD6CF;
+         --display: 'Bricolage Grotesque', sans-serif; --body: 'Figtree', sans-serif; --r-frame: 16px; }
+  .fos h2 { font-size: 44px; font-weight: 800; letter-spacing: -0.025em; line-height: 1; }
+  .fos .spec .big { font-size: 34px; font-weight: 700; letter-spacing: -0.02em; line-height: 1.1; }
+  .fos .screen { --s-bg: #FFFFFF; --s-ink: #1E2321; --s-ink-2: #56625C; --s-rule: #E1E7E3;
+                 --pine: #1F5C46; --pine-soft: #E3EFE8; --hl: #F3E443; --hl-ink: #2B2600; }
+  .fos .screen.dark { --s-bg: #141D19; --s-ink: #E7EEE9; --s-ink-2: #9DB0A6; --s-rule: #263530;
+                      --pine: #7ED0AA; --pine-soft: #1D3029; --hl: #E8D83A; --hl-ink: #1E1B00; }
+  .fos .screen h3 { font-size: 26px; font-weight: 800; letter-spacing: -0.02em; }
+  .fos .bucket { font-family: 'Bricolage Grotesque', sans-serif; font-weight: 700; font-size: 15px; margin: 14px 0 6px; }
+  .fos .item { display: flex; justify-content: space-between; gap: 12px; padding: 12px 14px; border-radius: 12px; background: var(--pine-soft); margin-bottom: 8px; }
+  .fos .item b { display: block; font-weight: 600; }
+  .fos .item span { font-size: 13px; color: var(--s-ink-2); }
+  .fos mark { background: linear-gradient(100deg, transparent 2%, var(--hl) 4% 96%, transparent 98%); color: var(--hl-ink); padding: 1px 5px; border-radius: 3px; font-weight: 600; }
+  .fos .steps { display: flex; gap: 6px; margin-top: 16px; }
+  .fos .step { flex: 1; font-size: 12px; color: var(--s-ink-2); }
+  .fos .step i { display: block; height: 8px; border-radius: 99px; background: var(--s-rule); margin-bottom: 6px; }
+  .fos .step.done i { background: var(--pine); }
+  .fos .step.now i { background: repeating-linear-gradient(90deg, var(--pine) 0 6px, transparent 6px 10px); }
+  .fos .step.now { color: var(--s-ink); font-weight: 600; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="intro">
+    <h1>EduConnect için üç görsel yön</h1>
+    <p>Her yön aynı içeriği gösteriyor: bir öğrencinin bugünkü işleri ve bir kulüp etkinliğinin onay zinciri. Solda açık, sağda koyu tema. Renkler ve yazılar birer token önerisi; seçilen yön tasarım sisteminin temeli olacak.</p>
+  </div>
+
+  <!-- A: Hat -->
+  <section class="dir hat" aria-labelledby="hat-t">
+    <header>
+      <div>
+        <h2 id="hat-t">A. Hat</h2>
+        <p class="concept">Kampüs bir ulaşım ağı gibi okunur. Dersler, kulüpler, etkinlikler ve topluluk ayrı "hatlar"; her hattın kendi rengi ve harf işareti var. Onay zincirleri durak dizisi olarak çizilir: kim onayladı, şimdi kimde, sırada ne var tek bakışta görünür.</p>
+      </div>
+      <div>
+        <ul class="principles">
+          <li>Renk yalnızca alanı (hat) ve durumu anlatır; süs yok.</li>
+          <li>Kart yerine satır: yoğun, sola hizalı listeler, sağda tablo hizalı saatler.</li>
+          <li>Tek yazı ailesi: Overpass (otoyol tabelası mirası), kalın başlık + sakin gövde.</li>
+          <li>En cesur öğe: durak çizgisi. Geri kalan her şey sessiz.</li>
+        </ul>
+        <div class="swatches">
+          <div class="sw"><i style="background:#14202B"></i>Gece mürekkebi<br>#14202B</div>
+          <div class="sw"><i style="background:#0057B8"></i>Ders hattı<br>#0057B8</div>
+          <div class="sw"><i style="background:#007A52"></i>Kulüp hattı<br>#007A52</div>
+          <div class="sw"><i style="background:#C2410C"></i>Etkinlik hattı<br>#C2410C</div>
+          <div class="sw"><i style="background:#A3135F"></i>Topluluk hattı<br>#A3135F</div>
+          <div class="sw"><i style="background:#F6F7F5"></i>Zemin<br>#F6F7F5</div>
+        </div>
+      </div>
+    </header>
+    <div class="spec">
+      <p class="big">Bahar şenliği standı başkan onayından geçti</p>
+      <p class="small">Gövde metni: Ödev teslimi için son gün değişti; ağırlık %20, azami puan 100. Türkçe karakterler: ğ ü ş ı ö ç İ Ğ Ş — 0123456789</p>
+    </div>
+    <div class="mocks">
+      <div>
+        <p class="mocklabel">Açık tema</p>
+        <div class="screen">
+          <h3>Bugün, 5 Ekim Pazartesi</h3>
+          <p class="sub">3 iş, 1 onay bekliyor</p>
+          <div class="row"><div class="bullet" style="background:var(--l-ders)">D</div><div><b>Normalizasyon ödevi teslimi</b><span>BİL 304 Veri Tabanı Sistemleri</span></div><div class="time">23:59</div></div>
+          <div class="row"><div class="bullet" style="background:var(--l-etk)">E</div><div><b>Arduino atölyesi</b><span>Robotik Kulübü, B Blok 204, 12/40 dolu</span></div><div class="time">18:30</div></div>
+          <div class="row"><div class="bullet" style="background:var(--l-top)">T</div><div><b>Sorunuza 2 yeni cevap</b><span>"Lineer cebirde özdeğer sezgisi"</span></div><div class="time">14:05</div></div>
+          <div class="chain">
+            <p><b>Bahar şenliği standı</b> danışman onayında</p>
+            <div class="line">
+              <div class="st"><i></i>Başvuru</div>
+              <div class="st"><i></i>Başkan</div>
+              <div class="st now"><i></i>Danışman</div>
+              <div class="st off"><i></i>Yayın</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div>
+        <p class="mocklabel">Koyu tema</p>
+        <div class="screen dark">
+          <h3>Bugün, 5 Ekim Pazartesi</h3>
+          <p class="sub">3 iş, 1 onay bekliyor</p>
+          <div class="row"><div class="bullet" style="background:var(--l-ders)">D</div><div><b>Normalizasyon ödevi teslimi</b><span>BİL 304 Veri Tabanı Sistemleri</span></div><div class="time">23:59</div></div>
+          <div class="row"><div class="bullet" style="background:var(--l-etk)">E</div><div><b>Arduino atölyesi</b><span>Robotik Kulübü, B Blok 204, 12/40 dolu</span></div><div class="time">18:30</div></div>
+          <div class="row"><div class="bullet" style="background:var(--l-top)">T</div><div><b>Sorunuza 2 yeni cevap</b><span>"Lineer cebirde özdeğer sezgisi"</span></div><div class="time">14:05</div></div>
+          <div class="chain">
+            <p><b>Bahar şenliği standı</b> danışman onayında</p>
+            <div class="line">
+              <div class="st"><i></i>Başvuru</div>
+              <div class="st"><i></i>Başkan</div>
+              <div class="st now"><i></i>Danışman</div>
+              <div class="st off"><i></i>Yayın</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- B: Defter -->
+  <section class="dir defter" aria-labelledby="defter-t">
+    <header>
+      <div>
+        <h2 id="defter-t">B. Defter</h2>
+        <p class="concept">Kurumun resmî defteri. Karar defteri, tutanak, onay ve raporlarla dolu bir sistem için mürekkep mavisi ve mühür dili: durumlar çift çizgili mühür olarak basılır, kayıtlar cetvelli satırlara yazılır. Ciddi, güven veren, okunaklı.</p>
+      </div>
+      <div>
+        <ul class="principles">
+          <li>Başlık ve rakamlar Source Serif 4, arayüz Public Sans.</li>
+          <li>Durum = mühür (Onaylandı, Onayda, Reddedildi); rengi mühür mürekkebi.</li>
+          <li>Numaralandırma yalnız gerçekten sıralı kayıtta (karar no, zincir adımı).</li>
+          <li>Okuma sütunu 70 karakter; tablolar tam genişlik.</li>
+        </ul>
+        <div class="swatches">
+          <div class="sw"><i style="background:#1D3A8A"></i>Mürekkep mavisi<br>#1D3A8A</div>
+          <div class="sw"><i style="background:#1F2633"></i>Kurşun<br>#1F2633</div>
+          <div class="sw"><i style="background:#17633F"></i>Onay mührü<br>#17633F</div>
+          <div class="sw"><i style="background:#B42318"></i>Ret mührü<br>#B42318</div>
+          <div class="sw"><i style="background:#D6DDE6"></i>Cetvel<br>#D6DDE6</div>
+          <div class="sw"><i style="background:#F8FAFC"></i>Kâğıt<br>#F8FAFC</div>
+        </div>
+      </div>
+    </header>
+    <div class="spec">
+      <p class="big">Bahar şenliği standı başkan onayından geçti</p>
+      <p class="small">Gövde metni: Ödev teslimi için son gün değişti; ağırlık %20, azami puan 100. Türkçe karakterler: ğ ü ş ı ö ç İ Ğ Ş — 0123456789</p>
+    </div>
+    <div class="mocks">
+      <div>
+        <p class="mocklabel">Açık tema</p>
+        <div class="screen">
+          <h3>Bugün, 5 Ekim Pazartesi</h3>
+          <p class="sub">3 iş, 1 onay bekliyor</p>
+          <table>
+            <tr><td class="t">23:59</td><td><b>Normalizasyon ödevi teslimi</b><span>BİL 304 Veri Tabanı Sistemleri</span></td><td style="text-align:right"><span class="stamp wait">Bugün</span></td></tr>
+            <tr><td class="t">18:30</td><td><b>Arduino atölyesi</b><span>Robotik Kulübü, B Blok 204, 12/40 dolu</span></td><td style="text-align:right"><span class="stamp ok">Kayıtlı</span></td></tr>
+            <tr><td class="t">14:05</td><td><b>Sorunuza 2 yeni cevap</b><span>"Lineer cebirde özdeğer sezgisi"</span></td><td></td></tr>
+          </table>
+          <div class="ledger">
+            <h4>Bahar şenliği standı</h4>
+            <ol>
+              <li><b>Başvuru alındı</b>, 2 Eki 14:10</li>
+              <li><b>Başkan onayladı</b>, 3 Eki 09:42</li>
+              <li><b>Danışman onayında</b> <span class="stamp wait">Onayda</span></li>
+            </ol>
+          </div>
+        </div>
+      </div>
+      <div>
+        <p class="mocklabel">Koyu tema</p>
+        <div class="screen dark">
+          <h3>Bugün, 5 Ekim Pazartesi</h3>
+          <p class="sub">3 iş, 1 onay bekliyor</p>
+          <table>
+            <tr><td class="t">23:59</td><td><b>Normalizasyon ödevi teslimi</b><span>BİL 304 Veri Tabanı Sistemleri</span></td><td style="text-align:right"><span class="stamp wait">Bugün</span></td></tr>
+            <tr><td class="t">18:30</td><td><b>Arduino atölyesi</b><span>Robotik Kulübü, B Blok 204, 12/40 dolu</span></td><td style="text-align:right"><span class="stamp ok">Kayıtlı</span></td></tr>
+            <tr><td class="t">14:05</td><td><b>Sorunuza 2 yeni cevap</b><span>"Lineer cebirde özdeğer sezgisi"</span></td><td></td></tr>
+          </table>
+          <div class="ledger">
+            <h4>Bahar şenliği standı</h4>
+            <ol>
+              <li><b>Başvuru alındı</b>, 2 Eki 14:10</li>
+              <li><b>Başkan onayladı</b>, 3 Eki 09:42</li>
+              <li><b>Danışman onayında</b> <span class="stamp wait">Onayda</span></li>
+            </ol>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- C: Fosforlu -->
+  <section class="dir fos" aria-labelledby="fos-t">
+    <header>
+      <div>
+        <h2 id="fos-t">C. Fosforlu</h2>
+        <p class="concept">Öğrencinin masası. Önemli olan, ders notunda olduğu gibi fosforlu kalemle işaretlenir: bugün biten teslim, cevap bekleyen başvuru. İşaret yalnız acil şeylerde kullanılır, böylece anlamını korur. Sıcak, samimi, öğrenci önce.</p>
+      </div>
+      <div>
+        <ul class="principles">
+          <li>İşler zamana göre kümelenir: Şimdi, Bu hafta, Sonra.</li>
+          <li>Bricolage Grotesque başlık, Figtree gövde; daha iri ölçek, cömert boşluk.</li>
+          <li>Çam yeşili ana renk; fosfor sarısı yalnız vurgu zemini, asla metin rengi değil.</li>
+          <li>Yumuşak köşeler (12–16px), gölgesiz yüzeyler.</li>
+        </ul>
+        <div class="swatches">
+          <div class="sw"><i style="background:#1F5C46"></i>Çam<br>#1F5C46</div>
+          <div class="sw"><i style="background:#F3E443"></i>Fosfor<br>#F3E443</div>
+          <div class="sw"><i style="background:#1E2321"></i>Grafit<br>#1E2321</div>
+          <div class="sw"><i style="background:#E3EFE8"></i>Yaprak<br>#E3EFE8</div>
+          <div class="sw"><i style="background:#B3261E"></i>Uyarı<br>#B3261E</div>
+          <div class="sw"><i style="background:#EEF2EE"></i>Zemin<br>#EEF2EE</div>
+        </div>
+      </div>
+    </header>
+    <div class="spec">
+      <p class="big">Bahar şenliği standı başkan onayından geçti</p>
+      <p class="small">Gövde metni: Ödev teslimi için son gün değişti; ağırlık %20, azami puan 100. Türkçe karakterler: ğ ü ş ı ö ç İ Ğ Ş — 0123456789</p>
+    </div>
+    <div class="mocks">
+      <div>
+        <p class="mocklabel">Açık tema</p>
+        <div class="screen">
+          <h3>Pazartesi, 5 Ekim</h3>
+          <p class="sub">3 iş, 1 onay bekliyor</p>
+          <p class="bucket">Şimdi</p>
+          <div class="item"><div><b>Normalizasyon ödevi teslimi</b><span>BİL 304 Veri Tabanı Sistemleri</span></div><div><mark>bugün 23:59</mark></div></div>
+          <div class="item"><div><b>Arduino atölyesi</b><span>Robotik Kulübü, B Blok 204, 12/40 dolu</span></div><div><span>18:30</span></div></div>
+          <p class="bucket">Bu hafta</p>
+          <div class="item" style="display:block"><b>Bahar şenliği standı</b><span>Danışman onayında</span>
+            <div class="steps"><div class="step done"><i></i>Başvuru</div><div class="step done"><i></i>Başkan</div><div class="step now"><i></i>Danışman</div><div class="step"><i></i>Yayın</div></div>
+          </div>
+        </div>
+      </div>
+      <div>
+        <p class="mocklabel">Koyu tema</p>
+        <div class="screen dark">
+          <h3>Pazartesi, 5 Ekim</h3>
+          <p class="sub">3 iş, 1 onay bekliyor</p>
+          <p class="bucket">Şimdi</p>
+          <div class="item"><div><b>Normalizasyon ödevi teslimi</b><span>BİL 304 Veri Tabanı Sistemleri</span></div><div><mark>bugün 23:59</mark></div></div>
+          <div class="item"><div><b>Arduino atölyesi</b><span>Robotik Kulübü, B Blok 204, 12/40 dolu</span></div><div><span>18:30</span></div></div>
+          <p class="bucket">Bu hafta</p>
+          <div class="item" style="display:block"><b>Bahar şenliği standı</b><span>Danışman onayında</span>
+            <div class="steps"><div class="step done"><i></i>Başvuru</div><div class="step done"><i></i>Başkan</div><div class="step now"><i></i>Danışman</div><div class="step"><i></i>Yayın</div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+</div>
+</body>
+</html>

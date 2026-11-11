@@ -1,0 +1,326 @@
+@import "@fontsource-variable/overpass/wght.css";
+@import "tailwindcss";
+
+/*
+ * Hat tasarım sistemi.
+ * Ham değerler :root'ta, koyu tema [data-theme=dark] ve sistem tercihinde.
+ * Tailwind'in varsayılan paleti kapalı: ekranlar yalnız aşağıdaki token'larla kurulur.
+ */
+
+@custom-variant dark (&:where([data-theme=dark], [data-theme=dark] *));
+
+:root {
+  /* Zemin ve yüzeyler */
+  --ec-canvas: #f6f7f5;
+  --ec-surface: #ffffff;
+  --ec-sunken: #eef1ef;
+  --ec-rule: #dde2e5;
+  --ec-rule-strong: #c4ccd1;
+
+  /* Metin */
+  --ec-ink: #14202b;
+  --ec-ink-2: #4b5864;
+  --ec-ink-3: #5f6c77;
+  --ec-on-ink: #f6f7f5;
+
+  /* Hatlar: her alanın kimlik rengi. fill = dolgu, on = dolgu üstü metin, soft = açık zemin */
+  --ec-ders: #0057b8;
+  --ec-ders-on: #ffffff;
+  --ec-ders-soft: #e5eef9;
+  --ec-kulup: #007a52;
+  --ec-kulup-on: #ffffff;
+  --ec-kulup-soft: #e1f1ea;
+  --ec-etkinlik: #c2410c;
+  --ec-etkinlik-on: #ffffff;
+  --ec-etkinlik-soft: #fbebe2;
+  --ec-topluluk: #a3135f;
+  --ec-topluluk-on: #ffffff;
+  --ec-topluluk-soft: #f7e4ee;
+  --ec-yonetim: #3d4a56;
+  --ec-yonetim-on: #ffffff;
+  --ec-yonetim-soft: #e8ecef;
+  --ec-line-off: #7f8a94;
+  /* Form kenarı ve pasif durak: zemine karşı en az 3:1 (WCAG 1.4.11) */
+  --ec-control: #7f8a94;
+
+  /* Durum */
+  --ec-danger: #b42318;
+  --ec-danger-soft: #fdecea;
+  --ec-warning: #8a5a00;
+  --ec-warning-soft: #fff4d6;
+  --ec-success: #1e7a46;
+  --ec-success-soft: #e3f4ea;
+
+  --ec-focus: #0057b8;
+  --ec-scrim: rgb(20 32 43 / 0.45);
+  --ec-shadow-color: 20 32 43;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --ec-canvas: #0f1b24;
+    --ec-surface: #15232e;
+    --ec-sunken: #0b151d;
+    --ec-rule: #23323d;
+    --ec-rule-strong: #34454f;
+    --ec-ink: #e5ebee;
+    --ec-ink-2: #a3b0b9;
+    --ec-ink-3: #8593a0;
+    --ec-on-ink: #0f1b24;
+    --ec-ders: #5ea2f0;
+    --ec-ders-on: #0f1b24;
+    --ec-ders-soft: #12283f;
+    --ec-kulup: #3fbf8c;
+    --ec-kulup-on: #0f1b24;
+    --ec-kulup-soft: #0f2a22;
+    --ec-etkinlik: #f2884a;
+    --ec-etkinlik-on: #0f1b24;
+    --ec-etkinlik-soft: #33200f;
+    --ec-topluluk: #e86fae;
+    --ec-topluluk-on: #0f1b24;
+    --ec-topluluk-soft: #331528;
+    --ec-yonetim: #a9b6c0;
+    --ec-yonetim-on: #0f1b24;
+    --ec-yonetim-soft: #1c2a35;
+    --ec-line-off: #66798a;
+    --ec-control: #66798a;
+    --ec-danger: #f49a92;
+    --ec-danger-soft: #3a1714;
+    --ec-warning: #e9c46a;
+    --ec-warning-soft: #33270a;
+    --ec-success: #6fd39e;
+    --ec-success-soft: #10291c;
+    --ec-focus: #8cc0ff;
+    --ec-scrim: rgb(0 0 0 / 0.6);
+    --ec-shadow-color: 0 0 0;
+  }
+}
+
+/* Kökte veya tek bir bölümde (ör. giriş ekranındaki gece haritası) koyu tema. */
+[data-theme="dark"] {
+  color-scheme: dark;
+  --ec-canvas: #0f1b24;
+  --ec-surface: #15232e;
+  --ec-sunken: #0b151d;
+  --ec-rule: #23323d;
+  --ec-rule-strong: #34454f;
+  --ec-ink: #e5ebee;
+  --ec-ink-2: #a3b0b9;
+  --ec-ink-3: #8593a0;
+  --ec-on-ink: #0f1b24;
+  --ec-ders: #5ea2f0;
+  --ec-ders-on: #0f1b24;
+  --ec-ders-soft: #12283f;
+  --ec-kulup: #3fbf8c;
+  --ec-kulup-on: #0f1b24;
+  --ec-kulup-soft: #0f2a22;
+  --ec-etkinlik: #f2884a;
+  --ec-etkinlik-on: #0f1b24;
+  --ec-etkinlik-soft: #33200f;
+  --ec-topluluk: #e86fae;
+  --ec-topluluk-on: #0f1b24;
+  --ec-topluluk-soft: #331528;
+  --ec-yonetim: #a9b6c0;
+  --ec-yonetim-on: #0f1b24;
+  --ec-yonetim-soft: #1c2a35;
+  --ec-line-off: #66798a;
+  --ec-control: #66798a;
+  --ec-danger: #f49a92;
+  --ec-danger-soft: #3a1714;
+  --ec-warning: #e9c46a;
+  --ec-warning-soft: #33270a;
+  --ec-success: #6fd39e;
+  --ec-success-soft: #10291c;
+  --ec-focus: #8cc0ff;
+  --ec-scrim: rgb(0 0 0 / 0.6);
+  --ec-shadow-color: 0 0 0;
+}
+
+@theme {
+  --color-*: initial;
+  --font-*: initial;
+  --font-sans: "Overpass Variable", system-ui, sans-serif;
+
+  /* Tipografi ölçeği (16px gövde, ~1.25 oran) */
+  --text-*: initial;
+  --text-xs: 0.75rem;
+  --text-xs--line-height: 1.35;
+  --text-sm: 0.8125rem;
+  --text-sm--line-height: 1.45;
+  --text-md: 0.875rem;
+  --text-md--line-height: 1.5;
+  --text-base: 1rem;
+  --text-base--line-height: 1.55;
+  --text-lg: 1.125rem;
+  --text-lg--line-height: 1.4;
+  --text-xl: 1.375rem;
+  --text-xl--line-height: 1.25;
+  --text-2xl: 1.75rem;
+  --text-2xl--line-height: 1.15;
+  --text-2xl--letter-spacing: -0.015em;
+  --text-3xl: 2.25rem;
+  --text-3xl--line-height: 1.08;
+  --text-3xl--letter-spacing: -0.02em;
+  --text-4xl: 2.875rem;
+  --text-4xl--line-height: 1;
+  --text-4xl--letter-spacing: -0.025em;
+  --text-5xl: 3.75rem;
+  --text-5xl--line-height: 0.95;
+  --text-5xl--letter-spacing: -0.035em;
+  --text-6xl: 5rem;
+  --text-6xl--line-height: 0.92;
+  --text-6xl--letter-spacing: -0.045em;
+
+  --font-weight-*: initial;
+  --font-weight-normal: 400;
+  --font-weight-semibold: 600;
+  --font-weight-heavy: 800;
+
+  /* Köşeler: hiyerarşiye göre, her şeye aynı yarıçap değil */
+  --radius-*: initial;
+  /* İsviçre tarifesi: köşeler neredeyse keskin; yuvarlaklık bilgi taşımaz. */
+  --radius-xs: 2px;
+  --radius-sm: 3px;
+  --radius-md: 4px;
+  --radius-lg: 6px;
+  --radius-full: 9999px;
+
+  /* Derinlik: yalnız yüzen katmanlarda */
+  --shadow-*: initial;
+  --shadow-pop: 0 1px 2px rgb(var(--ec-shadow-color) / 0.08), 0 10px 28px rgb(var(--ec-shadow-color) / 0.14);
+  --shadow-sheet: 0 -2px 6px rgb(var(--ec-shadow-color) / 0.06), 0 -16px 40px rgb(var(--ec-shadow-color) / 0.16);
+
+  /* Hareket */
+  --ease-rail: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --ease-swap: cubic-bezier(0.65, 0, 0.35, 1);
+  --animate-spin: spin 0.8s linear infinite;
+  --animate-rise: rise 240ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  --animate-fade-in: fade-in 700ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+
+  @keyframes rise {
+    from {
+      opacity: 0;
+      transform: translateY(6px);
+    }
+  }
+  @keyframes fade-in {
+    from {
+      opacity: 0;
+    }
+  }
+
+  --breakpoint-*: initial;
+  --breakpoint-sm: 40rem;
+  --breakpoint-md: 48rem;
+  --breakpoint-lg: 64rem;
+  --breakpoint-xl: 80rem;
+}
+
+@theme inline {
+  --color-canvas: var(--ec-canvas);
+  --color-surface: var(--ec-surface);
+  --color-sunken: var(--ec-sunken);
+  --color-rule: var(--ec-rule);
+  --color-rule-strong: var(--ec-rule-strong);
+  --color-ink: var(--ec-ink);
+  --color-ink-2: var(--ec-ink-2);
+  --color-ink-3: var(--ec-ink-3);
+  --color-on-ink: var(--ec-on-ink);
+
+  --color-ders: var(--ec-ders);
+  --color-ders-on: var(--ec-ders-on);
+  --color-ders-soft: var(--ec-ders-soft);
+  --color-kulup: var(--ec-kulup);
+  --color-kulup-on: var(--ec-kulup-on);
+  --color-kulup-soft: var(--ec-kulup-soft);
+  --color-etkinlik: var(--ec-etkinlik);
+  --color-etkinlik-on: var(--ec-etkinlik-on);
+  --color-etkinlik-soft: var(--ec-etkinlik-soft);
+  --color-topluluk: var(--ec-topluluk);
+  --color-topluluk-on: var(--ec-topluluk-on);
+  --color-topluluk-soft: var(--ec-topluluk-soft);
+  --color-yonetim: var(--ec-yonetim);
+  --color-yonetim-on: var(--ec-yonetim-on);
+  --color-yonetim-soft: var(--ec-yonetim-soft);
+  --color-line-off: var(--ec-line-off);
+  --color-control: var(--ec-control);
+
+  --color-danger: var(--ec-danger);
+  --color-danger-soft: var(--ec-danger-soft);
+  --color-warning: var(--ec-warning);
+  --color-warning-soft: var(--ec-warning-soft);
+  --color-success: var(--ec-success);
+  --color-success-soft: var(--ec-success-soft);
+
+  --color-focus: var(--ec-focus);
+  --color-scrim: var(--ec-scrim);
+  --color-transparent: transparent;
+  --color-current: currentColor;
+}
+
+@layer base {
+  html {
+    -webkit-text-size-adjust: 100%;
+    text-rendering: optimizeLegibility;
+  }
+  body {
+    @apply bg-canvas text-ink font-sans text-base antialiased;
+    font-feature-settings: "kern";
+  }
+  h1, h2, h3, h4 {
+    @apply font-heavy text-ink;
+    text-wrap: balance;
+  }
+  :where(p) {
+    text-wrap: pretty;
+  }
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--ec-rule-strong) transparent;
+  }
+  ::selection {
+    background: var(--ec-ders-soft);
+    color: var(--ec-ink);
+  }
+  :focus-visible {
+    outline: 2px solid var(--ec-focus);
+    outline-offset: 2px;
+  }
+  .tabular {
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+/*
+ * Tarife satırı: üzerine gelince zemin soldan sağa dolar. Yalnız transform; düzen kaymaz.
+ */
+@layer components {
+  .row-fill {
+    position: relative;
+    isolation: isolate;
+  }
+  .row-fill::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    background: var(--ec-sunken);
+    transform: scaleX(0);
+    transform-origin: left;
+    transition: transform 420ms var(--ease-rail);
+  }
+  .row-fill:hover::before,
+  .row-fill:focus-visible::before {
+    transform: scaleX(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
