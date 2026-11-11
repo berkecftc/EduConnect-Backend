@@ -18,6 +18,29 @@
 
 ---
 
+## 🗂️ Depo Düzeni
+
+Bu depo EduConnect'in tamamını tutar; arayüz de buradadır.
+
+| Yol | İçerik |
+|---|---|
+| kök (`pom.xml`, `*-service/`, `common-*/`) | Backend: Spring Boot mikroservisleri ve ortak modüller |
+| [`frontend/`](frontend/README.md) | Web arayüzü: React, TypeScript, Vite |
+| `docker/`, `docker-compose.yml` | Yerel ortam: veritabanı, kuyruk, depolama, Caddy, gözlem araçları |
+| `.github/` | CI (backend ve frontend), güvenlik taramaları, Dependabot |
+
+Servis ayarları ayrı ve özel bir depoda durur: [`educonnect-config-repo`](https://github.com/berkecftc/educonnect-config-repo). Config Server bu depoyu `CONFIG_GIT_USERNAME` ve `CONFIG_GIT_TOKEN` ile okur (`.env.example`). Gizli değerler içerdiği için bu depoya taşınmadı.
+
+Arayüzü yayına hazırlamak için:
+
+```bash
+cd frontend && npm ci && npm run build
+```
+
+Ardından `.env` içinde `FRONTEND_DIST=./frontend/dist` olmalıdır; Caddy bu klasörü sunar.
+
+---
+
 ## 📋 İçindekiler
 
 1. [Proje Özeti](#proje-özeti)

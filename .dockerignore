@@ -16,3 +16,4 @@ docker-compose*.yml
 backups/
 .github/
 docker-bake.hcl
+frontend/

@@ -115,7 +115,7 @@ Tüm hatalar `application/problem+json` (RFC 9457):
 - Bu adresler Caddy'den dışarı açılmaz; sunucuda SSH tüneliyle (`ssh -L 8080:127.0.0.1:8080 sunucu`) kullanılır.
 - "Try it out" için sağ üstteki **Authorize** ile access token girilir.
 
-## 12. Bilinen sapmalar (frontend yenilemesinde düzeltilecek)
+## 12. Bilinen sapmalar (kabul edildi, olduğu gibi kalıyor)
 
 | Kural | Mevcut uç(lar) | Hedef |
 |---|---|---|
@@ -128,4 +128,4 @@ Tüm hatalar `application/problem+json` (RFC 9457):
 | Tek yol | `/api/llm/**` ve `/api/ai/**` aynı uçlar | `/api/ai/**` |
 | Liste sayfalı | kulüp üyeleri, başvurular, kayıtlar gibi dizi dönen listeler | `PageResponse` |
 
-Bu değişiklikler frontend'i bozacağı için frontend yenilemesiyle aynı anda yapılır; o zamana kadar eski yollar çalışır.
+Frontend yenilemesi (Kasım 2026) bu yollarla tamamlandı ve hepsi gerçek backend'e karşı denendi. Hedef sütunundaki yeniden adlandırmalar davranışı değiştirmediği ve iki tarafı birden kırma riski taşıdığı için yapılmadı; yeni uçlar 1–11. bölümlerdeki kurallara uyar, bu tablodakiler olduğu gibi kalır.

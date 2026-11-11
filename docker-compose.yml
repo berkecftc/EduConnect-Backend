@@ -367,6 +367,7 @@ services:
     environment:
       EDUCONNECT_DOMAIN: ${EDUCONNECT_DOMAIN:-localhost}
       EDUCONNECT_STORAGE_DOMAIN: ${EDUCONNECT_STORAGE_DOMAIN:-files.localhost}
+      EDUCONNECT_STORAGE_URL: ${EDUCONNECT_STORAGE_URL:-http://localhost:9000}
       EDUCONNECT_HSTS: ${EDUCONNECT_HSTS:-max-age=0}
     ports:
       - "${HTTP_PORT:-80}:80"

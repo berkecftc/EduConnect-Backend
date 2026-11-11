@@ -11,7 +11,7 @@
 
 {$EDUCONNECT_DOMAIN:localhost} {
 	import security_headers
-	header Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://{$EDUCONNECT_STORAGE_DOMAIN:files.localhost}; font-src 'self' data:; connect-src 'self' https://{$EDUCONNECT_STORAGE_DOMAIN:files.localhost}; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"
+	header Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: {$EDUCONNECT_STORAGE_URL:http://localhost:9000}; font-src 'self' data:; connect-src 'self' {$EDUCONNECT_STORAGE_URL:http://localhost:9000}; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"
 	encode zstd gzip
 
 	request_body {
