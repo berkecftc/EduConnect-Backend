@@ -57,7 +57,7 @@ services:
       - "127.0.0.1:5432:5432"
     volumes:
       - postgres-data:/var/lib/postgresql/data # Verilerin yeniden başlatmalarda kaybolmamasını sağlar
-      - ./docker/postgres-init:/docker-entrypoint-initdb.d
+      - ./infra/postgres-init:/docker-entrypoint-initdb.d
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U \"$${POSTGRES_USER}\" -d educonnect"]
       interval: 5s
@@ -185,7 +185,7 @@ services:
   config-server:
     image: ${IMAGE_REGISTRY:-educonnect}/config-server:${IMAGE_TAG:-local}
     build:
-      context: .
+      context: ./backend
       args:
         MODULE: config-server
     restart: unless-stopped
@@ -208,7 +208,7 @@ services:
   eureka-server:
     image: ${IMAGE_REGISTRY:-educonnect}/eureka-server:${IMAGE_TAG:-local}
     build:
-      context: .
+      context: ./backend
       args:
         MODULE: eureka-server
     restart: unless-stopped
@@ -229,7 +229,7 @@ services:
     <<: *app
     image: ${IMAGE_REGISTRY:-educonnect}/api-gateway:${IMAGE_TAG:-local}
     build:
-      context: .
+      context: ./backend
       args:
         MODULE: api-gateway
     environment:
@@ -245,7 +245,7 @@ services:
     <<: *app
     image: ${IMAGE_REGISTRY:-educonnect}/auth-services:${IMAGE_TAG:-local}
     build:
-      context: .
+      context: ./backend
       args:
         MODULE: auth-services
     healthcheck:
@@ -256,7 +256,7 @@ services:
     <<: *app
     image: ${IMAGE_REGISTRY:-educonnect}/user-service:${IMAGE_TAG:-local}
     build:
-      context: .
+      context: ./backend
       args:
         MODULE: user-service
     healthcheck:
@@ -267,7 +267,7 @@ services:
     <<: *app
     image: ${IMAGE_REGISTRY:-educonnect}/club-service:${IMAGE_TAG:-local}
     build:
-      context: .
+      context: ./backend
       args:
         MODULE: club-service
     healthcheck:
@@ -278,7 +278,7 @@ services:
     <<: *app
     image: ${IMAGE_REGISTRY:-educonnect}/event-service:${IMAGE_TAG:-local}
     build:
-      context: .
+      context: ./backend
       args:
         MODULE: event-service
     healthcheck:
@@ -289,7 +289,7 @@ services:
     <<: *app
     image: ${IMAGE_REGISTRY:-educonnect}/course-service:${IMAGE_TAG:-local}
     build:
-      context: .
+      context: ./backend
       args:
         MODULE: course-service
     healthcheck:
@@ -300,7 +300,7 @@ services:
     <<: *app
     image: ${IMAGE_REGISTRY:-educonnect}/assignment-service:${IMAGE_TAG:-local}
     build:
-      context: .
+      context: ./backend
       args:
         MODULE: assignment-service
     healthcheck:
@@ -311,7 +311,7 @@ services:
     <<: *app
     image: ${IMAGE_REGISTRY:-educonnect}/post-service:${IMAGE_TAG:-local}
     build:
-      context: .
+      context: ./backend
       args:
         MODULE: post-service
     healthcheck:
@@ -322,7 +322,7 @@ services:
     <<: *app
     image: ${IMAGE_REGISTRY:-educonnect}/gamification-service:${IMAGE_TAG:-local}
     build:
-      context: .
+      context: ./backend
       args:
         MODULE: gamification-service
     healthcheck:
@@ -333,7 +333,7 @@ services:
     <<: *app
     image: ${IMAGE_REGISTRY:-educonnect}/notification-service:${IMAGE_TAG:-local}
     build:
-      context: .
+      context: ./backend
       args:
         MODULE: notification-service
     healthcheck:
@@ -344,7 +344,7 @@ services:
     <<: *app
     image: ${IMAGE_REGISTRY:-educonnect}/llm-service:${IMAGE_TAG:-local}
     build:
-      context: .
+      context: ./backend
       args:
         MODULE: llm-service
     mem_limit: ${LLM_MEM_LIMIT:-1g}
@@ -367,14 +367,15 @@ services:
     environment:
       EDUCONNECT_DOMAIN: ${EDUCONNECT_DOMAIN:-localhost}
       EDUCONNECT_STORAGE_DOMAIN: ${EDUCONNECT_STORAGE_DOMAIN:-files.localhost}
+      EDUCONNECT_STORAGE_URL: ${EDUCONNECT_STORAGE_URL:-http://localhost:9000}
       EDUCONNECT_HSTS: ${EDUCONNECT_HSTS:-max-age=0}
     ports:
       - "${HTTP_PORT:-80}:80"
       - "${HTTPS_PORT:-443}:443"
       - "${HTTPS_PORT:-443}:443/udp"
     volumes:
-      - ./docker/caddy/Caddyfile:/etc/caddy/Caddyfile:ro
-      - ${FRONTEND_DIST:-./docker/caddy/site}:/srv/frontend:ro
+      - ./infra/caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - ${FRONTEND_DIST:-./infra/caddy/site}:/srv/frontend:ro
       - caddy-data:/data
       - caddy-config:/config
     depends_on:
@@ -402,8 +403,8 @@ services:
     ports:
       - "127.0.0.1:9090:9090"
     volumes:
-      - ./docker/observability/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
-      - ./docker/observability/prometheus/alerts.yml:/etc/prometheus/alerts.yml:ro
+      - ./infra/observability/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./infra/observability/prometheus/alerts.yml:/etc/prometheus/alerts.yml:ro
       - prometheus-data:/prometheus
     healthcheck:
       test: ["CMD", "wget", "-q", "--spider", "http://127.0.0.1:9090/-/healthy"]
@@ -428,8 +429,8 @@ services:
     ports:
       - "127.0.0.1:9093:9093"
     volumes:
-      - ./docker/observability/alertmanager/alertmanager.yml.tmpl:/etc/alertmanager/alertmanager.yml.tmpl:ro
-      - ./docker/observability/alertmanager/entrypoint.sh:/etc/alertmanager/entrypoint.sh:ro
+      - ./infra/observability/alertmanager/alertmanager.yml.tmpl:/etc/alertmanager/alertmanager.yml.tmpl:ro
+      - ./infra/observability/alertmanager/entrypoint.sh:/etc/alertmanager/entrypoint.sh:ro
       - alertmanager-data:/alertmanager
     healthcheck:
       test: ["CMD", "wget", "-q", "--spider", "http://127.0.0.1:9093/-/healthy"]
@@ -445,7 +446,7 @@ services:
     profiles: ["observability"]
     command: ["-config.file=/etc/loki/loki.yml"]
     volumes:
-      - ./docker/observability/loki/loki.yml:/etc/loki/loki.yml:ro
+      - ./infra/observability/loki/loki.yml:/etc/loki/loki.yml:ro
       - loki-data:/loki
     healthcheck:
       test: ["CMD", "wget", "-q", "--spider", "http://127.0.0.1:3100/ready"]
@@ -461,7 +462,7 @@ services:
     profiles: ["observability"]
     command: ["-config.file=/etc/tempo/tempo.yml"]
     volumes:
-      - ./docker/observability/tempo/tempo.yml:/etc/tempo/tempo.yml:ro
+      - ./infra/observability/tempo/tempo.yml:/etc/tempo/tempo.yml:ro
       - tempo-data:/var/tempo
     healthcheck:
       test: ["CMD", "wget", "-q", "--spider", "http://127.0.0.1:3200/ready"]
@@ -477,7 +478,7 @@ services:
     profiles: ["observability"]
     command: ["run", "--storage.path=/var/lib/alloy/data", "/etc/alloy/config.alloy"]
     volumes:
-      - ./docker/observability/alloy/config.alloy:/etc/alloy/config.alloy:ro
+      - ./infra/observability/alloy/config.alloy:/etc/alloy/config.alloy:ro
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - alloy-data:/var/lib/alloy/data
     depends_on:
@@ -500,8 +501,8 @@ services:
     ports:
       - "127.0.0.1:3000:3000"
     volumes:
-      - ./docker/observability/grafana/provisioning:/etc/grafana/provisioning:ro
-      - ./docker/observability/grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - ./infra/observability/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./infra/observability/grafana/dashboards:/var/lib/grafana/dashboards:ro
       - grafana-data:/var/lib/grafana
     depends_on:
       prometheus:

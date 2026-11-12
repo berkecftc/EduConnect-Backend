@@ -1,0 +1,42 @@
+package com.educonnect.postservice.repository;
+
+import com.educonnect.postservice.model.Post;
+import com.educonnect.postservice.model.PostStatus;
+import com.educonnect.postservice.model.PublisherType;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
+import org.springframework.stereotype.Repository;
+
+import java.time.Instant;
+import java.util.Collection;
+import java.util.List;
+import java.util.UUID;
+
+@Repository
+public interface PostRepository extends JpaRepository<Post, UUID>, JpaSpecificationExecutor<Post> {
+
+    /**
+     * Belirli statüdeki postları sayfalayarak döndürür.
+     * Sadece PUBLISHED olanları listelemek için kullanılır.
+     * Tek sorgu çalışır — N+1 riski yoktur.
+     */
+    Page<Post> findByStatus(PostStatus status, Pageable pageable);
+
+    List<Post> findTop5ByAuthorIdAndStatusAndPublisherTypeOrderByCreatedAtDesc(UUID authorId, PostStatus status, PublisherType publisherType);
+
+    Page<Post> findByAuthorId(UUID authorId, Pageable pageable);
+
+    /**
+     * Verilen post'un belirtilen yazara ait olup olmadığını kontrol eder.
+     * Service katmanında yetki doğrulaması için kullanılır.
+     */
+    boolean existsByIdAndAuthorId(UUID id, UUID authorId);
+
+    Page<Post> findByClubIdAndStatus(UUID clubId, PostStatus status, Pageable pageable);
+
+    List<Post> findByStatusAndSubmittedAtBefore(PostStatus status, Instant cutoff);
+
+    Page<Post> findByStatusIn(Collection<PostStatus> statuses, Pageable pageable);
+}

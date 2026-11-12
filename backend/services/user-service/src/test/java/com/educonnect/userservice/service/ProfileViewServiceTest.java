@@ -1,0 +1,259 @@
+package com.educonnect.userservice.service;
+
+import com.educonnect.common.web.NotFoundException;
+import com.educonnect.userservice.client.ClubRelationClient;
+import com.educonnect.userservice.client.CourseRelationClient;
+import com.educonnect.userservice.dto.response.UserProfileResponse;
+import com.educonnect.userservice.dto.response.BadgeInfoDTO;
+import com.educonnect.userservice.dto.response.GamificationSummaryDTO;
+import com.educonnect.userservice.dto.response.UserProfileResponseDTO;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.web.server.ResponseStatusException;
+
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.UUID;
+import java.util.stream.IntStream;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.Mockito.verifyNoInteractions;
+import static org.mockito.Mockito.when;
+
+@ExtendWith(MockitoExtension.class)
+class ProfileViewServiceTest {
+
+    private final UUID ownerId = UUID.randomUUID();
+
+    @Mock
+    private ProfileService profileService;
+
+    @Mock
+    private ProfileAggregationService profileAggregationService;
+
+    @Mock
+    private CourseRelationClient courseRelationClient;
+
+    @Mock
+    private ClubRelationClient clubRelationClient;
+
+    @InjectMocks
+    private ProfileViewService profileViewService;
+
+    private UserProfileResponse cachedProfile;
+
+    @BeforeEach
+    void setUp() {
+        cachedProfile = new UserProfileResponse();
+        cachedProfile.setId(ownerId);
+        cachedProfile.setFirstName("Ayşe");
+        cachedProfile.setEmail("ayse@example.edu");
+        cachedProfile.setStudentNumber("2020001");
+    }
+
+    @Test
+    void getProfile_whenViewerIsOwner_shouldIncludeEmail() {
+        when(profileService.getUserProfile(ownerId)).thenReturn(cachedProfile);
+
+        UserProfileResponse result = profileViewService.getProfile(ownerId, ownerId, "ROLE_STUDENT");
+
+        assertThat(result.getEmail()).isEqualTo("ayse@example.edu");
+    }
+
+    @Test
+    void getProfile_whenViewerIsAdmin_shouldIncludeEmail() {
+        when(profileService.getUserProfile(ownerId)).thenReturn(cachedProfile);
+
+        UserProfileResponse result = profileViewService.getProfile(ownerId, UUID.randomUUID(), "ROLE_ADMIN");
+
+        assertThat(result.getEmail()).isEqualTo("ayse@example.edu");
+    }
+
+    @Test
+    void getProfile_whenViewerIsSomeoneElse_shouldHideEmailWithoutTouchingCachedProfile() {
+        when(profileService.getUserProfile(ownerId)).thenReturn(cachedProfile);
+
+        UserProfileResponse result = profileViewService.getProfile(ownerId, UUID.randomUUID(), "ROLE_STUDENT,ROLE_CLUB_OFFICIAL");
+
+        assertThat(result.getEmail()).isNull();
+        assertThat(result.getFirstName()).isEqualTo("Ayşe");
+        assertThat(result.getStudentNumber()).isNull();
+        assertThat(cachedProfile.getEmail()).isEqualTo("ayse@example.edu");
+        assertThat(cachedProfile.getStudentNumber()).isEqualTo("2020001");
+    }
+
+    @Test
+    void getProfile_relatedTeachersClubManagersAndStaffSeeStudentContact() {
+        when(profileService.getUserProfile(ownerId)).thenReturn(cachedProfile);
+        UUID teacher = UUID.randomUUID();
+        UUID clubPresident = UUID.randomUUID();
+        when(courseRelationClient.teachesStudent(teacher, ownerId)).thenReturn(Map.of("related", true));
+        when(courseRelationClient.teachesStudent(clubPresident, ownerId)).thenReturn(Map.of("related", false));
+        when(clubRelationClient.managesStudent(clubPresident, ownerId)).thenReturn(Map.of("related", true));
+
+        assertThat(profileViewService.getProfile(ownerId, teacher, "ROLE_ACADEMICIAN").getStudentNumber()).isEqualTo("2020001");
+        assertThat(profileViewService.getProfile(ownerId, clubPresident, "ROLE_STUDENT").getEmail()).isEqualTo("ayse@example.edu");
+        assertThat(profileViewService.getProfile(ownerId, UUID.randomUUID(), "ROLE_STAFF,PERM_MODERATOR").getStudentNumber()).isEqualTo("2020001");
+    }
+
+    @Test
+    void getProfile_relationLookupFailureKeepsContactHidden() {
+        when(profileService.getUserProfile(ownerId)).thenReturn(cachedProfile);
+        UUID viewer = UUID.randomUUID();
+        when(courseRelationClient.teachesStudent(viewer, ownerId)).thenThrow(new IllegalStateException("course-service down"));
+        when(clubRelationClient.managesStudent(viewer, ownerId)).thenThrow(new IllegalStateException("club-service down"));
+
+        UserProfileResponse result = profileViewService.getProfile(ownerId, viewer, "ROLE_ACADEMICIAN");
+
+        assertThat(result.getEmail()).isNull();
+        assertThat(result.getStudentNumber()).isNull();
+    }
+
+    @Test
+    void getProfile_staffContactIsPublic() {
+        UserProfileResponse staff = new UserProfileResponse();
+        staff.setId(ownerId);
+        staff.setEmail("hoca@uni.edu.tr");
+        staff.setOfficeHours("Salı 10-12");
+        staff.setAffiliations(List.of(ProfileService.ACADEMICIAN_AFFILIATION));
+        when(profileService.getUserProfile(ownerId)).thenReturn(staff);
+
+        UserProfileResponse result = profileViewService.getProfile(ownerId, UUID.randomUUID(), "ROLE_STUDENT");
+
+        assertThat(result.getEmail()).isEqualTo("hoca@uni.edu.tr");
+        assertThat(result.getOfficeHours()).isEqualTo("Salı 10-12");
+    }
+
+    @Test
+    void getProfile_whenAnonymous_shouldHideEmail() {
+        when(profileService.getUserProfile(ownerId)).thenReturn(cachedProfile);
+
+        UserProfileResponse result = profileViewService.getProfile(ownerId, null, null);
+
+        assertThat(result.getEmail()).isNull();
+    }
+
+    @Test
+    void getAggregatedProfile_whenViewerIsSomeoneElse_shouldHideEmail() {
+        UserProfileResponseDTO aggregated = new UserProfileResponseDTO();
+        aggregated.setEmail("ayse@example.edu");
+        when(profileService.getUserProfile(ownerId)).thenReturn(cachedProfile);
+        when(profileAggregationService.getAggregatedUserProfile(ownerId)).thenReturn(aggregated);
+
+        UserProfileResponseDTO result = profileViewService.getAggregatedProfile(ownerId, UUID.randomUUID(), "ROLE_ACADEMICIAN");
+
+        assertThat(result.getEmail()).isNull();
+    }
+
+    @Test
+    void getAggregatedProfile_showsTheContributionStreakOnlyToItsOwner() {
+        when(profileService.getUserProfile(ownerId)).thenReturn(cachedProfile);
+        when(profileAggregationService.getAggregatedUserProfile(ownerId)).thenAnswer(invocation -> {
+            UserProfileResponseDTO aggregated = new UserProfileResponseDTO();
+            GamificationSummaryDTO gamification = new GamificationSummaryDTO();
+            gamification.setTotalPoints(40);
+            gamification.setLeaderboardVisible(true);
+            gamification.setCurrentStreak(3);
+            gamification.setHighestStreak(5);
+            aggregated.setGamification(gamification);
+            return aggregated;
+        });
+
+        UserProfileResponseDTO forOthers = profileViewService.getAggregatedProfile(ownerId, UUID.randomUUID(), "ROLE_STUDENT");
+        UserProfileResponseDTO forOwner = profileViewService.getAggregatedProfile(ownerId, ownerId, "ROLE_STUDENT");
+
+        assertThat(forOthers.getGamification().getTotalPoints()).isEqualTo(40);
+        assertThat(forOthers.getGamification().getCurrentStreak()).isNull();
+        assertThat(forOthers.getGamification().getHighestStreak()).isNull();
+        assertThat(forOwner.getGamification().getCurrentStreak()).isEqualTo(3);
+    }
+
+    @Test
+    void getAggregatedProfile_hidesPointsAndBadgesFromOthersWhenTheOwnerLeftTheLeaderboard() {
+        when(profileService.getUserProfile(ownerId)).thenReturn(cachedProfile);
+        when(profileAggregationService.getAggregatedUserProfile(ownerId)).thenAnswer(invocation -> {
+            UserProfileResponseDTO aggregated = new UserProfileResponseDTO();
+            GamificationSummaryDTO gamification = new GamificationSummaryDTO();
+            gamification.setTotalPoints(40);
+            gamification.setLeaderboardVisible(false);
+            gamification.setBadges(List.of(new BadgeInfoDTO()));
+            aggregated.setGamification(gamification);
+            return aggregated;
+        });
+
+        UserProfileResponseDTO forOthers = profileViewService.getAggregatedProfile(ownerId, UUID.randomUUID(), "ROLE_STUDENT");
+        UserProfileResponseDTO forOwner = profileViewService.getAggregatedProfile(ownerId, ownerId, "ROLE_STUDENT");
+        UserProfileResponseDTO forAdmin = profileViewService.getAggregatedProfile(ownerId, UUID.randomUUID(), "ROLE_ADMIN");
+
+        assertThat(forOthers.getGamification().getTotalPoints()).isNull();
+        assertThat(forOthers.getGamification().getBadges()).isEmpty();
+        assertThat(forOwner.getGamification().getTotalPoints()).isEqualTo(40);
+        assertThat(forOwner.getGamification().getBadges()).hasSize(1);
+        assertThat(forAdmin.getGamification().getTotalPoints()).isEqualTo(40);
+    }
+
+    @Test
+    void getProfile_studentStatusFollowsTheContactRules() {
+        cachedProfile.setStudentStatus("ON_LEAVE");
+        when(profileService.getUserProfile(ownerId)).thenReturn(cachedProfile);
+        UUID teacher = UUID.randomUUID();
+        UUID stranger = UUID.randomUUID();
+        when(courseRelationClient.teachesStudent(teacher, ownerId)).thenReturn(Map.of("related", true));
+        when(courseRelationClient.teachesStudent(stranger, ownerId)).thenReturn(Map.of("related", false));
+        when(clubRelationClient.managesStudent(stranger, ownerId)).thenReturn(Map.of("related", false));
+
+        assertThat(profileViewService.getProfile(ownerId, ownerId, "ROLE_STUDENT").getStudentStatus()).isEqualTo("ON_LEAVE");
+        assertThat(profileViewService.getProfile(ownerId, teacher, "ROLE_ACADEMICIAN").getStudentStatus()).isEqualTo("ON_LEAVE");
+        assertThat(profileViewService.getProfile(ownerId, stranger, "ROLE_STUDENT").getStudentStatus()).isNull();
+        assertThat(profileViewService.getProfile(ownerId, null, null).getStudentStatus()).isNull();
+        assertThat(cachedProfile.getStudentStatus()).isEqualTo("ON_LEAVE");
+    }
+
+    @Test
+    void getProfile_whenProfileMissing_shouldReturnNotFound() {
+        when(profileService.getUserProfile(ownerId)).thenThrow(new NotFoundException("PROFILE_NOT_FOUND", "Profile not found"));
+
+        assertThatThrownBy(() -> profileViewService.getProfile(ownerId, ownerId, null))
+                .isInstanceOf(ResponseStatusException.class)
+                .hasMessageContaining("404");
+    }
+
+    @Test
+    void getProfileForService_shouldReturnFullProfile() {
+        when(profileService.getUserProfile(ownerId)).thenReturn(cachedProfile);
+
+        assertThat(profileViewService.getProfileForService(ownerId).getEmail()).isEqualTo("ayse@example.edu");
+    }
+
+    @Test
+    void getProfilesForService_whenIdsEmpty_shouldNotQuery() {
+        assertThat(profileViewService.getProfilesForService(List.of())).isEmpty();
+        verifyNoInteractions(profileService);
+    }
+
+    @Test
+    void getProfilesForService_shouldDeduplicateIds() {
+        when(profileService.getUserProfiles(Set.of(ownerId))).thenReturn(List.of(cachedProfile));
+
+        assertThat(profileViewService.getProfilesForService(List.of(ownerId, ownerId)))
+                .singleElement()
+                .satisfies(profile -> assertThat(profile.getEmail()).isEqualTo("ayse@example.edu"));
+    }
+
+    @Test
+    void getProfilesForService_whenTooManyIds_shouldReject() {
+        List<UUID> ids = IntStream.range(0, ProfileViewService.MAX_BATCH_SIZE + 1)
+                .mapToObj(i -> UUID.randomUUID())
+                .toList();
+
+        assertThatThrownBy(() -> profileViewService.getProfilesForService(ids))
+                .isInstanceOf(ResponseStatusException.class);
+        verifyNoInteractions(profileService);
+    }
+}

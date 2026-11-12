@@ -1,0 +1,62 @@
+package com.educonnect.eventservice.dto;
+
+import java.time.Instant;
+import java.time.LocalDateTime;
+import java.util.UUID;
+
+public class MyEventRegistrationDTO {
+    private UUID eventId;
+    private String eventTitle;
+    private String eventDescription;
+    private LocalDateTime eventDate;
+    private String eventLocation;
+    private String qrCode;
+    private Instant registrationTime;
+    private boolean attended;
+    private String registrationStatus;
+    private String eventStatus;
+    private LocalDateTime endsAt;
+    private String cancellationReason;
+    private LocalDateTime checkInOpensAt;
+
+    public MyEventRegistrationDTO() {}
+
+    // Getters and Setters
+    public LocalDateTime getCheckInOpensAt() { return checkInOpensAt; }
+    public void setCheckInOpensAt(LocalDateTime checkInOpensAt) { this.checkInOpensAt = checkInOpensAt; }
+
+    public LocalDateTime getEndsAt() { return endsAt; }
+    public void setEndsAt(LocalDateTime endsAt) { this.endsAt = endsAt; }
+
+    public String getCancellationReason() { return cancellationReason; }
+    public void setCancellationReason(String cancellationReason) { this.cancellationReason = cancellationReason; }
+
+    public UUID getEventId() { return eventId; }
+    public void setEventId(UUID eventId) { this.eventId = eventId; }
+
+    public String getEventTitle() { return eventTitle; }
+    public void setEventTitle(String eventTitle) { this.eventTitle = eventTitle; }
+
+    public String getEventDescription() { return eventDescription; }
+    public void setEventDescription(String eventDescription) { this.eventDescription = eventDescription; }
+
+    public LocalDateTime getEventDate() { return eventDate; }
+    public void setEventDate(LocalDateTime eventDate) { this.eventDate = eventDate; }
+
+    public String getEventLocation() { return eventLocation; }
+    public void setEventLocation(String eventLocation) { this.eventLocation = eventLocation; }
+
+    public String getQrCode() { return qrCode; }
+    public void setQrCode(String qrCode) { this.qrCode = qrCode; }
+
+    public Instant getRegistrationTime() { return registrationTime; }
+    public void setRegistrationTime(Instant registrationTime) { this.registrationTime = registrationTime; }
+
+    public boolean isAttended() { return attended; }
+    public void setAttended(boolean attended) { this.attended = attended; }
+
+    public String getRegistrationStatus() { return registrationStatus; }
+    public void setRegistrationStatus(String registrationStatus) { this.registrationStatus = registrationStatus; }
+    public String getEventStatus() { return eventStatus; }
+    public void setEventStatus(String eventStatus) { this.eventStatus = eventStatus; }
+}

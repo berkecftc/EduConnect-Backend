@@ -1,0 +1,42 @@
+(security_headers) {
+	header {
+		Strict-Transport-Security "{$EDUCONNECT_HSTS:max-age=0}"
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "DENY"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		Permissions-Policy "camera=(self), microphone=(), geolocation=()"
+		-Server
+	}
+}
+
+{$EDUCONNECT_DOMAIN:localhost} {
+	import security_headers
+	header Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: {$EDUCONNECT_STORAGE_URL:http://localhost:9000}; font-src 'self' data:; connect-src 'self' {$EDUCONNECT_STORAGE_URL:http://localhost:9000}; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"
+	encode zstd gzip
+
+	request_body {
+		max_size 25MB
+	}
+
+	handle /api/* {
+		reverse_proxy api-gateway:8080 {
+			flush_interval -1
+		}
+	}
+
+	handle {
+		root * /srv/frontend
+		try_files {path} /index.html
+		file_server
+	}
+}
+
+{$EDUCONNECT_STORAGE_DOMAIN:files.localhost} {
+	import security_headers
+
+	request_body {
+		max_size 25MB
+	}
+
+	reverse_proxy minio:9000
+}
