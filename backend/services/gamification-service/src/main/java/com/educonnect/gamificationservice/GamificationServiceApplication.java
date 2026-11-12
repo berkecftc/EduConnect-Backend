@@ -16,4 +16,3 @@ public class GamificationServiceApplication {
         SpringApplication.run(GamificationServiceApplication.class, args);
     }
 }
-

@@ -13,19 +13,19 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @EventIntegrationTest
 class EventServiceApplicationTests {
 
-	@Autowired
-	private Flyway flyway;
+    @Autowired
+    private Flyway flyway;
 
-	@Autowired
-	private MockMvc mockMvc;
+    @Autowired
+    private MockMvc mockMvc;
 
-	@Test
-	void startsOnAFreshDatabaseWithAllMigrationsApplied() throws Exception {
-		assertThat(flyway.info().pending()).isEmpty();
-		assertThat(flyway.info().applied()).isNotEmpty();
+    @Test
+    void startsOnAFreshDatabaseWithAllMigrationsApplied() throws Exception {
+        assertThat(flyway.info().pending()).isEmpty();
+        assertThat(flyway.info().applied()).isNotEmpty();
 
-		mockMvc.perform(get("/api/events"))
-				.andExpect(status().isOk())
-				.andExpect(jsonPath("$").isArray());
-	}
+        mockMvc.perform(get("/api/events"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$").isArray());
+    }
 }

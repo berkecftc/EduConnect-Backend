@@ -20,4 +20,3 @@ public interface GamificationClient {
     @GetMapping("/internal/users/{userId}/summary")
     GamificationSummaryClientResponse getUserSummary(@PathVariable("userId") UUID userId);
 }
-

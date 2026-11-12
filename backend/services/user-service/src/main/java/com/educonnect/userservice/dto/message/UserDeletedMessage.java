@@ -41,4 +41,3 @@ public class UserDeletedMessage {
         this.reason = reason;
     }
 }
-

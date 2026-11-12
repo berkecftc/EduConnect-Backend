@@ -39,4 +39,3 @@ public interface EnrollmentRepository extends JpaRepository<StudentCourseEnrollm
     // Öğrenci bu kursa aktif olarak kayıtlı mı
     boolean existsByCourseIdAndStudentIdAndIsActive(UUID courseId, UUID studentId, boolean isActive);
 }
-

@@ -128,4 +128,3 @@ public class UserProfileResponseDTO {
         this.recentPosts = recentPosts == null ? List.of() : recentPosts;
     }
 }
-

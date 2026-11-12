@@ -44,4 +44,3 @@ public class ProfileRemoteService {
         return List.of();
     }
 }
-

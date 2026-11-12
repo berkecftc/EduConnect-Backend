@@ -19,6 +19,6 @@ import java.lang.annotation.Target;
 @SpringBootTest
 @AutoConfigureMockMvc
 @Import({PostgresTestContainer.class, RabbitTestContainer.class, RedisTestContainer.class, MinioTestContainer.class,
-		TestJwtDecoder.class, FakeCourseService.class})
+        TestJwtDecoder.class, FakeCourseService.class})
 public @interface AssignmentIntegrationTest {
 }

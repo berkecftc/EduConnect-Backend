@@ -7,4 +7,3 @@ public record LikeResponse(
         boolean liked,
         long likeCount
 ) {}
-

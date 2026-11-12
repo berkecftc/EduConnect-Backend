@@ -27,6 +27,3 @@ public class PostClientFallbackFactory implements FallbackFactory<PostClient> {
         };
     }
 }
-
-
-

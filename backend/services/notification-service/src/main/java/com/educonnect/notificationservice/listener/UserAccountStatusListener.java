@@ -89,26 +89,26 @@ public class UserAccountStatusListener {
                     <div style="text-align: center; margin-bottom: 30px;">
                         <h1 style="color: #27ae60; margin: 0;">🎉 Hoş Geldiniz!</h1>
                     </div>
-                    
+
                     <p style="font-size: 16px;">Sayın <strong>%s %s</strong>,</p>
-                    
+
                     <p style="font-size: 16px;">
                         %s hesap başvurunuz <span style="color: #27ae60; font-weight: bold;">onaylanmıştır</span>.
                     </p>
-                    
+
                     <p style="font-size: 16px;">
                         Artık EduConnect platformuna giriş yapabilir ve tüm özelliklerden yararlanabilirsiniz.
                     </p>
-                    
+
                     <div style="text-align: center; margin: 30px 0;">
-                        <a href="https://educonnect.com/login" 
+                        <a href="https://educonnect.com/login"
                            style="background-color: #3498db; color: white; padding: 12px 30px; text-decoration: none; border-radius: 5px; font-size: 16px;">
                             Giriş Yap
                         </a>
                     </div>
-                    
+
                     <hr style="border: none; border-top: 1px solid #eee; margin: 30px 0;">
-                    
+
                     <p style="font-size: 14px; color: #888; text-align: center;">
                         EduConnect Ekibi<br>
                         <small>Bu e-posta otomatik olarak gönderilmiştir.</small>
@@ -143,21 +143,21 @@ public class UserAccountStatusListener {
                     <div style="text-align: center; margin-bottom: 30px;">
                         <h1 style="color: #e74c3c; margin: 0;">Başvuru Sonucu</h1>
                     </div>
-                    
+
                     <p style="font-size: 16px;">Sayın <strong>%s %s</strong>,</p>
-                    
+
                     <p style="font-size: 16px;">
                         %s hesap başvurunuz değerlendirilmiş ve maalesef <span style="color: #e74c3c; font-weight: bold;">reddedilmiştir</span>.
                     </p>
-                    
+
                     %s
-                    
+
                     <p style="font-size: 16px;">
                         Başvurunuzla ilgili sorularınız için destek ekibimizle iletişime geçebilirsiniz.
                     </p>
-                    
+
                     <hr style="border: none; border-top: 1px solid #eee; margin: 30px 0;">
-                    
+
                     <p style="font-size: 14px; color: #888; text-align: center;">
                         EduConnect Ekibi<br>
                         <small>Bu e-posta otomatik olarak gönderilmiştir.</small>
@@ -173,4 +173,3 @@ public class UserAccountStatusListener {
         );
     }
 }
-

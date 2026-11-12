@@ -42,4 +42,3 @@ public class RedisCacheConfig implements CachingConfigurer {
                 .build();
     }
 }
-

@@ -6,4 +6,3 @@ public enum GamificationActionType {
     DAILY_LOGIN,
     VALID_REPORT
 }
-

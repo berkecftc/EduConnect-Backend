@@ -15,30 +15,30 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @AuthIntegrationTest
 class AuthServicesApplicationTests {
 
-	@Autowired
-	private Flyway flyway;
+    @Autowired
+    private Flyway flyway;
 
-	@Autowired
-	private MockMvc mockMvc;
+    @Autowired
+    private MockMvc mockMvc;
 
-	@Autowired
-	private ApplicationContext context;
+    @Autowired
+    private ApplicationContext context;
 
-	@Test
-	void unqualifiedRestClientBuilderLookupsDoNotGetTheLoadBalancedBuilder() {
-		RestClient.Builder loadBalanced = context.getBean("internalRestClientBuilder", RestClient.Builder.class);
+    @Test
+    void unqualifiedRestClientBuilderLookupsDoNotGetTheLoadBalancedBuilder() {
+        RestClient.Builder loadBalanced = context.getBean("internalRestClientBuilder", RestClient.Builder.class);
 
-		assertThat(context.getBeanProvider(RestClient.Builder.class).getIfAvailable(RestClient::builder))
-				.isNotSameAs(loadBalanced);
-	}
+        assertThat(context.getBeanProvider(RestClient.Builder.class).getIfAvailable(RestClient::builder))
+                .isNotSameAs(loadBalanced);
+    }
 
-	@Test
-	void startsOnAFreshDatabaseWithAllMigrationsApplied() throws Exception {
-		assertThat(flyway.info().pending()).isEmpty();
-		assertThat(flyway.info().applied()).isNotEmpty();
+    @Test
+    void startsOnAFreshDatabaseWithAllMigrationsApplied() throws Exception {
+        assertThat(flyway.info().pending()).isEmpty();
+        assertThat(flyway.info().applied()).isNotEmpty();
 
-		mockMvc.perform(get("/.well-known/jwks.json"))
-				.andExpect(status().isOk())
-				.andExpect(jsonPath("$.keys[0].kty").value("RSA"));
-	}
+        mockMvc.perform(get("/.well-known/jwks.json"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.keys[0].kty").value("RSA"));
+    }
 }

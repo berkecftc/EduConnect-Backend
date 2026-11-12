@@ -6,4 +6,3 @@ package com.educonnect.postservice.dto;
 public record BookmarkResponse(
         boolean bookmarked
 ) {}
-

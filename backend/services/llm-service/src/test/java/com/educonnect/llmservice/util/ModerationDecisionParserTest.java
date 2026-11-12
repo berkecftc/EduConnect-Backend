@@ -24,4 +24,3 @@ class ModerationDecisionParserTest {
         assertTrue(ModerationDecisionParser.parse("UNKNOWN").isEmpty());
     }
 }
-

@@ -64,4 +64,3 @@ public class CreateRoleChangeRequestDTO {
     public ClubPosition getRequestedRole() { return requestedRole; }
     public void setRequestedRole(ClubPosition requestedRole) { this.requestedRole = requestedRole; }
 }
-

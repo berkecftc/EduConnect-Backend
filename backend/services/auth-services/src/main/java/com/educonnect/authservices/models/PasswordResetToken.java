@@ -84,4 +84,3 @@ public class PasswordResetToken {
         return Instant.now().isAfter(this.expiryDate);
     }
 }
-

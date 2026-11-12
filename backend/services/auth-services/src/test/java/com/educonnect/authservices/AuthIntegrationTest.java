@@ -17,6 +17,6 @@ import java.lang.annotation.Target;
 @SpringBootTest
 @AutoConfigureMockMvc
 @Import({PostgresTestContainer.class, RabbitTestContainer.class, MinioTestContainer.class,
-		AuthTestProperties.class})
+        AuthTestProperties.class})
 public @interface AuthIntegrationTest {
 }

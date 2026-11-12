@@ -12,4 +12,3 @@ public interface CourseAnnouncementRepository extends JpaRepository<CourseAnnoun
 
     List<CourseAnnouncement> findByCourseIdOrderByCreatedAtDesc(UUID courseId);
 }
-

@@ -8,4 +8,3 @@ public enum RoleChangeRequestStatus {
     APPROVED,   // Danışman onayladı
     REJECTED    // Danışman reddetti
 }
-

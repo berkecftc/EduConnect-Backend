@@ -13,4 +13,3 @@ public interface UserClient {
     @GetMapping("/profile/{userId}")
     UserSummaryDto getUserById(@PathVariable("userId") UUID userId);
 }
-

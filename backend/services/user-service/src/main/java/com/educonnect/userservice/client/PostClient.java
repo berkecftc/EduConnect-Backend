@@ -21,4 +21,3 @@ public interface PostClient {
     @GetMapping("/internal/users/{userId}/recent")
     List<RecentPostClientResponse> getRecentPosts(@PathVariable("userId") UUID userId);
 }
-

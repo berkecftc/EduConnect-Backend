@@ -27,4 +27,3 @@ public interface PostBookmarkRepository extends JpaRepository<PostBookmark, UUID
      */
     Page<PostBookmark> findByUserIdOrderByCreatedAtDesc(UUID userId, Pageable pageable);
 }
-

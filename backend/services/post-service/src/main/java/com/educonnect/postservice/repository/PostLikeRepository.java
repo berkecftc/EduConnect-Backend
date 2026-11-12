@@ -25,4 +25,3 @@ public interface PostLikeRepository extends JpaRepository<PostLike, UUID> {
      */
     long countByPostId(UUID postId);
 }
-

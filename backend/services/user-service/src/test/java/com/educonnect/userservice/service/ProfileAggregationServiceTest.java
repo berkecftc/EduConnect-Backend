@@ -60,5 +60,3 @@ class ProfileAggregationServiceTest {
         assertTrue(result.getRecentPosts().isEmpty());
     }
 }
-
-

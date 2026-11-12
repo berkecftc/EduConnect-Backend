@@ -11,4 +11,3 @@ public final class GamificationEventKeys {
     private GamificationEventKeys() {
     }
 }
-

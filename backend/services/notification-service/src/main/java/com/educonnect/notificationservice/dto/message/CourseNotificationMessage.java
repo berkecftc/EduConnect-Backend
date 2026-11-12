@@ -41,4 +41,3 @@ public class CourseNotificationMessage implements Serializable {
     public List<UUID> getEnrolledStudentIds() { return enrolledStudentIds; }
     public void setEnrolledStudentIds(List<UUID> enrolledStudentIds) { this.enrolledStudentIds = enrolledStudentIds; }
 }
-

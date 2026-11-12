@@ -53,4 +53,3 @@ public class GamificationEventMessage implements Serializable {
         this.occurredAt = occurredAt;
     }
 }
-

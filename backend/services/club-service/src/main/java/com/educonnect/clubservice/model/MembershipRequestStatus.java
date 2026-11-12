@@ -5,4 +5,3 @@ public enum MembershipRequestStatus {
     APPROVED,   // Onaylandı
     REJECTED    // Reddedildi
 }
-

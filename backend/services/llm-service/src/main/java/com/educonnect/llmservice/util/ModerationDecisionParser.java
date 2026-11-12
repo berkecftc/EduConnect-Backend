@@ -25,4 +25,3 @@ public final class ModerationDecisionParser {
         return Optional.empty();
     }
 }
-

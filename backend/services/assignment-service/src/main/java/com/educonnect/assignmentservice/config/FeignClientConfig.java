@@ -27,4 +27,3 @@ public class FeignClientConfig {
         return new Retryer.Default(100, 1000, 3);
     }
 }
-

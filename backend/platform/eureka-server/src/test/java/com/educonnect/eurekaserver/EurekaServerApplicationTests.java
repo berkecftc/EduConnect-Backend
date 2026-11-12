@@ -20,25 +20,25 @@ import static org.assertj.core.api.Assertions.assertThat;
 @AutoConfigureTestRestTemplate
 class EurekaServerApplicationTests {
 
-	@Autowired
-	private TestRestTemplate restTemplate;
+    @Autowired
+    private TestRestTemplate restTemplate;
 
-	@Test
-	void startsAndServesTheRegistryOnlyToAuthenticatedClients() {
-		ResponseEntity<String> health = restTemplate.getForEntity("/actuator/health", String.class);
-		assertThat(health.getStatusCode()).isEqualTo(HttpStatus.OK);
-		assertThat(health.getBody()).contains("\"status\":\"UP\"");
+    @Test
+    void startsAndServesTheRegistryOnlyToAuthenticatedClients() {
+        ResponseEntity<String> health = restTemplate.getForEntity("/actuator/health", String.class);
+        assertThat(health.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(health.getBody()).contains("\"status\":\"UP\"");
 
-		HttpHeaders headers = new HttpHeaders();
-		headers.setAccept(List.of(MediaType.APPLICATION_JSON));
-		HttpEntity<Void> request = new HttpEntity<>(headers);
+        HttpHeaders headers = new HttpHeaders();
+        headers.setAccept(List.of(MediaType.APPLICATION_JSON));
+        HttpEntity<Void> request = new HttpEntity<>(headers);
 
-		ResponseEntity<String> anonymous = restTemplate.exchange("/eureka/apps", HttpMethod.GET, request, String.class);
-		assertThat(anonymous.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
+        ResponseEntity<String> anonymous = restTemplate.exchange("/eureka/apps", HttpMethod.GET, request, String.class);
+        assertThat(anonymous.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
 
-		ResponseEntity<String> registry = restTemplate.withBasicAuth("integration", "integration-secret")
-				.exchange("/eureka/apps", HttpMethod.GET, request, String.class);
-		assertThat(registry.getStatusCode()).isEqualTo(HttpStatus.OK);
-		assertThat(registry.getBody()).contains("applications");
-	}
+        ResponseEntity<String> registry = restTemplate.withBasicAuth("integration", "integration-secret")
+                .exchange("/eureka/apps", HttpMethod.GET, request, String.class);
+        assertThat(registry.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(registry.getBody()).contains("applications");
+    }
 }

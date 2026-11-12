@@ -51,7 +51,3 @@ public interface UserClient {
         public void setRole(String role) { this.role = role; }
     }
 }
-
-
-
-
