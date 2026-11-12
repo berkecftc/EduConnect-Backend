@@ -43,7 +43,7 @@ group "default" {
 target "service" {
   name       = module
   matrix     = { module = MODULES }
-  context    = "."
+  context    = "backend"
   dockerfile = "Dockerfile"
   args       = { MODULE = module }
   attest     = ATTEST ? ["type=provenance,mode=max", "type=sbom"] : []

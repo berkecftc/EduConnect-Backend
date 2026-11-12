@@ -24,9 +24,14 @@ Bu depo EduConnect'in tamamını tutar; arayüz de buradadır.
 
 | Yol | İçerik |
 |---|---|
-| kök (`pom.xml`, `*-service/`, `common-*/`) | Backend: Spring Boot mikroservisleri ve ortak modüller |
+| `backend/` | Backend: Maven çok modüllü proje (`pom.xml`, `mvnw`, `Dockerfile`) |
+| `backend/libs/` | Ortak kütüphaneler (`common-*`) |
+| `backend/platform/` | Altyapı servisleri: Config Server, Eureka, API Gateway |
+| `backend/services/` | İş servisleri: auth, user, course, assignment, event, club, notification, post, gamification, llm |
 | [`frontend/`](frontend/README.md) | Web arayüzü: React, TypeScript, Vite |
-| `docker/`, `docker-compose.yml` | Yerel ortam: veritabanı, kuyruk, depolama, Caddy, gözlem araçları |
+| `infra/` | Yerel ortam dosyaları: Caddy, gözlem araçları, veritabanı başlangıcı, örnek veri, yedekleme betikleri |
+| `docker-compose.yml`, `docker-bake.hcl` | Yerel yığın ve servis imajlarının derlenmesi |
+| `docs/` | API konvansiyonları |
 | `.github/` | CI (backend ve frontend), güvenlik taramaları, Dependabot |
 
 Servis ayarları ayrı ve özel bir depoda durur: [`educonnect-config-repo`](https://github.com/berkecftc/educonnect-config-repo). Config Server bu depoyu `CONFIG_GIT_USERNAME` ve `CONFIG_GIT_TOKEN` ile okur (`.env.example`). Gizli değerler içerdiği için bu depoya taşınmadı.
@@ -304,6 +309,8 @@ git clone https://github.com/[username]/EduConnect-Backend.git
 cd EduConnect-Backend
 ```
 
+Maven komutları `backend/` klasöründen çalıştırılır; `docker compose` komutları depo kökünden.
+
 ### 2️⃣ Docker Altyapısını Başlatın
 
 ```bash
@@ -347,24 +354,23 @@ docker exec ollama ollama pull nomic-embed-text
 **Option B: Terminal'den**
 
 ```bash
-# Tüm servisleri arka planda başlat
+cd backend
+
+# Tüm modülleri derle
 ./mvnw clean install
 
 # Config Server (gereklidir, önce başlat)
-cd config-server
-../mvnw spring-boot:run &
+./mvnw -pl platform/config-server spring-boot:run &
 
 # Eureka Server
-cd ../eureka-server
-../mvnw spring-boot:run &
+./mvnw -pl platform/eureka-server spring-boot:run &
 
 # API Gateway
-cd ../api-gateway
-../mvnw spring-boot:run &
+./mvnw -pl platform/api-gateway spring-boot:run &
 
 # Diğer servisler (paralel başlatabilirsiniz)
-cd ../auth-services && ../mvnw spring-boot:run &
-cd ../user-service && ../mvnw spring-boot:run &
+./mvnw -pl services/auth-services spring-boot:run &
+./mvnw -pl services/user-service spring-boot:run &
 # ... vesaire
 ```
 
@@ -459,7 +465,7 @@ EduConnect, **Spring Cloud Config Server** kullanarak tüm servislerin yapıland
 
 ### Config Server Yapılandırması
 
-**config-server/src/main/resources/application.yml**:
+**backend/platform/config-server/src/main/resources/application.yml**:
 
 ```yaml
 server:
@@ -490,7 +496,7 @@ eureka:
 
 Her servis, **bootstrap aşamasında** Config Server'dan yapılandırmasını çeker:
 
-**auth-services/src/main/resources/application.yml**:
+**backend/services/auth-services/src/main/resources/application.yml**:
 ```yaml
 spring:
   config:
@@ -765,119 +771,57 @@ Veya IDE'den (IntelliJ IDEA):
 ## 📂 Proje Yapısı
 
 ```
-EduConnect-Backend/ (Maven Multi-Module)
+EduConnect/
 │
-├── config-server/               # Merkezi yapılandırma sunucusu (port 8888)
-│   ├── src/main/java/.../
-│   └── pom.xml
+├── backend/                         # Maven çok modüllü proje
+│   ├── pom.xml                      # Ana POM (20 modül)
+│   ├── mvnw, .mvn/                  # Maven Wrapper
+│   ├── Dockerfile                   # Tüm servisler için ortak imaj tarifi
+│   ├── spotbugs-exclude.xml
+│   │
+│   ├── libs/                        # Ortak kütüphaneler
+│   │   ├── common-security/         # Kimlik başlıkları, servis token'ı, denetim logu
+│   │   ├── common-web/              # Problem hata gövdeleri, OpenAPI
+│   │   ├── common-messaging/        # RabbitMQ, outbox, dead-letter kuyrukları
+│   │   ├── common-storage/          # MinIO, yükleme doğrulama
+│   │   ├── common-resilience/       # Feign devre kesici
+│   │   ├── common-observability/    # Metrik ve iz ayarları
+│   │   └── common-test/             # Testcontainers ve test yardımcıları
+│   │
+│   ├── platform/                    # Altyapı servisleri
+│   │   ├── config-server/           # Merkezi yapılandırma (8888)
+│   │   ├── eureka-server/           # Servis kaydı (8761)
+│   │   └── api-gateway/             # Reaktif API geçidi (8080)
+│   │
+│   └── services/                    # İş servisleri
+│       ├── auth-services/           # Kimlik doğrulama (8081)
+│       ├── user-service/            # Profil (8082)
+│       ├── course-service/          # Dersler (8083)
+│       ├── assignment-service/      # Ödevler (8084)
+│       ├── event-service/           # Etkinlikler, QR bilet (8085)
+│       ├── club-service/            # Kulüpler (8086)
+│       ├── post-service/            # Sosyal akış (8087)
+│       ├── notification-service/    # Bildirimler (8088)
+│       ├── gamification-service/    # Puan ve rozetler (8089)
+│       └── llm-service/             # Yapay zekâ asistanı (8090)
 │
-├── eureka-server/               # Servis kayıt sunucusu (port 8761)
-│   ├── src/main/java/.../
-│   └── pom.xml
+├── frontend/                        # React + TypeScript + Vite arayüzü
 │
-├── api-gateway/                 # Reaktif API geçidi (port 8080)
-│   ├── src/main/java/.../
-│   │   ├── config/           # CORS, JWT filter konfigürasyonu
-│   │   └── filter/           # AuthenticationFilter
-│   └── pom.xml
+├── infra/                           # Yerel ortam dosyaları
+│   ├── caddy/                       # Ters vekil ve CSP
+│   ├── observability/               # Prometheus, Alertmanager, Loki, Tempo, Alloy, Grafana
+│   ├── postgres-init/               # Servis başına veritabanı oluşturma
+│   ├── dev-seed/                    # Geliştirme örnek verisi
+│   └── scripts/                     # Yedekleme, geri yükleme, örnek veri betikleri
 │
-├── auth-services/               # Kimlik doğrulama servisi (port 8081)
-│   ├── src/main/java/.../
-│   │   ├── controller/       # 16+ endpoint
-│   │   ├── service/          # JWT, şifre, rol yönetimi
-│   │   ├── entity/           # User, RefreshToken, StudentRequest vb.
-│   │   └── repository/       # JPA repositories
-│   ├── src/main/resources/
-│   │   ├── application.yml
-│   │   └── db/migration/     # Flyway SQL (3 migration)
-│   └── pom.xml
+├── docs/
+│   └── API-KONVANSIYONLARI.md       # API sözleşme kuralları
 │
-├── user-service/                # Profil yönetimi servisi (port 8082)
-│   ├── src/main/java/.../
-│   │   ├── controller/       # Profil CRUD, agregasyon
-│   │   ├── service/          # API Composition (Feign)
-│   │   ├── dto/              # DTO'lar
-│   │   └── client/           # GamificationClient, PostClient
-│   ├── src/main/resources/
-│   │   └── application.yml
-│   └── pom.xml
-│
-├── course-service/              # Kurs yönetimi servisi (port 8083)
-│   ├── src/main/java/.../
-│   │   ├── controller/       # 20+ endpoint (kayıt, duyuru)
-│   │   ├── service/          # Kurs CRUD, başvuru işleme
-│   │   └── entity/           # Course, StudentEnrollment, Announcement
-│   └── pom.xml
-│
-├── assignment-service/          # Ödev servisi (port 8084)
-│   ├── src/main/java/.../
-│   │   ├── controller/       # Ödev, teslim, notlandırma
-│   │   ├── service/          # İş mantığı
-│   │   └── listener/         # CourseEventListener (RabbitMQ)
-│   └── pom.xml
-│
-├── event-service/               # Etkinlik servisi (port 8085)
-│   ├── src/main/java/.../
-│   │   ├── controller/       # Event, advisor, registration
-│   │   ├── service/          # QR kod, bilet yönetimi
-│   │   └── util/             # ZXing QR kod generator
-│   └── pom.xml
-│
-├── club-service/                # Kulüp yönetimi servisi (port 8086)
-│   ├── src/main/java/.../
-│   │   ├── controller/       # 25+ endpoint
-│   │   ├── service/          # Kulüp, üyelik, yönetim kurulu
-│   │   └── entity/           # Club, ClubMembership, RoleChangeRequest
-│   └── pom.xml
-│
-├── post-service/                # Sosyal akış servisi (port 8087)
-│   ├── src/main/java/.../
-│   │   ├── controller/       # Post, Comment, Like, Bookmark
-│   │   ├── service/          # İçerik, beğeni, yorum
-│   │   └── listener/         # PostModerationConsumer (RabbitMQ)
-│   ├── src/main/resources/
-│   │   └── db/migration/     # Flyway (4 migration)
-│   └── pom.xml
-│
-├── notification-service/        # Bildirim servisi (port 8088)
-│   ├── src/main/java/.../
-│   │   ├── listener/         # 6 Event listener (RabbitMQ)
-│   │   └── service/          # Email service, template
-│   └── pom.xml
-│
-├── gamification-service/        # Oyunlaştırma servisi (port 8089)
-│   ├── src/main/java/.../
-│   │   ├── controller/       # Liderboard, gamification
-│   │   ├── service/          # Puan, rozet, seri yönetimi
-│   │   ├── listener/         # GamificationEventListener (RabbitMQ)
-│   │   └── entity/           # UserReputation, PointHistory, UserBadge
-│   ├── src/main/resources/
-│   │   └── db/migration/     # Flyway (10 migration!)
-│   └── pom.xml
-│
-├── llm-service/                 # AI servisi (port 8090)
-│   ├── src/main/java/.../
-│   │   ├── controller/       # 3 endpoint (student-asst, instructor-copilot, agent)
-│   │   ├── service/          │
-│   │   │   ├── StudentAssistantService
-│   │   │   ├── InstructorCopilotService
-│   │   │   ├── ClubRecommendationService (RAG)
-│   │   │   ├── UnifiedAgentService (akışlı)
-│   │   │   ├── AiModerationService (moderasyon)
-│   │   │   └── SemanticCacheService (Redis VectorStore)
-│   │   ├── ingestion/        # ClubIngestionService (startup)
-│   │   ├── client/           # Feign clients (course, assignment, post)
-│   │   └── util/             # Türkçe stopword, intent tespiti
-│   ├── src/main/resources/
-│   │   └── application.yml   # Ollama konfigürasyonu
-│   └── pom.xml
-│
-├── docker-compose.yml           # Konteynerleştirilmiş altyapı
-├── pom.xml                      # Ana Maven POM (multi-module, 13 modül)
-├── .github/                     # GitHub Actions (CI/CD template)
-├── PROJE_RAPORU.md             # Detaylı akademik rapor (Türkçe)
-├── TEKNIK_RAPOR.md             # Teknik detaylar (Türkçe)
-└── README.md                    # Bu dosya
+├── .github/                         # CI, güvenlik taramaları, Dependabot
+├── docker-compose.yml               # Yerel yığın
+├── docker-bake.hcl                  # Servis imajlarını derleme
+├── .env.example
+└── README.md
 ```
 
 ---
@@ -1886,8 +1830,8 @@ onComplete() → Redis'e yaz:
 
 1. **Scaffold Oluşturma**
    ```bash
-   mkdir new-service
-   touch new-service/pom.xml
+   mkdir backend/services/new-service
+   touch backend/services/new-service/pom.xml
    ```
 
 2. **pom.xml Yapısı**
@@ -1896,6 +1840,7 @@ onComplete() → Redis'e yaz:
        <groupId>com.educonnect</groupId>
        <artifactId>educonnect-parent</artifactId>
        <version>1.0.0-SNAPSHOT</version>
+       <relativePath>../../pom.xml</relativePath>
    </parent>
    <artifactId>new-service</artifactId>
 
@@ -1955,11 +1900,11 @@ onComplete() → Redis'e yaz:
      port: 8091
    ```
 
-5. **Parent pom.xml'e Ekle**
+5. **`backend/pom.xml`'e Ekle**
    ```xml
    <modules>
        ...
-       <module>new-service</module>
+       <module>services/new-service</module>
    </modules>
    ```
 
